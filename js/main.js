@@ -12,19 +12,94 @@ function updateNav() {
 window.addEventListener('scroll', updateNav, { passive: true });
 updateNav();
 
+function goHome() { location.href = 'index.html'; }
+
+/* ── REACH OUT MODAL ── */
+let _submitBtnHTML = null;
+
 function openModal() {
   document.getElementById('modal').classList.add('open');
   document.body.style.overflow = 'hidden';
+  if (!_submitBtnHTML) _submitBtnHTML = document.querySelector('.fsub').innerHTML;
 }
+
 function closeModal() {
   document.getElementById('modal').classList.remove('open');
   document.body.style.overflow = '';
-}
-function submitForm() {
-  document.getElementById('mform').style.display = 'none';
-  document.getElementById('mok').style.display = 'block';
+  const mform = document.getElementById('mform');
+  const mok   = document.getElementById('mok');
+  const btn   = document.querySelector('.fsub');
+  const err   = document.getElementById('form-error');
+  mform.querySelectorAll('input, select, textarea').forEach(el => { el.value = ''; });
+  mform.style.display = '';
+  mok.style.display   = 'none';
+  if (btn && _submitBtnHTML) { btn.innerHTML = _submitBtnHTML; btn.disabled = false; }
+  if (err) err.textContent = '';
 }
 
+/* ── FORM SUBMISSION ─────────────────────────────────────────
+   Powered by Formspree (free tier: 50 submissions/month).
+   Steps to activate:
+     1. Sign up at https://formspree.io
+     2. Create a new form — you'll receive a short ID like 'xpwqjnkb'
+     3. Replace 'YOUR_FORM_ID' below with that ID.
+─────────────────────────────────────────────────────────────── */
+const FORMSPREE_ID = 'YOUR_FORM_ID';
+
+function showFormError(msg) {
+  let el = document.getElementById('form-error');
+  if (!el) {
+    el = document.createElement('p');
+    el.id = 'form-error';
+    el.style.cssText = 'color:#b02828;font-size:13px;margin-top:10px;';
+    document.querySelector('.fsub').insertAdjacentElement('afterend', el);
+  }
+  el.textContent = msg;
+}
+
+async function submitForm() {
+  const fname = document.querySelector('input[name="fname"]').value.trim();
+  const email = document.querySelector('input[name="email"]').value.trim();
+
+  if (!fname) { showFormError('Please enter your first name.'); return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showFormError('Please enter a valid email address.');
+    return;
+  }
+
+  const lname   = document.querySelector('input[name="lname"]').value.trim();
+  const reason  = document.querySelector('select[name="reason"]').value;
+  const message = document.querySelector('textarea[name="message"]').value.trim();
+  const btn     = document.querySelector('.fsub');
+
+  btn.disabled  = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    const resp = await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        name: [fname, lname].filter(Boolean).join(' '),
+        email,
+        reason,
+        message,
+      }),
+    });
+    if (resp.ok) {
+      document.getElementById('mform').style.display = 'none';
+      document.getElementById('mok').style.display   = 'block';
+    } else {
+      throw new Error('server');
+    }
+  } catch {
+    btn.disabled = false;
+    if (_submitBtnHTML) btn.innerHTML = _submitBtnHTML;
+    showFormError('Something went wrong — please email reachout@chereemcgarry.com directly.');
+  }
+}
+
+/* ── INFO MODAL ── */
 const infoContent = {
   privacy: {
     lbl: 'Your Privacy', title: 'Privacy Policy',
@@ -41,7 +116,7 @@ const infoContent = {
     <div class="ci-table">
       <div class="ci-row ci-row-head"><span>Notice given</span><span>Fee applicable</span></div>
       <div class="ci-row"><span>48 hours or more</span><span class="ci-tag ci-tag-green">No fee</span></div>
-      <div class="ci-row"><span>24\u201348 hours</span><span class="ci-tag ci-tag-amber">50% of fee</span></div>
+      <div class="ci-row"><span>24–48 hours</span><span class="ci-tag ci-tag-amber">50% of fee</span></div>
       <div class="ci-row"><span>Less than 24 hours</span><span class="ci-tag ci-tag-red">Full fee</span></div>
     </div>
     <p style="margin-top:20px;font-size:13px;color:#7A948F">Full details on the <a href="info.html#ci-appointments">Client Information page</a>.</p>`
@@ -83,12 +158,13 @@ function closeInfoModal() {
   document.body.style.overflow = '';
 }
 
+/* ── SESSION CARDS ── */
 const jData = {
   individual: {
     lbl:'One-on-one', ttl:'Individual Counselling',
-    body:'<p>A dedicated hour just for you \u2014 no agenda, no judgement. Together we\u2019ll explore what\u2019s happening and find approaches that suit your life and your pace.</p>',
+    body:'<p>A dedicated hour just for you — no agenda, no judgement. Together we’ll explore what’s happening and find approaches that suit your life and your pace.</p>',
     acts:'<button class="btn btn-solid" onclick="openModal()">Book a Session</button><button class="btn btn-outline" onclick="openModal()">Ask a Question</button>',
-    rows:[['Session Length','50 minutes'],['Format','In person (Karalee, QLD) or Online'],['Frequency','Weekly or fortnightly'],['Investment','$195 / hour \u00b7 Medicare rebates may apply']]
+    rows:[['Session Length','50 minutes'],['Format','In person (Karalee, QLD) or Online'],['Frequency','Weekly or fortnightly'],['Investment','$195 / hour · Medicare rebates may apply']]
   },
   couples: {
     lbl:'Together', ttl:'Couples Counselling',

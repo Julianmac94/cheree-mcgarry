@@ -250,12 +250,12 @@
     <div class="m-body">
       <div id="mform">
         <div class="frow">
-          <div class="fg"><label class="fl">First name</label><input class="fi" type="text" placeholder="Your name"></div>
-          <div class="fg"><label class="fl">Last name</label><input class="fi" type="text" placeholder="Optional"></div>
+          <div class="fg"><label class="fl">First name</label><input class="fi" name="fname" type="text" placeholder="Your name"></div>
+          <div class="fg"><label class="fl">Last name</label><input class="fi" name="lname" type="text" placeholder="Optional"></div>
         </div>
-        <div class="fg"><label class="fl">Email address</label><input class="fi" type="email" placeholder="you@example.com"></div>
+        <div class="fg"><label class="fl">Email address</label><input class="fi" name="email" type="email" placeholder="you@example.com"></div>
         <div class="fg"><label class="fl">What brings you here?</label>
-          <select class="fs">
+          <select class="fs" name="reason">
             <option value="">Select an option&hellip;</option>
             <option>Individual counselling</option>
             <option>Couples counselling</option>
@@ -265,7 +265,7 @@
           </select>
         </div>
         <div class="fg"><label class="fl">A little more (optional)</label>
-          <textarea class="ft" placeholder="Share whatever feels comfortable. There&rsquo;s no pressure to explain everything just yet."></textarea>
+          <textarea class="ft" name="message" placeholder="Share whatever feels comfortable. There&rsquo;s no pressure to explain everything just yet."></textarea>
         </div>
         <button class="fsub" onclick="submitForm()">
           <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>

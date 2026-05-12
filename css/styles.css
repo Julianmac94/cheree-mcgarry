@@ -88,7 +88,6 @@ body::after {
   transition: background 0.22s, transform 0.22s, box-shadow 0.22s;
 }
 .nav-cta svg { width: 12px; height: 12px; }
-.nav-cta:hover { background: #8dd8c8; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(119,207,189,0.35); }
 .nav-cta:hover { background: var(--teal); transform: translateY(-1px); }
 
 /* ══════════════════════════
@@ -585,6 +584,7 @@ footer { background: var(--teal-deep); }
   .sp-body { padding: 48px 28px 80px; }
   .jgrid { grid-template-columns: 1fr; }
   .det-body { grid-template-columns: 1fr; }
+}
 @media (max-width: 580px) {
   .sh-grid { grid-template-columns: 1fr; }
   .hero-btns { flex-direction: column; align-items: center; }
