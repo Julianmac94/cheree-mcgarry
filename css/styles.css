@@ -1277,6 +1277,15 @@ footer { background: var(--teal-deep); }
 .sw-body { padding: 72px 0 96px; }
 .sw-step { margin-bottom: 56px; }
 .sw-step--hidden { display: none; }
+
+/* Step enter animation — triggers whenever hidden class is removed */
+@keyframes sw-step-enter {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sw-step:not(.sw-step--hidden) {
+  animation: sw-step-enter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
 .sw-step-hd { display: flex; align-items: baseline; gap: 16px; margin-bottom: 28px; }
 .sw-step-num { font-family: var(--serif); font-size: 13px; font-style: italic; color: var(--terra); flex-shrink: 0; }
 .sw-step-title { font-family: var(--serif); font-size: clamp(19px,2.4vw,26px); font-weight: 400; color: var(--teal-deep); line-height: 1.2; }

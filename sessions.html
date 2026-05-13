@@ -886,6 +886,7 @@ function selectService(key) {
     if (n) n.classList.toggle('sw-svc-note--hidden', k !== key);
   });
 
+  document.getElementById('sw-step1').classList.add('sw-step--hidden');
   const step2 = document.getElementById('sw-step2');
   step2.classList.remove('sw-step--hidden');
   document.querySelectorAll('.sw-client-card').forEach(c => c.classList.remove('sel'));
@@ -893,7 +894,7 @@ function selectService(key) {
     document.getElementById(id).classList.add('sw-step--hidden'));
 
   updateTrail();
-  setTimeout(() => step2.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+  setTimeout(() => step2.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
 }
 
 function selectClient(type) {
@@ -903,6 +904,8 @@ function selectClient(type) {
 
   document.querySelectorAll('.sw-client-card').forEach(c => c.classList.remove('sel'));
   document.querySelector('[data-client="' + type + '"]').classList.add('sel');
+
+  document.getElementById('sw-step2').classList.add('sw-step--hidden');
 
   if (type === 'new') {
     const disabled = disabledFunding[selectedService] || [];
@@ -915,7 +918,7 @@ function selectClient(type) {
     ['sw-step4', 'sw-existing-client'].forEach(id =>
       document.getElementById(id).classList.add('sw-step--hidden'));
     updateTrail();
-    setTimeout(() => step3.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+    setTimeout(() => step3.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   } else {
     prefillExistingService();
     const existEl = document.getElementById('sw-existing-client');
@@ -923,7 +926,7 @@ function selectClient(type) {
     ['sw-step3', 'sw-step4'].forEach(id =>
       document.getElementById(id).classList.add('sw-step--hidden'));
     updateTrail();
-    setTimeout(() => existEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+    setTimeout(() => existEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   }
 }
 
@@ -937,10 +940,11 @@ function selectFunding(key) {
   currentPlan = (planMatrix[selectedService] || {})[key] || null;
   renderOutcome();
 
+  document.getElementById('sw-step3').classList.add('sw-step--hidden');
   const step4 = document.getElementById('sw-step4');
   step4.classList.remove('sw-step--hidden');
   updateTrail();
-  setTimeout(() => step4.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+  setTimeout(() => step4.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
 }
 
 function resetTo(step) {
@@ -953,21 +957,26 @@ function resetTo(step) {
     });
     ['sw-step2','sw-step3','sw-step4','sw-existing-client'].forEach(id =>
       document.getElementById(id).classList.add('sw-step--hidden'));
+    document.getElementById('sw-step1').classList.remove('sw-step--hidden');
     updateTrail();
-    document.getElementById('sw-step1').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById('sw-step1').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } else if (step <= 2) {
     selectedClient = null; selectedFunding = null; currentPlan = null;
     document.querySelectorAll('.sw-client-card').forEach(c => c.classList.remove('sel'));
     ['sw-step3','sw-step4','sw-existing-client'].forEach(id =>
       document.getElementById(id).classList.add('sw-step--hidden'));
+    document.getElementById('sw-step1').classList.add('sw-step--hidden');
+    document.getElementById('sw-step2').classList.remove('sw-step--hidden');
     updateTrail();
-    document.getElementById('sw-step2').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById('sw-step2').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } else if (step <= 3) {
     selectedFunding = null; currentPlan = null;
     document.querySelectorAll('.sw-fund-pill').forEach(p => p.classList.remove('sel'));
     document.getElementById('sw-step4').classList.add('sw-step--hidden');
+    document.getElementById('sw-step2').classList.add('sw-step--hidden');
+    document.getElementById('sw-step3').classList.remove('sw-step--hidden');
     updateTrail();
-    document.getElementById('sw-step3').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById('sw-step3').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
 
