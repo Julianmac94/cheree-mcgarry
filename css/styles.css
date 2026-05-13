@@ -1199,66 +1199,64 @@ footer { background: var(--teal-deep); }
 }
 .sw-trail-inner::-webkit-scrollbar { display: none; }
 
-/* Each crumb — horizontal pill with dot + label/value */
+/* Each crumb — circle + value + change, all inline */
 .sw-trail-crumb {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 11px 0;
+  gap: 10px;
+  padding: 14px 0;
   white-space: nowrap;
   flex-shrink: 0;
-  position: relative;
 }
-/* Chevron separator between crumbs */
-.sw-trail-crumb:not(:last-child) {
-  padding-right: 8px;
-}
+/* Connecting progress line — lives as last flex item inside each non-last crumb */
 .sw-trail-crumb:not(:last-child)::after {
-  content: '›';
-  position: static;
-  display: inline;
-  width: auto; height: auto;
-  background: none;
-  color: rgba(42,88,80,0.28);
-  font-size: 15px;
-  line-height: 1;
-  margin-left: 10px;
+  content: '';
+  display: block;
+  width: 36px;
+  height: 1.5px;
+  background: rgba(42,88,80,0.15);
+  flex-shrink: 0;
+  align-self: center;
+  margin: 0 14px;
+}
+.sw-trail-crumb--done:not(:last-child)::after {
+  background: linear-gradient(to right, rgba(42,88,80,0.5), rgba(42,88,80,0.12));
 }
 
-/* Step dot */
+/* Step circle — shows step number when pending, checkmark when done */
 .sw-trail-dot {
-  width: 15px; height: 15px;
+  width: 24px; height: 24px;
   border-radius: 50%;
-  border: 1.5px solid rgba(42,88,80,0.3);
+  border: 1.5px solid rgba(42,88,80,0.22);
   background: white;
   flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  color: var(--soft);
+  font-family: var(--sans);
+  letter-spacing: 0;
+  box-shadow: 0 1px 4px rgba(42,88,80,0.08);
 }
 .sw-trail-dot--done {
   background: var(--teal);
   border-color: var(--teal);
+  box-shadow: 0 2px 8px rgba(42,88,80,0.22);
 }
-.sw-trail-dot svg { width: 8px; height: 8px; stroke: white; }
+.sw-trail-dot svg { width: 10px; height: 10px; stroke: white; }
 
-/* Label + value stacked */
+/* Value + change inline */
 .sw-trail-crumb-body {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }
-.sw-trail-lbl {
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--soft);
-  line-height: 1;
-}
+.sw-trail-lbl { display: none; }  /* labels removed — values speak for themselves */
 .sw-trail-val {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--teal-deep);
-  line-height: 1.2;
+  line-height: 1;
 }
 .sw-trail-val--pending {
   font-weight: 400;
@@ -1266,11 +1264,13 @@ footer { background: var(--teal-deep); }
   font-style: italic;
 }
 .sw-trail-edit {
-  background: none; border: none; padding: 0;
-  font-size: 10px; color: var(--soft); text-decoration: underline;
-  cursor: pointer; font-family: inherit;
+  background: none; border: none; padding: 2px 7px;
+  font-size: 10px; font-weight: 500; letter-spacing: 0.04em;
+  color: var(--soft); cursor: pointer; font-family: inherit;
+  border: 1px solid rgba(42,88,80,0.18); border-radius: 20px;
+  transition: color 0.15s, border-color 0.15s;
 }
-.sw-trail-edit:hover { color: var(--teal); }
+.sw-trail-edit:hover { color: var(--teal); border-color: var(--teal); }
 .sw-trail-sep { display: none; }
 
 /* ── WIZARD BODY ── */
@@ -1567,13 +1567,15 @@ footer { background: var(--teal-deep); }
 
   /* Trail: adjust top for smaller nav, tighter inner padding */
   .sw-trail { top: 58px; }
-  .sw-trail-inner { padding: 0 20px; }
+  .sw-trail-inner { padding: 0 16px; }
 
-  /* Compact crumb on mobile — hide labels, keep values only */
-  .sw-trail-lbl { display: none; }
-  .sw-trail-val { font-size: 11.5px; }
-  .sw-trail-val--pending { font-size: 11px; }
-  .sw-trail-edit { font-size: 10px; }
+  /* Slightly smaller on mobile */
+  .sw-trail-dot { width: 20px; height: 20px; font-size: 10px; }
+  .sw-trail-dot svg { width: 9px; height: 9px; }
+  .sw-trail-val { font-size: 12px; }
+  .sw-trail-val--pending { font-size: 11.5px; }
+  .sw-trail-edit { font-size: 9.5px; padding: 1.5px 6px; }
+  .sw-trail-crumb:not(:last-child)::after { width: 20px; margin: 0 8px; }
 
   .sw-body { padding: 28px 20px 64px; }
   .sw-svc-grid { grid-template-columns: 1fr; }
