@@ -50,55 +50,69 @@
   </div>
 
   <!-- Quick-path launcher widget -->
-  <div class="sw-launcher">
+  <div class="sw-launcher" id="sw-launcher">
     <div class="sw-launcher-inner">
 
-      <div class="sw-ln-header">
-        <p class="sw-ln-title">Ready to get started?</p>
-        <p class="sw-ln-sub">Tell us who you are, what you&rsquo;re looking for, and how sessions are covered &mdash; we&rsquo;ll show you exactly what to do next.</p>
-      </div>
-
-      <!-- A: New or existing -->
-      <div class="sw-ln-row">
-        <span class="sw-ln-q">Are you a new or existing client?</span>
-        <div class="sw-ln-chips">
-          <button class="sw-ln-chip" data-client="new" onclick="launcherSetClient('new')">New client</button>
-          <button class="sw-ln-chip" data-client="existing" onclick="launcherSetClient('existing')">Existing client</button>
+      <!-- Callout strip — always visible, click to expand -->
+      <div class="sw-ln-callout" id="sw-ln-callout" onclick="launcherToggle()" role="button" tabindex="0" aria-expanded="false" aria-controls="sw-ln-body" onkeydown="if(event.key==='Enter'||event.key===' ')launcherToggle()">
+        <div class="sw-ln-callout-text">
+          <p class="sw-ln-title">Ready to get started?</p>
+          <p class="sw-ln-sub">Tell us who you are, what you&rsquo;re looking for, and how sessions are covered &mdash; we&rsquo;ll show you exactly what to do next.</p>
         </div>
+        <span class="sw-ln-toggle">
+          <span class="sw-ln-toggle-label">Let&rsquo;s begin</span>
+          <svg class="sw-ln-toggle-arrow" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l4 4 4-4"/></svg>
+        </span>
       </div>
 
-      <!-- B: Service type -->
-      <div class="sw-ln-row">
-        <span class="sw-ln-q">What type of support?</span>
-        <div class="sw-ln-chips">
-          <button class="sw-ln-chip" data-svc="individual" onclick="launcherSetSvc('individual')">Individual therapy</button>
-          <button class="sw-ln-chip" data-svc="couple-family" onclick="launcherSetSvc('couple-family')">Couple or family</button>
-          <button class="sw-ln-chip" data-svc="child" onclick="launcherSetSvc('child')">Child (under 16)</button>
-          <button class="sw-ln-chip" data-svc="mediation" onclick="launcherSetSvc('mediation')">Professional mediation</button>
+      <!-- Collapsible body — hidden by default -->
+      <div class="sw-ln-body sw-ln-body--closed" id="sw-ln-body">
+        <div class="sw-ln-body-inner">
+
+          <!-- A: New or existing -->
+          <div class="sw-ln-row">
+            <span class="sw-ln-q">Are you a new or existing client?</span>
+            <div class="sw-ln-chips">
+              <button class="sw-ln-chip" data-client="new" onclick="launcherSetClient('new')">New client</button>
+              <button class="sw-ln-chip" data-client="existing" onclick="launcherSetClient('existing')">Existing client</button>
+            </div>
+          </div>
+
+          <!-- B: Service type -->
+          <div class="sw-ln-row">
+            <span class="sw-ln-q">What type of support?</span>
+            <div class="sw-ln-chips">
+              <button class="sw-ln-chip" data-svc="individual" onclick="launcherSetSvc('individual')">Individual therapy</button>
+              <button class="sw-ln-chip" data-svc="couple-family" onclick="launcherSetSvc('couple-family')">Couple or family</button>
+              <button class="sw-ln-chip" data-svc="child" onclick="launcherSetSvc('child')">Child (under 16)</button>
+              <button class="sw-ln-chip" data-svc="mediation" onclick="launcherSetSvc('mediation')">Professional mediation</button>
+            </div>
+          </div>
+
+          <!-- C: Coverage — new clients only -->
+          <div class="sw-ln-row sw-ln-row--hidden" id="sw-ln-coverage">
+            <span class="sw-ln-q">How are sessions covered?</span>
+            <div class="sw-ln-chips">
+              <button class="sw-ln-chip" data-fund="medicare" onclick="launcherSetFund('medicare')">Medicare</button>
+              <button class="sw-ln-chip" data-fund="private" onclick="launcherSetFund('private')">Private / self-funded</button>
+              <button class="sw-ln-chip" data-fund="ndis-self" onclick="launcherSetFund('ndis-self')">NDIS &mdash; self-managed</button>
+              <button class="sw-ln-chip" data-fund="ndis-plan" onclick="launcherSetFund('ndis-plan')">NDIS &mdash; plan-managed</button>
+              <button class="sw-ln-chip" data-fund="qfes" onclick="launcherSetFund('qfes')">QFES</button>
+              <button class="sw-ln-chip" data-fund="dva" onclick="launcherSetFund('dva')">ADFHSC &amp; DVA</button>
+              <button class="sw-ln-chip" data-fund="not-sure" onclick="launcherSetFund('not-sure')">Not sure</button>
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div class="sw-ln-cta">
+            <button class="btn btn-solid sw-ln-btn" id="sw-ln-submit" disabled onclick="launcherSubmit()">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>
+              <span id="sw-ln-btn-lbl">Complete your selections above</span>
+            </button>
+            <a class="sw-ln-browse" href="#sw-services-guide">or browse the options below &darr;</a>
+          </div>
+
         </div>
-      </div>
-
-      <!-- C: Coverage — new clients only -->
-      <div class="sw-ln-row sw-ln-row--hidden" id="sw-ln-coverage">
-        <span class="sw-ln-q">How are sessions covered?</span>
-        <div class="sw-ln-chips">
-          <button class="sw-ln-chip" data-fund="medicare" onclick="launcherSetFund('medicare')">Medicare</button>
-          <button class="sw-ln-chip" data-fund="private" onclick="launcherSetFund('private')">Private / self-funded</button>
-          <button class="sw-ln-chip" data-fund="ndis-self" onclick="launcherSetFund('ndis-self')">NDIS &mdash; self-managed</button>
-          <button class="sw-ln-chip" data-fund="ndis-plan" onclick="launcherSetFund('ndis-plan')">NDIS &mdash; plan-managed</button>
-          <button class="sw-ln-chip" data-fund="qfes" onclick="launcherSetFund('qfes')">QFES</button>
-          <button class="sw-ln-chip" data-fund="dva" onclick="launcherSetFund('dva')">ADFHSC &amp; DVA</button>
-          <button class="sw-ln-chip" data-fund="not-sure" onclick="launcherSetFund('not-sure')">Not sure</button>
-        </div>
-      </div>
-
-      <!-- CTA -->
-      <div class="sw-ln-cta">
-        <button class="btn btn-solid sw-ln-btn" id="sw-ln-submit" disabled onclick="launcherSubmit()">
-          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>
-          <span id="sw-ln-btn-lbl">Complete your selections above</span>
-        </button>
-        <a class="sw-ln-browse" href="#sw-services-guide">or browse the options below &darr;</a>
       </div>
 
     </div>
@@ -316,45 +330,22 @@
 </div><!-- /page-top-pad -->
 
 <footer>
-  <div class="ft-cta">
-    <div class="ft-cta-photo"></div>
-    <div class="ft-cta-overlay"></div>
-    <div class="ft-cta-arcs"></div>
-    <div class="ft-cta-mark"><img src="assets/logo.svg" alt=""></div>
-    <div class="ft-cta-inner">
-      <div>
-        <div class="eyebrow ft-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Ready when you are</span></div>
-        <h3 class="ft-cta-title">I&rsquo;m here when<br><em>you&rsquo;re ready</em></h3>
-        <p class="ft-cta-sub">No pressure, no obligation &mdash; just a conversation when it feels right for you.</p>
-      </div>
-      <div class="ft-cta-practice">
-        <div class="ft-cta-practice-eb"><span>Practice</span></div>
-        <div class="ft-cta-modalities">
-          <div class="ft-cta-modality">
-            <div class="ft-cta-modality-icon">
-              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6.2c0 3.3-4 7-4 7s-4-3.7-4-7a4 4 0 018 0z"/><circle cx="7" cy="6" r="1.5"/></svg>
-            </div>
-            <div class="ft-cta-modality-meta">
-              <span class="ft-cta-modality-label">In person</span>
-              <span class="ft-cta-modality-value">Karalee, QLD</span>
-            </div>
-          </div>
-          <div class="ft-cta-modality">
-            <div class="ft-cta-modality-icon">
-              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3.5" width="9" height="7" rx="1.2"></rect><path d="M10.5 6l2-1.2v4.4l-2-1.2z"></path></svg>
-            </div>
-            <div class="ft-cta-modality-meta">
-              <span class="ft-cta-modality-label">Video</span>
-              <span class="ft-cta-modality-value">Anywhere in Australia</span>
-            </div>
-          </div>
-        </div>
-        <p class="ft-cta-referrer-note"><em>GPs &amp; allied health</em> &mdash; referrals welcome at <a href="mailto:reachout@chereemcgarry.com">reachout@chereemcgarry.com</a></p>
-        <button class="btn btn-mint ft-reach-btn" onclick="openModal()">
-          <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 8.5c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L4.3 6.6C3.8 5.8 3.55 5.05 3.55 4.4c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H6c.1.08.2.2.27.3L7.4 4.1c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"></path></svg>
-          Reach Out
-        </button>
-      </div>
+  <!-- Bottom CTA — sessions page only -->
+  <div class="sw-bottom-cta">
+    <p class="sw-bottom-cta-q">Where are you at?</p>
+    <div class="sw-bottom-cta-btns">
+      <button class="sw-btm-btn sw-btm-btn--new" onclick="launcherExpand('new')">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="2.5"/><path d="M1.5 12.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
+        I&rsquo;m a new client
+      </button>
+      <button class="sw-btm-btn sw-btm-btn--existing" onclick="launcherExpand('existing')">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c0-2.8 2.2-5 5-5s5 2.2 5 5"/><circle cx="7" cy="4.5" r="2.5"/><path d="M10.5 7.5l1.5 1-1 1.5"/></svg>
+        I&rsquo;m an existing client
+      </button>
+      <button class="sw-btm-btn sw-btm-btn--notsure" onclick="openModal()">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5.5"/><path d="M5.5 5.5a1.5 1.5 0 012.9.5c0 1-1.4 1.5-1.4 2.5"/><circle cx="7" cy="10.5" r=".5" fill="currentColor" stroke="none"/></svg>
+        Not sure yet &mdash; get in touch
+      </button>
     </div>
   </div>
   <div class="ft-cols">
@@ -1040,22 +1031,53 @@ function launcherReset() {
 
   updateLauncherBtn();
 
-  const launcher = document.querySelector('.sw-launcher');
-  if (launcher) {
-    const navH = (document.getElementById('nav') || {}).offsetHeight || 68;
-    const top  = launcher.getBoundingClientRect().top + window.scrollY - navH - 24;
-    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  // Re-open the launcher so the user can change their picks
+  _launcherOpen(true);
+}
+
+/* ── Collapse / expand helpers ────────────────────────────────────────────── */
+
+function _launcherOpen(scroll) {
+  const body    = document.getElementById('sw-ln-body');
+  const callout = document.getElementById('sw-ln-callout');
+  if (body) body.classList.remove('sw-ln-body--closed');
+  if (callout) callout.setAttribute('aria-expanded', 'true');
+  if (scroll) {
+    const launcher = document.getElementById('sw-launcher');
+    if (launcher) {
+      const navH = (document.getElementById('nav') || {}).offsetHeight || 68;
+      const top  = launcher.getBoundingClientRect().top + window.scrollY - navH - 24;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
   }
 }
 
-function launcherFocus(svcKey) {
-  launcherSetSvc(svcKey);
-  const launcher = document.querySelector('.sw-launcher');
-  if (launcher) {
-    const navH = (document.getElementById('nav') || {}).offsetHeight || 68;
-    const top  = launcher.getBoundingClientRect().top + window.scrollY - navH - 24;
-    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+function _launcherClose() {
+  const body    = document.getElementById('sw-ln-body');
+  const callout = document.getElementById('sw-ln-callout');
+  if (body) body.classList.add('sw-ln-body--closed');
+  if (callout) callout.setAttribute('aria-expanded', 'false');
+}
+
+function launcherToggle() {
+  const body = document.getElementById('sw-ln-body');
+  if (!body) return;
+  if (body.classList.contains('sw-ln-body--closed')) {
+    _launcherOpen(false);
+  } else {
+    _launcherClose();
   }
+}
+
+// Called from bottom CTA buttons — pre-selects client type, expands, scrolls
+function launcherExpand(clientType) {
+  _launcherOpen(true);
+  if (clientType) launcherSetClient(clientType);
+}
+
+function launcherFocus(svcKey) {
+  _launcherOpen(true);
+  launcherSetSvc(svcKey);
 }
 
 function buildExistingClientHtml() {
