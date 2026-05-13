@@ -1072,32 +1072,45 @@ function renderOutcome() {
       '</div>'
     : '';
 
-  const intakeCardHtml = p.formUrl
-    ? '<div class="sw-intake-card">' +
-        '<div class="sw-intake-left">' +
-          '<p class="sw-intake-eyebrow">New client intake form</p>' +
-          '<h4 class="sw-intake-title">' + (p.formLabel || 'Complete your intake') + '</h4>' +
-          '<p class="sw-intake-desc">Takes about 10 minutes. Complete this before your first appointment &mdash; it helps Cheree prepare for your session.</p>' +
-          '<a class="btn btn-solid sw-intake-btn" href="' + p.formUrl + '" target="_blank" rel="noopener">' +
-            '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h10M7 2l5 5-5 5"/></svg>' +
-            'Open Intake Form' +
-          '</a>' +
+  // Request form — replaces direct booking for all new clients
+  const requestFormHtml =
+    '<div class="sw-req-block">' +
+      '<div class="sw-req-hd">' +
+        '<h4 class="sw-req-title">Request your first session</h4>' +
+        '<p class="sw-req-intro">Cheree will review your request and be in touch within 1 business day to confirm your spot and send through your next steps.</p>' +
+      '</div>' +
+      '<div id="sw-req-form">' +
+        '<div class="frow">' +
+          '<div class="fg"><label class="fl">First name</label><input class="fi" name="req-fname" type="text" placeholder="Your name" autocomplete="given-name"></div>' +
+          '<div class="fg"><label class="fl">Last name</label><input class="fi" name="req-lname" type="text" placeholder="Optional" autocomplete="family-name"></div>' +
         '</div>' +
-        '<div class="sw-intake-qr">' +
-          '<img src="' + p.formQr + '" alt="QR code &mdash; scan to open intake form on your phone">' +
-          '<p>Scan to open<br>on your phone</p>' +
+        '<div class="fg"><label class="fl">Email address</label><input class="fi" name="req-email" type="email" placeholder="you@example.com" autocomplete="email"></div>' +
+        '<div class="fg"><label class="fl">Phone <span class="sw-req-opt">(optional)</span></label><input class="fi" name="req-phone" type="tel" placeholder="0400 000 000" autocomplete="tel"></div>' +
+        '<div class="fg"><label class="fl">Preferred days or times <span class="sw-req-opt">(optional)</span></label><input class="fi" name="req-times" placeholder="e.g. Tuesday afternoons, Friday mornings"></div>' +
+        '<div class="fg"><label class="fl">Anything else we should know? <span class="sw-req-opt">(optional)</span></label><textarea class="ft sw-req-note-field" name="req-note" placeholder="Keep it brief — there’s no pressure to explain everything just yet."></textarea></div>' +
+        '<button class="fsub" id="sw-req-submit" onclick="submitSessionRequest()">' +
+          '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>' +
+          'Request your first session' +
+        '</button>' +
+      '</div>' +
+      '<div id="sw-req-ok" style="display:none">' +
+        '<div class="sw-req-success">' +
+          '<div class="sw-req-success-icon">&#127807;</div>' +
+          '<h4 class="sw-req-success-title">Request received</h4>' +
+          '<p class="sw-req-success-body">Cheree will be in touch within 1 business day to confirm your spot and send through your intake form and booking link.</p>' +
+          '<a class="btn btn-outline sw-req-info-btn" href="info.html">Review client information &rarr;</a>' +
         '</div>' +
-      '</div>'
-    : '';
-
-  const actionsHtml =
-    '<div class="sw-oc-footer">' +
-      '<a class="btn ' + (p.formUrl ? 'btn-outline' : 'btn-solid') + '" href="' + HALAXY_BOOK_URL + '" target="_blank" rel="noopener">' +
-        '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 7h10M7 2l5 5-5 5"/></svg>' +
-        'Book via Halaxy' +
-      '</a>' +
-      '<button class="btn btn-outline" onclick="openModal()">Ask a question first</button>' +
-      '<a class="btn btn-ghost sw-oc-info-link" href="info.html#ci-funding">Full client info &rarr;</a>' +
+      '</div>' +
+      '<div class="sw-next-steps">' +
+        '<div class="sw-next-step"><span class="sw-next-num">1</span><span>We confirm your spot is the right fit</span></div>' +
+        '<div class="sw-next-sep"></div>' +
+        '<div class="sw-next-step"><span class="sw-next-num">2</span><span>You receive an intake form &amp; booking link</span></div>' +
+        '<div class="sw-next-sep"></div>' +
+        '<div class="sw-next-step"><span class="sw-next-num">3</span><span>Complete intake before your first session</span></div>' +
+      '</div>' +
+      '<div class="sw-req-footer">' +
+        '<a class="btn btn-ghost sw-oc-info-link" href="info.html#ci-funding">Full client information &rarr;</a>' +
+      '</div>' +
     '</div>';
 
   container.innerHTML =
@@ -1116,8 +1129,7 @@ function renderOutcome() {
         cancelHtml +
       '</div>' +
       approvalHtml +
-      intakeCardHtml +
-      actionsHtml +
+      requestFormHtml +
     '</div>';
 }
 
@@ -1194,6 +1206,66 @@ function showECError(msg) {
     el.id = 'ec-error';
     el.style.cssText = 'color:#b02828;font-size:13px;margin-top:10px;';
     document.getElementById('ec-submit').insertAdjacentElement('afterend', el);
+  }
+  el.textContent = msg;
+}
+
+/* ─ Session request form (new clients) ──────────────────────────────────── */
+
+async function submitSessionRequest() {
+  const form   = document.getElementById('sw-req-form');
+  const fname  = form.querySelector('[name="req-fname"]').value.trim();
+  const lname  = form.querySelector('[name="req-lname"]').value.trim();
+  const email  = form.querySelector('[name="req-email"]').value.trim();
+  const phone  = form.querySelector('[name="req-phone"]').value.trim();
+  const times  = form.querySelector('[name="req-times"]').value.trim();
+  const note   = form.querySelector('[name="req-note"]').value.trim();
+
+  // Clear previous errors
+  const prev = form.querySelector('.sw-req-error');
+  if (prev) prev.remove();
+
+  if (!fname) { showReqError('Please enter your first name.'); return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showReqError('Please enter a valid email address.'); return; }
+
+  const btn = document.getElementById('sw-req-submit');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    const resp = await fetch('https://formspree.io/f/' + FORMSPREE_ID, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        name:     [fname, lname].filter(Boolean).join(' '),
+        email,
+        phone:    phone || '(not provided)',
+        service:  (window.svcLabels && svcLabels[selectedService]) || selectedService,
+        funding:  (window.fundLabels && fundLabels[selectedFunding]) || selectedFunding,
+        preferred_times: times || '(not specified)',
+        message:  note || '(no additional notes)',
+        _subject: 'New client session request — ' + (svcLabels[selectedService] || '') + ' / ' + (fundLabels[selectedFunding] || ''),
+      }),
+    });
+    if (resp.ok) {
+      form.style.display = 'none';
+      document.getElementById('sw-req-ok').style.display = 'block';
+    } else { throw new Error(); }
+  } catch {
+    btn.disabled = false;
+    btn.textContent = 'Request your first session';
+    showReqError('Something went wrong — please email sessions@chereemcgarry.com directly.');
+  }
+}
+
+function showReqError(msg) {
+  const form = document.getElementById('sw-req-form');
+  let el = form.querySelector('.sw-req-error');
+  if (!el) {
+    el = document.createElement('p');
+    el.className = 'sw-req-error';
+    el.style.cssText = 'color:#b02828;font-size:13px;margin-top:10px;';
+    document.getElementById('sw-req-submit').insertAdjacentElement('afterend', el);
   }
   el.textContent = msg;
 }

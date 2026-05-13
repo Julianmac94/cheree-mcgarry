@@ -1469,6 +1469,78 @@ footer { background: var(--teal-deep); }
 .btn-ghost { background: none; border: none; padding: 4px 0; font-size: 12px; color: var(--soft); text-decoration: underline; cursor: pointer; font-family: inherit; }
 .btn-ghost:hover { color: var(--teal); }
 
+/* ── SESSION REQUEST FORM (new client outcome card) ── */
+.sw-req-block {
+  border-top: 1px solid rgba(42,88,80,0.08);
+}
+.sw-req-hd {
+  padding: 22px 28px 6px;
+}
+.sw-req-title {
+  font-family: var(--serif);
+  font-size: 18px; font-weight: 400;
+  color: var(--teal-deep); margin-bottom: 6px;
+}
+.sw-req-intro {
+  font-size: 13px; font-weight: 300; color: var(--mid); line-height: 1.65;
+}
+.sw-req-opt { font-weight: 300; color: var(--faint); font-size: 10px; }
+#sw-req-form { padding: 10px 28px 24px; }
+.sw-req-note-field { min-height: 72px; }
+
+/* What happens next — 3-step mini timeline */
+.sw-next-steps {
+  display: flex; align-items: center; flex-wrap: wrap;
+  padding: 16px 28px;
+  background: rgba(42,88,80,0.03);
+  border-top: 1px solid rgba(42,88,80,0.07);
+  gap: 0;
+}
+.sw-next-step {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11.5px; font-weight: 300; color: var(--mid);
+  flex: 1; min-width: 0;
+  padding: 4px 0;
+}
+.sw-next-num {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: white;
+  font-size: 10px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sw-next-sep {
+  width: 20px; height: 1px;
+  background: rgba(42,88,80,0.18);
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+.sw-req-footer {
+  padding: 10px 28px 16px;
+  display: flex; align-items: center; justify-content: flex-end;
+}
+.sw-req-success {
+  padding: 32px 28px 28px;
+  text-align: center;
+}
+.sw-req-success-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--cream); border: 1px solid rgba(42,88,80,0.1);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 14px; font-size: 20px;
+}
+.sw-req-success-title {
+  font-family: var(--serif); font-size: 22px; font-weight: 400;
+  color: var(--teal-deep); margin-bottom: 8px;
+}
+.sw-req-success-body {
+  font-size: 13.5px; font-weight: 300; color: var(--mid);
+  line-height: 1.7; max-width: 420px; margin: 0 auto 20px;
+}
+.sw-req-info-btn { display: inline-flex; }
+
 /* Exist panel without dark header (header is now in sw-step-hd) */
 .sw-exist-panel { background: white; border: 1px solid rgba(42,88,80,0.1); border-radius: 8px; overflow: hidden; }
 .sw-exist-panel #ec-form { padding: 28px 36px 36px; }
