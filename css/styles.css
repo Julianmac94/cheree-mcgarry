@@ -823,7 +823,7 @@ body::after {
   .sw-cg-grid { grid-template-columns: 1fr; }
   .sw-ln-chip { font-size: 12px; padding: 8px 16px; }
   .sw-bottom-cta-btns { flex-direction: column; align-items: stretch; }
-  .sw-btm-btn { justify-content: center; }
+  .sw-btm-btn, .sw-btm-btn--opt { justify-content: center; }
   .sw-ln-callout { flex-direction: column; align-items: flex-start; gap: 14px; }
   .sw-ln-toggle { align-self: flex-start; }
   .sw-btm-card { border-radius: 16px; padding: 32px 20px 36px; }
@@ -902,11 +902,15 @@ footer { background: var(--teal-deep); }
 .sw-btm-ey { margin-bottom: 16px; }
 .sw-bottom-cta-q {
   font-family: var(--serif); font-size: 28px; font-weight: 300;
-  color: var(--teal-deep); margin-bottom: 28px; line-height: 1.25;
+  color: var(--teal-deep); margin-bottom: 12px; line-height: 1.25;
+}
+.sw-btm-desc {
+  font-size: 13px; font-weight: 300; color: var(--soft);
+  line-height: 1.75; max-width: 440px; margin: 0 auto 28px;
 }
 .sw-bottom-cta-btns {
   display: flex; align-items: center; justify-content: center;
-  flex-wrap: wrap; gap: 12px; width: 100%;
+  flex-wrap: wrap; gap: 10px; width: 100%;
 }
 .sw-btm-btn {
   display: inline-flex; align-items: center; gap: 9px;
@@ -916,20 +920,16 @@ footer { background: var(--teal-deep); }
   transition: all 0.2s ease; line-height: 1.2;
 }
 .sw-btm-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
-.sw-btm-btn--new {
-  background: var(--teal-deep); color: white; border-color: var(--teal-deep);
+/* All three options equal weight — neutral outlined */
+.sw-btm-btn--opt {
+  background: transparent;
+  color: var(--teal-deep);
+  border-color: rgba(42,88,80,0.28);
 }
-.sw-btm-btn--new:hover { background: #1a5056; border-color: #1a5056; }
-.sw-btm-btn--existing {
-  background: transparent; color: var(--teal-deep);
-  border-color: rgba(42,88,80,0.3);
+.sw-btm-btn--opt:hover {
+  background: rgba(42,88,80,0.05);
+  border-color: var(--teal-deep);
 }
-.sw-btm-btn--existing:hover { border-color: var(--teal-deep); background: rgba(42,88,80,0.04); }
-.sw-btm-btn--notsure {
-  background: transparent; color: var(--soft);
-  border-color: rgba(42,88,80,0.14);
-}
-.sw-btm-btn--notsure:hover { color: var(--teal-deep); border-color: rgba(42,88,80,0.28); }
 
 /* ── FOOTER CTA ── */
 .ft-cta {
