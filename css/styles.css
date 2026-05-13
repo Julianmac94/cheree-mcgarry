@@ -761,6 +761,52 @@ footer { background: var(--teal-deep); }
 .info-toc a:hover { color: white; }
 .info-toc span { color: rgba(255,255,255,0.2); }
 
+/* ── INFO PAGE STICKY SECTION NAV ── */
+.ci-snav {
+  position: sticky;
+  top: 58px;
+  z-index: 80;
+  background: rgba(249,246,241,0.97);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(42,88,80,0.1);
+  box-shadow: 0 2px 12px rgba(20,48,43,0.05);
+  /* Hidden by default — shown via JS once past header */
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.ci-snav.ci-snav--visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.ci-snav-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 72px;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ci-snav-inner::-webkit-scrollbar { display: none; }
+.ci-snav-link {
+  display: block;
+  padding: 11px 16px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--soft);
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+.ci-snav-link:hover { color: var(--teal-deep); }
+.ci-snav-link--active { color: var(--teal-deep); border-bottom-color: var(--teal); }
+
 .info-body {
   max-width: 1100px; margin: 0 auto;
   padding: 80px 72px 48px;
@@ -1045,6 +1091,7 @@ footer { background: var(--teal-deep); }
   .ci-section { grid-template-columns: 1fr; gap: 20px; padding: 40px 0; }
   .ci-label { display: flex; align-items: center; gap: 14px; }
   .ci-num { margin-bottom: 0; }
+  .ci-snav-inner { padding: 0 20px; }
 }
 
 /* ── MODAL ── */
@@ -1080,7 +1127,117 @@ footer { background: var(--teal-deep); }
 .nav-link.active::after { transform: scaleX(1); }
 
 /* ── SESSIONS WIZARD ── */
-.sw-body { max-width: 860px; margin: 0 auto; padding: 72px 72px 96px; }
+
+/* Layout wrapper: sidebar trail on desktop, stacked on mobile */
+.sw-layout {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 40px;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 0 40px;
+  align-items: start;
+}
+
+/* ── PROGRESS TRAIL ── */
+.sw-trail {
+  /* Sidebar on desktop */
+  position: sticky;
+  top: 80px;
+  align-self: start;
+  /* Invisible when hidden — preserve grid column so content doesn't shift */
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.sw-trail:not(.sw-trail--hidden) {
+  visibility: visible;
+  pointer-events: auto;
+  opacity: 1;
+}
+.sw-trail--hidden { display: block; } /* override old display:none — use visibility instead */
+
+.sw-trail-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 24px 0;
+}
+
+/* Each crumb row */
+.sw-trail-crumb {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  position: relative;
+  padding-bottom: 20px;
+}
+/* Connector line between crumbs */
+.sw-trail-crumb:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 8px; top: 18px;
+  width: 1px;
+  bottom: 0;
+  background: rgba(42,88,80,0.15);
+}
+.sw-trail-crumb--done:not(:last-child)::after { background: rgba(42,88,80,0.25); }
+
+/* Step dot */
+.sw-trail-dot {
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(42,88,80,0.25);
+  background: white;
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; z-index: 1;
+}
+.sw-trail-dot--done {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+.sw-trail-dot svg { width: 9px; height: 9px; stroke: white; }
+
+.sw-trail-crumb-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 0;
+}
+.sw-trail-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--soft);
+  line-height: 1;
+}
+.sw-trail-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal-deep);
+  line-height: 1.3;
+}
+.sw-trail-val--pending {
+  font-weight: 300;
+  color: var(--faint);
+  font-style: italic;
+}
+.sw-trail-edit {
+  background: none; border: none; padding: 0;
+  font-size: 10px; color: var(--soft); text-decoration: underline;
+  cursor: pointer; font-family: inherit;
+  align-self: flex-start;
+  margin-top: 1px;
+}
+.sw-trail-edit:hover { color: var(--teal); }
+.sw-trail-sep { display: none; } /* hidden — replaced by vertical layout */
+
+/* ── WIZARD BODY ── */
+.sw-body { padding: 72px 0 96px; }
 .sw-step { margin-bottom: 56px; }
 .sw-step--hidden { display: none; }
 .sw-step-hd { display: flex; align-items: baseline; gap: 16px; margin-bottom: 28px; }
@@ -1256,7 +1413,10 @@ footer { background: var(--teal-deep); }
 .sw-oc-cancel-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .sw-oc-cancel-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sw-oc-cancel-notice { font-size: 12px; color: var(--mid); }
+.sw-oc-cancel-summary { font-size: 12.5px; color: var(--mid); line-height: 1.6; margin-bottom: 10px; }
 .sw-oc-cancel-extra { font-size: 11.5px; color: var(--terra); line-height: 1.5; margin-bottom: 10px; font-style: italic; }
+.sw-oc-cancel-more { font-size: 11px; color: var(--teal); text-decoration: none; }
+.sw-oc-cancel-more:hover { text-decoration: underline; }
 .sw-oc-cancel-contact { font-size: 12px; color: var(--mid); padding-top: 10px; border-top: 1px solid rgba(42,88,80,0.07); line-height: 1.6; }
 .sw-oc-cancel-contact a { color: var(--teal); text-decoration: none; }
 .sw-oc-cancel-contact a:hover { text-decoration: underline; }
@@ -1281,7 +1441,72 @@ footer { background: var(--teal-deep); }
 .sw-exist-panel .m-ok { padding: 36px; }
 
 @media (max-width: 900px) {
-  .sw-body { padding: 48px 28px 64px; }
+  /* Layout: collapse sidebar, trail goes sticky top */
+  .sw-layout {
+    display: block;
+    padding: 0;
+    max-width: none;
+  }
+
+  /* Trail: sticky horizontal bar at top of scroll */
+  .sw-trail {
+    position: sticky;
+    top: 58px;           /* below the nav bar */
+    z-index: 90;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    background: rgba(249,246,241,0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(42,88,80,0.1);
+    box-shadow: 0 2px 12px rgba(20,48,43,0.06);
+  }
+  /* When hidden on mobile, truly hide it */
+  .sw-trail.sw-trail--hidden { display: none !important; }
+
+  .sw-trail-inner {
+    flex-direction: row;
+    gap: 0;
+    padding: 10px 20px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .sw-trail-inner::-webkit-scrollbar { display: none; }
+
+  /* Horizontal crumb layout */
+  .sw-trail-crumb {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 0;
+    padding-right: 16px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .sw-trail-crumb::after { display: none; } /* no connector lines on mobile */
+
+  /* Separator between crumbs on mobile */
+  .sw-trail-crumb:not(:last-child)::before {
+    content: '›';
+    position: absolute;
+    right: 2px;
+    color: rgba(42,88,80,0.25);
+    font-size: 13px;
+  }
+  .sw-trail-crumb { position: relative; }
+
+  .sw-trail-dot { width: 13px; height: 13px; }
+  .sw-trail-dot svg { width: 7px; height: 7px; }
+
+  .sw-trail-crumb-body { flex-direction: row; align-items: center; gap: 5px; }
+  .sw-trail-lbl { display: none; } /* hide labels on mobile, just show values */
+  .sw-trail-val { font-size: 11.5px; }
+  .sw-trail-val--pending { font-size: 11px; }
+  .sw-trail-edit { font-size: 10px; }
+
+  .sw-body { padding: 28px 20px 64px; }
   .sw-svc-grid { grid-template-columns: 1fr; }
   .sw-fund-grid { grid-template-columns: 1fr 1fr; }
   .sw-client-grid { grid-template-columns: 1fr; }

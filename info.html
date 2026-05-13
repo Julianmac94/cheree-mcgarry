@@ -54,6 +54,18 @@
       </div>
     </div>
   </div>
+  <!-- Sticky section nav — appears after scrolling past header -->
+  <nav class="ci-snav" id="ci-snav" aria-label="Page sections">
+    <div class="ci-snav-inner">
+      <a class="ci-snav-link" href="#ci-consent">Consent</a>
+      <a class="ci-snav-link" href="#ci-privacy">Privacy</a>
+      <a class="ci-snav-link" href="#ci-appointments">Appointments</a>
+      <a class="ci-snav-link" href="#ci-funding">Funding</a>
+      <a class="ci-snav-link" href="#ci-crisis">Crisis</a>
+      <a class="ci-snav-link" href="#ci-feedback">Feedback</a>
+    </div>
+  </nav>
+
   <div class="info-body">
 
     <!-- 01 Consent & Your Rights -->
@@ -478,5 +490,38 @@
   </div>
 </div>
 <script src="js/main.js"></script>
+<script>
+/* ── Sticky section nav ── */
+(function() {
+  const snav = document.getElementById('ci-snav');
+  const infoHead = document.querySelector('.info-head');
+  if (!snav || !infoHead) return;
+
+  // Show/hide based on header visibility
+  const obs = new IntersectionObserver(function(entries) {
+    snav.classList.toggle('ci-snav--visible', !entries[0].isIntersecting);
+  }, { threshold: 0 });
+  obs.observe(infoHead);
+
+  // Highlight active section
+  const sections = ['ci-consent','ci-privacy','ci-appointments','ci-funding','ci-crisis','ci-feedback'];
+  const links    = snav.querySelectorAll('.ci-snav-link');
+
+  const secObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        links.forEach(function(l) { l.classList.remove('ci-snav-link--active'); });
+        var link = snav.querySelector('[href="#' + e.target.id + '"]');
+        if (link) link.classList.add('ci-snav-link--active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) secObs.observe(el);
+  });
+})();
+</script>
 </body>
 </html>
