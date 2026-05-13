@@ -49,214 +49,268 @@
     </div>
   </div>
 
-  <!-- Step progress bar — sticky, lives at base of hero and follows on scroll -->
-  <div class="sp-steps-bar" id="sp-steps-bar">
-    <div class="sp-steps-inner">
+  <!-- Quick-path launcher widget -->
+  <div class="sw-launcher">
+    <div class="sw-launcher-inner">
 
-      <div class="sp-step" id="sp-step-1" onclick="if(this.classList.contains('sp-step--done'))resetTo(1)">
-        <button class="sp-step-n" id="sp-step-1-n" onclick="event.stopPropagation();resetTo(1)" disabled>1</button>
-        <div class="sp-step-body">
-          <span class="sp-step-lbl">Choose your support</span>
-          <span class="sp-step-sel" id="sp-step-1-sel"></span>
-          <span class="sp-step-change">&#9998; Edit</span>
+      <div class="sw-ln-header">
+        <p class="sw-ln-title">Ready to get started?</p>
+        <p class="sw-ln-sub">Tell us who you are, what you&rsquo;re looking for, and how sessions are covered &mdash; we&rsquo;ll show you exactly what to do next.</p>
+      </div>
+
+      <!-- A: New or existing -->
+      <div class="sw-ln-row">
+        <span class="sw-ln-q">Are you a new or existing client?</span>
+        <div class="sw-ln-chips">
+          <button class="sw-ln-chip" data-client="new" onclick="launcherSetClient('new')">New client</button>
+          <button class="sw-ln-chip" data-client="existing" onclick="launcherSetClient('existing')">Existing client</button>
         </div>
       </div>
 
-      <span class="sp-step-arr">›</span>
-
-      <div class="sp-step" id="sp-step-2" onclick="if(this.classList.contains('sp-step--done'))resetTo(2)">
-        <button class="sp-step-n" id="sp-step-2-n" onclick="event.stopPropagation();resetTo(2)" disabled>2</button>
-        <div class="sp-step-body">
-          <span class="sp-step-lbl">Tell us about you</span>
-          <span class="sp-step-sel" id="sp-step-2-sel"></span>
-          <span class="sp-step-change">&#9998; Edit</span>
+      <!-- B: Service type -->
+      <div class="sw-ln-row">
+        <span class="sw-ln-q">What type of support?</span>
+        <div class="sw-ln-chips">
+          <button class="sw-ln-chip" data-svc="individual" onclick="launcherSetSvc('individual')">Individual therapy</button>
+          <button class="sw-ln-chip" data-svc="couple-family" onclick="launcherSetSvc('couple-family')">Couple or family</button>
+          <button class="sw-ln-chip" data-svc="child" onclick="launcherSetSvc('child')">Child (under 16)</button>
+          <button class="sw-ln-chip" data-svc="mediation" onclick="launcherSetSvc('mediation')">Professional mediation</button>
         </div>
       </div>
 
-      <span class="sp-step-arr">›</span>
-
-      <div class="sp-step" id="sp-step-3" onclick="if(this.classList.contains('sp-step--done'))resetTo(3)">
-        <button class="sp-step-n" id="sp-step-3-n" onclick="event.stopPropagation();resetTo(3)" disabled>3</button>
-        <div class="sp-step-body">
-          <span class="sp-step-lbl">See your next steps</span>
-          <span class="sp-step-sel" id="sp-step-3-sel"></span>
-          <span class="sp-step-change">&#9998; Edit</span>
+      <!-- C: Coverage — new clients only -->
+      <div class="sw-ln-row sw-ln-row--hidden" id="sw-ln-coverage">
+        <span class="sw-ln-q">How are sessions covered?</span>
+        <div class="sw-ln-chips">
+          <button class="sw-ln-chip" data-fund="medicare" onclick="launcherSetFund('medicare')">Medicare</button>
+          <button class="sw-ln-chip" data-fund="private" onclick="launcherSetFund('private')">Private / self-funded</button>
+          <button class="sw-ln-chip" data-fund="ndis-self" onclick="launcherSetFund('ndis-self')">NDIS &mdash; self-managed</button>
+          <button class="sw-ln-chip" data-fund="ndis-plan" onclick="launcherSetFund('ndis-plan')">NDIS &mdash; plan-managed</button>
+          <button class="sw-ln-chip" data-fund="qfes" onclick="launcherSetFund('qfes')">QFES</button>
+          <button class="sw-ln-chip" data-fund="dva" onclick="launcherSetFund('dva')">ADFHSC &amp; DVA</button>
+          <button class="sw-ln-chip" data-fund="not-sure" onclick="launcherSetFund('not-sure')">Not sure</button>
         </div>
+      </div>
+
+      <!-- CTA -->
+      <div class="sw-ln-cta">
+        <button class="btn btn-solid sw-ln-btn" id="sw-ln-submit" disabled onclick="launcherSubmit()">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>
+          <span id="sw-ln-btn-lbl">Complete your selections above</span>
+        </button>
+        <a class="sw-ln-browse" href="#sw-services-guide">or browse the options below &darr;</a>
       </div>
 
     </div>
   </div>
 
-  <div class="sw-layout">
-  <div class="sw-body">
-
-    <!-- Step 1: Service type -->
-    <div class="sw-step" id="sw-step1">
-      <div class="sw-step-hd">
-        <span class="sw-step-num">01</span>
-        <h2 class="sw-step-title">What type of support are you looking for?</h2>
-      </div>
-      <div class="sw-svc-grid">
-
-        <div class="sw-svc-card" data-svc="individual" onclick="selectService('individual')">
-          <p class="sw-svc-lbl">One-on-one</p>
-          <h3 class="sw-svc-name">Individual Therapy</h3>
-          <p class="sw-svc-desc">For individuals dealing with anxiety, stress, depression, grief, relationship difficulties, life transitions, or simply wanting to feel better and understand themselves more.</p>
-        </div>
-
-        <div class="sw-svc-card" data-svc="couple-family" onclick="selectService('couple-family')">
-          <p class="sw-svc-lbl">Together</p>
-          <h3 class="sw-svc-name">Couple or Family Therapy</h3>
-          <p class="sw-svc-desc">For partners or families struggling to communicate, feeling disconnected, or navigating a crisis together. Also suitable for parents &amp; adult children, siblings, or blended families.</p>
-          <div class="sw-svc-note sw-svc-note--hidden" id="note-couple-family">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
-            Individual intake for each person required first
-          </div>
-        </div>
-
-        <div class="sw-svc-card" data-svc="child" onclick="selectService('child')">
-          <p class="sw-svc-lbl">For children</p>
-          <h3 class="sw-svc-name">Child (under 16)</h3>
-          <p class="sw-svc-desc">For young people experiencing anxiety, behavioural difficulties, school pressures, or difficult life changes. Sessions are age-appropriate and parents play an active role throughout.</p>
-          <div class="sw-svc-note sw-svc-note--hidden" id="note-child">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
-            Parent or guardian intake session required first
-          </div>
-        </div>
-
-        <div class="sw-svc-card" data-svc="mediation" onclick="selectService('mediation')">
-          <p class="sw-svc-lbl">Facilitated process</p>
-          <h3 class="sw-svc-name">Professional Mediation</h3>
-          <p class="sw-svc-desc">For workplace conflicts, family disputes, or any situation where two parties need a neutral, impartial facilitator to help reach a workable resolution.</p>
-          <div class="sw-svc-note sw-svc-note--hidden" id="note-mediation">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
-            Individual intake session required first
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- Step 2: New or existing client (moved before funding) -->
-    <div class="sw-step sw-step--hidden" id="sw-step2">
-      <div class="sw-step-hd">
-        <span class="sw-step-num">02</span>
-        <h2 class="sw-step-title">Are you a new or existing client?</h2>
-      </div>
-      <div class="sw-client-grid">
-
-        <div class="sw-client-card" data-client="new" onclick="selectClient('new')">
-          <div class="sw-client-icon" style="background:rgba(42,88,80,0.07)">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#2A5850" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="7" r="4"/><path d="M3 19c0-4.4 3.6-8 8-8s8 3.6 8 8"/><path d="M17 4l2 2-2 2"/></svg>
-          </div>
-          <h3 class="sw-client-name">New Client</h3>
-          <p class="sw-client-desc">First time working with Cheree. We&rsquo;ll walk you through exactly what you need to get started &mdash; intake forms, requirements, and how to book.</p>
-        </div>
-
-        <div class="sw-client-card" data-client="existing" onclick="selectClient('existing')">
-          <div class="sw-client-icon" style="background:rgba(190,110,68,0.07)">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#BE6E44" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="7" r="4"/><path d="M3 19c0-4.4 3.6-8 8-8s8 3.6 8 8"/><path d="M14 13l2 2-2 2"/></svg>
-          </div>
-          <h3 class="sw-client-name">Existing Client</h3>
-          <p class="sw-client-desc">You&rsquo;ve worked with Cheree before. Send a message and the practice will get back to you to confirm your next appointment.</p>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- Step 3: Funding type (new clients only — NDIS split into self + plan) -->
-    <div class="sw-step sw-step--hidden" id="sw-step3">
-      <div class="sw-step-hd">
-        <span class="sw-step-num">03</span>
-        <h2 class="sw-step-title">How are your sessions covered?</h2>
-      </div>
-      <div class="sw-fund-grid">
-
-        <div class="sw-fund-pill" data-fund="medicare" onclick="selectFunding('medicare')">
-          <p class="sw-fund-name">Medicare</p>
-          <p class="sw-fund-note">$87.25 rebate per session &middot; Requires a GP Mental Health Care Plan &middot; Individual &amp; child only</p>
-        </div>
-
-        <div class="sw-fund-pill" data-fund="private" onclick="selectFunding('private')">
-          <p class="sw-fund-name">Private / Self-funded</p>
-          <p class="sw-fund-note">$195 per session &middot; No referral or GP visit needed &middot; Most flexible option &middot; Private health extras may apply</p>
-        </div>
-
-        <div class="sw-fund-pill" data-fund="ndis-self" onclick="selectFunding('ndis-self')">
-          <p class="sw-fund-name">NDIS &mdash; Self-managed</p>
-          <p class="sw-fund-note">You pay &amp; claim back &middot; $195 per session &middot; Must have counselling in your funded supports</p>
-        </div>
-
-        <div class="sw-fund-pill" data-fund="ndis-plan" onclick="selectFunding('ndis-plan')">
-          <p class="sw-fund-name">NDIS &mdash; Plan-managed</p>
-          <p class="sw-fund-note">Your plan manager pays directly &middot; Pre-approval required &middot; Must have counselling in your funded supports</p>
-        </div>
-
-        <div class="sw-fund-pill" data-fund="qfes" onclick="selectFunding('qfes')">
-          <p class="sw-fund-name">QFES</p>
-          <p class="sw-fund-note">Free to you &middot; Queensland Fire &amp; Emergency Services employees only &middot; EAP referral required</p>
-        </div>
-
-        <div class="sw-fund-pill" data-fund="dva" onclick="selectFunding('dva')">
-          <p class="sw-fund-name">ADFHSC &amp; DVA</p>
-          <p class="sw-fund-note">Free to you &middot; Current &amp; former ADF members, their families, and DVA card holders &middot; Referral required</p>
-        </div>
-
-        <div class="sw-fund-pill" data-fund="not-sure" onclick="selectFunding('not-sure')">
-          <p class="sw-fund-name">I&rsquo;m not sure</p>
-          <p class="sw-fund-note">That&rsquo;s completely fine &mdash; select this and Cheree will help you find the right path</p>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- Step 4: Outcome card (funding summary + next steps) — no extra click needed -->
-    <div class="sw-step sw-step--hidden" id="sw-step4">
-      <div class="sw-step-hd">
-        <span class="sw-step-num">04</span>
-        <h2 class="sw-step-title">Your coverage &amp; next steps</h2>
+  <!-- Outcome panel — appears after launcher submit -->
+  <div class="sw-outcome-wrap sw-outcome-hidden" id="sw-outcome-wrap">
+    <div class="sw-outcome-inner">
+      <div class="sw-outcome-nav">
+        <button class="sw-back-btn" onclick="launcherReset()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3L4 7l5 4"/></svg>
+          Change selections
+        </button>
       </div>
       <div id="sw-outcome-card"></div>
+      <div id="sw-existing-outcome" class="sw-outcome-hidden"></div>
+    </div>
+  </div>
+
+  <!-- Services guide — browsable, experience-led narrative -->
+  <section class="sw-services-guide" id="sw-services-guide">
+    <div class="sw-sg-hd">
+      <div class="eyebrow sw-sg-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">What we offer</span></div>
+      <h2 class="sw-sg-title">Find the right kind of support</h2>
+      <p class="sw-sg-intro">Not sure which type of session is right for you? Read on &mdash; each section explains what sessions are actually like, who they tend to suit, and what to expect.</p>
     </div>
 
-    <!-- Existing client: message form (shown at step 3 position for existing clients) -->
-    <div class="sw-step sw-step--hidden" id="sw-existing-client">
-      <div class="sw-step-hd">
-        <span class="sw-step-num">03</span>
-        <div>
-          <h2 class="sw-step-title">Send a message to the practice</h2>
-          <p class="sw-step-sub">Let Cheree know you&rsquo;d like to book a session. You&rsquo;ll hear back within 1&ndash;2 business days.</p>
+    <!-- Individual -->
+    <div class="sw-sg-svc" id="guide-individual">
+      <div class="sw-sg-svc-inner">
+        <div class="sw-sg-svc-text">
+          <p class="sw-sg-eyebrow">One-on-one</p>
+          <h3 class="sw-sg-name">Individual Therapy</h3>
+          <p class="sw-sg-lede">A space that belongs entirely to you &mdash; no agenda, no timeline, no right or wrong way to show up.</p>
+          <p class="sw-sg-body">Your first session is mostly a conversation. Cheree gets to know you &mdash; what&rsquo;s brought you here, what feels heavy, and what you&rsquo;re hoping might shift. You don&rsquo;t need to have it figured out before you arrive. In fact, most people find the first session helps them work out what they actually want to focus on.</p>
+          <p class="sw-sg-body">From there, sessions follow your lead. Some people are working through something specific: anxiety, grief, burnout, relationship stress, a big life change. Others come because something just isn&rsquo;t right and they can&rsquo;t quite name it yet. Both are completely valid starting points.</p>
+          <div class="sw-sg-suits">
+            <span class="sw-sg-suits-lbl">Suits</span>
+            <span>Anyone navigating something personal &mdash; at any stage of life</span>
+          </div>
         </div>
-      </div>
-      <div class="sw-exist-panel">
-        <div id="ec-form">
-          <div class="frow">
-            <div class="fg"><label class="fl">First name</label><input class="fi" name="ec-fname" type="text" placeholder="Your name"></div>
-            <div class="fg"><label class="fl">Last name</label><input class="fi" name="ec-lname" type="text" placeholder="Optional"></div>
+        <div class="sw-sg-aside">
+          <div class="sw-sg-aside-card">
+            <p class="sw-sg-aside-lbl">Coverage options</p>
+            <ul class="sw-sg-aside-list">
+              <li>Medicare (Better Access)</li>
+              <li>Private / self-funded</li>
+              <li>NDIS &mdash; self or plan-managed</li>
+              <li>QFES Employee Assistance</li>
+              <li>ADFHSC &amp; DVA</li>
+            </ul>
+            <button class="btn btn-outline sw-sg-btn" onclick="launcherFocus('individual')">Get started &rarr;</button>
           </div>
-          <div class="fg"><label class="fl">Email address</label><input class="fi" name="ec-email" type="email" placeholder="you@example.com"></div>
-          <div class="fg"><label class="fl">What would you like to book?</label>
-            <input class="fi" name="ec-service" type="text" id="ec-service-prefill" placeholder="e.g. Individual session, fortnightly">
-          </div>
-          <div class="fg"><label class="fl">Anything else we should know?</label>
-            <textarea class="ft" name="ec-message" placeholder="Preferred days/times, any changes since your last session, or anything else helpful."></textarea>
-          </div>
-          <button class="fsub" id="ec-submit" onclick="submitExistingForm()">
-            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>
-            Send Message
-          </button>
-        </div>
-        <div class="m-ok" id="ec-ok">
-          <div class="m-ok-ring">&#127807;</div>
-          <h3>Message Sent</h3>
-          <p>Thank you. The practice will be in touch within 1&ndash;2 business days to confirm your session.</p>
         </div>
       </div>
     </div>
 
-  </div><!-- /sw-body -->
+    <!-- Couple / Family -->
+    <div class="sw-sg-svc sw-sg-svc--alt" id="guide-couple-family">
+      <div class="sw-sg-svc-inner">
+        <div class="sw-sg-svc-text">
+          <p class="sw-sg-eyebrow">Together</p>
+          <h3 class="sw-sg-name">Couple or Family Therapy</h3>
+          <p class="sw-sg-lede">When something feels stuck between you &mdash; having someone outside it can help you hear each other differently.</p>
+          <p class="sw-sg-body">Sessions usually begin with each person having the chance to share their perspective &mdash; not to argue the case, but so Cheree can understand the full picture. From there the work becomes collaborative: practising different ways of communicating, working through something that&rsquo;s caused distance, or simply building something stronger between you.</p>
+          <p class="sw-sg-body">This works for romantic partners, co-parents, adult children and their parents, siblings, or any close relationship that could use some support. You don&rsquo;t need to be in crisis &mdash; some couples and families come simply because they want to.</p>
+          <div class="sw-sg-note">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
+            Each person completes a brief individual intake session before joint sessions begin.
+          </div>
+          <div class="sw-sg-suits">
+            <span class="sw-sg-suits-lbl">Suits</span>
+            <span>Partners, co-parents, families, adult children &amp; parents, siblings</span>
+          </div>
+        </div>
+        <div class="sw-sg-aside">
+          <div class="sw-sg-aside-card">
+            <p class="sw-sg-aside-lbl">Coverage options</p>
+            <ul class="sw-sg-aside-list">
+              <li>Private / self-funded</li>
+              <li>QFES Employee Assistance</li>
+              <li>ADFHSC &amp; DVA</li>
+            </ul>
+            <p class="sw-sg-aside-note">Medicare and NDIS are not available for couple or family sessions.</p>
+            <button class="btn btn-outline sw-sg-btn" onclick="launcherFocus('couple-family')">Get started &rarr;</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-  </div><!-- /sw-layout -->
+    <!-- Child -->
+    <div class="sw-sg-svc" id="guide-child">
+      <div class="sw-sg-svc-inner">
+        <div class="sw-sg-svc-text">
+          <p class="sw-sg-eyebrow">For children</p>
+          <h3 class="sw-sg-name">Child Counselling (under 16)</h3>
+          <p class="sw-sg-lede">Children carry a lot &mdash; and they don&rsquo;t always have words for it. Sessions are designed to meet them where they are.</p>
+          <p class="sw-sg-body">Cheree uses age-appropriate approaches &mdash; some conversational, some more activity-based, depending on the child and what they need. The goal is always to create a space where they feel at ease and engaged, not studied or managed.</p>
+          <p class="sw-sg-body">Parents and guardians are an important part of the process. An initial intake session with you comes first &mdash; to understand the background, share what you&rsquo;ve observed, and shape how the sessions will run. Both parents are welcome to come together for the intake.</p>
+          <div class="sw-sg-suits">
+            <span class="sw-sg-suits-lbl">Suits</span>
+            <span>Children experiencing anxiety, behavioural challenges, school pressures, family changes, grief, or anything else that seems to be weighing on them</span>
+          </div>
+        </div>
+        <div class="sw-sg-aside">
+          <div class="sw-sg-aside-card">
+            <p class="sw-sg-aside-lbl">Coverage options</p>
+            <ul class="sw-sg-aside-list">
+              <li>Medicare (Better Access)</li>
+              <li>Private / self-funded</li>
+              <li>NDIS &mdash; self or plan-managed</li>
+              <li>QFES Employee Assistance</li>
+              <li>ADFHSC &amp; DVA</li>
+            </ul>
+            <button class="btn btn-outline sw-sg-btn" onclick="launcherFocus('child')">Get started &rarr;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mediation -->
+    <div class="sw-sg-svc sw-sg-svc--alt" id="guide-mediation">
+      <div class="sw-sg-svc-inner">
+        <div class="sw-sg-svc-text">
+          <p class="sw-sg-eyebrow">Facilitated resolution</p>
+          <h3 class="sw-sg-name">Professional Mediation</h3>
+          <p class="sw-sg-lede">Not every dispute needs a courtroom &mdash; sometimes it just needs a skilled, neutral person in the room.</p>
+          <p class="sw-sg-body">Mediation is a structured, confidential process. Cheree facilitates dialogue between two parties to help them reach a workable agreement &mdash; without the cost, stress, or adversarial nature of formal proceedings. The outcome isn&rsquo;t decided by Cheree; it&rsquo;s reached by you, with her help.</p>
+          <p class="sw-sg-body">It works best when both parties genuinely want resolution &mdash; not necessarily to agree on everything, but to reach something both can move forward from. An individual intake session with each party comes first.</p>
+          <div class="sw-sg-suits">
+            <span class="sw-sg-suits-lbl">Suits</span>
+            <span>Workplace conflicts, family disputes, or any situation where an independent facilitator can help two parties reach agreement</span>
+          </div>
+        </div>
+        <div class="sw-sg-aside">
+          <div class="sw-sg-aside-card">
+            <p class="sw-sg-aside-lbl">Coverage options</p>
+            <ul class="sw-sg-aside-list">
+              <li>Private / self-funded</li>
+              <li>QFES Employee Assistance</li>
+              <li>ADFHSC &amp; DVA</li>
+            </ul>
+            <p class="sw-sg-aside-note">Medicare and NDIS are not available for mediation services.</p>
+            <button class="btn btn-outline sw-sg-btn" onclick="launcherFocus('mediation')">Get started &rarr;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Coverage guide -->
+  <section class="sw-coverage-guide" id="sw-coverage-guide">
+    <div class="sw-cg-hd">
+      <div class="eyebrow sw-sg-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Coverage &amp; costs</span></div>
+      <h2 class="sw-sg-title">How sessions are paid for</h2>
+      <p class="sw-sg-intro">There&rsquo;s more than one way to access sessions with Cheree. Here&rsquo;s what each option actually means for you.</p>
+    </div>
+    <div class="sw-cg-grid">
+
+      <div class="sw-cg-item">
+        <div class="sw-cg-item-hd">
+          <h4 class="sw-cg-name">Private / Self-funded</h4>
+          <span class="sw-cg-price">$195 / session</span>
+        </div>
+        <p class="sw-cg-body">The most straightforward path &mdash; no referral, no GP visit, no waiting. Book directly and pay on the day. A tax invoice is issued immediately. If you have private health extras, check with your insurer about potential rebates.</p>
+        <p class="sw-cg-note">Available for all session types.</p>
+      </div>
+
+      <div class="sw-cg-item">
+        <div class="sw-cg-item-hd">
+          <h4 class="sw-cg-name">Medicare &mdash; Better Access</h4>
+          <span class="sw-cg-price">~$107.75 out of pocket</span>
+        </div>
+        <p class="sw-cg-body">See your GP and get a Mental Health Care Plan (MHCP) naming Cheree McGarry (AMHSW). You can then claim a $87.25 Medicare rebate per session, bringing your cost to around $107.75. Up to 10 sessions per calendar year, with a GP review after the first 6.</p>
+        <p class="sw-cg-note">Individual and child therapy only.</p>
+      </div>
+
+      <div class="sw-cg-item">
+        <div class="sw-cg-item-hd">
+          <h4 class="sw-cg-name">NDIS</h4>
+          <span class="sw-cg-price">Self or plan-managed</span>
+        </div>
+        <p class="sw-cg-body">If counselling is in your NDIS plan, you may be able to use your funding. Self-managed: pay on the day ($195) and claim reimbursement. Plan-managed: invoiced directly to your plan manager at the NDIS rate. Confirm counselling is in your funded supports before booking.</p>
+        <p class="sw-cg-note">Individual and child therapy only.</p>
+      </div>
+
+      <div class="sw-cg-item">
+        <div class="sw-cg-item-hd">
+          <h4 class="sw-cg-name">QFES &mdash; Employee Assistance</h4>
+          <span class="sw-cg-price">Covered by QFES</span>
+        </div>
+        <p class="sw-cg-body">Queensland Fire &amp; Emergency Services employees can access sessions through the EAP at no cost to you. Contact your EAP coordinator to confirm your entitlement and arrange a referral before booking. Couple, family, and mediation sessions may also be covered &mdash; check with your coordinator.</p>
+        <p class="sw-cg-note">QFES employees only.</p>
+      </div>
+
+      <div class="sw-cg-item">
+        <div class="sw-cg-item-hd">
+          <h4 class="sw-cg-name">ADFHSC &amp; DVA</h4>
+          <span class="sw-cg-price">Covered by funder</span>
+        </div>
+        <p class="sw-cg-body">Current and former ADF members, their families, and DVA card holders may be eligible for funded sessions billed directly to ADFHSC or DVA. Contact your unit health officer, Medical Officer, or DVA case manager to arrange a referral before booking.</p>
+        <p class="sw-cg-note">ADF members, veterans &amp; families.</p>
+      </div>
+
+      <div class="sw-cg-item sw-cg-item--notsure">
+        <h4 class="sw-cg-name">Not sure which applies?</h4>
+        <p class="sw-cg-body">That&rsquo;s completely normal &mdash; the options can feel complicated. Reach out and Cheree will help you work out the right path for your situation.</p>
+        <button class="btn btn-solid sw-cg-cta" onclick="openModal()">Get in touch &rarr;</button>
+      </div>
+
+    </div>
+  </section>
 
 
 </div><!-- /page-top-pad -->
@@ -868,170 +922,171 @@ const fundLabels = {
   'not-sure':  'Not sure',
 };
 
-/* ─ State ────────────────────────────────────────────────────────────────── */
+/* ─ State ─────────────────────────────────────────────────────────────────── */
 
 let selectedService = null;
 let selectedClient  = null;
 let selectedFunding = null;
 let currentPlan     = null;
 
-/* ─ Flow functions ───────────────────────────────────────────────────────── */
+/* ─ Launcher widget ──────────────────────────────────────────────────────── */
 
-function selectService(key) {
-  selectedService = key;
-  selectedClient  = null;
-  selectedFunding = null;
-  currentPlan     = null;
+let lncClient  = null;
+let lncService = null;
+let lncFunding = null;
 
-  document.querySelectorAll('.sw-svc-card').forEach(c => c.classList.remove('sel'));
-  document.querySelector('[data-svc="' + key + '"]').classList.add('sel');
+function launcherSetClient(type) {
+  lncClient = type;
+  document.querySelectorAll('[data-client]').forEach(el =>
+    el.classList.toggle('sel', el.dataset.client === type));
 
-  ['couple-family', 'child', 'mediation'].forEach(k => {
-    const n = document.getElementById('note-' + k);
-    if (n) n.classList.toggle('sw-svc-note--hidden', k !== key);
+  const covRow = document.getElementById('sw-ln-coverage');
+  if (covRow) covRow.classList.toggle('sw-ln-row--hidden', type !== 'new');
+
+  if (type === 'existing') {
+    lncFunding = null;
+    document.querySelectorAll('[data-fund]').forEach(el => el.classList.remove('sel'));
+  }
+  updateLauncherBtn();
+}
+
+function launcherSetSvc(key) {
+  lncService = key;
+  document.querySelectorAll('[data-svc]').forEach(el =>
+    el.classList.toggle('sel', el.dataset.svc === key));
+
+  const disabled = disabledFunding[key] || [];
+  document.querySelectorAll('[data-fund]').forEach(p => {
+    const off = disabled.includes(p.dataset.fund);
+    p.classList.toggle('sw-ln-chip--off', off);
+    if (off && lncFunding === p.dataset.fund) {
+      lncFunding = null;
+      p.classList.remove('sel');
+    }
   });
-
-  document.getElementById('sw-step1').classList.add('sw-step--hidden');
-  const step2 = document.getElementById('sw-step2');
-  step2.classList.remove('sw-step--hidden');
-  document.querySelectorAll('.sw-client-card').forEach(c => c.classList.remove('sel'));
-  ['sw-step3', 'sw-step4', 'sw-existing-client'].forEach(id =>
-    document.getElementById(id).classList.add('sw-step--hidden'));
-
-  updateTrail();
-  setTimeout(() => scrollToStep(step2), 80);
+  updateLauncherBtn();
 }
 
-function selectClient(type) {
-  selectedClient  = type;
-  selectedFunding = null;
-  currentPlan     = null;
+function launcherSetFund(key) {
+  if ((disabledFunding[lncService] || []).includes(key)) return;
+  lncFunding = key;
+  document.querySelectorAll('[data-fund]').forEach(el =>
+    el.classList.toggle('sel', el.dataset.fund === key));
+  updateLauncherBtn();
+}
 
-  document.querySelectorAll('.sw-client-card').forEach(c => c.classList.remove('sel'));
-  document.querySelector('[data-client="' + type + '"]').classList.add('sel');
+function updateLauncherBtn() {
+  const btn = document.getElementById('sw-ln-submit');
+  const lbl = document.getElementById('sw-ln-btn-lbl');
+  if (!btn || !lbl) return;
 
-  document.getElementById('sw-step2').classList.add('sw-step--hidden');
-
-  if (type === 'new') {
-    const disabled = disabledFunding[selectedService] || [];
-    document.querySelectorAll('.sw-fund-pill').forEach(p => {
-      p.classList.remove('sw-fund-pill--off', 'sel');
-      if (disabled.includes(p.dataset.fund)) p.classList.add('sw-fund-pill--off');
-    });
-    const step3 = document.getElementById('sw-step3');
-    step3.classList.remove('sw-step--hidden');
-    ['sw-step4', 'sw-existing-client'].forEach(id =>
-      document.getElementById(id).classList.add('sw-step--hidden'));
-    updateTrail();
-    setTimeout(() => scrollToStep(step3), 80);
+  if (lncClient === 'existing') {
+    const ready = !!lncService;
+    btn.disabled = !ready;
+    lbl.textContent = ready ? 'Get in touch →' : 'Complete your selections above';
   } else {
-    prefillExistingService();
-    const existEl = document.getElementById('sw-existing-client');
-    existEl.classList.remove('sw-step--hidden');
-    ['sw-step3', 'sw-step4'].forEach(id =>
-      document.getElementById(id).classList.add('sw-step--hidden'));
-    updateTrail();
-    setTimeout(() => scrollToStep(existEl), 80);
+    const ready = !!(lncClient && lncService && lncFunding);
+    btn.disabled = !ready;
+    lbl.textContent = ready ? 'Request my first session →' : 'Complete your selections above';
   }
 }
 
-function selectFunding(key) {
-  if ((disabledFunding[selectedService] || []).includes(key)) return;
+function launcherSubmit() {
+  selectedService = lncService;
+  selectedClient  = lncClient;
+  selectedFunding = lncFunding;
 
-  selectedFunding = key;
-  document.querySelectorAll('.sw-fund-pill').forEach(p => p.classList.remove('sel'));
-  document.querySelector('[data-fund="' + key + '"]').classList.add('sel');
+  const wrap   = document.getElementById('sw-outcome-wrap');
+  const ocCard = document.getElementById('sw-outcome-card');
+  const exOut  = document.getElementById('sw-existing-outcome');
 
-  currentPlan = (planMatrix[selectedService] || {})[key] || null;
-  renderOutcome();
+  if (lncClient === 'existing') {
+    currentPlan = null;
+    if (ocCard)  ocCard.innerHTML = '';
+    if (exOut) {
+      exOut.innerHTML = buildExistingClientHtml();
+      exOut.classList.remove('sw-outcome-hidden');
+    }
+  } else {
+    currentPlan = (planMatrix[selectedService] || {})[selectedFunding] || null;
+    renderOutcome();
+    if (exOut) exOut.classList.add('sw-outcome-hidden');
+  }
 
-  document.getElementById('sw-step3').classList.add('sw-step--hidden');
-  const step4 = document.getElementById('sw-step4');
-  step4.classList.remove('sw-step--hidden');
-  updateTrail();
-  setTimeout(() => scrollToStep(step4), 80);
-}
-
-function resetTo(step) {
-  if (step <= 1) {
-    selectedService = null; selectedClient = null; selectedFunding = null; currentPlan = null;
-    document.querySelectorAll('.sw-svc-card').forEach(c => c.classList.remove('sel'));
-    ['couple-family','child','mediation'].forEach(k => {
-      const n = document.getElementById('note-' + k);
-      if (n) n.classList.add('sw-svc-note--hidden');
-    });
-    ['sw-step2','sw-step3','sw-step4','sw-existing-client'].forEach(id =>
-      document.getElementById(id).classList.add('sw-step--hidden'));
-    const s1 = document.getElementById('sw-step1');
-    s1.classList.remove('sw-step--hidden');
-    updateTrail();
-    setTimeout(() => scrollToStep(s1), 80);
-  } else if (step <= 2) {
-    selectedClient = null; selectedFunding = null; currentPlan = null;
-    document.querySelectorAll('.sw-client-card').forEach(c => c.classList.remove('sel'));
-    ['sw-step3','sw-step4','sw-existing-client'].forEach(id =>
-      document.getElementById(id).classList.add('sw-step--hidden'));
-    document.getElementById('sw-step1').classList.add('sw-step--hidden');
-    const s2 = document.getElementById('sw-step2');
-    s2.classList.remove('sw-step--hidden');
-    updateTrail();
-    setTimeout(() => scrollToStep(s2), 80);
-  } else if (step <= 3) {
-    selectedFunding = null; currentPlan = null;
-    document.querySelectorAll('.sw-fund-pill').forEach(p => p.classList.remove('sel'));
-    document.getElementById('sw-step4').classList.add('sw-step--hidden');
-    document.getElementById('sw-step2').classList.add('sw-step--hidden');
-    const s3 = document.getElementById('sw-step3');
-    s3.classList.remove('sw-step--hidden');
-    updateTrail();
-    setTimeout(() => scrollToStep(s3), 80);
+  if (wrap) {
+    wrap.classList.remove('sw-outcome-hidden');
+    setTimeout(() => {
+      const navH = (document.getElementById('nav') || {}).offsetHeight || 68;
+      const top  = wrap.getBoundingClientRect().top + window.scrollY - navH - 24;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }, 60);
   }
 }
 
-/* ─ Trail breadcrumb ─────────────────────────────────────────────────────── */
+function launcherReset() {
+  lncClient = null; lncService = null; lncFunding = null;
+  selectedService = null; selectedClient = null; selectedFunding = null; currentPlan = null;
 
-/* Scroll to a step element with offset for fixed nav + sticky steps bar */
-function scrollToStep(el) {
-  const navH   = (document.getElementById('nav') || {}).offsetHeight || 68;
-  const barH   = (document.getElementById('sp-steps-bar') || {}).offsetHeight || 56;
-  const gap    = 24;
-  const top    = el.getBoundingClientRect().top + window.scrollY - navH - barH - gap;
-  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  document.querySelectorAll('[data-client],[data-svc],[data-fund]').forEach(el =>
+    el.classList.remove('sel'));
+  document.querySelectorAll('[data-fund]').forEach(el =>
+    el.classList.remove('sw-ln-chip--off'));
+
+  const covRow = document.getElementById('sw-ln-coverage');
+  if (covRow) covRow.classList.add('sw-ln-row--hidden');
+
+  const wrap = document.getElementById('sw-outcome-wrap');
+  if (wrap) wrap.classList.add('sw-outcome-hidden');
+
+  updateLauncherBtn();
+
+  const launcher = document.querySelector('.sw-launcher');
+  if (launcher) {
+    const navH = (document.getElementById('nav') || {}).offsetHeight || 68;
+    const top  = launcher.getBoundingClientRect().top + window.scrollY - navH - 24;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  }
 }
 
-/* Update the sticky step progress bar */
-function updateTrail() {
-  // Step 1 — service
-  const s1     = document.getElementById('sp-step-1');
-  const s1sel  = document.getElementById('sp-step-1-sel');
-  const s1btn  = document.getElementById('sp-step-1-n');
-  const done1  = !!selectedService;
-  s1.classList.toggle('sp-step--done',   done1);
-  s1.classList.toggle('sp-step--active', !done1);
-  s1sel.innerHTML = done1 ? svcLabels[selectedService] : '';
-  s1btn.disabled  = !done1;
+function launcherFocus(svcKey) {
+  launcherSetSvc(svcKey);
+  const launcher = document.querySelector('.sw-launcher');
+  if (launcher) {
+    const navH = (document.getElementById('nav') || {}).offsetHeight || 68;
+    const top  = launcher.getBoundingClientRect().top + window.scrollY - navH - 24;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  }
+}
 
-  // Step 2 — client type
-  const s2     = document.getElementById('sp-step-2');
-  const s2sel  = document.getElementById('sp-step-2-sel');
-  const s2btn  = document.getElementById('sp-step-2-n');
-  const done2  = !!selectedClient;
-  const active2 = done1 && !done2;
-  s2.classList.toggle('sp-step--done',   done2);
-  s2.classList.toggle('sp-step--active', active2);
-  s2sel.innerHTML = done2 ? (selectedClient === 'new' ? 'New client' : 'Existing client') : '';
-  s2btn.disabled  = !done2;
-
-  // Step 3 — coverage (only for new clients)
-  const s3     = document.getElementById('sp-step-3');
-  const s3sel  = document.getElementById('sp-step-3-sel');
-  const s3btn  = document.getElementById('sp-step-3-n');
-  const done3  = !!selectedFunding;
-  const active3 = done2 && selectedClient === 'new' && !done3;
-  s3.classList.toggle('sp-step--done',   done3);
-  s3.classList.toggle('sp-step--active', active3 || (done2 && selectedClient === 'existing'));
-  s3sel.innerHTML = done3 ? fundLabels[selectedFunding] : '';
-  s3btn.disabled  = !done3;
+function buildExistingClientHtml() {
+  const svcName = svcLabels[lncService] || '';
+  return '<div class="sw-exist-panel">' +
+    '<div class="sw-exist-head">' +
+      '<p class="sw-exist-label">Existing client</p>' +
+      '<h4 class="sw-exist-title">Send a message to the practice</h4>' +
+      '<p class="sw-exist-sub">Let Cheree know you\'d like to book. You\'ll hear back within 1\u20132 business days.</p>' +
+    '</div>' +
+    '<div id="ec-form">' +
+      '<div class="frow">' +
+        '<div class="fg"><label class="fl">First name</label><input class="fi" name="ec-fname" type="text" placeholder="Your name" autocomplete="given-name"></div>' +
+        '<div class="fg"><label class="fl">Last name</label><input class="fi" name="ec-lname" type="text" placeholder="Optional" autocomplete="family-name"></div>' +
+      '</div>' +
+      '<div class="fg"><label class="fl">Email address</label><input class="fi" name="ec-email" type="email" placeholder="you@example.com" autocomplete="email"></div>' +
+      '<div class="fg"><label class="fl">What would you like to book?</label>' +
+        '<input class="fi" name="ec-service" id="ec-service-prefill" type="text" value="' + svcName + '" placeholder="e.g. Individual session, fortnightly"></div>' +
+      '<div class="fg"><label class="fl">Anything else? <span class=\"sw-req-opt\">(optional)</span></label>' +
+        '<textarea class="ft" name="ec-message" placeholder="Preferred days/times, any changes since your last session, or anything else helpful."></textarea></div>' +
+      '<button class="fsub" id="ec-submit" onclick="submitExistingForm()">' +
+        '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>' +
+        ' Send Message' +
+      '</button>' +
+    '</div>' +
+    '<div class="m-ok" id="ec-ok" style="display:none">' +
+      '<div class="m-ok-ring">&#127807;</div>' +
+      '<h3>Message Sent</h3>' +
+      '<p>Thank you. The practice will be in touch within 1\u20132 business days to confirm your session.</p>' +
+    '</div>' +
+  '</div>';
 }
 
 /* ─ Outcome card renderer ────────────────────────────────────────────────── */
