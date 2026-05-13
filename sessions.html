@@ -46,6 +46,13 @@
       <div class="eyebrow sp-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">How can we support you?</span></div>
       <h1 class="sp-title">Find your<br><em>path forward</em></h1>
       <p class="sp-intro">Tell us what kind of support you&rsquo;re looking for &mdash; we&rsquo;ll show you exactly what to expect, what you need, and how to get started.</p>
+      <div class="sp-steps">
+        <div class="sp-step"><span class="sp-step-n">1</span><span class="sp-step-txt">Choose your support</span></div>
+        <span class="sp-step-arr">›</span>
+        <div class="sp-step"><span class="sp-step-n">2</span><span class="sp-step-txt">Tell us about you</span></div>
+        <span class="sp-step-arr">›</span>
+        <div class="sp-step"><span class="sp-step-n">3</span><span class="sp-step-txt">See your next steps</span></div>
+      </div>
     </div>
   </div>
 
@@ -968,9 +975,16 @@ function resetTo(step) {
 
 function updateTrail() {
   const trail = document.getElementById('sw-trail');
+  const layout = document.querySelector('.sw-layout');
   const inner = trail.querySelector('.sw-trail-inner');
-  if (!selectedService) { trail.classList.add('sw-trail--hidden'); inner.innerHTML = ''; return; }
+  if (!selectedService) {
+    trail.classList.add('sw-trail--hidden');
+    layout.classList.remove('sw-layout--trail');
+    inner.innerHTML = '';
+    return;
+  }
   trail.classList.remove('sw-trail--hidden');
+  layout.classList.add('sw-layout--trail');
 
   // Build all steps — selected steps are active, unselected are pending
   let html = '';

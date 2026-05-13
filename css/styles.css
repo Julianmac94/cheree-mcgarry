@@ -499,6 +499,11 @@ body::after {
 .sp-title { font-family: var(--serif); font-size: clamp(36px,5vw,60px); font-weight: 300; line-height: 1.0; color: white; margin-bottom: 18px; }
 .sp-title em { display: block; font-style: italic; color: rgba(255,255,255,0.5); }
 .sp-intro { font-size: 15px; font-weight: 300; color: rgba(255,255,255,0.42); line-height: 1.8; max-width: 500px; }
+.sp-steps { display: flex; align-items: center; gap: 10px; margin-top: 28px; flex-wrap: wrap; }
+.sp-step { display: flex; align-items: center; gap: 8px; }
+.sp-step-n { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.65); font-size: 11px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: var(--sans); }
+.sp-step-txt { font-size: 12px; font-weight: 400; color: rgba(255,255,255,0.45); letter-spacing: 0.02em; white-space: nowrap; }
+.sp-step-arr { color: rgba(255,255,255,0.18); font-size: 16px; line-height: 1; }
 .sp-body { padding: 64px 72px 96px; }
 .sp-pull { text-align: center; font-family: var(--serif); font-size: clamp(17px,1.8vw,20px); font-style: italic; font-weight: 300; color: var(--mid); margin-bottom: 52px; line-height: 1.6; }
 .sp-div { display: flex; align-items: center; gap: 16px; margin-bottom: 26px; }
@@ -1167,30 +1172,28 @@ footer { background: var(--teal-deep); }
   max-width: 1120px;
   margin: 0 auto;
   padding: 0 40px;
+  /* Default: no grid — body takes full width before first selection */
+}
+/* Once a service is selected, the trail column appears */
+.sw-layout.sw-layout--trail {
   display: grid;
-  grid-template-columns: 200px 1fr;
+  grid-template-columns: 220px 1fr;
   gap: 0 40px;
   align-items: start;
 }
 
 /* ── PROGRESS TRAIL ── */
 .sw-trail {
-  /* Sidebar on desktop */
+  /* Hidden on desktop by default — only shown when sw-layout--trail is active */
+  display: none;
   position: sticky;
   top: 80px;
   align-self: start;
-  /* Invisible when hidden — preserve grid column so content doesn't shift */
-  visibility: hidden;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.25s ease;
 }
 .sw-trail:not(.sw-trail--hidden) {
-  visibility: visible;
-  pointer-events: auto;
-  opacity: 1;
+  display: block;
 }
-.sw-trail--hidden { display: block; } /* override old display:none — use visibility instead */
+.sw-trail--hidden { display: none; }
 
 .sw-trail-inner {
   display: flex;
@@ -1556,6 +1559,7 @@ footer { background: var(--teal-deep); }
 
   /* Trail: sticky horizontal bar at top of scroll */
   .sw-trail {
+    display: block;      /* override desktop display:none */
     position: sticky;
     top: 58px;           /* below the nav bar */
     z-index: 90;
