@@ -56,13 +56,13 @@
     </div>
   </div>
 
-  <!-- Wizard layout: sidebar trail on desktop, sticky bar on mobile -->
-  <div class="sw-layout">
-
-  <!-- Progress trail — sidebar on desktop / sticky bar on mobile -->
+  <!-- Progress trail — sticky top bar at all widths -->
   <div class="sw-trail sw-trail--hidden" id="sw-trail">
     <div class="sw-trail-inner"></div>
   </div>
+
+  <!-- Wizard body -->
+  <div class="sw-layout">
 
   <!-- Wizard body -->
   <div class="sw-body">
@@ -145,7 +145,7 @@
     <div class="sw-step sw-step--hidden" id="sw-step3">
       <div class="sw-step-hd">
         <span class="sw-step-num">03</span>
-        <h2 class="sw-step-title">How will you be funding your sessions?</h2>
+        <h2 class="sw-step-title">How are your sessions covered?</h2>
       </div>
       <div class="sw-fund-grid">
 
@@ -191,7 +191,7 @@
     <div class="sw-step sw-step--hidden" id="sw-step4">
       <div class="sw-step-hd">
         <span class="sw-step-num">04</span>
-        <h2 class="sw-step-title">Your funding summary &amp; next steps</h2>
+        <h2 class="sw-step-title">Your coverage &amp; next steps</h2>
       </div>
       <div id="sw-outcome-card"></div>
     </div>
@@ -894,7 +894,7 @@ function selectService(key) {
     document.getElementById(id).classList.add('sw-step--hidden'));
 
   updateTrail();
-  setTimeout(() => step2.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  setTimeout(() => scrollToStep(step2), 80);
 }
 
 function selectClient(type) {
@@ -918,7 +918,7 @@ function selectClient(type) {
     ['sw-step4', 'sw-existing-client'].forEach(id =>
       document.getElementById(id).classList.add('sw-step--hidden'));
     updateTrail();
-    setTimeout(() => step3.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+    setTimeout(() => scrollToStep(step3), 80);
   } else {
     prefillExistingService();
     const existEl = document.getElementById('sw-existing-client');
@@ -926,7 +926,7 @@ function selectClient(type) {
     ['sw-step3', 'sw-step4'].forEach(id =>
       document.getElementById(id).classList.add('sw-step--hidden'));
     updateTrail();
-    setTimeout(() => existEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+    setTimeout(() => scrollToStep(existEl), 80);
   }
 }
 
@@ -944,7 +944,7 @@ function selectFunding(key) {
   const step4 = document.getElementById('sw-step4');
   step4.classList.remove('sw-step--hidden');
   updateTrail();
-  setTimeout(() => step4.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  setTimeout(() => scrollToStep(step4), 80);
 }
 
 function resetTo(step) {
@@ -957,43 +957,53 @@ function resetTo(step) {
     });
     ['sw-step2','sw-step3','sw-step4','sw-existing-client'].forEach(id =>
       document.getElementById(id).classList.add('sw-step--hidden'));
-    document.getElementById('sw-step1').classList.remove('sw-step--hidden');
+    const s1 = document.getElementById('sw-step1');
+    s1.classList.remove('sw-step--hidden');
     updateTrail();
-    document.getElementById('sw-step1').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => scrollToStep(s1), 80);
   } else if (step <= 2) {
     selectedClient = null; selectedFunding = null; currentPlan = null;
     document.querySelectorAll('.sw-client-card').forEach(c => c.classList.remove('sel'));
     ['sw-step3','sw-step4','sw-existing-client'].forEach(id =>
       document.getElementById(id).classList.add('sw-step--hidden'));
     document.getElementById('sw-step1').classList.add('sw-step--hidden');
-    document.getElementById('sw-step2').classList.remove('sw-step--hidden');
+    const s2 = document.getElementById('sw-step2');
+    s2.classList.remove('sw-step--hidden');
     updateTrail();
-    document.getElementById('sw-step2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => scrollToStep(s2), 80);
   } else if (step <= 3) {
     selectedFunding = null; currentPlan = null;
     document.querySelectorAll('.sw-fund-pill').forEach(p => p.classList.remove('sel'));
     document.getElementById('sw-step4').classList.add('sw-step--hidden');
     document.getElementById('sw-step2').classList.add('sw-step--hidden');
-    document.getElementById('sw-step3').classList.remove('sw-step--hidden');
+    const s3 = document.getElementById('sw-step3');
+    s3.classList.remove('sw-step--hidden');
     updateTrail();
-    document.getElementById('sw-step3').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => scrollToStep(s3), 80);
   }
 }
 
 /* ─ Trail breadcrumb ─────────────────────────────────────────────────────── */
 
+/* Scroll to a step element with offset for fixed nav + sticky trail */
+function scrollToStep(el) {
+  const navH  = (document.getElementById('nav') || {}).offsetHeight || 68;
+  const trail = document.getElementById('sw-trail');
+  const trailH = trail.classList.contains('sw-trail--hidden') ? 0 : (trail.offsetHeight || 0);
+  const gap   = 28;
+  const top   = el.getBoundingClientRect().top + window.scrollY - navH - trailH - gap;
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
+
 function updateTrail() {
   const trail = document.getElementById('sw-trail');
-  const layout = document.querySelector('.sw-layout');
   const inner = trail.querySelector('.sw-trail-inner');
   if (!selectedService) {
     trail.classList.add('sw-trail--hidden');
-    layout.classList.remove('sw-layout--trail');
     inner.innerHTML = '';
     return;
   }
   trail.classList.remove('sw-trail--hidden');
-  layout.classList.add('sw-layout--trail');
 
   // Build all steps — selected steps are active, unselected are pending
   let html = '';
@@ -1011,9 +1021,9 @@ function updateTrail() {
   // Step 3 — funding (only for new clients; skip for existing)
   if (selectedClient === 'new') {
     if (selectedFunding) {
-      html += crumb('Funding', fundLabels[selectedFunding], 'resetTo(3)', true);
+      html += crumb('Coverage', fundLabels[selectedFunding], 'resetTo(3)', true);
     } else {
-      html += crumbPending('Funding');
+      html += crumbPending('Coverage');
     }
   }
 
