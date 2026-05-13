@@ -43,12 +43,15 @@
     <div style="max-width:660px">
       <div class="eyebrow sp-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">How can we support you?</span></div>
       <h1 class="sp-title">Find your<br><em>path forward</em></h1>
-      <p class="sp-intro">Tell us what kind of support you&rsquo;re looking for and how you&rsquo;d like to fund your sessions &mdash; we&rsquo;ll build your personalised plan and walk you through exactly what to do next.</p>
+      <p class="sp-intro">Tell us what kind of support you&rsquo;re looking for &mdash; we&rsquo;ll show you exactly what to expect, what you need, and how to get started.</p>
     </div>
   </div>
 
   <!-- Wizard body -->
   <div class="sw-body">
+
+    <!-- Progress trail — builds as selections are made -->
+    <div class="sw-trail sw-trail--hidden" id="sw-trail"></div>
 
     <!-- Step 1: Service type -->
     <div class="sw-step" id="sw-step1">
@@ -70,7 +73,7 @@
           <p class="sw-svc-desc">Rebuild connection, improve communication, and navigate difficulties together with professional guidance.</p>
           <div class="sw-svc-note sw-svc-note--hidden" id="note-couple-family">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
-            Requires an individual intake first
+            Individual intake for each person required first
           </div>
         </div>
 
@@ -80,7 +83,7 @@
           <p class="sw-svc-desc">Tailored support for young people, with parents actively involved in the process.</p>
           <div class="sw-svc-note sw-svc-note--hidden" id="note-child">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
-            Requires a parent/guardian intake first
+            Parent or guardian intake session required first
           </div>
         </div>
 
@@ -90,67 +93,17 @@
           <p class="sw-svc-desc">Structured, impartial facilitation to help parties reach workable agreements.</p>
           <div class="sw-svc-note sw-svc-note--hidden" id="note-mediation">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
-            Requires an intake session first
+            Individual intake session required first
           </div>
         </div>
 
       </div>
     </div>
 
-    <!-- Step 2: Funding -->
+    <!-- Step 2: New or existing client (moved before funding) -->
     <div class="sw-step sw-step--hidden" id="sw-step2">
       <div class="sw-step-hd">
         <span class="sw-step-num">02</span>
-        <h2 class="sw-step-title">How will you be funding your sessions?</h2>
-      </div>
-      <div class="sw-fund-grid">
-
-        <div class="sw-fund-pill" data-fund="medicare" onclick="selectFunding('medicare')">
-          <p class="sw-fund-name">Medicare</p>
-          <p class="sw-fund-note">MHCP required &middot; Rebate applies to individual/child only</p>
-        </div>
-
-        <div class="sw-fund-pill" data-fund="private" onclick="selectFunding('private')">
-          <p class="sw-fund-name">Private / Self-funded</p>
-          <p class="sw-fund-note">No referral needed &middot; Pay directly</p>
-        </div>
-
-        <div class="sw-fund-pill" data-fund="ndis" onclick="selectFunding('ndis')">
-          <p class="sw-fund-name">NDIS</p>
-          <p class="sw-fund-note">Referral/plan approval required &middot; Not available for couples/family or mediation</p>
-        </div>
-
-        <div class="sw-fund-pill" data-fund="qfes" onclick="selectFunding('qfes')">
-          <p class="sw-fund-name">QFES</p>
-          <p class="sw-fund-note">Queensland Fire &amp; Emergency Services &middot; Referral required</p>
-        </div>
-
-        <div class="sw-fund-pill" data-fund="dva" onclick="selectFunding('dva')">
-          <p class="sw-fund-name">Veteran Affairs (DVA)</p>
-          <p class="sw-fund-note">Referral required &middot; Booking confirmed after review</p>
-        </div>
-
-        <div class="sw-fund-pill" data-fund="not-sure" onclick="selectFunding('not-sure')">
-          <p class="sw-fund-name">I&rsquo;m not sure</p>
-          <p class="sw-fund-note">We&rsquo;ll help you figure it out</p>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- Step 3: Plan card -->
-    <div class="sw-step sw-step--hidden" id="sw-step3">
-      <div class="sw-step-hd">
-        <span class="sw-step-num">03</span>
-        <h2 class="sw-step-title">Your reference plan</h2>
-      </div>
-      <div class="sw-plan-card" id="sw-plan-card"></div>
-    </div>
-
-    <!-- Step 4: New or existing client -->
-    <div class="sw-step sw-step--hidden" id="sw-step4">
-      <div class="sw-step-hd">
-        <span class="sw-step-num">04</span>
         <h2 class="sw-step-title">Are you a new or existing client?</h2>
       </div>
       <div class="sw-client-grid">
@@ -160,7 +113,7 @@
             <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#2A5850" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="7" r="4"/><path d="M3 19c0-4.4 3.6-8 8-8s8 3.6 8 8"/><path d="M17 4l2 2-2 2"/></svg>
           </div>
           <h3 class="sw-client-name">New Client</h3>
-          <p class="sw-client-desc">First time working with Cheree. You&rsquo;ll complete an intake form and book your first appointment through our secure portal.</p>
+          <p class="sw-client-desc">First time working with Cheree. We&rsquo;ll walk you through exactly what you need to get started &mdash; intake forms, requirements, and how to book.</p>
         </div>
 
         <div class="sw-client-card" data-client="existing" onclick="selectClient('existing')">
@@ -174,19 +127,71 @@
       </div>
     </div>
 
-    <!-- Step 4a: New client flow -->
-    <div class="sw-step sw-step--hidden" id="sw-new-client">
-      <div class="sw-new-panel" id="sw-new-panel-content"></div>
+    <!-- Step 3: Funding type (new clients only — NDIS split into self + plan) -->
+    <div class="sw-step sw-step--hidden" id="sw-step3">
+      <div class="sw-step-hd">
+        <span class="sw-step-num">03</span>
+        <h2 class="sw-step-title">How will you be funding your sessions?</h2>
+      </div>
+      <div class="sw-fund-grid">
+
+        <div class="sw-fund-pill" data-fund="medicare" onclick="selectFunding('medicare')">
+          <p class="sw-fund-name">Medicare</p>
+          <p class="sw-fund-note">Better Access &middot; MHCP required &middot; Individual &amp; child only</p>
+        </div>
+
+        <div class="sw-fund-pill" data-fund="private" onclick="selectFunding('private')">
+          <p class="sw-fund-name">Private / Self-funded</p>
+          <p class="sw-fund-note">No referral needed &middot; Book directly</p>
+        </div>
+
+        <div class="sw-fund-pill" data-fund="ndis-self" onclick="selectFunding('ndis-self')">
+          <p class="sw-fund-name">NDIS &mdash; Self-managed</p>
+          <p class="sw-fund-note">Private rate &middot; Invoice for reimbursement</p>
+        </div>
+
+        <div class="sw-fund-pill" data-fund="ndis-plan" onclick="selectFunding('ndis-plan')">
+          <p class="sw-fund-name">NDIS &mdash; Plan-managed</p>
+          <p class="sw-fund-note">Pre-approval required &middot; Invoiced to plan manager</p>
+        </div>
+
+        <div class="sw-fund-pill" data-fund="qfes" onclick="selectFunding('qfes')">
+          <p class="sw-fund-name">QFES</p>
+          <p class="sw-fund-note">Employee Assistance Program &middot; Referral required</p>
+        </div>
+
+        <div class="sw-fund-pill" data-fund="dva" onclick="selectFunding('dva')">
+          <p class="sw-fund-name">ADFHSC &amp; DVA</p>
+          <p class="sw-fund-note">ADF members, families &amp; veterans &middot; Referral required</p>
+        </div>
+
+        <div class="sw-fund-pill" data-fund="not-sure" onclick="selectFunding('not-sure')">
+          <p class="sw-fund-name">I&rsquo;m not sure</p>
+          <p class="sw-fund-note">We&rsquo;ll help you work it out</p>
+        </div>
+
+      </div>
     </div>
 
-    <!-- Step 4b: Existing client form -->
+    <!-- Step 4: Outcome card (funding summary + next steps) — no extra click needed -->
+    <div class="sw-step sw-step--hidden" id="sw-step4">
+      <div class="sw-step-hd">
+        <span class="sw-step-num">04</span>
+        <h2 class="sw-step-title">Your funding summary &amp; next steps</h2>
+      </div>
+      <div id="sw-outcome-card"></div>
+    </div>
+
+    <!-- Existing client: message form (shown at step 3 position for existing clients) -->
     <div class="sw-step sw-step--hidden" id="sw-existing-client">
-      <div class="sw-exist-panel">
-        <div class="sw-exist-head">
-          <p class="sw-exist-label">Existing client enquiry</p>
-          <h3 class="sw-exist-title">Send a message to the practice</h3>
-          <p class="sw-exist-sub">Let Cheree know you&rsquo;d like to book a session and include any relevant details. You&rsquo;ll hear back within 1&ndash;2 business days.</p>
+      <div class="sw-step-hd">
+        <span class="sw-step-num">03</span>
+        <div>
+          <h2 class="sw-step-title">Send a message to the practice</h2>
+          <p class="sw-step-sub">Let Cheree know you&rsquo;d like to book a session. You&rsquo;ll hear back within 1&ndash;2 business days.</p>
         </div>
+      </div>
+      <div class="sw-exist-panel">
         <div id="ec-form">
           <div class="frow">
             <div class="fg"><label class="fl">First name</label><input class="fi" name="ec-fname" type="text" placeholder="Your name"></div>
@@ -370,188 +375,673 @@
 
 <script src="js/main.js"></script>
 <script>
-/* ── SESSIONS WIZARD ── */
+/* ── SESSIONS WIZARD v2 ── */
+
+/* ─ Data ─────────────────────────────────────────────────────────────────── */
+
+const INTAKE_FORM_URL = 'https://www.halaxy.com/a/online/form/new-patient/245011/iRz7os7FEYL5K-ZXe9Al5UsvcTNONVNCNkhKMDRia2d0UmZxRlJLZUsvbWg';
+const HALAXY_BOOK_URL = 'https://www.halaxy.com/book/cheree-mcgarry';
+const CANCEL_HTML     = 'To cancel: call <a href="tel:0418742087"><strong>0418&nbsp;742&nbsp;087</strong></a> (preferred) &mdash; or <a href="tel:0400075525">0400&nbsp;075&nbsp;525</a> if unavailable &mdash; or email <a href="mailto:sessions@chereemcgarry.com">sessions@chereemcgarry.com</a>';
+
+/*
+  Each plan entry:
+    heading      — display name of funding type
+    logo         — optional brand logo path
+    price        — rate string
+    pocket       — optional "out of pocket / payment" line
+    funder       — true = sessions paid by organisation (not client)
+    needBefore   — what must be in place before booking (null = nothing extra)
+    highlights   — array of key facts (max 4)
+    cancelExtra  — extra cancellation note for funded types (null otherwise)
+    ctaType      — 'book' | 'contact'
+    formUrl      — Halaxy intake form URL (null if none yet set)
+    formLabel    — label for intake form card
+    formQr       — QR code image path
+    approval     — shown as info note when booking must be funder-confirmed
+*/
 
 const planMatrix = {
   individual: {
-    medicare:   { price: '$195 / 60 min',              reqs: ['Medicare rebate of $87.25 applies', 'No intake session required'],                                          cta: 'Continue',          ctaType: 'book',    approval: null,                                                     funder: false, formUrl: 'https://www.halaxy.com/a/online/form/new-patient/245011/iRz7os7FEYL5K-ZXe9Al5UsvcTNONVNCNkhKMDRia2d0UmZxRlJLZUsvbWg', formLabel: 'Individual — Private / Medicare', formQr: 'assets/qr-private-intake.png' },
-    private:    { price: '$195 / 60 min',              reqs: [],                                                                                                          cta: 'Continue',          ctaType: 'book',    approval: null,                                                     funder: false, formUrl: 'https://www.halaxy.com/a/online/form/new-patient/245011/iRz7os7FEYL5K-ZXe9Al5UsvcTNONVNCNkhKMDRia2d0UmZxRlJLZUsvbWg', formLabel: 'Individual — Private / Medicare', formQr: 'assets/qr-private-intake.png' },
-    ndis:       { price: 'Funder pays',                reqs: ['Referral / plan approval required', 'Session cost covered by NDIS'],                                       cta: 'Continue',          ctaType: 'book',    approval: "We’ll email you to confirm after reviewing your referral.", funder: true  },
-    qfes:       { price: 'Funder pays',                reqs: ['Referral required', 'Session cost covered by QFES'],                                                       cta: 'Continue',          ctaType: 'book',    approval: "We’ll email you to confirm after reviewing your referral.", funder: true  },
-    dva:        { price: 'Funder pays',                reqs: ['Referral required', 'Session cost covered by DVA'],                                                        cta: 'Continue',          ctaType: 'book',    approval: "We’ll email you to confirm after reviewing your referral.", funder: true  },
-    'not-sure': { price: '$195 / 60 min',              reqs: [],                                                                                                          cta: 'Ask Us Anything',   ctaType: 'contact', approval: null,                                                     funder: false },
+    medicare: {
+      heading:     'Medicare &mdash; Better Access',
+      logo:        'assets/medicare-logo.svg',
+      price:       '$195 / session',
+      pocket:      'Out-of-pocket: <strong>$107.75</strong> after $87.25 Medicare rebate',
+      funder:      false,
+      needBefore:  'GP or psychiatrist <strong>Mental Health Care Plan (MHCP)</strong> naming <em>Cheree McGarry &mdash; AMHSW</em> is required before your first session.',
+      highlights:  [
+        'Up to <strong>10 sessions</strong> per calendar year &mdash; GP review required after the first 6',
+        'Rebate of $87.25 claimed via Services Australia &mdash; or ask Cheree to submit on your behalf (case-by-case)',
+        'Cannot claim both Medicare and private health for the same session',
+        'Medicare rebates cannot be applied to cancellation fees',
+      ],
+      cancelExtra: 'Medicare rebates do not apply to cancellation or no-show fees.',
+      ctaType:     'book',
+      formUrl:     INTAKE_FORM_URL,
+      formLabel:   'Individual &mdash; Private / Medicare',
+      formQr:      'assets/qr-private-intake.png',
+      approval:    null,
+    },
+    private: {
+      heading:     'Private / Self-funded',
+      logo:        null,
+      price:       '$195 / session',
+      pocket:      'Payment processed on the day &mdash; tax invoice issued immediately',
+      funder:      false,
+      needBefore:  null,
+      highlights:  [
+        'No referral required &mdash; book directly via Halaxy',
+        'Private health extras may apply &mdash; check with your insurer',
+        'Cannot claim both Medicare and private health for the same session',
+      ],
+      cancelExtra: null,
+      ctaType:     'book',
+      formUrl:     INTAKE_FORM_URL,
+      formLabel:   'Individual &mdash; Private / Medicare',
+      formQr:      'assets/qr-private-intake.png',
+      approval:    null,
+    },
+    'ndis-self': {
+      heading:     'NDIS &mdash; Self-managed',
+      logo:        'assets/ndis-logo.svg',
+      price:       '$195 / session',
+      pocket:      'Paid on the day &mdash; NDIS-compliant invoice issued for your records',
+      funder:      false,
+      needBefore:  'Confirm counselling is within your <strong>funded supports</strong> before booking. Have your NDIS plan number and relevant support budget line item ready.',
+      highlights:  [
+        'Rate is the same as private &mdash; $195 per session',
+        'NDIS-compliant invoice provided for self-managed reimbursement',
+        'Bring your NDIS plan number and support budget line item',
+      ],
+      cancelExtra: null,
+      ctaType:     'book',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    null,
+    },
+    'ndis-plan': {
+      heading:     'NDIS &mdash; Plan-managed',
+      logo:        'assets/ndis-logo.svg',
+      price:       'NDIS price guide rate',
+      pocket:      'Rate confirmed before your first session &mdash; invoiced directly to your plan manager',
+      funder:      true,
+      needBefore:  '<strong>Written approval from your plan manager is required before your first booking.</strong> Confirm counselling is within your funded supports and have your plan number and plan manager contact details ready.',
+      highlights:  [
+        'Invoiced directly to your plan manager in NDIS-compliant format',
+        'Bring your plan number and plan manager name and contact details',
+        'Cancellations: may be covered by your plan or charged to you directly &mdash; check with your plan manager',
+      ],
+      cancelExtra: 'Sessions are paid by your plan manager. Cancellations without adequate notice may be charged directly to you if not covered by your NDIS plan.',
+      ctaType:     'book',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    "We'll contact you to confirm once your plan manager approval has been reviewed.",
+    },
+    qfes: {
+      heading:     'QFES &mdash; Employee Assistance Program',
+      logo:        'assets/qfes-logo.svg',
+      price:       'Billed to QFES',
+      pocket:      'You are not charged for sessions you attend',
+      funder:      true,
+      needBefore:  'Contact your <strong>QFES EAP coordinator</strong> to confirm your referral is in place before booking.',
+      highlights:  [
+        'Sessions billed directly to QFES under your EAP entitlement',
+        'Cancellations: may be covered by QFES or charged to you directly &mdash; check your EAP terms',
+      ],
+      cancelExtra: 'Sessions are funded by QFES. Cancellations without adequate notice may be charged to you directly if not covered by QFES.',
+      ctaType:     'book',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    "We'll contact you to confirm after reviewing your EAP referral.",
+    },
+    dva: {
+      heading:     'ADFHSC &amp; DVA',
+      logo:        'assets/dva-logo.svg',
+      price:       'Billed to your funder',
+      pocket:      'You are not charged for sessions you attend',
+      funder:      true,
+      needBefore:  'Contact your <strong>unit health officer, Medical Officer, or DVA case manager</strong> to arrange your referral before booking.',
+      highlights:  [
+        'Sessions billed directly to ADFHSC or DVA',
+        'Cancellations: may be covered by your funder or charged to you directly',
+      ],
+      cancelExtra: 'Sessions are funded by ADFHSC/DVA. Cancellations without adequate notice may be charged to you directly.',
+      ctaType:     'book',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    "We'll contact you to confirm after reviewing your referral.",
+    },
+    'not-sure': {
+      heading:     "Not sure about funding?",
+      logo:        null,
+      price:       null,
+      pocket:      null,
+      funder:      false,
+      needBefore:  null,
+      highlights:  [
+        "Common pathways: <strong>Private</strong> ($195/session, no referral), <strong>Medicare</strong> ($107.75 out-of-pocket with a GP referral), <strong>NDIS</strong>, or employer-funded (QFES, DVA/ADFHSC)",
+        "That's completely fine &mdash; reach out and Cheree will help you work through your options",
+      ],
+      cancelExtra: null,
+      ctaType:     'contact',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    null,
+    },
   },
+
   'couple-family': {
-    private:    { price: '$195 / hr · 2 hr minimum', reqs: ['Individual intake session required first'],                                                             cta: 'Continue',          ctaType: 'intake',  approval: null,                                                     funder: false },
-    qfes:       { price: 'Funder pays',                reqs: ['Individual intake first', 'Referral required', 'Session cost covered by QFES'],                            cta: 'Continue',          ctaType: 'intake',  approval: "We’ll email you to confirm.",                         funder: true  },
-    dva:        { price: 'Funder pays',                reqs: ['Individual intake first', 'Referral required', 'Session cost covered by DVA'],                             cta: 'Continue',          ctaType: 'intake',  approval: "We’ll email you to confirm.",                         funder: true  },
-    'not-sure': { price: '$195 / hr · 2 hr minimum', reqs: ['Individual intake session required first'],                                                             cta: 'Ask Us Anything',   ctaType: 'contact', approval: null,                                                     funder: false },
+    private: {
+      heading:     'Private / Self-funded',
+      logo:        null,
+      price:       '$195 / session',
+      pocket:      'Charged per session &mdash; not per person &mdash; payment on the day',
+      funder:      false,
+      needBefore:  'Each partner completes a <strong>separate individual intake session</strong> first. Both intakes must be completed before joint sessions begin.',
+      highlights:  [
+        'Individual intake required for each person &mdash; both partners are welcome to attend together for the intake',
+        'Sessions are 60 minutes at $195 &mdash; charged once per session, not per person',
+        'Tax invoice issued immediately after each session',
+      ],
+      cancelExtra: null,
+      ctaType:     'book',
+      formUrl:     INTAKE_FORM_URL,
+      formLabel:   'Individual intake &mdash; couple/family (step 1)',
+      formQr:      'assets/qr-private-intake.png',
+      approval:    null,
+    },
+    qfes: {
+      heading:     'QFES &mdash; Employee Assistance Program',
+      logo:        'assets/qfes-logo.svg',
+      price:       'Billed to QFES',
+      pocket:      'You are not charged for sessions you attend',
+      funder:      true,
+      needBefore:  'Contact your <strong>QFES EAP coordinator</strong> first. An individual intake session for each partner is also required before joint sessions begin.',
+      highlights:  [
+        'Individual intake required for each partner before joint sessions',
+        'Sessions billed to QFES &mdash; confirm couple/family counselling is covered under your EAP',
+        'Cancellations: may be covered by QFES or charged to you &mdash; check your EAP terms',
+      ],
+      cancelExtra: 'Sessions are funded by QFES. Late cancellations may be charged to you directly.',
+      ctaType:     'book',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    "We'll contact you to confirm after reviewing your EAP referral.",
+    },
+    dva: {
+      heading:     'ADFHSC &amp; DVA',
+      logo:        'assets/dva-logo.svg',
+      price:       'Billed to your funder',
+      pocket:      'You are not charged for sessions you attend',
+      funder:      true,
+      needBefore:  'Contact your <strong>unit health officer or DVA case manager</strong>. Individual intake for each partner is required before joint sessions begin.',
+      highlights:  [
+        'Individual intake required for each partner before joint sessions',
+        'Sessions billed to ADFHSC/DVA',
+        'Cancellations: may be covered by your funder or charged to you directly',
+      ],
+      cancelExtra: 'Sessions are funded by ADFHSC/DVA. Late cancellations may be charged to you directly.',
+      ctaType:     'book',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    "We'll contact you to confirm after reviewing your referral.",
+    },
+    'not-sure': {
+      heading:     "Not sure about funding?",
+      logo:        null,
+      price:       null,
+      pocket:      null,
+      funder:      false,
+      needBefore:  null,
+      highlights:  [
+        "Reach out &mdash; Cheree will help you work out the right funding path for couple or family sessions",
+      ],
+      cancelExtra: null,
+      ctaType:     'contact',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    null,
+    },
   },
+
   child: {
-    medicare:   { price: '$195 / 60 min',              reqs: ['Parent/guardian intake session first', 'Parent intake may also be claimable under Medicare'],              cta: 'Continue',          ctaType: 'intake',  approval: null,                                                     funder: false },
-    private:    { price: '$195 / 60 min',              reqs: ['Parent/guardian intake session first'],                                                                    cta: 'Continue',          ctaType: 'intake',  approval: null,                                                     funder: false },
-    ndis:       { price: 'Funder pays',                reqs: ['Parent/guardian intake first', 'Referral / plan approval required', 'Session cost covered by NDIS'],       cta: 'Continue',          ctaType: 'intake',  approval: "We’ll email you to confirm.",                         funder: true  },
-    qfes:       { price: 'Funder pays',                reqs: ['Parent/guardian intake first', 'Referral required', 'Session cost covered by QFES'],                       cta: 'Continue',          ctaType: 'intake',  approval: "We’ll email you to confirm.",                         funder: true  },
-    dva:        { price: 'Funder pays',                reqs: ['Parent/guardian intake first', 'Referral required', 'Session cost covered by DVA'],                        cta: 'Continue',          ctaType: 'intake',  approval: "We’ll email you to confirm.",                         funder: true  },
-    'not-sure': { price: '$195 / 60 min',              reqs: ['Parent/guardian intake is usually the first step'],                                                         cta: 'Ask Us Anything',   ctaType: 'contact', approval: null,                                                     funder: false },
+    medicare: {
+      heading:     'Medicare &mdash; Better Access',
+      logo:        'assets/medicare-logo.svg',
+      price:       '$195 / session',
+      pocket:      'Out-of-pocket: <strong>$107.75</strong> after $87.25 rebate',
+      funder:      false,
+      needBefore:  'A <strong>parent or guardian intake</strong> with Cheree is required first. Then a GP or psychiatrist <strong>MHCP naming Cheree McGarry &mdash; AMHSW</strong> for the child.',
+      highlights:  [
+        'One parent/guardian intake required before child sessions begin &mdash; both parents are welcome to attend together',
+        'Bring the child\'s and a parent/guardian\'s Medicare card (required for children under 14)',
+        'Up to 10 sessions per calendar year &mdash; GP review required after the first 6',
+        'Parent intake may also be claimable under Medicare &mdash; discuss with your GP',
+      ],
+      cancelExtra: 'Medicare rebates do not apply to cancellation or no-show fees.',
+      ctaType:     'book',
+      formUrl:     INTAKE_FORM_URL,
+      formLabel:   'Parent/guardian intake &mdash; child (Medicare)',
+      formQr:      'assets/qr-private-intake.png',
+      approval:    null,
+    },
+    private: {
+      heading:     'Private / Self-funded',
+      logo:        null,
+      price:       '$195 / session',
+      pocket:      'Payment processed on the day &mdash; tax invoice issued immediately',
+      funder:      false,
+      needBefore:  'A <strong>parent or guardian intake</strong> session with Cheree is required before child counselling begins.',
+      highlights:  [
+        'One parent/guardian intake required &mdash; both parents are welcome to attend together',
+        'Intake covers background information, consent, and treatment planning',
+        'Private health extras may apply &mdash; check with your insurer',
+      ],
+      cancelExtra: null,
+      ctaType:     'book',
+      formUrl:     INTAKE_FORM_URL,
+      formLabel:   'Parent/guardian intake &mdash; child (private)',
+      formQr:      'assets/qr-private-intake.png',
+      approval:    null,
+    },
+    'ndis-self': {
+      heading:     'NDIS &mdash; Self-managed',
+      logo:        'assets/ndis-logo.svg',
+      price:       '$195 / session',
+      pocket:      'Paid on the day &mdash; NDIS-compliant invoice for your records',
+      funder:      false,
+      needBefore:  'A <strong>parent/guardian intake</strong> is required first. Confirm counselling is within the child\'s funded supports. Have the NDIS plan number and support budget line item ready.',
+      highlights:  [
+        'Parent/guardian intake required before child sessions begin',
+        'Rate is same as private &mdash; $195 per session',
+        'NDIS-compliant invoice issued for self-managed reimbursement',
+      ],
+      cancelExtra: null,
+      ctaType:     'book',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    null,
+    },
+    'ndis-plan': {
+      heading:     'NDIS &mdash; Plan-managed',
+      logo:        'assets/ndis-logo.svg',
+      price:       'NDIS price guide rate',
+      pocket:      'Rate confirmed before first session &mdash; invoiced to plan manager',
+      funder:      true,
+      needBefore:  'A <strong>parent/guardian intake</strong> is required first. <strong>Written approval from the plan manager</strong> must be in place before booking. Confirm counselling is within funded supports.',
+      highlights:  [
+        'Parent/guardian intake required before child sessions begin',
+        'Written plan manager approval must be confirmed before first booking',
+        'Bring plan number and plan manager name and contact details',
+        'Cancellations: may be covered by plan or charged directly &mdash; check with plan manager',
+      ],
+      cancelExtra: 'Sessions funded by plan manager. Late cancellations may be charged directly to you if not covered by the NDIS plan.',
+      ctaType:     'book',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    "We'll contact you to confirm after reviewing your plan manager approval.",
+    },
+    qfes: {
+      heading:     'QFES &mdash; Employee Assistance Program',
+      logo:        'assets/qfes-logo.svg',
+      price:       'Billed to QFES',
+      pocket:      'You are not charged for sessions your child attends',
+      funder:      true,
+      needBefore:  '<strong>Parent/guardian intake</strong> required first. Contact your <strong>QFES EAP coordinator</strong> to arrange referral before booking.',
+      highlights:  [
+        'Parent/guardian intake required before child counselling begins',
+        'Sessions billed to QFES under EAP entitlement',
+        'Cancellations: may be covered by QFES or charged to you &mdash; check your EAP terms',
+      ],
+      cancelExtra: 'Sessions are funded by QFES. Late cancellations may be charged to you directly.',
+      ctaType:     'book',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    "We'll contact you to confirm after reviewing your EAP referral.",
+    },
+    dva: {
+      heading:     'ADFHSC &amp; DVA',
+      logo:        'assets/dva-logo.svg',
+      price:       'Billed to your funder',
+      pocket:      'You are not charged for sessions your child attends',
+      funder:      true,
+      needBefore:  '<strong>Parent/guardian intake</strong> required first. Contact your <strong>unit health officer or DVA case manager</strong> to arrange referral.',
+      highlights:  [
+        'Parent/guardian intake required before child counselling begins',
+        'Sessions billed to ADFHSC/DVA',
+        'Cancellations: may be covered by funder or charged to you directly',
+      ],
+      cancelExtra: 'Sessions funded by ADFHSC/DVA. Late cancellations may be charged to you directly.',
+      ctaType:     'book',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    "We'll contact you to confirm after reviewing your referral.",
+    },
+    'not-sure': {
+      heading:     "Not sure about funding?",
+      logo:        null,
+      price:       null,
+      pocket:      null,
+      funder:      false,
+      needBefore:  null,
+      highlights:  [
+        "Reach out and Cheree will help identify the right funding path for your child's sessions",
+      ],
+      cancelExtra: null,
+      ctaType:     'contact',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    null,
+    },
   },
+
   mediation: {
-    private:    { price: '$195 / hr · 2 hr min after intake', reqs: ['Intake session required first'],                                                               cta: 'Continue',          ctaType: 'intake',  approval: null,                                                     funder: false },
-    qfes:       { price: 'Funder pays',                reqs: ['Intake first', 'Referral required', 'Session cost covered by QFES'],                                       cta: 'Continue',          ctaType: 'intake',  approval: "We’ll email you to confirm.",                         funder: true  },
-    dva:        { price: 'Funder pays',                reqs: ['Intake first', 'Referral required', 'Session cost covered by DVA'],                                        cta: 'Continue',          ctaType: 'intake',  approval: "We’ll email you to confirm.",                         funder: true  },
-    'not-sure': { price: '$195 / hr · 2 hr minimum', reqs: ['Intake session required first'],                                                                        cta: 'Ask Us Anything',   ctaType: 'contact', approval: null,                                                     funder: false },
+    private: {
+      heading:     'Private / Self-funded',
+      logo:        null,
+      price:       '$195 / session',
+      pocket:      'Sessions are $195/hr with a 2-hour minimum after intake &mdash; payment on the day',
+      funder:      false,
+      needBefore:  'An <strong>individual intake session</strong> is required first before mediation sessions begin.',
+      highlights:  [
+        'Individual intake required before mediation proceeds',
+        'Mediation sessions: $195/hr, 2-hour minimum',
+        'Tax invoice issued immediately after each session',
+      ],
+      cancelExtra: null,
+      ctaType:     'book',
+      formUrl:     INTAKE_FORM_URL,
+      formLabel:   'Individual intake &mdash; mediation',
+      formQr:      'assets/qr-private-intake.png',
+      approval:    null,
+    },
+    qfes: {
+      heading:     'QFES &mdash; Employee Assistance Program',
+      logo:        'assets/qfes-logo.svg',
+      price:       'Billed to QFES',
+      pocket:      'You are not charged for sessions you attend',
+      funder:      true,
+      needBefore:  'Individual intake required first. Contact your <strong>QFES EAP coordinator</strong> to confirm mediation is within your entitlement before booking.',
+      highlights:  [
+        'Individual intake required before mediation sessions begin',
+        'Confirm mediation is covered under your QFES EAP',
+        'Cancellations: may be covered by QFES or charged to you &mdash; check EAP terms',
+      ],
+      cancelExtra: 'Sessions funded by QFES. Late cancellations may be charged to you directly.',
+      ctaType:     'book',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    "We'll contact you to confirm after reviewing your EAP referral.",
+    },
+    dva: {
+      heading:     'ADFHSC &amp; DVA',
+      logo:        'assets/dva-logo.svg',
+      price:       'Billed to your funder',
+      pocket:      'You are not charged for sessions you attend',
+      funder:      true,
+      needBefore:  'Individual intake required first. Contact your <strong>unit health officer or DVA case manager</strong> to arrange referral for mediation.',
+      highlights:  [
+        'Individual intake required before mediation sessions begin',
+        'Confirm mediation is covered by your ADFHSC/DVA entitlement',
+        'Cancellations: may be covered by funder or charged to you directly',
+      ],
+      cancelExtra: 'Sessions funded by ADFHSC/DVA. Late cancellations may be charged to you directly.',
+      ctaType:     'book',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    "We'll contact you to confirm after reviewing your referral.",
+    },
+    'not-sure': {
+      heading:     "Not sure about funding?",
+      logo:        null,
+      price:       null,
+      pocket:      null,
+      funder:      false,
+      needBefore:  null,
+      highlights:  [
+        "Reach out &mdash; Cheree can advise on the right path for professional mediation services",
+      ],
+      cancelExtra: null,
+      ctaType:     'contact',
+      formUrl:     null,
+      formLabel:   null,
+      formQr:      null,
+      approval:    null,
+    },
   },
 };
 
 const disabledFunding = {
-  'couple-family': ['medicare', 'ndis'],
-  mediation:       ['medicare', 'ndis'],
+  'couple-family': ['medicare', 'ndis-self', 'ndis-plan'],
+  mediation:       ['medicare', 'ndis-self', 'ndis-plan'],
 };
 
-const svcLabels  = { individual: 'Individual therapy', 'couple-family': 'Couple or family therapy', child: 'Child (under 16)', mediation: 'Professional mediation' };
-const fundLabels = { medicare: 'Medicare (MHCP)', private: 'Private / self-funded', ndis: 'NDIS', qfes: 'QFES', dva: 'DVA (Veteran Affairs)', 'not-sure': 'unsure funding' };
+const svcLabels  = {
+  individual:      'Individual therapy',
+  'couple-family': 'Couple or family therapy',
+  child:           'Child (under 16)',
+  mediation:       'Professional mediation',
+};
+const fundLabels = {
+  medicare:    'Medicare (MHCP)',
+  private:     'Private / self-funded',
+  'ndis-self': 'NDIS &mdash; self-managed',
+  'ndis-plan': 'NDIS &mdash; plan-managed',
+  qfes:        'QFES',
+  dva:         'ADFHSC &amp; DVA',
+  'not-sure':  'Not sure',
+};
+
+/* ─ State ────────────────────────────────────────────────────────────────── */
 
 let selectedService = null;
+let selectedClient  = null;
 let selectedFunding = null;
 let currentPlan     = null;
 
+/* ─ Flow functions ───────────────────────────────────────────────────────── */
+
 function selectService(key) {
   selectedService = key;
+  selectedClient  = null;
   selectedFunding = null;
+  currentPlan     = null;
 
   document.querySelectorAll('.sw-svc-card').forEach(c => c.classList.remove('sel'));
   document.querySelector('[data-svc="' + key + '"]').classList.add('sel');
 
-  // Show/hide service notes
   ['couple-family', 'child', 'mediation'].forEach(k => {
     const n = document.getElementById('note-' + k);
-    if (n) n.classList.toggle('sw-svc-note--hidden', k !== key || !['couple-family','child','mediation'].includes(key));
+    if (n) n.classList.toggle('sw-svc-note--hidden', k !== key);
   });
 
   const step2 = document.getElementById('sw-step2');
   step2.classList.remove('sw-step--hidden');
+  document.querySelectorAll('.sw-client-card').forEach(c => c.classList.remove('sel'));
+  ['sw-step3', 'sw-step4', 'sw-existing-client'].forEach(id =>
+    document.getElementById(id).classList.add('sw-step--hidden'));
 
-  const disabled = disabledFunding[key] || [];
-  document.querySelectorAll('.sw-fund-pill').forEach(p => {
-    p.classList.remove('sw-fund-pill--off', 'sel');
-    if (disabled.includes(p.dataset.fund)) p.classList.add('sw-fund-pill--off');
-  });
-
-  ['sw-step3','sw-step4','sw-new-client','sw-existing-client'].forEach(id => {
-    document.getElementById(id).classList.add('sw-step--hidden');
-  });
-
+  updateTrail();
   setTimeout(() => step2.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+}
+
+function selectClient(type) {
+  selectedClient  = type;
+  selectedFunding = null;
+  currentPlan     = null;
+
+  document.querySelectorAll('.sw-client-card').forEach(c => c.classList.remove('sel'));
+  document.querySelector('[data-client="' + type + '"]').classList.add('sel');
+
+  if (type === 'new') {
+    const disabled = disabledFunding[selectedService] || [];
+    document.querySelectorAll('.sw-fund-pill').forEach(p => {
+      p.classList.remove('sw-fund-pill--off', 'sel');
+      if (disabled.includes(p.dataset.fund)) p.classList.add('sw-fund-pill--off');
+    });
+    const step3 = document.getElementById('sw-step3');
+    step3.classList.remove('sw-step--hidden');
+    ['sw-step4', 'sw-existing-client'].forEach(id =>
+      document.getElementById(id).classList.add('sw-step--hidden'));
+    updateTrail();
+    setTimeout(() => step3.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+  } else {
+    prefillExistingService();
+    const existEl = document.getElementById('sw-existing-client');
+    existEl.classList.remove('sw-step--hidden');
+    ['sw-step3', 'sw-step4'].forEach(id =>
+      document.getElementById(id).classList.add('sw-step--hidden'));
+    updateTrail();
+    setTimeout(() => existEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+  }
 }
 
 function selectFunding(key) {
   if ((disabledFunding[selectedService] || []).includes(key)) return;
 
   selectedFunding = key;
-
   document.querySelectorAll('.sw-fund-pill').forEach(p => p.classList.remove('sel'));
   document.querySelector('[data-fund="' + key + '"]').classList.add('sel');
 
-  renderPlan();
+  currentPlan = (planMatrix[selectedService] || {})[key] || null;
+  renderOutcome();
 
-  const step3 = document.getElementById('sw-step3');
-  step3.classList.remove('sw-step--hidden');
-
-  ['sw-step4','sw-new-client','sw-existing-client'].forEach(id => {
-    document.getElementById(id).classList.add('sw-step--hidden');
-  });
-
-  setTimeout(() => step3.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
-}
-
-function showStep4() {
   const step4 = document.getElementById('sw-step4');
   step4.classList.remove('sw-step--hidden');
-  ['sw-new-client','sw-existing-client'].forEach(id => {
-    document.getElementById(id).classList.add('sw-step--hidden');
-  });
+  updateTrail();
   setTimeout(() => step4.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
 }
 
-function renderPlan() {
-  currentPlan = planMatrix[selectedService][selectedFunding];
-  if (!currentPlan) return;
+function resetTo(step) {
+  if (step <= 1) {
+    selectedService = null; selectedClient = null; selectedFunding = null; currentPlan = null;
+    document.querySelectorAll('.sw-svc-card').forEach(c => c.classList.remove('sel'));
+    ['couple-family','child','mediation'].forEach(k => {
+      const n = document.getElementById('note-' + k);
+      if (n) n.classList.add('sw-svc-note--hidden');
+    });
+    ['sw-step2','sw-step3','sw-step4','sw-existing-client'].forEach(id =>
+      document.getElementById(id).classList.add('sw-step--hidden'));
+    updateTrail();
+    document.getElementById('sw-step1').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else if (step <= 2) {
+    selectedClient = null; selectedFunding = null; currentPlan = null;
+    document.querySelectorAll('.sw-client-card').forEach(c => c.classList.remove('sel'));
+    ['sw-step3','sw-step4','sw-existing-client'].forEach(id =>
+      document.getElementById(id).classList.add('sw-step--hidden'));
+    updateTrail();
+    document.getElementById('sw-step2').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else if (step <= 3) {
+    selectedFunding = null; currentPlan = null;
+    document.querySelectorAll('.sw-fund-pill').forEach(p => p.classList.remove('sel'));
+    document.getElementById('sw-step4').classList.add('sw-step--hidden');
+    updateTrail();
+    document.getElementById('sw-step3').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+/* ─ Trail breadcrumb ─────────────────────────────────────────────────────── */
+
+function updateTrail() {
+  const trail = document.getElementById('sw-trail');
+  if (!selectedService) { trail.classList.add('sw-trail--hidden'); return; }
+  trail.classList.remove('sw-trail--hidden');
+
+  let html = crumb('Support', svcLabels[selectedService], 'resetTo(1)');
+
+  if (selectedClient) {
+    html += '<span class="sw-trail-sep">&rsaquo;</span>';
+    html += crumb('You', selectedClient === 'new' ? 'New client' : 'Existing client', 'resetTo(2)');
+  }
+  if (selectedFunding) {
+    html += '<span class="sw-trail-sep">&rsaquo;</span>';
+    html += crumb('Funding', fundLabels[selectedFunding], 'resetTo(3)');
+  }
+  trail.innerHTML = html;
+}
+
+function crumb(label, val, action) {
+  return '<div class="sw-trail-crumb">' +
+    '<span class="sw-trail-lbl">' + label + '</span>' +
+    '<span class="sw-trail-val">' + val + '</span>' +
+    '<button class="sw-trail-edit" onclick="' + action + '">change</button>' +
+  '</div>';
+}
+
+/* ─ Outcome card renderer ────────────────────────────────────────────────── */
+
+function renderOutcome() {
   const p = currentPlan;
+  const container = document.getElementById('sw-outcome-card');
+  if (!p) { container.innerHTML = ''; return; }
 
-  const reqs = p.reqs.map(r => '<div class="sw-plan-req">' + r + '</div>').join('');
+  if (p.ctaType === 'contact') {
+    container.innerHTML = renderContactOutcome(p);
+    return;
+  }
 
-  const cancelWarn = p.funder ? '<div class="sw-plan-cancel"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:2px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.2"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>Sessions are paid by your funder. If you don’t comply with our cancellation policy, you may be liable for the full session rate.</div>' : '';
+  const logoHtml = p.logo
+    ? '<img src="' + p.logo + '" alt="" class="sw-oc-logo">'
+    : '';
 
-  const approvalNote = p.approval ? '<div class="sw-plan-approval"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:2px"><circle cx="8" cy="8" r="7" stroke="#2A5850" stroke-width="1.2"/><path d="M8 7v5M8 5v.5" stroke="#2A5850" stroke-width="1.4" stroke-linecap="round"/></svg>' + p.approval + '</div>' : '';
+  const priceHtml = p.price
+    ? '<div class="sw-oc-price-block">' +
+        '<div class="sw-oc-price">' + p.price + '</div>' +
+        (p.pocket ? '<div class="sw-oc-pocket">' + p.pocket + '</div>' : '') +
+      '</div>'
+    : '';
 
-  const ctaBtn = p.ctaType === 'contact'
-    ? '<button class="btn btn-mint" onclick="openModal()">Ask Us Anything &rarr;</button>'
-    : '<button class="btn btn-solid" onclick="showStep4()">Continue to booking &rarr;</button>';
+  const beforeHtml = p.needBefore
+    ? '<div class="sw-oc-before">' +
+        '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:2px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.2"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>' +
+        '<span>' + p.needBefore + '</span>' +
+      '</div>'
+    : '';
 
-  document.getElementById('sw-plan-card').innerHTML =
-    '<div class="sw-plan-top">' +
-      '<p class="sw-plan-label">Your reference plan</p>' +
-      '<p class="sw-plan-combo">' + svcLabels[selectedService] + ' <em>via</em> ' + fundLabels[selectedFunding] + '</p>' +
-    '</div>' +
-    '<div class="sw-plan-body">' +
-      '<div class="sw-plan-price">' + p.price + '</div>' +
-      (reqs ? '<div class="sw-plan-reqs">' + reqs + '</div>' : '') +
-      cancelWarn +
-      approvalNote +
-      '<div class="sw-plan-cta">' + ctaBtn + '</div>' +
+  const highlightsHtml = p.highlights && p.highlights.length
+    ? '<div class="sw-oc-col">' +
+        '<div class="sw-oc-sec-label">Key notes</div>' +
+        '<ul class="sw-oc-highlights">' +
+          p.highlights.map(h => '<li>' + h + '</li>').join('') +
+        '</ul>' +
+      '</div>'
+    : '';
+
+  const cancelHtml =
+    '<div class="sw-oc-col sw-oc-cancel-col">' +
+      '<div class="sw-oc-sec-label">Cancellation policy</div>' +
+      '<div class="sw-oc-cancel-rows">' +
+        '<div class="sw-oc-cancel-row"><span class="sw-oc-cancel-notice">48h+ notice</span><span class="ci-tag ci-tag-green">No charge</span></div>' +
+        '<div class="sw-oc-cancel-row"><span class="sw-oc-cancel-notice">24&ndash;48h notice</span><span class="ci-tag ci-tag-amber">50% of session fee</span></div>' +
+        '<div class="sw-oc-cancel-row"><span class="sw-oc-cancel-notice">Under 24h or no-show</span><span class="ci-tag ci-tag-red">Full session fee</span></div>' +
+      '</div>' +
+      (p.cancelExtra ? '<p class="sw-oc-cancel-extra">' + p.cancelExtra + '</p>' : '') +
+      '<div class="sw-oc-cancel-contact">' + CANCEL_HTML + '</div>' +
     '</div>';
-}
 
-function selectClient(type) {
-  document.querySelectorAll('.sw-client-card').forEach(c => c.classList.remove('sel'));
-  document.querySelector('[data-client="' + type + '"]').classList.add('sel');
+  const approvalHtml = p.approval
+    ? '<div class="sw-oc-approval">' +
+        '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:2px"><circle cx="8" cy="8" r="7" stroke="#2A5850" stroke-width="1.2"/><path d="M8 7v5M8 5v.5" stroke="#2A5850" stroke-width="1.4" stroke-linecap="round"/></svg>' +
+        p.approval +
+      '</div>'
+    : '';
 
-  const newEl  = document.getElementById('sw-new-client');
-  const existEl = document.getElementById('sw-existing-client');
-
-  if (type === 'new') {
-    renderNewPanel();
-    newEl.classList.remove('sw-step--hidden');
-    existEl.classList.add('sw-step--hidden');
-    setTimeout(() => newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
-  } else {
-    prefillExistingService();
-    existEl.classList.remove('sw-step--hidden');
-    newEl.classList.add('sw-step--hidden');
-    setTimeout(() => existEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
-  }
-}
-
-function renderNewPanel() {
-  const p = currentPlan;
-  const isIntake = p && p.ctaType === 'intake';
-  const isFunder = p && p.funder;
-
-  const steps = [];
-
-  if (selectedService === 'child') {
-    steps.push({ n: 1, title: 'Book a parent/guardian intake', desc: 'Before your child’s sessions begin, a parent or guardian meets with Cheree first. Complete the intake form and book your time via our secure Halaxy portal.' });
-    steps.push({ n: 2, title: 'Complete the new client forms', desc: 'You’ll receive intake forms via email to complete before your first appointment. These help Cheree prepare for your session.' });
-    if (isFunder) steps.push({ n: 3, title: 'Submit your referral / funding approval', desc: 'Have your referral or funding plan ready. We’ll confirm your booking by email once reviewed.' });
-    steps.push({ n: isFunder ? 4 : 3, title: 'Attend your intake &mdash; then book for your child', desc: 'After the parent intake, your child’s sessions can be scheduled.' });
-  } else if (isIntake) {
-    steps.push({ n: 1, title: 'Book your intake session', desc: 'Your first appointment is an intake session. Complete the new client form and book your time via our secure Halaxy portal.' });
-    steps.push({ n: 2, title: 'Complete the new client forms', desc: 'You’ll receive intake forms by email to fill in before your first appointment.' });
-    if (isFunder) steps.push({ n: 3, title: 'Submit your referral / funding approval', desc: 'Have your referral or funding plan ready. We’ll confirm your booking by email once reviewed.' });
-  } else {
-    steps.push({ n: 1, title: 'Book your first session', desc: 'Schedule your appointment via our secure Halaxy portal. New clients complete a short intake form as part of the booking process.' });
-    steps.push({ n: 2, title: 'Complete the new client forms', desc: 'You’ll receive intake forms by email to fill in before your first appointment.' });
-    if (isFunder) steps.push({ n: 3, title: 'Submit your referral / funding approval', desc: 'Have your referral or funding plan ready. We’ll confirm your booking by email once reviewed.' });
-  }
-
-  const stepsHtml = steps.map(s =>
-    '<div class="sw-new-step">' +
-      '<div class="sw-new-step-num">' + s.n + '</div>' +
-      '<div class="sw-new-step-txt"><strong>' + s.title + '</strong><span>' + s.desc + '</span></div>' +
-    '</div>'
-  ).join('');
-
-  const intakeCard = p.formUrl
+  const intakeCardHtml = p.formUrl
     ? '<div class="sw-intake-card">' +
         '<div class="sw-intake-left">' +
           '<p class="sw-intake-eyebrow">New client intake form</p>' +
@@ -563,31 +1053,69 @@ function renderNewPanel() {
           '</a>' +
         '</div>' +
         '<div class="sw-intake-qr">' +
-          '<img src="' + p.formQr + '" alt="QR code — scan to open intake form on your phone">' +
+          '<img src="' + p.formQr + '" alt="QR code &mdash; scan to open intake form on your phone">' +
           '<p>Scan to open<br>on your phone</p>' +
         '</div>' +
       '</div>'
     : '';
 
-  document.getElementById('sw-new-panel-content').innerHTML =
-    '<h3>Getting started as a new client</h3>' +
-    '<p>Everything is managed through our secure Halaxy portal. You’ll be guided through the process step by step.</p>' +
-    '<div class="sw-new-steps">' + stepsHtml + '</div>' +
-    intakeCard +
-    '<div style="margin-top:' + (p.formUrl ? '20px' : '28px') + ';display:flex;gap:12px;flex-wrap:wrap">' +
-      '<a class="btn ' + (p.formUrl ? 'btn-outline' : 'btn-solid') + '" href="https://www.halaxy.com/book/cheree-mcgarry" target="_blank" rel="noopener">' +
+  const actionsHtml =
+    '<div class="sw-oc-footer">' +
+      '<a class="btn ' + (p.formUrl ? 'btn-outline' : 'btn-solid') + '" href="' + HALAXY_BOOK_URL + '" target="_blank" rel="noopener">' +
         '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 7h10M7 2l5 5-5 5"/></svg>' +
         'Book via Halaxy' +
       '</a>' +
       '<button class="btn btn-outline" onclick="openModal()">Ask a question first</button>' +
-    '</div>' +
-    '<p style="margin-top:16px;font-size:12px;color:var(--faint);font-style:italic">If you have trouble with the online portal, email <a href="mailto:reachout@chereemcgarry.com" style="color:var(--teal)">reachout@chereemcgarry.com</a> and we’ll assist you.</p>';
+      '<a class="btn btn-ghost sw-oc-info-link" href="info.html#ci-funding">Full client info &rarr;</a>' +
+    '</div>';
+
+  container.innerHTML =
+    '<div class="sw-oc">' +
+      '<div class="sw-oc-head">' +
+        logoHtml +
+        '<div class="sw-oc-hd-text">' +
+          '<div class="sw-oc-title">' + p.heading + '</div>' +
+          '<div class="sw-oc-sub">' + svcLabels[selectedService] + '</div>' +
+        '</div>' +
+        priceHtml +
+      '</div>' +
+      (beforeHtml ? '<div class="sw-oc-before-wrap">' + beforeHtml + '</div>' : '') +
+      '<div class="sw-oc-details">' +
+        highlightsHtml +
+        cancelHtml +
+      '</div>' +
+      approvalHtml +
+      intakeCardHtml +
+      actionsHtml +
+    '</div>';
 }
+
+function renderContactOutcome(p) {
+  return '<div class="sw-oc sw-oc--contact">' +
+    '<div class="sw-oc-head">' +
+      '<div class="sw-oc-hd-text">' +
+        '<div class="sw-oc-title">' + p.heading + '</div>' +
+        '<div class="sw-oc-sub">' + svcLabels[selectedService] + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="sw-oc-contact-body">' +
+      '<ul class="sw-oc-highlights">' +
+        p.highlights.map(h => '<li>' + h + '</li>').join('') +
+      '</ul>' +
+    '</div>' +
+    '<div class="sw-oc-footer">' +
+      '<button class="btn btn-solid" onclick="openModal()">Get in touch with Cheree &rarr;</button>' +
+      '<a class="btn btn-outline" href="info.html#ci-funding">View all funding options &rarr;</a>' +
+    '</div>' +
+  '</div>';
+}
+
+/* ─ Existing client helpers ──────────────────────────────────────────────── */
 
 function prefillExistingService() {
   const el = document.getElementById('ec-service-prefill');
   if (el && selectedService) {
-    el.value = svcLabels[selectedService] + (selectedFunding && selectedFunding !== 'not-sure' ? ' · ' + fundLabels[selectedFunding] : '');
+    el.value = svcLabels[selectedService];
   }
 }
 
@@ -610,7 +1138,7 @@ async function submitExistingForm() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
-        name: [fname, lname].filter(Boolean).join(' '),
+        name:     [fname, lname].filter(Boolean).join(' '),
         email,
         service,
         message,
