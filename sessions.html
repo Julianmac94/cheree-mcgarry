@@ -1015,7 +1015,7 @@ function updateTrail() {
   if (selectedClient) {
     html += crumb('You', selectedClient === 'new' ? 'New client' : 'Existing client', 'resetTo(2)', true);
   } else {
-    html += crumbPending('You');
+    html += crumbPending('You', 2);
   }
 
   // Step 3 — funding (only for new clients; skip for existing)
@@ -1023,7 +1023,7 @@ function updateTrail() {
     if (selectedFunding) {
       html += crumb('Coverage', fundLabels[selectedFunding], 'resetTo(3)', true);
     } else {
-      html += crumbPending('Coverage');
+      html += crumbPending('Coverage', 3);
     }
   }
 
@@ -1032,20 +1032,18 @@ function updateTrail() {
 
 function crumb(label, val, action, done) {
   return '<div class="sw-trail-crumb sw-trail-crumb--done">' +
-    '<div class="sw-trail-dot sw-trail-dot--done"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 5l2 2.5 4-4"/></svg></div>' +
+    '<div class="sw-trail-dot sw-trail-dot--done"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg></div>' +
     '<div class="sw-trail-crumb-body">' +
-      '<span class="sw-trail-lbl">' + label + '</span>' +
       '<span class="sw-trail-val">' + val + '</span>' +
       '<button class="sw-trail-edit" onclick="' + action + '">change</button>' +
     '</div>' +
   '</div>';
 }
 
-function crumbPending(label) {
+function crumbPending(label, num) {
   return '<div class="sw-trail-crumb sw-trail-crumb--pending">' +
-    '<div class="sw-trail-dot"></div>' +
+    '<div class="sw-trail-dot">' + (num || '') + '</div>' +
     '<div class="sw-trail-crumb-body">' +
-      '<span class="sw-trail-lbl">' + label + '</span>' +
       '<span class="sw-trail-val sw-trail-val--pending">Select below</span>' +
     '</div>' +
   '</div>';
