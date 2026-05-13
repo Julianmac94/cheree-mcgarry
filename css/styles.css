@@ -691,7 +691,7 @@ footer { background: var(--teal-deep); }
     bottom: auto; left: auto; right: auto;
     flex-direction: column;
     gap: 12px;
-    margin-top: 0;
+    margin-top: 28px;
     padding: 0 0 32px;
   }
 
