@@ -982,17 +982,16 @@ footer { background: var(--teal-deep); }
   background: rgba(42,88,80,0.02);
 }
 .ci-fc-icon {
-  width: 80px; height: 40px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  margin-bottom: 6px;
+  flex-shrink: 0;
+  margin-bottom: 8px;
 }
-.ci-fc-icon svg { width: 20px; height: 20px; color: var(--teal); }
-.ci-fc-icon img { width: 100%; height: 100%; object-fit: contain; }
+.ci-fc-icon svg { width: 20px; height: 20px; color: var(--teal); display: block; }
+.ci-fc-icon img { display: block; max-height: 34px; max-width: 110px; width: auto; height: auto; }
 .ci-fc-label { font-size: 12px; font-weight: 600; color: var(--teal-deep); line-height: 1.25; }
 .ci-fc-sub { font-size: 10px; color: var(--soft); letter-spacing: 0.02em; line-height: 1.4; }
-.ci-fc-body { display: flex; flex-direction: row; align-items: stretch; }
+.ci-fc-body { display: flex; flex-direction: row; align-items: flex-start; }
 .ci-fc-row {
-  flex: 1; display: flex; flex-direction: column; justify-content: center;
+  flex: 1; display: flex; flex-direction: column; justify-content: flex-start;
   gap: 3px; padding: 12px 14px;
   border-right: 1px solid rgba(42,88,80,0.06); min-width: 0;
 }
