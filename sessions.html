@@ -40,83 +40,118 @@
 
 <div class="page-top-pad">
 
-  <!-- Page header -->
+  <!-- Page header + launcher (merged into hero) -->
   <div class="sp-head">
-    <div style="max-width:660px">
+
+    <!-- Botanical illustration — decorative -->
+    <div class="sp-head-art" aria-hidden="true">
+      <svg class="sp-head-art-svg" viewBox="0 0 380 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Main stem, gentle S-curve -->
+        <path d="M190 480 C184 425 170 375 180 318 C190 268 210 238 205 192 C200 152 182 126 192 82" stroke="rgba(255,255,255,0.1)" stroke-width="1.4" stroke-linecap="round"/>
+        <!-- Lower left branch + leaf -->
+        <path d="M182 365 C150 345 112 330 82 340" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-linecap="round"/>
+        <path d="M82 340 C55 308 63 270 92 256 C112 247 142 257 148 282 C155 307 142 340 120 350 C100 359 88 355 82 340Z" stroke="rgba(119,207,189,0.22)" stroke-width="1.1" fill="rgba(119,207,189,0.05)"/>
+        <path d="M82 340 C106 302 138 272 148 282" stroke="rgba(119,207,189,0.1)" stroke-width="0.8"/>
+        <!-- Middle right branch + leaf -->
+        <path d="M198 285 C228 268 262 254 292 263" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-linecap="round"/>
+        <path d="M292 263 C316 232 310 196 282 182 C264 174 238 184 230 208 C222 232 233 264 254 274 C274 284 286 278 292 263Z" stroke="rgba(119,207,189,0.22)" stroke-width="1.1" fill="rgba(119,207,189,0.05)"/>
+        <path d="M292 263 C274 232 248 205 230 208" stroke="rgba(119,207,189,0.1)" stroke-width="0.8"/>
+        <!-- Upper left branch + leaf -->
+        <path d="M202 210 C172 192 145 172 118 182" stroke="rgba(255,255,255,0.07)" stroke-width="1" stroke-linecap="round"/>
+        <path d="M118 182 C93 155 100 122 126 110 C144 102 168 112 174 136 C180 158 168 186 149 194 C132 201 122 200 118 182Z" stroke="rgba(119,207,189,0.2)" stroke-width="1" fill="rgba(119,207,189,0.035)"/>
+        <!-- Top bud + vein -->
+        <path d="M192 82 C185 54 196 24 218 12 C235 3 256 11 260 37 C264 58 251 86 232 96 C215 104 197 100 192 82Z" stroke="rgba(119,207,189,0.26)" stroke-width="1.1" fill="rgba(119,207,189,0.06)"/>
+        <path d="M192 82 C210 56 238 34 260 37" stroke="rgba(119,207,189,0.1)" stroke-width="0.8"/>
+        <!-- Small lower-right sprig -->
+        <path d="M188 435 C205 422 226 416 238 426" stroke="rgba(255,255,255,0.06)" stroke-width="0.9" stroke-linecap="round"/>
+        <path d="M238 426 C248 408 242 393 224 388 C213 384 200 392 198 405 C196 418 203 430 216 434 C228 438 235 433 238 426Z" stroke="rgba(119,207,189,0.14)" stroke-width="0.9" fill="rgba(119,207,189,0.025)"/>
+        <!-- Accent dots along stem -->
+        <circle cx="186" cy="448" r="2.2" fill="rgba(255,255,255,0.07)"/>
+        <circle cx="184" cy="418" r="1.6" fill="rgba(255,255,255,0.06)"/>
+        <circle cx="183" cy="390" r="1.8" fill="rgba(255,255,255,0.05)"/>
+        <!-- Depth arc -->
+        <circle cx="320" cy="80" r="160" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+      </svg>
+    </div>
+
+    <!-- Hero text -->
+    <div class="sp-head-content">
       <div class="eyebrow sp-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">How can we support you?</span></div>
       <h1 class="sp-title">Find your<br><em>path forward</em></h1>
       <p class="sp-intro">Tell us what kind of support you&rsquo;re looking for &mdash; we&rsquo;ll show you exactly what to expect, what you need, and how to get started.</p>
     </div>
-  </div>
 
-  <!-- Quick-path launcher widget -->
-  <div class="sw-launcher" id="sw-launcher">
-    <div class="sw-launcher-inner">
+    <!-- Launcher — frosted card within the hero -->
+    <div class="sw-launcher sw-launcher--frosted" id="sw-launcher">
+      <div class="sw-launcher-inner">
 
-      <!-- Callout strip — always visible, click to expand -->
-      <div class="sw-ln-callout" id="sw-ln-callout" onclick="launcherToggle()" role="button" tabindex="0" aria-expanded="false" aria-controls="sw-ln-body" onkeydown="if(event.key==='Enter'||event.key===' ')launcherToggle()">
-        <div class="sw-ln-callout-text">
-          <p class="sw-ln-title">Ready to get started?</p>
-          <p class="sw-ln-sub">Tell us who you are, what you&rsquo;re looking for, and how sessions are covered &mdash; we&rsquo;ll show you exactly what to do next.</p>
+        <!-- Callout strip — always visible, click to expand -->
+        <div class="sw-ln-callout" id="sw-ln-callout" onclick="launcherToggle()" role="button" tabindex="0" aria-expanded="false" aria-controls="sw-ln-body" onkeydown="if(event.key==='Enter'||event.key===' ')launcherToggle()">
+          <div class="sw-ln-callout-text">
+            <p class="sw-ln-title">Ready to get started?</p>
+            <p class="sw-ln-sub">Tell us who you are, what you&rsquo;re looking for, and how sessions are covered &mdash; we&rsquo;ll show you exactly what to do next.</p>
+          </div>
+          <span class="sw-ln-toggle">
+            <span class="sw-ln-toggle-label">Let&rsquo;s begin</span>
+            <svg class="sw-ln-toggle-arrow" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l4 4 4-4"/></svg>
+          </span>
         </div>
-        <span class="sw-ln-toggle">
-          <span class="sw-ln-toggle-label">Let&rsquo;s begin</span>
-          <svg class="sw-ln-toggle-arrow" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l4 4 4-4"/></svg>
-        </span>
-      </div>
 
-      <!-- Collapsible body — hidden by default -->
-      <div class="sw-ln-body sw-ln-body--closed" id="sw-ln-body">
-        <div class="sw-ln-body-inner">
+        <!-- Collapsible body — hidden by default -->
+        <div class="sw-ln-body sw-ln-body--closed" id="sw-ln-body">
+          <div class="sw-ln-body-inner">
 
-          <!-- A: New or existing -->
-          <div class="sw-ln-row">
-            <span class="sw-ln-q">Are you a new or existing client?</span>
-            <div class="sw-ln-chips">
-              <button class="sw-ln-chip" data-client="new" onclick="launcherSetClient('new')">New client</button>
-              <button class="sw-ln-chip" data-client="existing" onclick="launcherSetClient('existing')">Existing client</button>
+            <!-- A: New or existing -->
+            <div class="sw-ln-row">
+              <span class="sw-ln-q">Are you a new or existing client?</span>
+              <div class="sw-ln-chips">
+                <button class="sw-ln-chip" data-client="new" onclick="launcherSetClient('new')">New client</button>
+                <button class="sw-ln-chip" data-client="existing" onclick="launcherSetClient('existing')">Existing client</button>
+              </div>
             </div>
-          </div>
 
-          <!-- B: Service type -->
-          <div class="sw-ln-row">
-            <span class="sw-ln-q">What type of support?</span>
-            <div class="sw-ln-chips">
-              <button class="sw-ln-chip" data-svc="individual" onclick="launcherSetSvc('individual')">Individual therapy</button>
-              <button class="sw-ln-chip" data-svc="couple-family" onclick="launcherSetSvc('couple-family')">Couple or family</button>
-              <button class="sw-ln-chip" data-svc="child" onclick="launcherSetSvc('child')">Child (under 16)</button>
-              <button class="sw-ln-chip" data-svc="mediation" onclick="launcherSetSvc('mediation')">Professional mediation</button>
+            <!-- B: Service type -->
+            <div class="sw-ln-row">
+              <span class="sw-ln-q">What type of support?</span>
+              <div class="sw-ln-chips">
+                <button class="sw-ln-chip" data-svc="individual" onclick="launcherSetSvc('individual')">Individual therapy</button>
+                <button class="sw-ln-chip" data-svc="couple-family" onclick="launcherSetSvc('couple-family')">Couple or family</button>
+                <button class="sw-ln-chip" data-svc="child" onclick="launcherSetSvc('child')">Child (under 16)</button>
+                <button class="sw-ln-chip" data-svc="mediation" onclick="launcherSetSvc('mediation')">Professional mediation</button>
+              </div>
             </div>
-          </div>
 
-          <!-- C: Coverage — new clients only -->
-          <div class="sw-ln-row sw-ln-row--hidden" id="sw-ln-coverage">
-            <span class="sw-ln-q">How are sessions covered?</span>
-            <div class="sw-ln-chips">
-              <button class="sw-ln-chip" data-fund="medicare" onclick="launcherSetFund('medicare')">Medicare</button>
-              <button class="sw-ln-chip" data-fund="private" onclick="launcherSetFund('private')">Private / self-funded</button>
-              <button class="sw-ln-chip" data-fund="ndis-self" onclick="launcherSetFund('ndis-self')">NDIS &mdash; self-managed</button>
-              <button class="sw-ln-chip" data-fund="ndis-plan" onclick="launcherSetFund('ndis-plan')">NDIS &mdash; plan-managed</button>
-              <button class="sw-ln-chip" data-fund="qfes" onclick="launcherSetFund('qfes')">QFES</button>
-              <button class="sw-ln-chip" data-fund="dva" onclick="launcherSetFund('dva')">ADFHSC &amp; DVA</button>
-              <button class="sw-ln-chip" data-fund="not-sure" onclick="launcherSetFund('not-sure')">Not sure</button>
+            <!-- C: Coverage — new clients only -->
+            <div class="sw-ln-row sw-ln-row--hidden" id="sw-ln-coverage">
+              <span class="sw-ln-q">How are sessions covered?</span>
+              <div class="sw-ln-chips">
+                <button class="sw-ln-chip" data-fund="medicare" onclick="launcherSetFund('medicare')">Medicare</button>
+                <button class="sw-ln-chip" data-fund="private" onclick="launcherSetFund('private')">Private / self-funded</button>
+                <button class="sw-ln-chip" data-fund="ndis-self" onclick="launcherSetFund('ndis-self')">NDIS &mdash; self-managed</button>
+                <button class="sw-ln-chip" data-fund="ndis-plan" onclick="launcherSetFund('ndis-plan')">NDIS &mdash; plan-managed</button>
+                <button class="sw-ln-chip" data-fund="qfes" onclick="launcherSetFund('qfes')">QFES</button>
+                <button class="sw-ln-chip" data-fund="dva" onclick="launcherSetFund('dva')">ADFHSC &amp; DVA</button>
+                <button class="sw-ln-chip" data-fund="not-sure" onclick="launcherSetFund('not-sure')">Not sure</button>
+              </div>
             </div>
-          </div>
 
-          <!-- CTA -->
-          <div class="sw-ln-cta">
-            <button class="btn btn-solid sw-ln-btn" id="sw-ln-submit" disabled onclick="launcherSubmit()">
-              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>
-              <span id="sw-ln-btn-lbl">Complete your selections above</span>
-            </button>
-            <a class="sw-ln-browse" href="#sw-services-guide">or browse the options below &darr;</a>
-          </div>
+            <!-- CTA -->
+            <div class="sw-ln-cta">
+              <button class="btn sw-ln-btn" id="sw-ln-submit" disabled onclick="launcherSubmit()">
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>
+                <span id="sw-ln-btn-lbl">Complete your selections above</span>
+              </button>
+              <a class="sw-ln-browse" href="#sw-services-guide">or browse the options below &darr;</a>
+            </div>
 
+          </div>
         </div>
-      </div>
 
+      </div>
     </div>
+
   </div>
+
 
   <!-- Outcome panel — appears after launcher submit -->
   <div class="sw-outcome-wrap sw-outcome-hidden" id="sw-outcome-wrap">
@@ -134,12 +169,6 @@
 
   <!-- Services guide — browsable, experience-led narrative -->
   <section class="sw-services-guide" id="sw-services-guide">
-    <div class="sw-sg-hd">
-      <div class="eyebrow sw-sg-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">What we offer</span></div>
-      <h2 class="sw-sg-title">Find the right kind of support</h2>
-      <p class="sw-sg-intro">Not sure which type of session is right for you? Read on &mdash; each section explains what sessions are actually like, who they tend to suit, and what to expect.</p>
-    </div>
-
     <!-- Individual -->
     <div class="sw-sg-svc" id="guide-individual">
       <div class="sw-sg-svc-inner">
@@ -332,8 +361,35 @@
 <footer>
   <!-- Bottom CTA — sessions page only -->
   <div class="sw-bottom-cta">
-    <p class="sw-bottom-cta-q">Where are you at?</p>
-    <div class="sw-bottom-cta-btns">
+    <!-- Botanical art background -->
+    <div class="sw-btm-art" aria-hidden="true">
+      <svg class="sw-btm-art-svg" viewBox="0 0 1280 280" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+        <!-- Left botanical cluster -->
+        <path d="M60 240 C52 205 68 172 98 158 C118 148 145 154 148 176 C152 198 135 226 112 238 C90 248 66 260 60 240Z" stroke="rgba(190,110,68,0.18)" stroke-width="1.4" fill="rgba(190,110,68,0.05)"/>
+        <path d="M60 240 C84 208 118 182 148 176" stroke="rgba(190,110,68,0.1)" stroke-width="1"/>
+        <path d="M80 260 C68 232 72 202 92 190 C106 183 126 188 130 205 C134 222 122 246 106 254 C92 261 83 270 80 260Z" stroke="rgba(190,110,68,0.14)" stroke-width="1.2" fill="rgba(190,110,68,0.04)"/>
+        <path d="M40 280 C30 250 45 220 65 208" stroke="rgba(190,110,68,0.12)" stroke-width="1.2" stroke-linecap="round"/>
+        <circle cx="148" cy="130" r="3" fill="rgba(190,110,68,0.12)"/>
+        <circle cx="160" cy="148" r="2" fill="rgba(190,110,68,0.09)"/>
+        <circle cx="130" cy="115" r="2.5" fill="rgba(190,110,68,0.1)"/>
+        <!-- Right botanical cluster (mirrored) -->
+        <path d="M1220 240 C1228 205 1212 172 1182 158 C1162 148 1135 154 1132 176 C1128 198 1145 226 1168 238 C1190 248 1214 260 1220 240Z" stroke="rgba(190,110,68,0.18)" stroke-width="1.4" fill="rgba(190,110,68,0.05)"/>
+        <path d="M1220 240 C1196 208 1162 182 1132 176" stroke="rgba(190,110,68,0.1)" stroke-width="1"/>
+        <path d="M1200 260 C1212 232 1208 202 1188 190 C1174 183 1154 188 1150 205 C1146 222 1158 246 1174 254 C1188 261 1197 270 1200 260Z" stroke="rgba(190,110,68,0.14)" stroke-width="1.2" fill="rgba(190,110,68,0.04)"/>
+        <path d="M1240 280 C1250 250 1235 220 1215 208" stroke="rgba(190,110,68,0.12)" stroke-width="1.2" stroke-linecap="round"/>
+        <circle cx="1132" cy="130" r="3" fill="rgba(190,110,68,0.12)"/>
+        <circle cx="1120" cy="148" r="2" fill="rgba(190,110,68,0.09)"/>
+        <circle cx="1150" cy="115" r="2.5" fill="rgba(190,110,68,0.1)"/>
+        <!-- Subtle arcs centre -->
+        <path d="M520 10 C580 -8 700 -8 760 10" stroke="rgba(42,88,80,0.07)" stroke-width="1" stroke-linecap="round"/>
+        <path d="M560 280 C620 265 660 265 720 280" stroke="rgba(42,88,80,0.06)" stroke-width="1" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <!-- Content card -->
+    <div class="sw-btm-card">
+      <div class="eyebrow sw-btm-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Ready to begin</span></div>
+      <p class="sw-bottom-cta-q">Where are you at?</p>
+      <div class="sw-bottom-cta-btns">
       <button class="sw-btm-btn sw-btm-btn--new" onclick="launcherExpand('new')">
         <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="2.5"/><path d="M1.5 12.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
         I&rsquo;m a new client
@@ -346,6 +402,7 @@
         <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5.5"/><path d="M5.5 5.5a1.5 1.5 0 012.9.5c0 1-1.4 1.5-1.4 2.5"/><circle cx="7" cy="10.5" r=".5" fill="currentColor" stroke="none"/></svg>
         Not sure yet &mdash; get in touch
       </button>
+      </div>
     </div>
   </div>
   <div class="ft-cols">
