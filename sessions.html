@@ -53,31 +53,34 @@
   <div class="sp-steps-bar" id="sp-steps-bar">
     <div class="sp-steps-inner">
 
-      <div class="sp-step" id="sp-step-1">
-        <button class="sp-step-n" id="sp-step-1-n" onclick="resetTo(1)" disabled>1</button>
+      <div class="sp-step" id="sp-step-1" onclick="if(this.classList.contains('sp-step--done'))resetTo(1)">
+        <button class="sp-step-n" id="sp-step-1-n" onclick="event.stopPropagation();resetTo(1)" disabled>1</button>
         <div class="sp-step-body">
           <span class="sp-step-lbl">Choose your support</span>
           <span class="sp-step-sel" id="sp-step-1-sel"></span>
+          <span class="sp-step-change">&#9998; Edit</span>
         </div>
       </div>
 
       <span class="sp-step-arr">›</span>
 
-      <div class="sp-step" id="sp-step-2">
-        <button class="sp-step-n" id="sp-step-2-n" onclick="resetTo(2)" disabled>2</button>
+      <div class="sp-step" id="sp-step-2" onclick="if(this.classList.contains('sp-step--done'))resetTo(2)">
+        <button class="sp-step-n" id="sp-step-2-n" onclick="event.stopPropagation();resetTo(2)" disabled>2</button>
         <div class="sp-step-body">
           <span class="sp-step-lbl">Tell us about you</span>
           <span class="sp-step-sel" id="sp-step-2-sel"></span>
+          <span class="sp-step-change">&#9998; Edit</span>
         </div>
       </div>
 
       <span class="sp-step-arr">›</span>
 
-      <div class="sp-step" id="sp-step-3">
-        <button class="sp-step-n" id="sp-step-3-n" onclick="resetTo(3)" disabled>3</button>
+      <div class="sp-step" id="sp-step-3" onclick="if(this.classList.contains('sp-step--done'))resetTo(3)">
+        <button class="sp-step-n" id="sp-step-3-n" onclick="event.stopPropagation();resetTo(3)" disabled>3</button>
         <div class="sp-step-body">
           <span class="sp-step-lbl">See your next steps</span>
           <span class="sp-step-sel" id="sp-step-3-sel"></span>
+          <span class="sp-step-change">&#9998; Edit</span>
         </div>
       </div>
 
@@ -98,13 +101,13 @@
         <div class="sw-svc-card" data-svc="individual" onclick="selectService('individual')">
           <p class="sw-svc-lbl">One-on-one</p>
           <h3 class="sw-svc-name">Individual Therapy</h3>
-          <p class="sw-svc-desc">A private, supported space to explore what&rsquo;s weighing on you &mdash; at your own pace, without judgement.</p>
+          <p class="sw-svc-desc">For individuals dealing with anxiety, stress, depression, grief, relationship difficulties, life transitions, or simply wanting to feel better and understand themselves more.</p>
         </div>
 
         <div class="sw-svc-card" data-svc="couple-family" onclick="selectService('couple-family')">
           <p class="sw-svc-lbl">Together</p>
           <h3 class="sw-svc-name">Couple or Family Therapy</h3>
-          <p class="sw-svc-desc">Rebuild connection, improve communication, and navigate difficulties together with professional guidance.</p>
+          <p class="sw-svc-desc">For partners or families struggling to communicate, feeling disconnected, or navigating a crisis together. Also suitable for parents &amp; adult children, siblings, or blended families.</p>
           <div class="sw-svc-note sw-svc-note--hidden" id="note-couple-family">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
             Individual intake for each person required first
@@ -114,7 +117,7 @@
         <div class="sw-svc-card" data-svc="child" onclick="selectService('child')">
           <p class="sw-svc-lbl">For children</p>
           <h3 class="sw-svc-name">Child (under 16)</h3>
-          <p class="sw-svc-desc">Tailored support for young people, with parents actively involved in the process.</p>
+          <p class="sw-svc-desc">For young people experiencing anxiety, behavioural difficulties, school pressures, or difficult life changes. Sessions are age-appropriate and parents play an active role throughout.</p>
           <div class="sw-svc-note sw-svc-note--hidden" id="note-child">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
             Parent or guardian intake session required first
@@ -124,7 +127,7 @@
         <div class="sw-svc-card" data-svc="mediation" onclick="selectService('mediation')">
           <p class="sw-svc-lbl">Facilitated process</p>
           <h3 class="sw-svc-name">Professional Mediation</h3>
-          <p class="sw-svc-desc">Structured, impartial facilitation to help parties reach workable agreements.</p>
+          <p class="sw-svc-desc">For workplace conflicts, family disputes, or any situation where two parties need a neutral, impartial facilitator to help reach a workable resolution.</p>
           <div class="sw-svc-note sw-svc-note--hidden" id="note-mediation">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
             Individual intake session required first
@@ -171,37 +174,37 @@
 
         <div class="sw-fund-pill" data-fund="medicare" onclick="selectFunding('medicare')">
           <p class="sw-fund-name">Medicare</p>
-          <p class="sw-fund-note">Better Access &middot; MHCP required &middot; Individual &amp; child only</p>
+          <p class="sw-fund-note">$87.25 rebate per session &middot; Requires a GP Mental Health Care Plan &middot; Individual &amp; child only</p>
         </div>
 
         <div class="sw-fund-pill" data-fund="private" onclick="selectFunding('private')">
           <p class="sw-fund-name">Private / Self-funded</p>
-          <p class="sw-fund-note">No referral needed &middot; Book directly</p>
+          <p class="sw-fund-note">$195 per session &middot; No referral or GP visit needed &middot; Most flexible option &middot; Private health extras may apply</p>
         </div>
 
         <div class="sw-fund-pill" data-fund="ndis-self" onclick="selectFunding('ndis-self')">
           <p class="sw-fund-name">NDIS &mdash; Self-managed</p>
-          <p class="sw-fund-note">Private rate &middot; Invoice for reimbursement</p>
+          <p class="sw-fund-note">You pay &amp; claim back &middot; $195 per session &middot; Must have counselling in your funded supports</p>
         </div>
 
         <div class="sw-fund-pill" data-fund="ndis-plan" onclick="selectFunding('ndis-plan')">
           <p class="sw-fund-name">NDIS &mdash; Plan-managed</p>
-          <p class="sw-fund-note">Pre-approval required &middot; Invoiced to plan manager</p>
+          <p class="sw-fund-note">Your plan manager pays directly &middot; Pre-approval required &middot; Must have counselling in your funded supports</p>
         </div>
 
         <div class="sw-fund-pill" data-fund="qfes" onclick="selectFunding('qfes')">
           <p class="sw-fund-name">QFES</p>
-          <p class="sw-fund-note">Employee Assistance Program &middot; Referral required</p>
+          <p class="sw-fund-note">Free to you &middot; Queensland Fire &amp; Emergency Services employees only &middot; EAP referral required</p>
         </div>
 
         <div class="sw-fund-pill" data-fund="dva" onclick="selectFunding('dva')">
           <p class="sw-fund-name">ADFHSC &amp; DVA</p>
-          <p class="sw-fund-note">ADF members, families &amp; veterans &middot; Referral required</p>
+          <p class="sw-fund-note">Free to you &middot; Current &amp; former ADF members, their families, and DVA card holders &middot; Referral required</p>
         </div>
 
         <div class="sw-fund-pill" data-fund="not-sure" onclick="selectFunding('not-sure')">
           <p class="sw-fund-name">I&rsquo;m not sure</p>
-          <p class="sw-fund-note">We&rsquo;ll help you work it out</p>
+          <p class="sw-fund-note">That&rsquo;s completely fine &mdash; select this and Cheree will help you find the right path</p>
         </div>
 
       </div>
@@ -255,23 +258,6 @@
 
   </div><!-- /sw-layout -->
 
-  <!-- Free 15-min call CTA -->
-  <div class="sw-free-call">
-    <div class="sw-free-call-inner">
-      <div class="sw-free-call-txt">
-        <p class="sw-free-call-eyebrow">Not sure where to start?</p>
-        <h3 class="sw-free-call-title">Book a free 15-minute call</h3>
-        <p class="sw-free-call-sub">No preparation needed, no commitment required &mdash; just a relaxed conversation with Cheree to see if working together feels right for you.</p>
-      </div>
-      <div class="sw-free-call-action">
-        <button class="btn btn-solid" onclick="openModal()">
-          <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 8.5c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L4.3 6.6C3.8 5.8 3.55 5.05 3.55 4.4c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H6c.1.08.2.2.27.3L7.4 4.1c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"/></svg>
-          Book Free Call
-        </button>
-        <p class="sw-free-call-note">Phone or video &middot; 15 minutes &middot; No obligation</p>
-      </div>
-    </div>
-  </div>
 
 </div><!-- /page-top-pad -->
 
@@ -376,7 +362,6 @@
             <option>Couples or family counselling</option>
             <option>Child counselling</option>
             <option>Professional mediation</option>
-            <option>Free 15-minute consultation</option>
             <option>Not sure yet &mdash; just exploring</option>
           </select>
         </div>
@@ -1104,11 +1089,28 @@ function renderOutcome() {
     : '';
 
   // Request form — replaces direct booking for all new clients
+  const clientLabel = selectedClient === 'new' ? 'New client' : 'Existing client';
   const requestFormHtml =
     '<div class="sw-req-block">' +
       '<div class="sw-req-hd">' +
         '<h4 class="sw-req-title">Request your first session</h4>' +
         '<p class="sw-req-intro">Cheree will review your request and be in touch within 1 business day to confirm your spot and send through your next steps.</p>' +
+      '</div>' +
+      '<div class="sw-req-summary">' +
+        '<div class="sw-req-summary-item">' +
+          '<span class="sw-req-summary-lbl">Service</span>' +
+          '<span class="sw-req-summary-val">' + (svcLabels[selectedService] || '') + '</span>' +
+        '</div>' +
+        '<div class="sw-req-summary-sep"></div>' +
+        '<div class="sw-req-summary-item">' +
+          '<span class="sw-req-summary-lbl">Client</span>' +
+          '<span class="sw-req-summary-val">' + clientLabel + '</span>' +
+        '</div>' +
+        '<div class="sw-req-summary-sep"></div>' +
+        '<div class="sw-req-summary-item">' +
+          '<span class="sw-req-summary-lbl">Coverage</span>' +
+          '<span class="sw-req-summary-val">' + (fundLabels[selectedFunding] || '') + '</span>' +
+        '</div>' +
       '</div>' +
       '<div id="sw-req-form">' +
         '<div class="frow">' +
@@ -1268,14 +1270,15 @@ async function submitSessionRequest() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
-        name:     [fname, lname].filter(Boolean).join(' '),
+        name:        [fname, lname].filter(Boolean).join(' '),
         email,
-        phone:    phone || '(not provided)',
-        service:  (window.svcLabels && svcLabels[selectedService]) || selectedService,
-        funding:  (window.fundLabels && fundLabels[selectedFunding]) || selectedFunding,
+        phone:       phone || '(not provided)',
+        service:     (window.svcLabels && svcLabels[selectedService]) || selectedService,
+        client_type: selectedClient === 'new' ? 'New client' : 'Existing client',
+        coverage:    (window.fundLabels && fundLabels[selectedFunding]) || selectedFunding,
         preferred_times: times || '(not specified)',
-        message:  note || '(no additional notes)',
-        _subject: 'New client session request — ' + (svcLabels[selectedService] || '') + ' / ' + (fundLabels[selectedFunding] || ''),
+        message:     note || '(no additional notes)',
+        _subject:    'New client session request — ' + (svcLabels[selectedService] || '') + ' · ' + ((window.fundLabels && fundLabels[selectedFunding]) || selectedFunding || ''),
       }),
     });
     if (resp.ok) {
