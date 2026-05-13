@@ -545,18 +545,91 @@ body::after {
 footer { background: var(--teal-deep); }
 /* ── FOOTER CTA ── */
 .ft-cta {
+  position: relative; overflow: hidden;
+  padding: 96px 72px;
   background: var(--teal-deep);
-  padding: 88px 72px;
-  text-align: center;
 }
-.ft-cta-inner { max-width: 520px; margin: 0 auto; }
-.ft-ey { justify-content: center; margin-bottom: 20px; }
+/* Photo + gradient overlay */
+.ft-cta-photo {
+  position: absolute; inset: 0;
+  background: url('assets/house.jpg') center center / cover no-repeat;
+  opacity: 0.18;
+}
+.ft-cta-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(100deg, rgba(25,46,42,0.92) 0%, rgba(25,46,42,0.7) 55%, rgba(25,46,42,0.5) 100%);
+}
+/* Concentric terra arcs — bottom-right */
+.ft-cta-arcs {
+  position: absolute; bottom: -30%; right: -8%;
+  width: 640px; height: 640px;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px  rgba(190,110,68,0.18),
+    0 0 0 40px rgba(190,110,68,0.09),
+    0 0 0 80px rgba(190,110,68,0.07),
+    0 0 0 130px rgba(190,110,68,0.05),
+    0 0 0 190px rgba(190,110,68,0.03);
+  pointer-events: none;
+}
+/* Ghosted logo mark — top-left */
+.ft-cta-mark {
+  position: absolute; top: 32px; left: 52px;
+  width: 72px; opacity: 0.07;
+  filter: brightness(0) invert(1);
+  transform: rotate(-15deg);
+  pointer-events: none;
+}
+.ft-cta-mark img { width: 100%; }
+/* Inner: two-column */
+.ft-cta-inner {
+  position: relative; z-index: 1;
+  max-width: 1060px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr 340px;
+  gap: 80px; align-items: center;
+}
+.ft-ey { justify-content: flex-start; margin-bottom: 20px; }
 .ft-ey .eyebrow-bar { background: var(--terra); }
 .ft-ey .eyebrow-text { color: rgba(255,255,255,0.38); }
-.ft-cta-title { font-family: var(--serif); font-size: clamp(32px,4.5vw,54px); font-weight: 300; color: white; line-height: 1.12; margin-bottom: 14px; }
-.ft-cta-title em { font-style: italic; color: rgba(255,255,255,0.55); }
-.ft-cta-sub { font-size: 15px; font-weight: 300; color: rgba(255,255,255,0.45); line-height: 1.7; margin-bottom: 40px; }
-.ft-reach-btn { font-size: 12px; padding: 15px 36px; }
+.ft-cta-title { font-family: var(--serif); font-size: clamp(32px,4.5vw,54px); font-weight: 300; color: white; line-height: 1.12; margin-bottom: 14px; text-align: left; }
+.ft-cta-title em { font-style: italic; color: rgba(255,255,255,0.45); }
+.ft-cta-sub { font-size: 15px; font-weight: 300; color: rgba(255,255,255,0.45); line-height: 1.7; margin-bottom: 0; text-align: left; }
+/* Practice card — frosted glass right column */
+.ft-cta-practice {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 18px;
+  backdrop-filter: blur(16px);
+  padding: 28px 28px 24px;
+}
+.ft-cta-practice-eb {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.16em;
+  text-transform: uppercase; color: rgba(255,255,255,0.32);
+  margin-bottom: 20px;
+}
+.ft-cta-modalities { display: flex; flex-direction: column; gap: 0; margin-bottom: 16px; }
+.ft-cta-modality {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.ft-cta-modality:last-child { border-bottom: none; }
+.ft-cta-modality-icon {
+  width: 30px; height: 30px; flex-shrink: 0;
+  background: rgba(255,255,255,0.08); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.6);
+}
+.ft-cta-modality-icon svg { width: 14px; height: 14px; }
+.ft-cta-modality-meta { display: flex; flex-direction: column; gap: 2px; }
+.ft-cta-modality-label { font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.32); }
+.ft-cta-modality-value { font-family: var(--serif); font-size: 15px; font-weight: 400; color: white; }
+.ft-cta-referrer-note {
+  font-size: 11px; font-weight: 300; color: rgba(255,255,255,0.28);
+  line-height: 1.6; margin-bottom: 20px;
+}
+.ft-cta-referrer-note em { font-style: normal; color: rgba(255,255,255,0.45); }
+.ft-cta-referrer-note a { color: rgba(119,207,189,0.7); text-decoration: none; }
+.ft-reach-btn { width: 100%; justify-content: center; font-size: 12px; padding: 14px 24px; }
 
 /* Footer columns */
 .ft-cols { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1.4fr; gap: 48px; padding: 64px 72px 52px; background: var(--teal-deep); }
@@ -646,6 +719,11 @@ footer { background: var(--teal-deep); }
   .hero-card { padding: 18px 20px 16px; }
   .hc-title { font-size: 15px; }
   .hc-desc { font-size: 11px; }
+
+  /* Footer CTA: stack on mobile */
+  .ft-cta { padding: 64px 28px; }
+  .ft-cta-inner { grid-template-columns: 1fr; gap: 40px; }
+  .ft-cta-mark { display: none; }
 }
 /* ── CLIENT INFO PAGE ── */
 .info-head {
