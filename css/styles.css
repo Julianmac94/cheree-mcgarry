@@ -159,7 +159,7 @@ body::after {
   margin-bottom: 28px;
   margin-top: -8vh;
 }
-.hero-logo svg { width: 100%; height: 100%; }
+.hero-logo svg, .hero-logo img { width: 100%; height: 100%; object-fit: contain; }
 
 .hero-name {
   font-family: var(--serif);
