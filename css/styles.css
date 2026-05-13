@@ -872,6 +872,40 @@ footer { background: var(--teal-deep); }
 }
 .ci-note svg { flex-shrink: 0; margin-top: 2px; }
 
+/* Requirement callout — for prerequisites, deadlines, mandatory actions */
+.ci-req {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: rgba(42,88,80,0.05);
+  border: 1px solid rgba(42,88,80,0.14);
+  border-left: 3px solid var(--teal);
+  padding: 14px 18px; border-radius: 0 10px 10px 0;
+  margin: 20px 0;
+  font-size: 13px; line-height: 1.65; color: var(--teal-deep);
+}
+.ci-req svg { flex-shrink: 0; margin-top: 2px; }
+.ci-req strong { font-weight: 600; }
+
+/* Policy-limit callout — for confidentiality limits, warnings */
+.ci-limit {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: rgba(190,110,68,0.04);
+  border: 1px solid rgba(190,110,68,0.18);
+  border-left: 3px solid var(--terra);
+  padding: 14px 18px; border-radius: 0 10px 10px 0;
+  margin: 20px 0;
+  font-size: 13px; line-height: 1.65; color: var(--mid);
+}
+.ci-limit svg { flex-shrink: 0; margin-top: 2px; }
+.ci-limit strong { color: var(--teal-deep); font-weight: 600; }
+
+/* "Why this exists" context block */
+.ci-why {
+  font-size: 12.5px; font-weight: 300; color: var(--soft);
+  font-style: italic; line-height: 1.6;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid rgba(42,88,80,0.07);
+}
+
 /* Fee table */
 .ci-table {
   border: 1px solid var(--cream-3); border-radius: 16px;
