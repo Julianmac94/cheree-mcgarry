@@ -54,6 +54,18 @@
       </div>
     </div>
   </div>
+  <!-- Sticky section nav — appears after scrolling past header -->
+  <nav class="ci-snav" id="ci-snav" aria-label="Page sections">
+    <div class="ci-snav-inner">
+      <a class="ci-snav-link" href="#ci-consent">Consent</a>
+      <a class="ci-snav-link" href="#ci-privacy">Privacy</a>
+      <a class="ci-snav-link" href="#ci-appointments">Appointments</a>
+      <a class="ci-snav-link" href="#ci-funding">Funding</a>
+      <a class="ci-snav-link" href="#ci-crisis">Crisis</a>
+      <a class="ci-snav-link" href="#ci-feedback">Feedback</a>
+    </div>
+  </nav>
+
   <div class="info-body">
 
     <!-- 01 Consent & Your Rights -->
@@ -114,11 +126,20 @@
         </ul>
         <h3 class="ci-sub">Limits of confidentiality</h3>
         <p>Confidentiality is fundamental to the therapeutic relationship. There are, however, circumstances where disclosure may be required:</p>
+        <div class="ci-limit">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.2"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <div>
+            <strong>Confidentiality has legal limits.</strong> Cheree is legally required to act or disclose in the following circumstances:
+            <ul class="ci-list" style="margin-top:10px">
+              <li><strong>Risk to life</strong> &mdash; if there is a serious and imminent risk to your life or the life of another person, Cheree is obligated to take action to prevent harm</li>
+              <li><strong>Mandatory reporting</strong> &mdash; under the <em>Child Protection Act 1999</em> (Qld), Cheree is legally required to report a reasonable suspicion that a child has been harmed or is at risk of harm</li>
+              <li><strong>Court order or subpoena</strong> &mdash; Cheree may be compelled by a court to disclose records or provide testimony</li>
+            </ul>
+            <p class="ci-why">These limits exist because some obligations override the therapeutic relationship. Cheree will always aim to discuss any disclosure with you first, where it is safe to do so.</p>
+          </div>
+        </div>
         <ul class="ci-list">
-          <li><strong>Risk to life</strong> &mdash; if Cheree believes there is a serious and imminent risk to your life, or the life of another person, she is obligated to take action to prevent harm</li>
-          <li><strong>Mandatory reporting</strong> &mdash; under the <em>Child Protection Act 1999</em> (Qld), Cheree is a mandatory reporter. She is legally required to report a reasonable suspicion that a child has been harmed, or is at risk of harm, regardless of the source of that belief</li>
-          <li><strong>Court order or subpoena</strong> &mdash; Cheree may be compelled by a court to disclose records or provide testimony</li>
-          <li><strong>Professional supervision</strong> &mdash; Cheree participates in regular clinical supervision as required by AASW standards. Supervision may involve discussion of cases in de-identified form</li>
+          <li><strong>Professional supervision</strong> &mdash; Cheree participates in regular clinical supervision as required by AASW standards. Cases may be discussed in de-identified form</li>
           <li><strong>Your written consent</strong> &mdash; where you have expressly authorised Cheree to communicate with another professional or service</li>
         </ul>
         <div class="ci-note">
@@ -148,6 +169,13 @@
           <li><strong>Children</strong> &mdash; one intake session with at least one parent or guardian is required before child counselling begins. Both parents are welcome to attend together. The intake covers background information, consent, and treatment planning.</li>
           <li><strong>Couples &amp; groups</strong> &mdash; each person attends a separate individual intake session first. Joint sessions then proceed at the standard session rate &mdash; charged per session, not per person.</li>
         </ul>
+        <div class="ci-req">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#1e5e63" stroke-width="1.2"/><path d="M8 5v4M8 11v.5" stroke="#1e5e63" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <div>
+            <strong>Couples &amp; children require an intake session before joint or child sessions begin.</strong> This cannot be skipped. Please select the appropriate intake option when booking.
+            <p class="ci-why">Separate intakes ensure each person has space to share their perspective openly, before the shared process begins. It also allows Cheree to assess whether the service is the right fit.</p>
+          </div>
+        </div>
         <h3 class="ci-sub">Telehealth (video) appointments</h3>
         <p>Video sessions are available for clients who prefer remote support or are unable to attend in person. To get the most from a telehealth session:</p>
         <ul class="ci-list">
@@ -167,7 +195,14 @@
           <div class="ci-row"><span>24&ndash;48 hours</span><span class="ci-tag ci-tag-amber">50% of session fee</span></div>
           <div class="ci-row"><span>Less than 24 hours or no-show</span><span class="ci-tag ci-tag-red">Full session fee</span></div>
         </div>
-        <p class="ci-small">Cancellation fees reflect the time reserved and the difficulty of filling short-notice appointments. Genuine emergencies will be considered on a case-by-case basis. Medicare and private health rebates cannot be applied to cancellation fees.</p>
+        <div class="ci-limit">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.2"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <div>
+            Medicare and private health rebates <strong>cannot be applied to cancellation fees.</strong> Cancellation fees must be paid out-of-pocket regardless of your funding type.
+            <p class="ci-why">Session time is reserved specifically for you. Short-notice cancellations are rarely fillable, which is why fees apply — they reflect the protected time, not a penalty.</p>
+          </div>
+        </div>
+        <p class="ci-small">Genuine emergencies are considered on a case-by-case basis &mdash; please contact the practice as soon as possible.</p>
         <div class="ci-contact-block">
           <div class="ci-contact-icon"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M16 11.37c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L7.8 9.1C7.3 8.3 7.05 7.55 7.05 6.9c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H9.5c.1.08.2.2.27.3l1.13 1.6c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"/></svg></div>
           <div class="ci-contact-body">
@@ -218,6 +253,12 @@
               <div class="ci-fc-row"><span class="ci-fc-key">Sessions</span><span class="ci-fc-val">Up to <strong>10</strong> per calendar year; GP review required after the first 6</span></div>
               <div class="ci-fc-row"><span class="ci-fc-key">Children</span><span class="ci-fc-val">Bring the child&rsquo;s and a parent/guardian&rsquo;s Medicare card for under 14s</span></div>
             </div>
+            <div class="ci-req" style="margin:0 16px 16px;border-radius:8px;">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#1e5e63" stroke-width="1.2"/><path d="M8 5v4M8 11v.5" stroke="#1e5e63" stroke-width="1.4" stroke-linecap="round"/></svg>
+              <div><strong>Your MHCP must name Cheree McGarry &mdash; AMHSW specifically</strong> before your first session. Medicare will not process the rebate for a plan naming a different provider.
+                <p class="ci-why">Medicare links rebates to the specific provider named on the plan. Ask your GP to include her full name and credentials when they prepare your referral.</p>
+              </div>
+            </div>
           </div>
 
           <div class="ci-funding-card fc-ndis">
@@ -240,10 +281,16 @@
             </div>
             <div class="ci-fc-body">
               <div class="ci-fc-row"><span class="ci-fc-key">Rate</span><span class="ci-fc-val">NDIS price guide rate &mdash; confirmed with you before your first session</span></div>
-              <div class="ci-fc-row"><span class="ci-fc-key">Approval</span><span class="ci-fc-val"><strong>Written approval from your plan manager required before booking</strong> &mdash; confirm counselling is in your funded supports</span></div>
+              <div class="ci-fc-row"><span class="ci-fc-key">Approval</span><span class="ci-fc-val">Written approval from your plan manager required before booking &mdash; confirm counselling is in your funded supports</span></div>
               <div class="ci-fc-row"><span class="ci-fc-key">Billing</span><span class="ci-fc-val">Invoiced directly to your plan manager in NDIS-compliant format</span></div>
               <div class="ci-fc-row"><span class="ci-fc-key">Bring</span><span class="ci-fc-val">NDIS plan number, plan manager name and contact details</span></div>
               <div class="ci-fc-row"><span class="ci-fc-key">Cancellations</span><span class="ci-fc-val">May be covered by your plan (subject to policy) or charged to you directly &mdash; check with your plan manager</span></div>
+            </div>
+            <div class="ci-req" style="margin:0 16px 16px;border-radius:8px;">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#1e5e63" stroke-width="1.2"/><path d="M8 5v4M8 11v.5" stroke="#1e5e63" stroke-width="1.4" stroke-linecap="round"/></svg>
+              <div><strong>Written approval from your plan manager is required before your first booking.</strong> Sessions cannot proceed without it.
+                <p class="ci-why">Plan-managed funding is paid by your plan manager directly. Without prior written approval, there is no guarantee the sessions will be covered, and you may be liable for costs.</p>
+              </div>
             </div>
           </div>
 
@@ -478,5 +525,38 @@
   </div>
 </div>
 <script src="js/main.js"></script>
+<script>
+/* ── Sticky section nav ── */
+(function() {
+  const snav = document.getElementById('ci-snav');
+  const infoHead = document.querySelector('.info-head');
+  if (!snav || !infoHead) return;
+
+  // Show/hide based on header visibility
+  const obs = new IntersectionObserver(function(entries) {
+    snav.classList.toggle('ci-snav--visible', !entries[0].isIntersecting);
+  }, { threshold: 0 });
+  obs.observe(infoHead);
+
+  // Highlight active section
+  const sections = ['ci-consent','ci-privacy','ci-appointments','ci-funding','ci-crisis','ci-feedback'];
+  const links    = snav.querySelectorAll('.ci-snav-link');
+
+  const secObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        links.forEach(function(l) { l.classList.remove('ci-snav-link--active'); });
+        var link = snav.querySelector('[href="#' + e.target.id + '"]');
+        if (link) link.classList.add('ci-snav-link--active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) secObs.observe(el);
+  });
+})();
+</script>
 </body>
 </html>

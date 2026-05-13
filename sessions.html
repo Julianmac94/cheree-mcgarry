@@ -49,11 +49,16 @@
     </div>
   </div>
 
+  <!-- Wizard layout: sidebar trail on desktop, sticky bar on mobile -->
+  <div class="sw-layout">
+
+  <!-- Progress trail — sidebar on desktop / sticky bar on mobile -->
+  <div class="sw-trail sw-trail--hidden" id="sw-trail">
+    <div class="sw-trail-inner"></div>
+  </div>
+
   <!-- Wizard body -->
   <div class="sw-body">
-
-    <!-- Progress trail — builds as selections are made -->
-    <div class="sw-trail sw-trail--hidden" id="sw-trail"></div>
 
     <!-- Step 1: Service type -->
     <div class="sw-step" id="sw-step1">
@@ -220,6 +225,8 @@
     </div>
 
   </div><!-- /sw-body -->
+
+  </div><!-- /sw-layout -->
 
   <!-- Free 15-min call CTA -->
   <div class="sw-free-call">
@@ -961,27 +968,53 @@ function resetTo(step) {
 
 function updateTrail() {
   const trail = document.getElementById('sw-trail');
-  if (!selectedService) { trail.classList.add('sw-trail--hidden'); return; }
+  const inner = trail.querySelector('.sw-trail-inner');
+  if (!selectedService) { trail.classList.add('sw-trail--hidden'); inner.innerHTML = ''; return; }
   trail.classList.remove('sw-trail--hidden');
 
-  let html = crumb('Support', svcLabels[selectedService], 'resetTo(1)');
+  // Build all steps — selected steps are active, unselected are pending
+  let html = '';
 
+  // Step 1 — always shown once service chosen
+  html += crumb('Support', svcLabels[selectedService], 'resetTo(1)', true);
+
+  // Step 2 — client type
   if (selectedClient) {
-    html += '<span class="sw-trail-sep">&rsaquo;</span>';
-    html += crumb('You', selectedClient === 'new' ? 'New client' : 'Existing client', 'resetTo(2)');
+    html += crumb('You', selectedClient === 'new' ? 'New client' : 'Existing client', 'resetTo(2)', true);
+  } else {
+    html += crumbPending('You');
   }
-  if (selectedFunding) {
-    html += '<span class="sw-trail-sep">&rsaquo;</span>';
-    html += crumb('Funding', fundLabels[selectedFunding], 'resetTo(3)');
+
+  // Step 3 — funding (only for new clients; skip for existing)
+  if (selectedClient === 'new') {
+    if (selectedFunding) {
+      html += crumb('Funding', fundLabels[selectedFunding], 'resetTo(3)', true);
+    } else {
+      html += crumbPending('Funding');
+    }
   }
-  trail.innerHTML = html;
+
+  inner.innerHTML = html;
 }
 
-function crumb(label, val, action) {
-  return '<div class="sw-trail-crumb">' +
-    '<span class="sw-trail-lbl">' + label + '</span>' +
-    '<span class="sw-trail-val">' + val + '</span>' +
-    '<button class="sw-trail-edit" onclick="' + action + '">change</button>' +
+function crumb(label, val, action, done) {
+  return '<div class="sw-trail-crumb sw-trail-crumb--done">' +
+    '<div class="sw-trail-dot sw-trail-dot--done"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 5l2 2.5 4-4"/></svg></div>' +
+    '<div class="sw-trail-crumb-body">' +
+      '<span class="sw-trail-lbl">' + label + '</span>' +
+      '<span class="sw-trail-val">' + val + '</span>' +
+      '<button class="sw-trail-edit" onclick="' + action + '">change</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function crumbPending(label) {
+  return '<div class="sw-trail-crumb sw-trail-crumb--pending">' +
+    '<div class="sw-trail-dot"></div>' +
+    '<div class="sw-trail-crumb-body">' +
+      '<span class="sw-trail-lbl">' + label + '</span>' +
+      '<span class="sw-trail-val sw-trail-val--pending">Select below</span>' +
+    '</div>' +
   '</div>';
 }
 
@@ -1026,14 +1059,10 @@ function renderOutcome() {
 
   const cancelHtml =
     '<div class="sw-oc-col sw-oc-cancel-col">' +
-      '<div class="sw-oc-sec-label">Cancellation policy</div>' +
-      '<div class="sw-oc-cancel-rows">' +
-        '<div class="sw-oc-cancel-row"><span class="sw-oc-cancel-notice">48h+ notice</span><span class="ci-tag ci-tag-green">No charge</span></div>' +
-        '<div class="sw-oc-cancel-row"><span class="sw-oc-cancel-notice">24&ndash;48h notice</span><span class="ci-tag ci-tag-amber">50% of session fee</span></div>' +
-        '<div class="sw-oc-cancel-row"><span class="sw-oc-cancel-notice">Under 24h or no-show</span><span class="ci-tag ci-tag-red">Full session fee</span></div>' +
-      '</div>' +
+      '<div class="sw-oc-sec-label">Cancellation</div>' +
+      '<p class="sw-oc-cancel-summary">48h+ notice &mdash; no charge &nbsp;&middot;&nbsp; Under 24h or no-show &mdash; full session fee.</p>' +
       (p.cancelExtra ? '<p class="sw-oc-cancel-extra">' + p.cancelExtra + '</p>' : '') +
-      '<div class="sw-oc-cancel-contact">' + CANCEL_HTML + '</div>' +
+      '<a class="sw-oc-cancel-more" href="info.html#ci-appointments">Full cancellation policy &rarr;</a>' +
     '</div>';
 
   const approvalHtml = p.approval
