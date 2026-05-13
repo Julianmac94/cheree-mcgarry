@@ -499,11 +499,108 @@ body::after {
 .sp-title { font-family: var(--serif); font-size: clamp(36px,5vw,60px); font-weight: 300; line-height: 1.0; color: white; margin-bottom: 18px; }
 .sp-title em { display: block; font-style: italic; color: rgba(255,255,255,0.5); }
 .sp-intro { font-size: 15px; font-weight: 300; color: rgba(255,255,255,0.42); line-height: 1.8; max-width: 500px; }
-.sp-steps { display: flex; align-items: center; gap: 10px; margin-top: 28px; flex-wrap: wrap; }
-.sp-step { display: flex; align-items: center; gap: 8px; }
-.sp-step-n { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.65); font-size: 11px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: var(--sans); }
-.sp-step-txt { font-size: 12px; font-weight: 400; color: rgba(255,255,255,0.45); letter-spacing: 0.02em; white-space: nowrap; }
-.sp-step-arr { color: rgba(255,255,255,0.18); font-size: 16px; line-height: 1; }
+/* ── STEP PROGRESS BAR — sticky, matches hero background ── */
+.sp-steps-bar {
+  position: sticky;
+  top: 68px;
+  z-index: 90;
+  background: var(--teal-deep);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  box-shadow: 0 4px 20px rgba(20,48,43,0.18);
+}
+.sp-steps-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.sp-steps-inner::-webkit-scrollbar { display: none; }
+
+.sp-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0;
+  flex-shrink: 0;
+}
+.sp-step-arr {
+  color: rgba(255,255,255,0.15);
+  font-size: 16px;
+  line-height: 1;
+  margin: 0 18px;
+  flex-shrink: 0;
+}
+
+/* Step circle — button so it's tappable */
+.sp-step-n {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.09);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.5);
+  font-size: 11px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-family: var(--sans);
+  cursor: default;
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+}
+.sp-step-n:not(:disabled) { cursor: pointer; }
+.sp-step-n:not(:disabled):hover { background: rgba(255,255,255,0.16); color: white; }
+
+/* Done: mint circle with checkmark */
+.sp-step--done .sp-step-n {
+  background: #77cfbd;
+  border-color: #77cfbd;
+  color: var(--teal-deep);
+  font-size: 0;         /* hide number */
+  box-shadow: 0 2px 10px rgba(119,207,189,0.35);
+}
+.sp-step--done .sp-step-n::after {
+  content: '';
+  display: block;
+  width: 9px; height: 5.5px;
+  border-left: 2px solid var(--teal-deep);
+  border-bottom: 2px solid var(--teal-deep);
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+/* Active step: slightly brighter circle */
+.sp-step--active .sp-step-n {
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.9);
+}
+
+/* Label + selection stacked */
+.sp-step-body { display: flex; flex-direction: column; gap: 2px; }
+.sp-step-lbl {
+  font-size: 11px; font-weight: 400;
+  color: rgba(255,255,255,0.4);
+  white-space: nowrap;
+  transition: color 0.3s, font-size 0.3s;
+}
+.sp-step--active .sp-step-lbl { color: rgba(255,255,255,0.65); }
+.sp-step--done .sp-step-lbl { font-size: 9.5px; color: rgba(255,255,255,0.25); }
+
+/* Selected value — fades in below label in mint */
+.sp-step-sel {
+  font-size: 12.5px; font-weight: 600;
+  color: #77cfbd;
+  white-space: nowrap;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.35s ease;
+}
+.sp-step--done .sp-step-sel {
+  max-height: 22px;
+  opacity: 1;
+}
 .sp-body { padding: 64px 72px 96px; }
 .sp-pull { text-align: center; font-family: var(--serif); font-size: clamp(17px,1.8vw,20px); font-style: italic; font-weight: 300; color: var(--mid); margin-bottom: 52px; line-height: 1.6; }
 .sp-div { display: flex; align-items: center; gap: 16px; margin-bottom: 26px; }
@@ -1174,105 +1271,6 @@ footer { background: var(--teal-deep); }
   padding: 0 40px;
 }
 
-/* ── PROGRESS TRAIL — sticky top bar at all widths ── */
-.sw-trail {
-  position: sticky;
-  top: 68px;   /* sits flush below the fixed nav */
-  z-index: 90;
-  background: rgba(249,246,241,0.97);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(42,88,80,0.1);
-  box-shadow: 0 2px 12px rgba(20,48,43,0.06);
-}
-.sw-trail.sw-trail--hidden { display: none; }
-
-.sw-trail-inner {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 0 40px;
-  display: flex;
-  align-items: center;
-  gap: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.sw-trail-inner::-webkit-scrollbar { display: none; }
-
-/* Each crumb — circle + value + change, all inline */
-.sw-trail-crumb {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 0;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-/* Connecting progress line — lives as last flex item inside each non-last crumb */
-.sw-trail-crumb:not(:last-child)::after {
-  content: '';
-  display: block;
-  width: 36px;
-  height: 1.5px;
-  background: rgba(42,88,80,0.15);
-  flex-shrink: 0;
-  align-self: center;
-  margin: 0 14px;
-}
-.sw-trail-crumb--done:not(:last-child)::after {
-  background: linear-gradient(to right, rgba(42,88,80,0.5), rgba(42,88,80,0.12));
-}
-
-/* Step circle — shows step number when pending, checkmark when done */
-.sw-trail-dot {
-  width: 24px; height: 24px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(42,88,80,0.22);
-  background: white;
-  flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 600;
-  color: var(--soft);
-  font-family: var(--sans);
-  letter-spacing: 0;
-  box-shadow: 0 1px 4px rgba(42,88,80,0.08);
-}
-.sw-trail-dot--done {
-  background: var(--teal);
-  border-color: var(--teal);
-  box-shadow: 0 2px 8px rgba(42,88,80,0.22);
-}
-.sw-trail-dot svg { width: 10px; height: 10px; stroke: white; }
-
-/* Value + change inline */
-.sw-trail-crumb-body {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-}
-.sw-trail-lbl { display: none; }  /* labels removed — values speak for themselves */
-.sw-trail-val {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--teal-deep);
-  line-height: 1;
-}
-.sw-trail-val--pending {
-  font-weight: 400;
-  color: var(--faint);
-  font-style: italic;
-}
-.sw-trail-edit {
-  background: none; border: none; padding: 2px 7px;
-  font-size: 10px; font-weight: 500; letter-spacing: 0.04em;
-  color: var(--soft); cursor: pointer; font-family: inherit;
-  border: 1px solid rgba(42,88,80,0.18); border-radius: 20px;
-  transition: color 0.15s, border-color 0.15s;
-}
-.sw-trail-edit:hover { color: var(--teal); border-color: var(--teal); }
-.sw-trail-sep { display: none; }
-
 /* ── WIZARD BODY ── */
 .sw-body { padding: 52px 0 96px; }
 .sw-step { margin-bottom: 56px; }
@@ -1565,17 +1563,13 @@ footer { background: var(--teal-deep); }
     max-width: none;
   }
 
-  /* Trail: adjust top for smaller nav, tighter inner padding */
-  .sw-trail { top: 58px; }
-  .sw-trail-inner { padding: 0 16px; }
-
-  /* Slightly smaller on mobile */
-  .sw-trail-dot { width: 20px; height: 20px; font-size: 10px; }
-  .sw-trail-dot svg { width: 9px; height: 9px; }
-  .sw-trail-val { font-size: 12px; }
-  .sw-trail-val--pending { font-size: 11.5px; }
-  .sw-trail-edit { font-size: 9.5px; padding: 1.5px 6px; }
-  .sw-trail-crumb:not(:last-child)::after { width: 20px; margin: 0 8px; }
+  /* Steps bar: adjust for smaller nav */
+  .sp-steps-bar { top: 58px; }
+  .sp-steps-inner { padding: 0 16px; }
+  .sp-step-arr { margin: 0 10px; }
+  .sp-step-n { width: 22px; height: 22px; }
+  .sp-step-lbl { font-size: 10px; }
+  .sp-step-sel { font-size: 11.5px; }
 
   .sw-body { padding: 28px 20px 64px; }
   .sw-svc-grid { grid-template-columns: 1fr; }

@@ -46,25 +46,45 @@
       <div class="eyebrow sp-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">How can we support you?</span></div>
       <h1 class="sp-title">Find your<br><em>path forward</em></h1>
       <p class="sp-intro">Tell us what kind of support you&rsquo;re looking for &mdash; we&rsquo;ll show you exactly what to expect, what you need, and how to get started.</p>
-      <div class="sp-steps">
-        <div class="sp-step"><span class="sp-step-n">1</span><span class="sp-step-txt">Choose your support</span></div>
-        <span class="sp-step-arr">›</span>
-        <div class="sp-step"><span class="sp-step-n">2</span><span class="sp-step-txt">Tell us about you</span></div>
-        <span class="sp-step-arr">›</span>
-        <div class="sp-step"><span class="sp-step-n">3</span><span class="sp-step-txt">See your next steps</span></div>
-      </div>
     </div>
   </div>
 
-  <!-- Progress trail — sticky top bar at all widths -->
-  <div class="sw-trail sw-trail--hidden" id="sw-trail">
-    <div class="sw-trail-inner"></div>
+  <!-- Step progress bar — sticky, lives at base of hero and follows on scroll -->
+  <div class="sp-steps-bar" id="sp-steps-bar">
+    <div class="sp-steps-inner">
+
+      <div class="sp-step" id="sp-step-1">
+        <button class="sp-step-n" id="sp-step-1-n" onclick="resetTo(1)" disabled>1</button>
+        <div class="sp-step-body">
+          <span class="sp-step-lbl">Choose your support</span>
+          <span class="sp-step-sel" id="sp-step-1-sel"></span>
+        </div>
+      </div>
+
+      <span class="sp-step-arr">›</span>
+
+      <div class="sp-step" id="sp-step-2">
+        <button class="sp-step-n" id="sp-step-2-n" onclick="resetTo(2)" disabled>2</button>
+        <div class="sp-step-body">
+          <span class="sp-step-lbl">Tell us about you</span>
+          <span class="sp-step-sel" id="sp-step-2-sel"></span>
+        </div>
+      </div>
+
+      <span class="sp-step-arr">›</span>
+
+      <div class="sp-step" id="sp-step-3">
+        <button class="sp-step-n" id="sp-step-3-n" onclick="resetTo(3)" disabled>3</button>
+        <div class="sp-step-body">
+          <span class="sp-step-lbl">See your next steps</span>
+          <span class="sp-step-sel" id="sp-step-3-sel"></span>
+        </div>
+      </div>
+
+    </div>
   </div>
 
-  <!-- Wizard body -->
   <div class="sw-layout">
-
-  <!-- Wizard body -->
   <div class="sw-body">
 
     <!-- Step 1: Service type -->
@@ -985,68 +1005,48 @@ function resetTo(step) {
 
 /* ─ Trail breadcrumb ─────────────────────────────────────────────────────── */
 
-/* Scroll to a step element with offset for fixed nav + sticky trail */
+/* Scroll to a step element with offset for fixed nav + sticky steps bar */
 function scrollToStep(el) {
-  const navH  = (document.getElementById('nav') || {}).offsetHeight || 68;
-  const trail = document.getElementById('sw-trail');
-  const trailH = trail.classList.contains('sw-trail--hidden') ? 0 : (trail.offsetHeight || 0);
-  const gap   = 28;
-  const top   = el.getBoundingClientRect().top + window.scrollY - navH - trailH - gap;
+  const navH   = (document.getElementById('nav') || {}).offsetHeight || 68;
+  const barH   = (document.getElementById('sp-steps-bar') || {}).offsetHeight || 56;
+  const gap    = 24;
+  const top    = el.getBoundingClientRect().top + window.scrollY - navH - barH - gap;
   window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 }
 
+/* Update the sticky step progress bar */
 function updateTrail() {
-  const trail = document.getElementById('sw-trail');
-  const inner = trail.querySelector('.sw-trail-inner');
-  if (!selectedService) {
-    trail.classList.add('sw-trail--hidden');
-    inner.innerHTML = '';
-    return;
-  }
-  trail.classList.remove('sw-trail--hidden');
-
-  // Build all steps — selected steps are active, unselected are pending
-  let html = '';
-
-  // Step 1 — always shown once service chosen
-  html += crumb('Support', svcLabels[selectedService], 'resetTo(1)', true);
+  // Step 1 — service
+  const s1     = document.getElementById('sp-step-1');
+  const s1sel  = document.getElementById('sp-step-1-sel');
+  const s1btn  = document.getElementById('sp-step-1-n');
+  const done1  = !!selectedService;
+  s1.classList.toggle('sp-step--done',   done1);
+  s1.classList.toggle('sp-step--active', !done1);
+  s1sel.innerHTML = done1 ? svcLabels[selectedService] : '';
+  s1btn.disabled  = !done1;
 
   // Step 2 — client type
-  if (selectedClient) {
-    html += crumb('You', selectedClient === 'new' ? 'New client' : 'Existing client', 'resetTo(2)', true);
-  } else {
-    html += crumbPending('You', 2);
-  }
+  const s2     = document.getElementById('sp-step-2');
+  const s2sel  = document.getElementById('sp-step-2-sel');
+  const s2btn  = document.getElementById('sp-step-2-n');
+  const done2  = !!selectedClient;
+  const active2 = done1 && !done2;
+  s2.classList.toggle('sp-step--done',   done2);
+  s2.classList.toggle('sp-step--active', active2);
+  s2sel.innerHTML = done2 ? (selectedClient === 'new' ? 'New client' : 'Existing client') : '';
+  s2btn.disabled  = !done2;
 
-  // Step 3 — funding (only for new clients; skip for existing)
-  if (selectedClient === 'new') {
-    if (selectedFunding) {
-      html += crumb('Coverage', fundLabels[selectedFunding], 'resetTo(3)', true);
-    } else {
-      html += crumbPending('Coverage', 3);
-    }
-  }
-
-  inner.innerHTML = html;
-}
-
-function crumb(label, val, action, done) {
-  return '<div class="sw-trail-crumb sw-trail-crumb--done">' +
-    '<div class="sw-trail-dot sw-trail-dot--done"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg></div>' +
-    '<div class="sw-trail-crumb-body">' +
-      '<span class="sw-trail-val">' + val + '</span>' +
-      '<button class="sw-trail-edit" onclick="' + action + '">change</button>' +
-    '</div>' +
-  '</div>';
-}
-
-function crumbPending(label, num) {
-  return '<div class="sw-trail-crumb sw-trail-crumb--pending">' +
-    '<div class="sw-trail-dot">' + (num || '') + '</div>' +
-    '<div class="sw-trail-crumb-body">' +
-      '<span class="sw-trail-val sw-trail-val--pending">Select below</span>' +
-    '</div>' +
-  '</div>';
+  // Step 3 — coverage (only for new clients)
+  const s3     = document.getElementById('sp-step-3');
+  const s3sel  = document.getElementById('sp-step-3-sel');
+  const s3btn  = document.getElementById('sp-step-3-n');
+  const done3  = !!selectedFunding;
+  const active3 = done2 && selectedClient === 'new' && !done3;
+  s3.classList.toggle('sp-step--done',   done3);
+  s3.classList.toggle('sp-step--active', active3 || (done2 && selectedClient === 'existing'));
+  s3sel.innerHTML = done3 ? fundLabels[selectedFunding] : '';
+  s3btn.disabled  = !done3;
 }
 
 /* ─ Outcome card renderer ────────────────────────────────────────────────── */
