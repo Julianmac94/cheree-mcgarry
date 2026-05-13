@@ -1090,6 +1090,16 @@ footer { background: var(--teal-deep); }
 .sw-exist-panel #ec-form { padding: 28px 36px 36px; }
 .sw-exist-panel .m-ok { padding: 36px; }
 
+/* Intake form card */
+.sw-intake-card { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; background: white; border: 1px solid rgba(42,88,80,0.12); border-top: 3px solid var(--teal); border-radius: 16px; padding: 24px 28px; margin: 28px 0 0; }
+.sw-intake-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--teal); margin-bottom: 6px; }
+.sw-intake-title { font-family: var(--serif); font-size: 18px; font-weight: 400; color: var(--teal-deep); margin-bottom: 8px; line-height: 1.25; }
+.sw-intake-desc { font-size: 13px; font-weight: 300; color: var(--mid); line-height: 1.6; margin-bottom: 16px; }
+.sw-intake-btn { display: inline-flex; }
+.sw-intake-qr { display: flex; flex-direction: column; align-items: center; gap: 8px; flex-shrink: 0; }
+.sw-intake-qr img { width: 108px; height: 108px; border-radius: 10px; border: 1px solid rgba(42,88,80,0.1); display: block; }
+.sw-intake-qr p { font-size: 10px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--soft); text-align: center; line-height: 1.5; margin: 0; }
+
 /* Free call CTA */
 .sw-free-call { background: white; border-top: 1px solid var(--cream-3); padding: 72px 72px; }
 .sw-free-call-inner { max-width: 860px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 56px; }

@@ -349,8 +349,8 @@
 
 const planMatrix = {
   individual: {
-    medicare:   { price: '$195 / 60 min',              reqs: ['Medicare rebate of $82.30 applies', 'No intake session required'],                                          cta: 'Continue',          ctaType: 'book',    approval: null,                                                     funder: false },
-    private:    { price: '$195 / 60 min',              reqs: [],                                                                                                          cta: 'Continue',          ctaType: 'book',    approval: null,                                                     funder: false },
+    medicare:   { price: '$195 / 60 min',              reqs: ['Medicare rebate of $87.25 applies', 'No intake session required'],                                          cta: 'Continue',          ctaType: 'book',    approval: null,                                                     funder: false, formUrl: 'https://www.halaxy.com/a/online/form/new-patient/245011/iRz7os7FEYL5K-ZXe9Al5UsvcTNONVNCNkhKMDRia2d0UmZxRlJLZUsvbWg', formLabel: 'Individual — Private / Medicare', formQr: 'assets/qr-private-intake.png' },
+    private:    { price: '$195 / 60 min',              reqs: [],                                                                                                          cta: 'Continue',          ctaType: 'book',    approval: null,                                                     funder: false, formUrl: 'https://www.halaxy.com/a/online/form/new-patient/245011/iRz7os7FEYL5K-ZXe9Al5UsvcTNONVNCNkhKMDRia2d0UmZxRlJLZUsvbWg', formLabel: 'Individual — Private / Medicare', formQr: 'assets/qr-private-intake.png' },
     ndis:       { price: 'Funder pays',                reqs: ['Referral / plan approval required', 'Session cost covered by NDIS'],                                       cta: 'Continue',          ctaType: 'book',    approval: "We’ll email you to confirm after reviewing your referral.", funder: true  },
     qfes:       { price: 'Funder pays',                reqs: ['Referral required', 'Session cost covered by QFES'],                                                       cta: 'Continue',          ctaType: 'book',    approval: "We’ll email you to confirm after reviewing your referral.", funder: true  },
     dva:        { price: 'Funder pays',                reqs: ['Referral required', 'Session cost covered by DVA'],                                                        cta: 'Continue',          ctaType: 'book',    approval: "We’ll email you to confirm after reviewing your referral.", funder: true  },
@@ -526,12 +526,31 @@ function renderNewPanel() {
     '</div>'
   ).join('');
 
+  const intakeCard = p.formUrl
+    ? '<div class="sw-intake-card">' +
+        '<div class="sw-intake-left">' +
+          '<p class="sw-intake-eyebrow">New client intake form</p>' +
+          '<h4 class="sw-intake-title">' + (p.formLabel || 'Complete your intake') + '</h4>' +
+          '<p class="sw-intake-desc">Takes about 10 minutes. Complete this before your first appointment &mdash; it helps Cheree prepare for your session.</p>' +
+          '<a class="btn btn-solid sw-intake-btn" href="' + p.formUrl + '" target="_blank" rel="noopener">' +
+            '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h10M7 2l5 5-5 5"/></svg>' +
+            'Open Intake Form' +
+          '</a>' +
+        '</div>' +
+        '<div class="sw-intake-qr">' +
+          '<img src="' + p.formQr + '" alt="QR code — scan to open intake form on your phone">' +
+          '<p>Scan to open<br>on your phone</p>' +
+        '</div>' +
+      '</div>'
+    : '';
+
   document.getElementById('sw-new-panel-content').innerHTML =
     '<h3>Getting started as a new client</h3>' +
     '<p>Everything is managed through our secure Halaxy portal. You’ll be guided through the process step by step.</p>' +
     '<div class="sw-new-steps">' + stepsHtml + '</div>' +
-    '<div style="margin-top:28px;display:flex;gap:12px;flex-wrap:wrap">' +
-      '<a class="btn btn-solid" href="https://www.halaxy.com/book/cheree-mcgarry" target="_blank" rel="noopener">' +
+    intakeCard +
+    '<div style="margin-top:' + (p.formUrl ? '20px' : '28px') + ';display:flex;gap:12px;flex-wrap:wrap">' +
+      '<a class="btn ' + (p.formUrl ? 'btn-outline' : 'btn-solid') + '" href="https://www.halaxy.com/book/cheree-mcgarry" target="_blank" rel="noopener">' +
         '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 7h10M7 2l5 5-5 5"/></svg>' +
         'Book via Halaxy' +
       '</a>' +
