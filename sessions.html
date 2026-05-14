@@ -8,22 +8,96 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Raleway:wght@200;300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <style>
-/* ── Compact service card overrides ── */
+/* ── Two-column hero layout ── */
+.sp-head {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 52px;
+  padding: 80px 72px !important;
+  min-height: 480px;
+}
+.sp-head-content { flex: 1; min-width: 0; }
+.sp-head-pricing {
+  flex-shrink: 0;
+  width: 290px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 18px;
+  padding: 26px 24px 22px;
+  position: relative; z-index: 2;
+}
+.sp-head-price-eyebrow {
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(255,255,255,0.38); margin-bottom: 8px; display: block;
+}
+.sp-head-price-amount {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 52px; font-weight: 300;
+  color: white; line-height: 1; display: block; margin-bottom: 2px;
+}
+.sp-head-price-sub {
+  font-size: 11px; color: rgba(255,255,255,0.38);
+  display: block; margin-bottom: 18px; letter-spacing: 0.02em;
+}
+.sp-head-price-rows {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 14px; margin-bottom: 16px;
+}
+.sp-head-price-row {
+  display: flex; justify-content: space-between;
+  align-items: baseline; gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.sp-head-price-row:last-child { border-bottom: none; }
+.sp-head-price-row-lbl {
+  font-size: 12px; color: rgba(255,255,255,0.45); flex-shrink: 0;
+}
+.sp-head-price-row-val {
+  font-size: 12.5px; color: rgba(255,255,255,0.88);
+  font-weight: 500; text-align: right;
+}
+.sp-head-price-link {
+  font-size: 11px; color: rgba(255,255,255,0.38);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255,255,255,0.14);
+  padding-bottom: 1px; display: inline-block;
+  transition: color 0.2s, border-color 0.2s;
+}
+.sp-head-price-link:hover { color: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.3); }
+@media (max-width: 820px) {
+  .sp-head {
+    flex-direction: column !important;
+    padding: 56px 28px 52px !important;
+    min-height: unset;
+    gap: 36px;
+  }
+  .sp-head-pricing { width: 100%; max-width: 340px; }
+}
+
+/* ── Service card layout ── */
 .sw-sg-svc-inner--compact {
-  max-width: 800px;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 56px 48px;
+  padding: 56px 72px;
   display: block;
 }
 .sw-svc-hd { margin-bottom: 28px; }
+.sw-svc-icon {
+  width: 42px; height: 42px;
+  background: rgba(42,88,80,0.08);
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+  color: #2A5850;
+}
+.sw-svc-icon svg { width: 20px; height: 20px; }
 .sw-svc-variants {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  margin-bottom: 24px;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 0; margin-bottom: 24px;
   border: 1px solid rgba(42,88,80,0.1);
-  border-radius: 12px;
-  overflow: hidden;
+  border-radius: 12px; overflow: hidden;
 }
 .sw-svc-variant { padding: 20px 24px; }
 .sw-svc-variant + .sw-svc-variant { border-left: 1px solid rgba(42,88,80,0.1); }
@@ -31,25 +105,19 @@
 .sw-svc-variant-lbl {
   font-size: 10px; font-weight: 600;
   letter-spacing: 0.12em; text-transform: uppercase;
-  color: #2A5850; margin-bottom: 10px;
-  display: block;
+  color: #2A5850; margin-bottom: 10px; display: block;
 }
-.sw-svc-variant-lbl span {
-  font-weight: 400; color: #7A948F;
-  text-transform: none; letter-spacing: 0; font-size: 10px;
-}
+.sw-svc-variant-lbl span { font-weight: 400; color: #7A948F; text-transform: none; letter-spacing: 0; }
 .sw-svc-list { list-style: none; padding: 0; margin: 0; }
 .sw-svc-list li {
-  font-size: 13.5px; color: #3E5C56; line-height: 1.65;
+  font-size: 14px; color: #3E5C56; line-height: 1.65;
   padding: 5px 0 5px 18px; position: relative;
 }
 .sw-svc-list li::before {
   content: '—'; position: absolute; left: 0;
-  color: #77CFBD; font-size: 12px; line-height: 1.65;
+  color: #77CFBD; font-size: 12px; line-height: 1.7;
 }
 .sw-svc-list--solo { margin-bottom: 24px; }
-
-/* expandable read more */
 .sw-svc-more {
   max-height: 0; overflow: hidden;
   transition: max-height 0.4s ease;
@@ -61,7 +129,7 @@
   margin-bottom: 16px;
 }
 .sw-svc-more-body p {
-  font-size: 13.5px; color: #3E5C56; line-height: 1.75; margin-bottom: 14px;
+  font-size: 14px; color: #3E5C56; line-height: 1.75; margin-bottom: 14px;
 }
 .sw-svc-more-section { margin-bottom: 24px; }
 .sw-svc-more-section:last-child { margin-bottom: 0; }
@@ -70,125 +138,29 @@
   letter-spacing: 0.12em; text-transform: uppercase;
   color: #7A948F; margin-bottom: 10px;
 }
-
-/* suits + actions footer row */
-.sw-svc-suits-row {
-  display: flex; align-items: flex-start;
-  justify-content: space-between; gap: 24px;
-  padding-top: 20px; border-top: 1px solid rgba(42,88,80,0.08);
-  flex-wrap: wrap;
-}
-.sw-svc-suits-text { flex: 1; }
-.sw-svc-actions {
-  display: flex; align-items: center;
-  gap: 12px; flex-shrink: 0;
+.sw-svc-card-foot {
+  padding-top: 18px;
+  border-top: 1px solid rgba(42,88,80,0.08);
 }
 .sw-svc-more-btn {
   font-family: 'Raleway', sans-serif;
-  font-size: 12px; color: #2A5850;
+  font-size: 13px; color: #2A5850;
   background: none; border: none; cursor: pointer;
   padding: 0; text-decoration: underline;
   text-underline-offset: 3px; transition: color 0.18s;
 }
 .sw-svc-more-btn:hover { color: #192E2A; }
-
-/* hero pricing hint */
-.sp-pricing-hint {
-  font-size: 12.5px; color: rgba(255,255,255,0.5);
-  margin-top: 18px; line-height: 1.7;
-  letter-spacing: 0.01em;
-}
-.sp-pricing-hint strong { color: rgba(255,255,255,0.82); font-weight: 500; }
-
-@media (max-width: 640px) {
-  .sw-sg-svc-inner--compact { padding: 40px 24px; }
+@media (max-width: 820px) {
+  .sw-sg-svc-inner--compact { padding: 40px 28px; }
   .sw-svc-variants { grid-template-columns: 1fr; }
-  .sw-svc-variant + .sw-svc-variant {
-    border-left: none; border-top: 1px solid rgba(42,88,80,0.1);
-  }
-  .sw-svc-suits-row { flex-direction: column; }
-  .sw-svc-actions { flex-wrap: wrap; }
+  .sw-svc-variant + .sw-svc-variant { border-left: none; border-top: 1px solid rgba(42,88,80,0.1); }
 }
 
-/* ── Pricing intro section ── */
-.sw-pricing-intro {
-  background: #fff;
-  border-bottom: 1px solid rgba(42,88,80,0.08);
-  padding: 64px 24px;
-}
-.sw-pi-inner {
-  max-width: 800px;
-  margin: 0 auto;
-}
-.sw-pi-eyebrow {
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 0.14em; text-transform: uppercase;
-  color: #7A948F; margin-bottom: 14px; display: block;
-}
-.sw-pi-headline {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(36px, 5vw, 52px);
-  font-weight: 300; color: #192E2A;
-  line-height: 1.1; margin-bottom: 18px;
-}
-.sw-pi-headline strong { font-weight: 400; color: #2A5850; }
-.sw-pi-body {
-  font-size: 15px; color: #3E5C56;
-  line-height: 1.75; max-width: 560px;
-  margin-bottom: 36px;
-}
-.sw-pi-paths {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 28px;
-}
-.sw-pi-path {
-  border: 1px solid rgba(42,88,80,0.12);
-  border-radius: 12px;
-  padding: 20px 22px;
-  background: rgba(42,88,80,0.02);
-}
-.sw-pi-path-lbl {
-  display: block;
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  color: #7A948F; margin-bottom: 6px;
-}
-.sw-pi-path-price {
-  display: block;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 26px; font-weight: 400;
-  color: #192E2A; line-height: 1.1;
-  margin-bottom: 8px;
-}
-.sw-pi-path-note {
-  display: block;
-  font-size: 12.5px; color: #7A948F; line-height: 1.6;
-}
-.sw-pi-link {
-  font-size: 13px; color: #2A5850;
-  text-decoration: none;
-  border-bottom: 1px solid rgba(42,88,80,0.25);
-  padding-bottom: 2px;
-  transition: border-color 0.2s, color 0.2s;
-  display: inline-block;
-}
-.sw-pi-link:hover { color: #192E2A; border-color: #192E2A; }
-
-/* ── Service card simplified footer ── */
-.sw-svc-card-foot {
-  padding-top: 18px;
-  border-top: 1px solid rgba(42,88,80,0.08);
-  margin-top: 4px;
-}
-
-/* ── Funding section — hierarchical ── */
+/* ── Funding section ── */
 .sw-cg-primary {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 32px;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 20px; margin-bottom: 32px;
+  max-width: 1040px; margin-left: auto; margin-right: auto;
 }
 .sw-cg-item--primary {
   border-radius: 14px;
@@ -196,71 +168,87 @@
   padding: 28px 28px 24px;
   background: #fff;
 }
-.sw-cg-item--primary .sw-cg-item-hd {
-  margin-bottom: 10px;
+.sw-cg-item--primary .sw-cg-item-hd { margin-bottom: 10px; }
+.sw-cg-item--primary .sw-cg-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px; font-weight: 400; color: #192E2A;
+}
+.sw-cg-item--primary .sw-cg-price {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px; font-weight: 400; color: #BE6E44;
+  white-space: nowrap; padding-top: 0;
 }
 .sw-cg-lede {
-  font-size: 13.5px; color: #3E5C56;
-  line-height: 1.65; margin-bottom: 14px;
-  font-style: italic;
+  font-size: 14px; color: #3E5C56;
+  line-height: 1.65; margin-bottom: 14px; font-style: italic;
 }
-.sw-cg-bullets {
-  list-style: none; padding: 0; margin: 0 0 16px;
-}
+.sw-cg-bullets { list-style: none; padding: 0; margin: 0 0 16px; }
 .sw-cg-bullets li {
-  font-size: 13px; color: #3E5C56;
-  line-height: 1.6; padding: 3px 0 3px 16px;
-  position: relative;
+  font-size: 13.5px; color: #3E5C56; line-height: 1.6;
+  padding: 4px 0 4px 16px; position: relative;
 }
 .sw-cg-bullets li::before {
   content: '—'; position: absolute; left: 0;
   color: #77CFBD; font-size: 11px; line-height: 1.7;
 }
 .sw-cg-who {
-  font-size: 12px; color: #7A948F;
-  line-height: 1.6; padding-top: 12px;
-  border-top: 1px solid rgba(42,88,80,0.07);
+  font-size: 12.5px; color: #7A948F; line-height: 1.6;
+  padding-top: 12px; border-top: 1px solid rgba(42,88,80,0.07);
   font-style: italic;
 }
+.sw-cg-icon {
+  width: 36px; height: 36px;
+  background: rgba(42,88,80,0.07);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px; color: #2A5850;
+}
+.sw-cg-icon svg { width: 18px; height: 18px; }
 .sw-cg-secondary-hd {
-  font-size: 10px; font-weight: 600;
+  display: block; font-size: 10px; font-weight: 600;
   letter-spacing: 0.12em; text-transform: uppercase;
-  color: #7A948F; margin-bottom: 14px; display: block;
+  color: #7A948F; margin-bottom: 14px;
+  max-width: 1040px; margin-left: auto; margin-right: auto;
 }
 .sw-cg-secondary {
   border: 1px solid rgba(42,88,80,0.09);
-  border-radius: 14px;
-  overflow: hidden;
-  background: #fff;
+  border-radius: 14px; overflow: hidden; background: #fff;
+  max-width: 1040px; margin: 0 auto;
 }
 .sw-cg-sec-item {
+  display: flex; gap: 16px; align-items: flex-start;
   padding: 20px 26px;
   border-bottom: 1px solid rgba(42,88,80,0.07);
 }
 .sw-cg-sec-item:last-child { border-bottom: none; }
+.sw-cg-sec-icon {
+  width: 32px; height: 32px; flex-shrink: 0;
+  background: rgba(42,88,80,0.06);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: #2A5850; margin-top: 1px;
+}
+.sw-cg-sec-icon svg { width: 15px; height: 15px; }
+.sw-cg-sec-content { flex: 1; }
 .sw-cg-sec-hd {
   display: flex; align-items: baseline;
   justify-content: space-between; gap: 16px;
-  margin-bottom: 6px; flex-wrap: wrap;
+  margin-bottom: 5px; flex-wrap: wrap;
 }
-.sw-cg-sec-name {
-  font-size: 14px; font-weight: 500;
-  color: #192E2A;
-}
+.sw-cg-sec-name { font-size: 14px; font-weight: 500; color: #192E2A; }
 .sw-cg-sec-price {
-  font-size: 12px; font-weight: 500;
-  color: #2A5850; flex-shrink: 0;
+  font-size: 13px; font-weight: 500; color: #BE6E44; flex-shrink: 0;
 }
-.sw-cg-sec-body {
-  font-size: 13px; color: #3E5C56;
-  line-height: 1.65; margin: 0;
+.sw-cg-sec-body { font-size: 13px; color: #3E5C56; line-height: 1.65; margin: 0; }
+@media (max-width: 820px) {
+  .sw-cg-primary { grid-template-columns: 1fr; max-width: 100%; }
+  .sw-cg-secondary { max-width: 100%; }
+  .sw-cg-secondary-hd { max-width: 100%; }
 }
 
-@media (max-width: 640px) {
-  .sw-pi-paths { grid-template-columns: 1fr; }
-  .sw-cg-primary { grid-template-columns: 1fr; }
-  .sw-pi-inner { max-width: 100%; }
-}
+/* ── Bottom CTA — dark ── */
+.sw-bottom-cta { background: #192E2A !important; }
+.sw-btm-card { box-shadow: 0 8px 48px rgba(0,0,0,0.25), 0 1px 6px rgba(0,0,0,0.12) !important; }
 </style>
 </head>
 <body data-page="sessions">
@@ -369,35 +357,31 @@
       <h1 class="sp-title">Find your<br><em>path forward</em></h1>
       <p class="sp-intro">Explore the types of support available, understand how funding works, and learn what sessions are actually like &mdash; so you can make an informed choice and reach out when you feel ready.</p>
       <a href="#session-start" class="sp-start-link">
-        Find the right session for you
-        <svg class="sp-start-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v10M3 9l5 4 5-4"/></svg>
+        Book now
+        <svg class="sp-start-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
       </a>
+    </div>
+
+    <!-- Pricing card — right side of hero -->
+    <div class="sp-head-pricing">
+      <span class="sp-head-price-eyebrow">Standard rate</span>
+      <span class="sp-head-price-amount">$195</span>
+      <span class="sp-head-price-sub">per session &mdash; all types</span>
+      <div class="sp-head-price-rows">
+        <div class="sp-head-price-row">
+          <span class="sp-head-price-row-lbl">With Medicare</span>
+          <span class="sp-head-price-row-val">~$107 out of pocket</span>
+        </div>
+        <div class="sp-head-price-row">
+          <span class="sp-head-price-row-lbl">NDIS &amp; EAP</span>
+          <span class="sp-head-price-row-val">May be fully covered</span>
+        </div>
+      </div>
+      <a href="#sw-coverage-guide" class="sp-head-price-link">How funding works &darr;</a>
     </div>
 
   </div>
 
-
-  <!-- Pricing intro -->
-  <section class="sw-pricing-intro" id="sw-pricing">
-    <div class="sw-pi-inner">
-      <span class="sw-pi-eyebrow">Fees &amp; funding</span>
-      <h2 class="sw-pi-headline">Sessions are <strong>$195</strong></h2>
-      <p class="sw-pi-body">That&rsquo;s the standard rate for all session types. Depending on how you access sessions, you may pay significantly less &mdash; or nothing at all.</p>
-      <div class="sw-pi-paths">
-        <div class="sw-pi-path">
-          <span class="sw-pi-path-lbl">Medicare &mdash; Better Access</span>
-          <span class="sw-pi-path-price">~$107 out of pocket</span>
-          <span class="sw-pi-path-note">Medicare rebates $87.25 per session when you hold a GP Mental Health Care Plan</span>
-        </div>
-        <div class="sw-pi-path">
-          <span class="sw-pi-path-lbl">NDIS &amp; employer funded</span>
-          <span class="sw-pi-path-price">May be fully covered</span>
-          <span class="sw-pi-path-note">NDIS, QFES Employee Assistance, and ADFHSC &amp; DVA may cover sessions in full</span>
-        </div>
-      </div>
-      <a href="#sw-coverage-guide" class="sw-pi-link">Understand all funding options &darr;</a>
-    </div>
-  </section>
 
   <!-- Services guide — compact cards -->
   <section class="sw-services-guide" id="sw-services-guide">
@@ -406,6 +390,9 @@
     <div class="sw-sg-svc" id="guide-individual">
       <div class="sw-sg-svc-inner sw-sg-svc-inner--compact">
         <div class="sw-svc-hd">
+          <div class="sw-svc-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M3 21c0-4 4-7 9-7s9 3 9 7"/></svg>
+          </div>
           <p class="sw-sg-eyebrow">One-on-one</p>
           <h3 class="sw-sg-name">Individual Therapy</h3>
           <p class="sw-sg-lede">A space that belongs entirely to you &mdash; no agenda, no timeline, no right or wrong way to show up.</p>
@@ -455,6 +442,9 @@
     <div class="sw-sg-svc sw-sg-svc--alt" id="guide-couple-family">
       <div class="sw-sg-svc-inner sw-sg-svc-inner--compact">
         <div class="sw-svc-hd">
+          <div class="sw-svc-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7" r="3"/><path d="M1 21c0-3.3 2.9-6 6.5-6"/><circle cx="16.5" cy="7" r="3"/><path d="M23 21c0-3.3-2.9-6-6.5-6"/><path d="M9 20.5c0-3 1.6-5 4-5s4 2 4 5"/></svg>
+          </div>
           <p class="sw-sg-eyebrow">Together</p>
           <h3 class="sw-sg-name">Couple or Family Therapy</h3>
           <p class="sw-sg-lede">When something feels stuck between you &mdash; having someone outside it can help you hear each other differently.</p>
@@ -488,6 +478,9 @@
     <div class="sw-sg-svc" id="guide-mediation">
       <div class="sw-sg-svc-inner sw-sg-svc-inner--compact">
         <div class="sw-svc-hd">
+          <div class="sw-svc-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 3h18"/><path d="M5 8l3.5 7H1.5L5 8z"/><path d="M19 8l3.5 7h-7L19 8z"/></svg>
+          </div>
           <p class="sw-sg-eyebrow">Facilitated resolution</p>
           <h3 class="sw-sg-name">Professional Mediation</h3>
           <p class="sw-sg-lede">Not every dispute needs a courtroom &mdash; sometimes it just needs a skilled, neutral person in the room.</p>
@@ -519,7 +512,7 @@
 
   </section>
 
-  <!-- Funding guide — journey-based hierarchy -->
+  <!-- Funding guide -->
   <section class="sw-coverage-guide" id="sw-coverage-guide">
     <div class="sw-cg-hd">
       <div class="eyebrow sw-sg-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Funding options</span></div>
@@ -527,10 +520,12 @@
       <p class="sw-sg-intro">There&rsquo;s more than one way to access sessions with Cheree. The right path depends on your situation &mdash; most people fall into one of the two main options below.</p>
     </div>
 
-    <!-- Primary funding paths -->
     <div class="sw-cg-primary">
 
       <div class="sw-cg-item sw-cg-item--primary">
+        <div class="sw-cg-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        </div>
         <div class="sw-cg-item-hd">
           <h4 class="sw-cg-name">Paying privately</h4>
           <span class="sw-cg-price">$195 / session</span>
@@ -545,13 +540,16 @@
       </div>
 
       <div class="sw-cg-item sw-cg-item--primary">
+        <div class="sw-cg-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </div>
         <div class="sw-cg-item-hd">
-          <h4 class="sw-cg-name">Medicare &mdash; Better Access</h4>
+          <h4 class="sw-cg-name">Medicare</h4>
           <span class="sw-cg-price">~$107 out of pocket</span>
         </div>
         <p class="sw-cg-lede">See your GP first &mdash; a Mental Health Care Plan unlocks a Medicare rebate of $87.25 per session.</p>
         <ul class="sw-cg-bullets">
-          <li>Ask your GP for a MHCP naming Cheree McGarry, AMHSW</li>
+          <li>Ask your GP for a Mental Health Care Plan naming Cheree McGarry, AMHSW</li>
           <li>Up to 10 sessions per calendar year; GP review after the first 6</li>
           <li>Individual and child therapy only</li>
         </ul>
@@ -560,32 +558,46 @@
 
     </div>
 
-    <!-- Secondary / specialist funding paths -->
     <span class="sw-cg-secondary-hd">Other funding pathways</span>
     <div class="sw-cg-secondary">
 
       <div class="sw-cg-sec-item">
-        <div class="sw-cg-sec-hd">
-          <h5 class="sw-cg-sec-name">NDIS &mdash; self or plan-managed</h5>
-          <span class="sw-cg-sec-price">Self or plan-managed</span>
+        <div class="sw-cg-sec-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="8" r="2"/><path d="M9 15c0-1.657 1.343-3 3-3s3 1.343 3 3v3"/></svg>
         </div>
-        <p class="sw-cg-sec-body">If counselling is in your NDIS plan, you may be able to use your funding. Self-managed: pay $195 on the day and claim reimbursement. Plan-managed: invoiced directly to your plan manager at the NDIS rate. Confirm counselling is in your funded supports before booking. Available for individual and child therapy.</p>
+        <div class="sw-cg-sec-content">
+          <div class="sw-cg-sec-hd">
+            <h5 class="sw-cg-sec-name">NDIS &mdash; self or plan-managed</h5>
+            <span class="sw-cg-sec-price">Self or plan-managed</span>
+          </div>
+          <p class="sw-cg-sec-body">If counselling is in your NDIS plan, you may be able to use your funding. Self-managed: pay $195 on the day and claim reimbursement. Plan-managed: invoiced directly to your plan manager at the NDIS rate. Confirm counselling is in your funded supports before booking. Individual and child therapy only.</p>
+        </div>
       </div>
 
       <div class="sw-cg-sec-item">
-        <div class="sw-cg-sec-hd">
-          <h5 class="sw-cg-sec-name">QFES Employee Assistance</h5>
-          <span class="sw-cg-sec-price">Covered by QFES</span>
+        <div class="sw-cg-sec-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c-4 0-7-3.5-7-8 0-3 1.5-5 3-6 0 2 1 3 1 3 1-2 2-5 5-7 0 2.5 2 4 2 6.5.8-.8 1-2 1-2 1 1.5 2 3 2 5.5 0 4.5-3 8-7 8z"/></svg>
         </div>
-        <p class="sw-cg-sec-body">Queensland Fire &amp; Emergency Services employees can access sessions at no cost through the EAP. Contact your EAP coordinator to confirm your entitlement and arrange a referral before booking. Couple, family, and mediation sessions may also be covered &mdash; check with your coordinator.</p>
+        <div class="sw-cg-sec-content">
+          <div class="sw-cg-sec-hd">
+            <h5 class="sw-cg-sec-name">QFES Employee Assistance</h5>
+            <span class="sw-cg-sec-price">Covered by QFES</span>
+          </div>
+          <p class="sw-cg-sec-body">Queensland Fire &amp; Emergency Services employees can access sessions at no cost through the EAP. Contact your EAP coordinator to confirm your entitlement and arrange a referral before booking. All session types may be covered.</p>
+        </div>
       </div>
 
       <div class="sw-cg-sec-item">
-        <div class="sw-cg-sec-hd">
-          <h5 class="sw-cg-sec-name">ADFHSC &amp; DVA</h5>
-          <span class="sw-cg-sec-price">Covered by funder</span>
+        <div class="sw-cg-sec-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </div>
-        <p class="sw-cg-sec-body">Current and former ADF members, their families, and DVA card holders may be eligible for funded sessions billed directly to ADFHSC or DVA. Contact your unit health officer, Medical Officer, or DVA case manager to arrange a referral before booking.</p>
+        <div class="sw-cg-sec-content">
+          <div class="sw-cg-sec-hd">
+            <h5 class="sw-cg-sec-name">ADFHSC &amp; DVA</h5>
+            <span class="sw-cg-sec-price">Covered by funder</span>
+          </div>
+          <p class="sw-cg-sec-body">Current and former ADF members, their families, and DVA card holders may be eligible for funded sessions billed directly to ADFHSC or DVA. Contact your unit health officer, Medical Officer, or DVA case manager to arrange a referral before booking.</p>
+        </div>
       </div>
 
     </div>
@@ -625,7 +637,7 @@
       <!-- Static header -->
       <div class="sw-btm-hd">
         <div class="eyebrow sw-btm-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Ready to begin</span></div>
-        <p class="sw-bottom-cta-q">Where are you at?</p>
+        <p class="sw-bottom-cta-q">Let&rsquo;s get you set up</p>
         <p class="sw-btm-desc">Whether you&rsquo;re ready to book your first session, want to reconnect as an existing client, or just need a conversation first &mdash; Cheree is here for all of it.</p>
       </div>
 
@@ -778,7 +790,7 @@ const CANCEL_HTML     = 'To cancel: call <a href="tel:0418742087"><strong>0418&n
 const planMatrix = {
   individual: {
     medicare: {
-      heading:     'Medicare &mdash; Better Access',
+      heading:     'Medicare',
       logo:        'assets/medicare-logo.svg',
       price:       '$195 / session',
       pocket:      'Out-of-pocket: <strong>$107.75</strong> after $87.25 Medicare rebate',
@@ -989,7 +1001,7 @@ const planMatrix = {
 
   child: {
     medicare: {
-      heading:     'Medicare &mdash; Better Access',
+      heading:     'Medicare',
       logo:        'assets/medicare-logo.svg',
       price:       '$195 / session',
       pocket:      'Out-of-pocket: <strong>$107.75</strong> after $87.25 rebate',
