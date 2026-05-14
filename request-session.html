@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Request a Session &middot; Cheree McGarry Counselling &amp; Wellness</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Raleway:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<style>
+/* ── page-level overrides (request-session only) ── */
+.rs-wrap {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* Confirmation banner — shows selected service / funding / client */
+.rs-confirm {
+  display: flex; flex-wrap: wrap; gap: 0;
+  background: rgba(42,88,80,0.05);
+  border: 1px solid rgba(42,88,80,0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 36px;
+}
+.rs-confirm-item {
+  flex: 1; min-width: 120px;
+  padding: 13px 18px;
+  display: flex; flex-direction: column; gap: 3px;
+  border-right: 1px solid rgba(42,88,80,0.08);
+}
+.rs-confirm-item:last-child { border-right: none; }
+.rs-confirm-lbl {
+  font-family: var(--sans);
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--soft);
+}
+.rs-confirm-val {
+  font-family: var(--sans);
+  font-size: 12.5px; font-weight: 500;
+  color: var(--teal-deep);
+  line-height: 1.3;
+}
+.rs-confirm-change {
+  display: flex; align-items: center;
+  padding: 0 16px;
+}
+.rs-confirm-change a {
+  font-size: 11px; color: var(--soft);
+  text-decoration: underline; text-underline-offset: 2px;
+  font-family: var(--sans); font-weight: 400;
+  white-space: nowrap;
+}
+
+/* Page header */
+.rs-head {
+  padding: 56px 0 36px;
+}
+.rs-eyebrow {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--sans);
+  font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--terra);
+  margin-bottom: 18px;
+}
+.rs-eyebrow::before {
+  content: '';
+  width: 20px; height: 1px;
+  background: var(--terra);
+  flex-shrink: 0;
+}
+.rs-title {
+  font-family: var(--serif);
+  font-size: clamp(32px, 5vw, 46px);
+  font-weight: 400;
+  color: var(--teal-deep);
+  line-height: 1.15;
+  margin-bottom: 14px;
+}
+.rs-title em {
+  font-style: italic;
+  color: var(--terra);
+}
+.rs-intro {
+  font-family: var(--sans);
+  font-size: 15px; font-weight: 300;
+  color: var(--mid);
+  line-height: 1.7;
+  max-width: 520px;
+}
+
+/* Referral requirement callout */
+.rs-req {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: rgba(190,110,68,0.07);
+  border-left: 3px solid var(--terra);
+  border-radius: 0 8px 8px 0;
+  padding: 14px 18px;
+  margin-bottom: 28px;
+}
+.rs-req svg { flex-shrink: 0; margin-top: 1px; }
+.rs-req-body {
+  font-family: var(--sans);
+  font-size: 13px; font-weight: 400;
+  color: var(--teal-deep);
+  line-height: 1.6;
+}
+.rs-req-body strong {
+  font-weight: 600;
+}
+.rs-req-body a {
+  color: var(--terra);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* Form card */
+.rs-card {
+  background: var(--cream);
+  border: 1px solid rgba(42,88,80,0.1);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgba(20,48,43,0.06), 0 1px 0 rgba(255,255,255,0.8) inset;
+  margin-bottom: 36px;
+}
+.rs-card-head {
+  padding: 28px 32px 22px;
+  border-bottom: 1px solid rgba(42,88,80,0.07);
+}
+.rs-card-title {
+  font-family: var(--serif);
+  font-size: 22px; font-weight: 400;
+  color: var(--teal-deep);
+  margin-bottom: 6px;
+}
+.rs-card-sub {
+  font-family: var(--sans);
+  font-size: 13px; font-weight: 300;
+  color: var(--mid);
+  line-height: 1.6;
+}
+.rs-form {
+  padding: 24px 32px 28px;
+}
+.rs-form .frow { margin-bottom: 0; }
+.rs-form .fg { margin-bottom: 14px; }
+.rs-form .fg:last-child { margin-bottom: 0; }
+.rs-form .fl {
+  display: block;
+  font-family: var(--sans);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--teal-deep);
+  margin-bottom: 6px;
+}
+.rs-opt {
+  font-weight: 300;
+  color: var(--soft);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+.rs-note-field { min-height: 84px; }
+
+/* Submit button row */
+.rs-submit-row {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 0 32px 28px;
+}
+.rs-submit {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px;
+  font-family: var(--sans);
+  font-size: 13.5px; font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 13px 28px;
+  border: none; border-radius: 10px; cursor: pointer;
+  background: var(--mint);
+  color: var(--teal-deep);
+  box-shadow: var(--neu-cta);
+  transition: opacity 0.2s, box-shadow 0.2s;
+}
+.rs-submit:hover:not(:disabled) {
+  opacity: 0.88;
+}
+.rs-submit:disabled {
+  opacity: 0.5; cursor: default;
+}
+.rs-policy-note {
+  font-family: var(--sans);
+  font-size: 11px; font-weight: 300;
+  color: var(--soft);
+}
+.rs-policy-note a {
+  color: var(--soft);
+  text-underline-offset: 2px;
+}
+
+/* Success state */
+.rs-success {
+  padding: 48px 32px;
+  text-align: center;
+  display: none;
+}
+.rs-success-ring {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(119,207,189,0.15);
+  border: 1px solid rgba(119,207,189,0.4);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 20px; font-size: 26px;
+}
+.rs-success-title {
+  font-family: var(--serif);
+  font-size: 26px; font-weight: 400;
+  color: var(--teal-deep);
+  margin-bottom: 10px;
+}
+.rs-success-body {
+  font-family: var(--sans);
+  font-size: 14px; font-weight: 300;
+  color: var(--mid);
+  line-height: 1.75;
+  max-width: 420px;
+  margin: 0 auto 24px;
+}
+.rs-success-actions {
+  display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+}
+
+/* What happens next */
+.rs-next {
+  margin-bottom: 48px;
+}
+.rs-next-title {
+  font-family: var(--sans);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 20px;
+}
+.rs-steps {
+  display: flex; flex-direction: column; gap: 0;
+  border-left: 2px solid rgba(42,88,80,0.12);
+  margin-left: 10px;
+  padding-left: 28px;
+}
+.rs-step {
+  position: relative;
+  padding-bottom: 28px;
+}
+.rs-step:last-child { padding-bottom: 0; }
+.rs-step::before {
+  content: '';
+  position: absolute;
+  left: -35px; top: 4px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--cream);
+  border: 2px solid var(--teal);
+}
+.rs-step-num {
+  font-family: var(--sans);
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 4px;
+}
+.rs-step-body {
+  font-family: var(--sans);
+  font-size: 13.5px; font-weight: 400;
+  color: var(--teal-deep);
+  line-height: 1.55;
+}
+.rs-step-sub {
+  font-family: var(--sans);
+  font-size: 12px; font-weight: 300;
+  color: var(--mid);
+  line-height: 1.6;
+  margin-top: 3px;
+}
+
+/* Client info link */
+.rs-info-link {
+  text-align: center;
+  padding: 20px 0 8px;
+}
+.rs-info-link a {
+  font-family: var(--sans);
+  font-size: 12px; font-weight: 400;
+  color: var(--soft);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* No-params fallback */
+.rs-no-params {
+  background: rgba(42,88,80,0.04);
+  border: 1px solid rgba(42,88,80,0.08);
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+  font-family: var(--sans);
+  font-size: 13px; font-weight: 300;
+  color: var(--mid);
+  line-height: 1.6;
+  display: none;
+}
+.rs-no-params a {
+  color: var(--teal); font-weight: 500;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .rs-head { padding: 40px 0 28px; }
+  .rs-form { padding: 20px 20px 24px; }
+  .rs-submit-row { padding: 0 20px 24px; }
+  .rs-card-head { padding: 22px 20px 18px; }
+  .rs-success { padding: 36px 20px; }
+  .rs-confirm { flex-direction: column; }
+  .rs-confirm-item { border-right: none; border-bottom: 1px solid rgba(42,88,80,0.08); }
+  .rs-confirm-item:last-child { border-bottom: none; }
+  .rs-confirm-change { padding: 12px 16px; justify-content: center; }
+}
+</style>
+</head>
+<body data-page="request-session">
+<nav id="nav">
+  <div class="nav-brand" onclick="goHome()">
+    <div class="nav-logo-svg"><svg viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg">
+  <path fill="#1e5e63" fill-rule="evenodd" stroke="none" d="M 735.736084 512.392212 C 676.061768 577.293213 598.49823 523.03479 598.49823 523.03479 C 598.49823 523.03479 612.322327 508.543945 630 498 C 646.032043 488.437561 669.021362 478.22937 679.074707 473.315369 C 688.516296 468.700378 656.192139 478.900635 630 494 C 612.035095 504.356506 597.013367 519.230591 597.013367 519.230591 C 597.013367 519.230591 584.866272 465.973206 647.813232 428.377014 C 701.679199 396.204529 794.351318 414.700134 794.351318 414.700134 C 794.351318 414.700134 791.469971 451.776733 735.736084 512.392212 Z"/>
+  <path fill="#1e5e63" fill-rule="evenodd" stroke="none" d="M 679.045715 345.056763 C 648.786743 413.421936 572.207703 397.35968 572.207703 397.35968 C 572.207703 397.35968 581.517395 376.354614 594 361 C 602.804871 350.169373 619.901855 333.983643 622 332 C 624.823303 329.330811 604.58606 341.639648 591 357 C 579.364746 370.154724 568.753418 392.178284 568.753418 392.178284 C 568.753418 392.178284 545.246826 348.843323 585.566223 301.515991 C 620.069031 261.016235 699.528625 250.645264 699.528625 250.645264 C 699.528625 250.645264 707.306641 281.205872 679.045715 345.056763 Z"/>
+  <path fill="#77cfbd" fill-rule="evenodd" stroke="none" d="M 555.503784 182.203552 C 610.197449 273.183472 513 340 513 340 C 513 340 497.506805 299.91571 490 264 C 481.042755 221.144775 479.826141 181.719788 480 189 C 480.629791 215.371521 479.606232 240.349243 484 265 C 491.224792 305.534119 505 340 505 340 C 505 340 430.339874 325.225464 419.948456 237.559631 C 411.056091 162.540833 488.455322 67.061646 488.455322 67.061646 C 488.455322 67.061646 515.25885 115.258118 555.503784 182.203552 Z"/>
+  <path fill="#77cfbd" fill-rule="evenodd" stroke="none" d="M 392 306 C 474.701843 331.603149 469.152557 421.668945 466 419 C 463.151672 416.588562 448.969208 404.579895 431 396 C 403.161804 382.707947 368.954865 372.156433 374.772858 375.784912 C 384.208069 381.66925 409.238403 388.761169 429 399 C 449.181091 409.456177 464 423 464 423 C 464 423 368.712311 456.209534 338 413 C 297.298279 355.736267 274.231171 298.211914 274.231171 298.211914 C 274.231171 298.211914 314.759125 282.087463 392 306 Z"/>
+  <path fill="#1e5e63" fill-rule="evenodd" stroke="none" d="M 362 480 C 439.176422 440.770874 470 506 470 506 C 470 506 451.416656 511.184387 433 512 C 410.410919 513.000427 387.541534 509.763123 393 511 C 400.407379 512.678467 417.681396 517.358765 434 517 C 452.623505 516.590515 470 511 470 511 C 470 511 465.552002 550.01239 394 558 C 340.003998 564.027771 297 538 297 538 C 297 538 318.342407 502.191345 362 480 Z"/>
+  <path fill="#1e5e63" fill-rule="evenodd" stroke="none" d="M 473 712 C 465.82843 716.282104 512.104187 682.079407 521 614 C 523.609741 594.027588 528.243103 541.154358 522 501 C 521.610046 498.492004 474.534485 509.376892 475 507 C 475.224579 505.85321 475 507 475 507 C 475 507 521.095215 495.064819 521 494 C 519.408691 476.204834 514 473 514 473 L 468 423 L 468 423 C 468 423 514.671082 461.06781 517 456 C 517.578247 454.74176 519.422913 428.11322 518 404 C 516.219666 373.828125 511 345 511 345 L 511 345 C 511 345 519.123901 372.510925 525 403 C 529.493042 426.312744 531.890564 454.439941 533 455 C 536.237061 456.634094 567 399 567 399 L 566 402 C 566 402 548.415283 440.400696 544 463 C 541.954712 473.46875 540 481.834473 540 498 C 540 511.834473 546 562 546 562 L 594 524 L 594 524 C 594 524 562.24408 556.442078 556 564 C 548.50177 573.075928 553.299011 615.497681 571 626 C 590.760071 637.723999 622 638 622 638 C 622 638 568.87207 654.519043 540 670 C 516.369141 682.670654 479.543915 708.092651 473 712 Z"/>
+  <path fill="#de9e59" fill-rule="evenodd" stroke="none" d="M 457 719 C 457 719 389.320953 770.628357 287 742 C 167.036407 708.435425 145.290359 586.965088 143.332504 575.215698 C 143.249557 574.717957 187.960052 669.36261 304 705 C 409.923401 737.530457 457 719 457 719 Z"/>
+  <path fill="#de9e59" fill-rule="evenodd" stroke="none" d="M 923 709 C 923 709 851.19458 668.818115 729 718 C 682.848328 736.5755 567.568481 843.423096 407 839 C 227.489029 834.055115 178.290359 719.965088 176.332489 708.215698 C 176.249557 707.717957 249.486969 785.217163 353 781 C 531.134521 773.742798 571.692322 659.395874 715 632 C 873.054382 601.785034 923 709 923 709 Z"/>
+  <path fill="#b66f62" fill-rule="evenodd" stroke="none" d="M 909 738 C 909 738 837.638367 709.269043 742 753 C 717.974304 763.98584 573.36084 853.330322 487 865 C 357.270569 882.529968 287.077515 846.988525 287 847 C 286.500793 847.073608 428.692596 988.511841 646 938 C 834.350403 894.219055 909 738 909 738 Z"/>
+</svg></div>
+    <div>
+      <span class="nav-name">Cheree McGarry</span>
+      <span class="nav-sub">Counselling &amp; Wellness</span>
+    </div>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link" href="sessions.html">Sessions</a>
+    <a class="nav-link" href="about.html">About</a>
+    <a class="nav-link" href="info.html">Client Info</a>
+    <button class="nav-cta" onclick="openModal()">
+      <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 8.5c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L4.3 6.6C3.8 5.8 3.55 5.05 3.55 4.4c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H6c.1.08.2.2.27.3L7.4 4.1c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"/></svg>
+      Reach Out
+    </button>
+  </div>
+</nav>
+
+<div class="page-top-pad">
+  <div class="rs-wrap">
+
+    <!-- Page header -->
+    <div class="rs-head">
+      <div class="rs-eyebrow">Getting started</div>
+      <h1 class="rs-title">Request your<br><em>first session</em></h1>
+      <p class="rs-intro">You don&rsquo;t need to explain everything perfectly yet &mdash; just share what feels comfortable. Cheree will be in touch within one business day to confirm your spot and talk through next steps.</p>
+    </div>
+
+    <!-- Confirmation strip — populated by JS from URL params -->
+    <div class="rs-confirm" id="rs-confirm" style="display:none">
+      <div class="rs-confirm-item" id="rc-svc" style="display:none">
+        <span class="rs-confirm-lbl">Service</span>
+        <span class="rs-confirm-val" id="rc-svc-val"></span>
+      </div>
+      <div class="rs-confirm-item" id="rc-fund" style="display:none">
+        <span class="rs-confirm-lbl">Coverage</span>
+        <span class="rs-confirm-val" id="rc-fund-val"></span>
+      </div>
+      <div class="rs-confirm-item" id="rc-client" style="display:none">
+        <span class="rs-confirm-lbl">You are</span>
+        <span class="rs-confirm-val" id="rc-client-val"></span>
+      </div>
+      <div class="rs-confirm-change">
+        <a href="sessions.html">Change &rarr;</a>
+      </div>
+    </div>
+
+    <!-- No-params fallback notice -->
+    <div class="rs-no-params" id="rs-no-params">
+      Not sure where to start? <a href="sessions.html">Head back to Sessions</a> to choose your service and coverage type &mdash; it only takes a moment and helps Cheree prepare for your request.
+    </div>
+
+    <!-- Referral requirement — shown for medicare only -->
+    <div class="rs-req" id="rs-req-callout" style="display:none">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/>
+        <path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <div class="rs-req-body" id="rs-req-text"></div>
+    </div>
+
+    <!-- Form card -->
+    <div class="rs-card">
+      <div class="rs-card-head">
+        <h2 class="rs-card-title">A few details</h2>
+        <p class="rs-card-sub">There&rsquo;s no commitment here &mdash; this is just the first step of a conversation.</p>
+      </div>
+
+      <div id="rs-form-wrap">
+        <form class="rs-form" id="rs-form" onsubmit="return false">
+          <div class="frow">
+            <div class="fg">
+              <label class="fl" for="rs-fname">First name</label>
+              <input class="fi" id="rs-fname" name="rs-fname" type="text" placeholder="Your name" autocomplete="given-name">
+            </div>
+            <div class="fg">
+              <label class="fl" for="rs-lname">Last name <span class="rs-opt">(optional)</span></label>
+              <input class="fi" id="rs-lname" name="rs-lname" type="text" placeholder="" autocomplete="family-name">
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="rs-email">Email address</label>
+            <input class="fi" id="rs-email" name="rs-email" type="email" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="fg">
+            <label class="fl" for="rs-phone">Phone <span class="rs-opt">(optional)</span></label>
+            <input class="fi" id="rs-phone" name="rs-phone" type="tel" placeholder="0400 000 000" autocomplete="tel">
+          </div>
+          <div class="fg">
+            <label class="fl" for="rs-times">Preferred days or times <span class="rs-opt">(optional)</span></label>
+            <input class="fi" id="rs-times" name="rs-times" type="text" placeholder="e.g. Tuesday afternoons, Friday mornings">
+          </div>
+          <div class="fg">
+            <label class="fl" for="rs-note">Anything else you&rsquo;d like Cheree to know? <span class="rs-opt">(optional)</span></label>
+            <textarea class="ft rs-note-field" id="rs-note" name="rs-note" placeholder="Keep it brief &mdash; there&rsquo;s no pressure to explain everything just yet."></textarea>
+          </div>
+        </form>
+        <div class="rs-submit-row">
+          <button class="rs-submit" id="rs-submit" onclick="submitSessionRequest()">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>
+            Send request
+          </button>
+          <p class="rs-policy-note">24&#8202;hr cancellation policy applies once confirmed &middot; <a href="info.html#ci-appointments">Details</a></p>
+        </div>
+      </div>
+
+      <div class="rs-success" id="rs-success">
+        <div class="rs-success-ring">&#127807;</div>
+        <h3 class="rs-success-title">Request received</h3>
+        <p class="rs-success-body">Cheree will be in touch within 1 business day to confirm your spot and send through your intake form and booking link. Take gentle care until then.</p>
+        <div class="rs-success-actions">
+          <a class="btn btn-outline" href="info.html">Read client information &rarr;</a>
+          <a class="btn btn-ghost" href="index.html">Back to home</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- What happens next -->
+    <div class="rs-next" id="rs-next">
+      <div class="rs-next-title">What happens next</div>
+      <div class="rs-steps">
+        <div class="rs-step">
+          <div class="rs-step-num">Step 1</div>
+          <div class="rs-step-body">Cheree reviews your request</div>
+          <div class="rs-step-sub">She&rsquo;ll check availability and confirm your spot is a good fit &mdash; usually within one business day.</div>
+        </div>
+        <div class="rs-step">
+          <div class="rs-step-num">Step 2</div>
+          <div class="rs-step-body">You receive an intake form &amp; booking link</div>
+          <div class="rs-step-sub">A short intake form helps Cheree prepare. Complete it before your first session &mdash; there&rsquo;s no rush.</div>
+        </div>
+        <div class="rs-step">
+          <div class="rs-step-num">Step 3</div>
+          <div class="rs-step-body">Your first session</div>
+          <div class="rs-step-sub">In person at Karalee (QLD) or online &mdash; wherever works best for you.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Client info link -->
+    <div class="rs-info-link">
+      <a href="info.html#ci-funding">Read the full client information &rarr;</a>
+    </div>
+
+  </div><!-- /.rs-wrap -->
+</div><!-- /.page-top-pad -->
+
+<footer>
+  <div class="ft-cta">
+    <div class="ft-cta-inner">
+      <div class="eyebrow ft-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Ready when you are</span></div>
+      <h3 class="ft-cta-title">I&rsquo;m here when<br><em>you&rsquo;re ready</em></h3>
+      <p class="ft-cta-sub">No pressure, no obligation &mdash; just a conversation when it feels right for you.</p>
+      <button class="btn btn-mint ft-reach-btn" onclick="openModal()">
+        <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 8.5c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L4.3 6.6C3.8 5.8 3.55 5.05 3.55 4.4c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H6c.1.08.2.2.27.3L7.4 4.1c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"/></svg>
+        Reach Out
+      </button>
+    </div>
+  </div>
+  <div class="ft-cols">
+    <div class="ft-brand">
+      <p class="ftc-name">Cheree McGarry</p>
+      <p class="ftc-sub">Counselling &amp; Wellness</p>
+      <p class="ftc-body">Accredited Mental Health Social Worker supporting personal growth and wellbeing with compassion and expertise.</p>
+    </div>
+    <div class="ftc">
+      <h5>Navigate</h5>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About Cheree</a></li>
+        <li><a href="sessions.html">Sessions</a></li>
+        <li><a href="#" onclick="openModal()">Reach Out</a></li>
+      </ul>
+    </div>
+    <div class="ftc">
+      <h5>Information</h5>
+      <ul>
+        <li><a href="info.html">Client Information</a></li>
+        <li><a href="#" onclick="openInfoModal('privacy')">Privacy Policy</a></li>
+        <li><a href="#" onclick="openInfoModal('cancellation')">Cancellation Policy</a></li>
+        <li><a href="#" onclick="openInfoModal('fees')">Fees &amp; Rebates</a></li>
+        <li><a href="#" onclick="openInfoModal('feedback')">Feedback &amp; Complaints</a></li>
+      </ul>
+    </div>
+    <div class="ftc">
+      <h5>Client Referrals</h5>
+      <p class="ft-biz-note">For GPs, allied health professionals and organisations referring clients. If you are seeking support for yourself, please use the <em>Reach Out</em> button above.</p>
+      <p class="ftc-email">reachout@chereemcgarry.com</p>
+    </div>
+  </div>
+  <div class="ft-base">
+    <p>&copy; 2026 Cheree McGarry. All rights reserved.</p>
+    <div class="ft-base-lnks">
+      <a href="info.html#ci-privacy">Privacy</a>
+      <a href="info.html#ci-appointments">Terms</a>
+    </div>
+  </div>
+</footer>
+
+<!-- Reach Out Modal -->
+<div class="modal-ov" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="m-x" onclick="closeModal()">&times;</button>
+    <div class="m-head">
+      <p class="m-lbl">No pressure, just a conversation</p>
+      <h2 class="m-title">Reach Out to <em>Cheree</em></h2>
+      <p class="m-sub">Fill in a few details and Cheree will be in touch within 1&ndash;2 business days.</p>
+    </div>
+    <div class="m-body">
+      <div id="mform">
+        <div class="frow">
+          <div class="fg"><label class="fl">First name</label><input class="fi" name="fname" type="text" placeholder="Your name"></div>
+          <div class="fg"><label class="fl">Last name</label><input class="fi" name="lname" type="text" placeholder="Optional"></div>
+        </div>
+        <div class="fg"><label class="fl">Email address</label><input class="fi" name="email" type="email" placeholder="you@example.com"></div>
+        <div class="fg"><label class="fl">What brings you here?</label>
+          <select class="fs" name="reason">
+            <option value="">Select an option&hellip;</option>
+            <option>Individual counselling</option>
+            <option>Couples counselling</option>
+            <option>Wellness &amp; wellbeing</option>
+            <option>Not sure yet &mdash; just exploring</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">A little more (optional)</label>
+          <textarea class="ft" name="message" placeholder="Share whatever feels comfortable. There&rsquo;s no pressure to explain everything just yet."></textarea>
+        </div>
+        <button class="fsub" onclick="submitForm()">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>
+          Send Message
+        </button>
+      </div>
+      <div class="m-ok" id="mok">
+        <div class="m-ok-ring">&#127807;</div>
+        <h3>Message Sent</h3>
+        <p>Thank you for reaching out. Cheree will be in touch within 1&ndash;2 business days.<br>Take gentle care until then.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Info Modal -->
+<div class="modal-ov" id="info-modal" onclick="if(event.target===this)closeInfoModal()">
+  <div class="modal modal-wide">
+    <button class="m-x" onclick="closeInfoModal()">&times;</button>
+    <div class="m-head">
+      <p class="m-lbl" id="im-lbl"></p>
+      <h2 class="m-title" id="im-title"></h2>
+    </div>
+    <div class="m-body" id="im-body"></div>
+  </div>
+</div>
+
+<script src="js/main.js"></script>
+<script>
+/* ── Request-session page JS ──────────────────────────────────── */
+
+const FORMSPREE_ID_RS = 'xvzlyrjk';
+
+const svcLabelsRS = {
+  individual:      'Individual therapy',
+  'couple-family': 'Couple or family therapy',
+  child:           'Child (under 16)',
+  mediation:       'Professional mediation',
+};
+const fundLabelsRS = {
+  medicare:    'Medicare (MHCP)',
+  private:     'Private / self-funded',
+  'ndis-self': 'NDIS — self-managed',
+  'ndis-plan': 'NDIS — plan-managed',
+  qfes:        'QFES',
+  dva:         'ADFHSC &amp; DVA',
+  'not-sure':  'Not sure',
+};
+
+// Referral requirements keyed by funding type
+const needBeforeRS = {
+  medicare: '<strong>Medicare rebate requires a referral.</strong> You&rsquo;ll need a Mental Health Care Plan (MHCP) from your GP before your first session. Not sure if you have one? <a href="info.html#ci-funding">Learn more &rarr;</a>',
+  'ndis-plan': '<strong>NDIS plan-managed clients.</strong> Please ensure your NDIS plan includes funding for &ldquo;Improved Daily Living&rdquo; and that your plan manager is ready to process invoices. <a href="info.html#ci-funding">Details &rarr;</a>',
+  'ndis-self': '<strong>NDIS self-managed clients.</strong> You&rsquo;ll invoice and manage payments directly. Ensure your plan includes &ldquo;Improved Daily Living&rdquo; capacity. <a href="info.html#ci-funding">Details &rarr;</a>',
+  dva: '<strong>DVA or ADFHSC clients.</strong> A referral from your GP or treating specialist is required before sessions can be claimed. <a href="info.html#ci-funding">Details &rarr;</a>',
+};
+
+(function initPage() {
+  const params = new URLSearchParams(window.location.search);
+  const svc    = params.get('svc')    || '';
+  const fund   = params.get('fund')   || '';
+  const client = params.get('client') || '';
+
+  const hasParams = svc || fund || client;
+
+  if (hasParams) {
+    const confirm = document.getElementById('rs-confirm');
+    confirm.style.display = 'flex';
+
+    if (svc && svcLabelsRS[svc]) {
+      const el = document.getElementById('rc-svc');
+      el.style.display = 'flex';
+      document.getElementById('rc-svc-val').textContent = svcLabelsRS[svc];
+    }
+    if (fund && fundLabelsRS[fund]) {
+      const el = document.getElementById('rc-fund');
+      el.style.display = 'flex';
+      document.getElementById('rc-fund-val').innerHTML = fundLabelsRS[fund];
+    }
+    if (client) {
+      const el = document.getElementById('rc-client');
+      el.style.display = 'flex';
+      document.getElementById('rc-client-val').textContent =
+        client === 'new' ? 'New client' : 'Returning client';
+    }
+
+    // Referral requirement callout
+    if (fund && needBeforeRS[fund]) {
+      const callout = document.getElementById('rs-req-callout');
+      callout.style.display = 'flex';
+      document.getElementById('rs-req-text').innerHTML = needBeforeRS[fund];
+    }
+  } else {
+    document.getElementById('rs-no-params').style.display = 'block';
+  }
+
+  // Store for form submission
+  window._rsParams = { svc, fund, client };
+})();
+
+async function submitSessionRequest() {
+  const fname = document.getElementById('rs-fname').value.trim();
+  const email = document.getElementById('rs-email').value.trim();
+
+  // Clear previous error
+  const prev = document.getElementById('rs-error');
+  if (prev) prev.remove();
+
+  if (!fname) { _rsError('Please enter your first name.'); return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    _rsError('Please enter a valid email address.');
+    return;
+  }
+
+  const lname  = document.getElementById('rs-lname').value.trim();
+  const phone  = document.getElementById('rs-phone').value.trim();
+  const times  = document.getElementById('rs-times').value.trim();
+  const note   = document.getElementById('rs-note').value.trim();
+  const btn    = document.getElementById('rs-submit');
+  const p      = window._rsParams || {};
+
+  btn.disabled    = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    const resp = await fetch('https://formspree.io/f/' + FORMSPREE_ID_RS, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        name:            [fname, lname].filter(Boolean).join(' '),
+        email,
+        phone:           phone || '(not provided)',
+        service:         svcLabelsRS[p.svc] || p.svc || '(not specified)',
+        client_type:     p.client === 'new' ? 'New client' : (p.client === 'existing' ? 'Returning client' : '(not specified)'),
+        coverage:        fundLabelsRS[p.fund]?.replace(/&amp;/g, '&').replace(/&mdash;/g, '—') || p.fund || '(not specified)',
+        preferred_times: times || '(not specified)',
+        message:         note  || '(no additional notes)',
+        _source:         'request-session-page',
+        _subject:        'Session request — ' + (svcLabelsRS[p.svc] || 'General') + (p.fund ? ' · ' + (fundLabelsRS[p.fund] || p.fund) : ''),
+      }),
+    });
+
+    if (resp.ok) {
+      document.getElementById('rs-form-wrap').style.display = 'none';
+      document.getElementById('rs-next').style.display = 'none';
+      document.getElementById('rs-success').style.display = 'block';
+    } else {
+      throw new Error('server');
+    }
+  } catch {
+    btn.disabled    = false;
+    btn.innerHTML   = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg> Send request';
+    _rsError('Something went wrong — please email reachout@chereemcgarry.com directly.');
+  }
+}
+
+function _rsError(msg) {
+  let el = document.getElementById('rs-error');
+  if (!el) {
+    el = document.createElement('p');
+    el.id = 'rs-error';
+    el.style.cssText = 'color:#b02828;font-size:13px;margin:8px 32px 0;font-family:var(--sans)';
+    document.querySelector('.rs-submit-row').insertAdjacentElement('beforebegin', el);
+  }
+  el.textContent = msg;
+}
+</script>
+</body>
+</html>
