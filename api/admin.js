@@ -34,13 +34,19 @@ function fmtDate(iso) {
 function enquiryCard(e) {
   const status  = e.status || 'new';
   const name    = [e.first_name, e.last_name].filter(Boolean).join(' ') || '—';
+  const safeName = name.replace(/'/g, "\\'");
   const detail  = [e.service, e.reason].filter(Boolean).join(' · ') || e.source || '—';
   const intakeSent = status === 'in_halaxy';
   const intakeBtnLabel = intakeSent
     ? 'Intake sent' + (e.intake_sent_at ? ' · ' + fmtDate(e.intake_sent_at) : '')
     : 'Send intake email';
+  const hasNote    = !!(e.notes && e.notes.trim());
+  const hasHalaxy  = !!(e.halaxy_client_url && e.halaxy_client_url.trim());
+
   return `
 <div class="eq-card" data-id="${e.id}" data-status="${status}">
+
+  <!-- Header -->
   <div class="eq-card-top">
     <div class="eq-meta">
       <span class="eq-name">${name}</span>
@@ -55,34 +61,85 @@ function enquiryCard(e) {
       </select>
     </div>
   </div>
-  <div class="eq-contact">
-    <a href="mailto:${e.email}" class="eq-email">${e.email}</a>
-    ${e.phone ? `<span class="eq-phone">${e.phone}</span>` : ''}
-  </div>
-  ${e.message ? `
-  <div class="eq-msg">${e.message}</div>` : ''}
-  <div class="eq-notes-row">
-    <textarea class="eq-notes" placeholder="Notes…" onblur="saveNotes('${e.id}', this.value)">${e.notes || ''}</textarea>
-  </div>
-  <!-- Intake action -->
-  <div class="eq-actions">
-    <button class="eq-intake-btn${intakeSent ? ' sent' : ''}" id="intake-btn-${e.id}" onclick="toggleIntakePanel('${e.id}')">
-      ${intakeBtnLabel}
-    </button>
-  </div>
-  <div class="eq-intake-panel" id="intake-panel-${e.id}">
-    <div class="eq-intake-row">
-      <select class="eq-intake-type" id="intake-type-${e.id}" onchange="updateIntakeUrl('${e.id}')">
-        <option value="new">New client</option>
-        <option value="medicare">Medicare (MHCP)</option>
-        <option value="ndis">NDIS</option>
-      </select>
-      <input class="eq-intake-url" id="intake-url-${e.id}"
-             type="url" placeholder="Paste Halaxy intake form URL…">
-      <button class="eq-intake-send" onclick="sendIntake('${e.id}')">Send &rarr;</button>
+
+  <!-- Body: main left + actions side -->
+  <div class="eq-card-body">
+
+    <!-- Left: contact, message, intake -->
+    <div class="eq-body-main">
+      <div class="eq-contact">
+        <a href="mailto:${e.email}" class="eq-email">${e.email}</a>
+        ${e.phone ? `<span class="eq-phone">${e.phone}</span>` : ''}
+      </div>
+      ${e.message ? `<div class="eq-msg">${e.message}</div>` : ''}
+      <div class="eq-actions">
+        <button class="eq-intake-btn${intakeSent ? ' sent' : ''}" id="intake-btn-${e.id}" onclick="toggleIntakePanel('${e.id}')">
+          ${intakeBtnLabel}
+        </button>
+      </div>
+      <div class="eq-intake-panel" id="intake-panel-${e.id}">
+        <div class="eq-intake-row">
+          <select class="eq-intake-type" id="intake-type-${e.id}" onchange="updateIntakeUrl('${e.id}')">
+            <option value="new">New client</option>
+            <option value="medicare">Medicare (MHCP)</option>
+            <option value="ndis">NDIS</option>
+          </select>
+          <input class="eq-intake-url" id="intake-url-${e.id}" type="url" placeholder="Paste Halaxy intake form URL…">
+          <button class="eq-intake-send" onclick="sendIntake('${e.id}')">Send &rarr;</button>
+        </div>
+        <div class="eq-intake-msg" id="intake-msg-${e.id}"></div>
+      </div>
     </div>
-    <div class="eq-intake-msg" id="intake-msg-${e.id}"></div>
-  </div>
+
+    <!-- Side: note · task · halaxy link -->
+    <div class="eq-body-side">
+
+      <!-- Note -->
+      <div class="eq-side-block">
+        <button class="eq-side-action${hasNote ? ' active' : ''}" onclick="toggleSidePanel('note-${e.id}', this)" aria-label="Note">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h10v8l-3 3H3z"/><path d="M10 11v3"/><path d="M10 11h3"/><path d="M5 6h6M5 8.5h4"/></svg>
+          <span>${hasNote ? 'Note' : 'Add note'}</span>
+        </button>
+        <div class="eq-side-panel${hasNote ? ' open' : ''}" id="note-${e.id}">
+          <textarea class="eq-notes" placeholder="Notes…" onblur="saveNotes('${e.id}', this.value)">${e.notes || ''}</textarea>
+        </div>
+      </div>
+
+      <!-- Quick task -->
+      <div class="eq-side-block">
+        <button class="eq-side-action" onclick="quickAddTask('${e.id}', '${safeName}')" aria-label="Add task">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5.5 8l2 2 3-3"/></svg>
+          <span>Add task</span>
+        </button>
+        <div class="eq-side-panel" id="task-input-${e.id}">
+          <div class="eq-side-row">
+            <input class="eq-side-input" id="qtask-${e.id}" placeholder="Task…" onkeydown="if(event.key==='Enter')submitQuickTask('${e.id}')">
+            <button class="eq-side-save-btn" onclick="submitQuickTask('${e.id}')">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Halaxy client record -->
+      <div class="eq-side-block">
+        <button class="eq-side-action${hasHalaxy ? ' active' : ''}" onclick="toggleSidePanel('halaxy-${e.id}', this)" aria-label="Halaxy record">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1V9"/><path d="M10 2h4v4"/><path d="M7 9L14 2"/></svg>
+          <span>${hasHalaxy ? 'Halaxy record' : 'Link Halaxy'}</span>
+        </button>
+        <div class="eq-side-panel${hasHalaxy ? ' open' : ''}" id="halaxy-${e.id}">
+          ${hasHalaxy ? `
+          <div class="eq-halaxy-saved">
+            <a href="${e.halaxy_client_url}" target="_blank" rel="noopener" class="eq-halaxy-url">Open in Halaxy ↗</a>
+            <button class="eq-halaxy-clear" onclick="clearHalaxy('${e.id}')" aria-label="Remove">×</button>
+          </div>` : `
+          <div class="eq-side-row">
+            <input class="eq-side-input" id="halaxy-url-${e.id}" type="url" placeholder="Paste Halaxy URL…">
+            <button class="eq-side-save-btn" onclick="saveHalaxy('${e.id}')">Save</button>
+          </div>`}
+        </div>
+      </div>
+
+    </div><!-- /.eq-body-side -->
+  </div><!-- /.eq-card-body -->
 </div>`;
 }
 
@@ -237,7 +294,7 @@ body {
   background: white;
   border-radius: 14px;
   border: 1px solid rgba(42,88,80,0.09);
-  padding: 18px 20px;
+  padding: 16px 18px;
   margin-bottom: 10px;
   transition: box-shadow 0.2s;
 }
@@ -245,16 +302,28 @@ body {
 .eq-card[data-status="new"]    { border-left: 3px solid ${C.terra}; }
 .eq-card[data-status="closed"] { opacity: 0.55; }
 
-/* ── Status select colour coding ── */
-.eq-status-sel.status-new       { color: ${C.terra};    border-color: rgba(190,110,68,0.35); }
-.eq-status-sel.status-contacted { color: ${C.tealMid};  border-color: rgba(55,107,98,0.35);  }
-.eq-status-sel.status-in_halaxy { color: ${C.teal};     border-color: rgba(42,88,80,0.35);   }
-.eq-status-sel.status-closed    { color: ${C.soft};     border-color: rgba(122,148,143,0.25);}
-
+/* Status select — prominent filled pill */
+.eq-status-sel {
+  font-family: var(--sans);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.09em; text-transform: uppercase;
+  border: none; border-radius: 100px;
+  padding: 5px 22px 5px 10px;
+  cursor: pointer; outline: none;
+  appearance: none; -webkit-appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 9px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+}
+.eq-status-sel.status-new       { background-color: rgba(190,110,68,0.12); color: ${C.terra}; }
+.eq-status-sel.status-contacted { background-color: rgba(55,107,98,0.10);  color: ${C.tealMid}; }
+.eq-status-sel.status-in_halaxy { background-color: rgba(42,88,80,0.10);   color: ${C.teal}; }
+.eq-status-sel.status-closed    { background-color: rgba(122,148,143,0.10); color: ${C.soft}; }
 
 .eq-card-top {
   display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 12px; margin-bottom: 10px;
+  gap: 12px; margin-bottom: 12px;
 }
 .eq-meta { flex: 1; }
 .eq-name {
@@ -262,32 +331,26 @@ body {
   font-size: 14px; font-weight: 500;
   color: var(--tealDeep); margin-bottom: 3px;
 }
-.eq-detail {
-  font-size: 11px; color: var(--soft);
-  letter-spacing: 0.02em;
-}
+.eq-detail { font-size: 11px; color: var(--soft); letter-spacing: 0.02em; }
 .eq-right {
   display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
 }
 .eq-date { font-size: 11px; color: var(--soft); }
-.eq-status-sel {
-  font-family: var(--sans);
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 0.08em; text-transform: uppercase;
-  border: 1px solid rgba(42,88,80,0.2);
-  border-radius: 100px;
-  padding: 3px 10px;
-  background: white; color: var(--teal);
-  cursor: pointer; outline: none;
+
+/* Two-column card body */
+.eq-card-body { display: flex; gap: 0; align-items: flex-start; }
+.eq-body-main { flex: 1; min-width: 0; padding-right: 16px; }
+.eq-body-side {
+  width: 170px; flex-shrink: 0;
+  border-left: 1px solid rgba(42,88,80,0.08);
+  padding-left: 14px;
 }
+
 .eq-contact {
   display: flex; align-items: center; gap: 14px;
   margin-bottom: 10px;
 }
-.eq-email {
-  font-size: 12.5px; color: var(--teal);
-  text-decoration: none; letter-spacing: 0.01em;
-}
+.eq-email { font-size: 12.5px; color: var(--teal); text-decoration: none; letter-spacing: 0.01em; }
 .eq-email:hover { text-decoration: underline; }
 .eq-phone { font-size: 12px; color: var(--soft); }
 .eq-msg {
@@ -295,28 +358,15 @@ body {
   background: rgba(42,88,80,0.04);
   border-left: 2px solid rgba(42,88,80,0.15);
   border-radius: 0 6px 6px 0;
-  padding: 8px 12px;
-  margin-bottom: 10px;
+  padding: 8px 12px; margin-bottom: 10px;
   white-space: pre-wrap;
 }
-.eq-notes {
-  width: 100%;
-  font-family: var(--sans);
-  font-size: 12px; color: var(--mid);
-  border: 1px solid rgba(42,88,80,0.12);
-  border-radius: 8px;
-  padding: 8px 10px;
-  resize: vertical; min-height: 48px;
-  background: rgba(42,88,80,0.02);
-  outline: none; transition: border-color 0.2s;
-}
-.eq-notes:focus { border-color: var(--teal); }
 .eq-empty {
   text-align: center; padding: 48px 24px;
   color: var(--soft); font-size: 13px; letter-spacing: 0.02em;
 }
 
-/* ── Enquiry card footer actions ── */
+/* Card footer actions */
 .eq-actions {
   display: flex; align-items: center; gap: 10px;
   padding-top: 10px;
@@ -334,61 +384,84 @@ body {
   transition: background 0.18s;
 }
 .eq-intake-btn:hover { background: rgba(42,88,80,0.14); }
-.eq-intake-btn.sent {
-  color: var(--soft);
-  background: rgba(42,88,80,0.04);
-  cursor: default;
-}
+.eq-intake-btn.sent { color: var(--soft); background: rgba(42,88,80,0.04); cursor: default; }
 
-/* ── Intake panel (inline in card) ── */
-.eq-intake-panel {
-  display: none;
-  margin-top: 12px;
-  background: rgba(42,88,80,0.03);
-  border: 1px solid rgba(42,88,80,0.10);
-  border-radius: 10px;
-  padding: 16px;
-}
+/* Intake expand panel */
+.eq-intake-panel { display: none; margin-top: 12px; background: rgba(42,88,80,0.03); border: 1px solid rgba(42,88,80,0.10); border-radius: 10px; padding: 16px; }
 .eq-intake-panel.open { display: block; }
-.eq-intake-row {
-  display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap;
-}
+.eq-intake-row { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
 .eq-intake-type {
-  font-family: var(--sans);
-  font-size: 12px; color: var(--tealDeep);
-  border: 1.5px solid rgba(42,88,80,0.15);
-  border-radius: 8px; padding: 8px 10px;
-  background: white; outline: none; cursor: pointer;
-  flex-shrink: 0; min-width: 130px;
-  transition: border-color 0.2s;
+  font-family: var(--sans); font-size: 12px; color: var(--tealDeep);
+  border: 1.5px solid rgba(42,88,80,0.15); border-radius: 8px;
+  padding: 8px 10px; background: white; outline: none; cursor: pointer;
+  flex-shrink: 0; min-width: 130px; transition: border-color 0.2s;
 }
 .eq-intake-type:focus { border-color: var(--teal); }
 .eq-intake-url {
   flex: 1; min-width: 180px;
-  font-family: var(--sans);
-  font-size: 12px; color: var(--tealDeep);
-  border: 1.5px solid rgba(42,88,80,0.15);
-  border-radius: 8px; padding: 8px 12px;
-  background: white; outline: none;
+  font-family: var(--sans); font-size: 12px; color: var(--tealDeep);
+  border: 1.5px solid rgba(42,88,80,0.15); border-radius: 8px;
+  padding: 8px 12px; background: white; outline: none;
   transition: border-color 0.2s;
 }
 .eq-intake-url:focus { border-color: var(--teal); }
 .eq-intake-url::placeholder { color: var(--soft); font-size: 11.5px; }
 .eq-intake-send {
-  font-family: var(--sans);
-  font-size: 12px; font-weight: 500;
-  padding: 8px 18px;
-  background: var(--teal); color: white;
-  border: none; border-radius: 8px;
-  cursor: pointer; transition: background 0.2s; white-space: nowrap;
+  font-family: var(--sans); font-size: 12px; font-weight: 500;
+  padding: 8px 18px; background: var(--teal); color: white;
+  border: none; border-radius: 8px; cursor: pointer;
+  transition: background 0.2s; white-space: nowrap;
 }
 .eq-intake-send:hover { background: var(--mid); }
 .eq-intake-send:disabled { opacity: 0.55; cursor: not-allowed; }
-.eq-intake-msg {
-  font-size: 11.5px; margin-top: 8px; padding: 0 2px;
-}
+.eq-intake-msg { font-size: 11.5px; margin-top: 8px; padding: 0 2px; }
 .eq-intake-msg.ok { color: var(--teal); }
 .eq-intake-msg.err { color: var(--terra); }
+
+/* Side panel actions (note / task / halaxy) */
+.eq-side-block { margin-bottom: 10px; }
+.eq-side-block:last-child { margin-bottom: 0; }
+.eq-side-action {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--sans); font-size: 11px; font-weight: 500;
+  color: var(--soft); background: none; border: none;
+  cursor: pointer; padding: 3px 0; transition: color 0.15s;
+  white-space: nowrap;
+}
+.eq-side-action:hover, .eq-side-action.active { color: var(--teal); }
+.eq-side-action svg { width: 13px; height: 13px; flex-shrink: 0; }
+.eq-side-panel { display: none; margin-top: 6px; }
+.eq-side-panel.open { display: block; }
+.eq-notes {
+  width: 100%; font-family: var(--sans);
+  font-size: 12px; color: var(--mid);
+  border: 1px solid rgba(42,88,80,0.12); border-radius: 8px;
+  padding: 7px 9px; resize: vertical; min-height: 56px;
+  background: rgba(42,88,80,0.02); outline: none; transition: border-color 0.2s;
+}
+.eq-notes:focus { border-color: var(--teal); }
+.eq-side-row { display: flex; gap: 5px; align-items: center; }
+.eq-side-input {
+  flex: 1; min-width: 0;
+  font-family: var(--sans); font-size: 11px; color: var(--tealDeep);
+  border: 1px solid rgba(42,88,80,0.15); border-radius: 6px;
+  padding: 5px 7px; background: rgba(42,88,80,0.02); outline: none;
+  transition: border-color 0.2s;
+}
+.eq-side-input:focus { border-color: var(--teal); }
+.eq-side-input::placeholder { color: var(--soft); }
+.eq-side-save-btn {
+  font-family: var(--sans); font-size: 10.5px; font-weight: 600;
+  padding: 5px 9px; background: var(--teal); color: white;
+  border: none; border-radius: 6px; cursor: pointer;
+  white-space: nowrap; transition: background 0.18s; flex-shrink: 0;
+}
+.eq-side-save-btn:hover { background: var(--mid); }
+.eq-halaxy-saved { display: flex; align-items: center; gap: 6px; }
+.eq-halaxy-url { font-size: 11px; color: var(--teal); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; display: inline-block; }
+.eq-halaxy-url:hover { text-decoration: underline; }
+.eq-halaxy-clear { background: none; border: none; color: var(--soft); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 1px; flex-shrink: 0; transition: color 0.15s; }
+.eq-halaxy-clear:hover { color: var(--terra); }
 
 /* ── Right column ── */
 .right-col { display: flex; flex-direction: column; gap: 24px; }

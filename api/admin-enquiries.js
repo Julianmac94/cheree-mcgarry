@@ -17,10 +17,11 @@ export default async function handler(req, res) {
   if (req.method === 'PATCH') {
     if (!id) return res.status(400).json({ error: 'Missing id' });
 
-    const { status, notes } = req.body || {};
+    const { status, notes, halaxy_client_url } = req.body || {};
     const update = {};
-    if (status !== undefined) update.status = status;
-    if (notes  !== undefined) update.notes  = notes;
+    if (status            !== undefined) update.status            = status;
+    if (notes             !== undefined) update.notes             = notes;
+    if (halaxy_client_url !== undefined) update.halaxy_client_url = halaxy_client_url;
 
     const { error } = await supabase()
       .from('enquiries')
