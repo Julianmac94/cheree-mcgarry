@@ -23,12 +23,16 @@ export function sessionToken() {
 /** Returns true if the request carries a valid admin session cookie. */
 export function isAuthed(req) {
   const raw = req.headers['cookie'] || '';
-  const cookies = Object.fromEntries(
-    raw.split(';')
-       .map(c => c.trim().split('='))
-       .filter(p => p.length === 2)
-       .map(([k, v]) => [k.trim(), v.trim()])
-  );
+  // Use indexOf('=') so cookie values containing '=' (e.g. JWTs, base64) are handled correctly.
+  const cookies = {};
+  raw.split(';').forEach(part => {
+    const eq = part.indexOf('=');
+    if (eq > 0) {
+      const key = part.slice(0, eq).trim();
+      const val = part.slice(eq + 1).trim();
+      cookies[key] = val;
+    }
+  });
   return cookies[COOKIE_NAME] === sessionToken();
 }
 

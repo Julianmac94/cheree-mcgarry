@@ -623,34 +623,74 @@ body {
 </div>
 
 <script>
+/* ── Toast notifications ── */
+function toast(msg, type) {
+  var el = document.createElement('div');
+  var bg = type === 'err' ? '#BE6E44' : '#2A5850';
+  el.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;max-width:340px;padding:11px 18px;border-radius:9px;font-family:Raleway,sans-serif;font-size:13px;font-weight:500;color:#fff;background:' + bg + ';box-shadow:0 4px 20px rgba(0,0,0,0.22);opacity:1;transition:opacity 0.35s;pointer-events:none;';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(function() {
+    el.style.opacity = '0';
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 380);
+  }, type === 'err' ? 5000 : 2500);
+}
+
+/* ── Generic API helper ── */
+async function apiFetch(url, opts) {
+  var defaults = { headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' };
+  var merged = Object.assign({}, defaults, opts);
+  if (merged.body && typeof merged.body !== 'string') merged.body = JSON.stringify(merged.body);
+  var res = await fetch(url, merged);
+  var data = {};
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) {
+    var msg = data.error || ('Server error ' + res.status);
+    if (res.status === 401) msg = 'Session expired — please reload and log in again.';
+    throw new Error(msg);
+  }
+  return data;
+}
+
 /* ── Enquiry filter ── */
 function filterEnquiries(status, btn) {
-  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.ftab').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
-  document.querySelectorAll('.eq-card').forEach(card => {
-    const show = status === 'all' || card.dataset.status === status;
-    card.style.display = show ? '' : 'none';
+  document.querySelectorAll('.eq-card').forEach(function(card) {
+    card.style.display = (status === 'all' || card.dataset.status === status) ? '' : 'none';
   });
 }
 
 /* ── Update enquiry status ── */
 async function updateStatus(id, status) {
-  const card = document.querySelector('.eq-card[data-id="' + id + '"]');
+  var card = document.querySelector('.eq-card[data-id="' + id + '"]');
+  var prev = card ? card.dataset.status : null;
   if (card) card.dataset.status = status;
-  await fetch('/api/admin-enquiries?id=' + id, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
-  });
+  try {
+    await apiFetch('/api/admin-enquiries?id=' + id, {
+      method: 'PATCH', body: { status }
+    });
+    toast('Status saved', 'ok');
+  } catch (e) {
+    toast('Status not saved: ' + e.message, 'err');
+    // Revert visual state
+    if (card && prev) {
+      card.dataset.status = prev;
+      var sel = card.querySelector('.eq-status-sel');
+      if (sel) sel.value = prev;
+    }
+  }
 }
 
 /* ── Save notes (on blur) ── */
 async function saveNotes(id, notes) {
-  await fetch('/api/admin-enquiries?id=' + id, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ notes }),
-  });
+  try {
+    await apiFetch('/api/admin-enquiries?id=' + id, {
+      method: 'PATCH', body: { notes }
+    });
+  } catch (e) {
+    toast('Notes not saved: ' + e.message, 'err');
+  }
 }
 
 /* ── Tasks ── */
@@ -667,36 +707,50 @@ function taskHTML(t) {
 }
 
 async function addTask() {
-  const input = document.getElementById('task-input');
-  const title = input.value.trim();
+  var input = document.getElementById('task-input');
+  var title = input.value.trim();
   if (!title) return;
-  input.value = '';
-  const res = await fetch('/api/admin-tasks', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title }),
-  });
-  const task = await res.json();
-  const list = document.getElementById('task-list');
-  const empty = list.querySelector('.task-empty');
-  if (empty) empty.remove();
-  list.insertAdjacentHTML('beforeend', taskHTML(task));
+  input.disabled = true;
+  try {
+    var task = await apiFetch('/api/admin-tasks', {
+      method: 'POST', body: { title }
+    });
+    input.value = '';
+    var list = document.getElementById('task-list');
+    var empty = list.querySelector('.task-empty');
+    if (empty) empty.remove();
+    list.insertAdjacentHTML('beforeend', taskHTML(task));
+  } catch (e) {
+    toast('Could not add task: ' + e.message, 'err');
+  } finally {
+    input.disabled = false;
+    input.focus();
+  }
 }
 
 async function toggleTask(id, completed) {
-  const item = document.querySelector('.task-item[data-id="' + id + '"]');
+  var item = document.querySelector('.task-item[data-id="' + id + '"]');
   if (item) item.classList.toggle('done', completed);
-  await fetch('/api/admin-tasks?id=' + id, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ completed }),
-  });
+  try {
+    await apiFetch('/api/admin-tasks?id=' + id, {
+      method: 'PATCH', body: { completed }
+    });
+  } catch (e) {
+    toast('Could not update task: ' + e.message, 'err');
+    if (item) item.classList.toggle('done', !completed);
+  }
 }
 
 async function deleteTask(id) {
-  const item = document.querySelector('.task-item[data-id="' + id + '"]');
-  if (item) item.remove();
-  await fetch('/api/admin-tasks?id=' + id, { method: 'DELETE' });
+  var item = document.querySelector('.task-item[data-id="' + id + '"]');
+  if (item) item.style.opacity = '0.4';
+  try {
+    await apiFetch('/api/admin-tasks?id=' + id, { method: 'DELETE' });
+    if (item) item.remove();
+  } catch (e) {
+    toast('Could not delete task: ' + e.message, 'err');
+    if (item) item.style.opacity = '';
+  }
 }
 
 /* ── Intake email ── */
@@ -709,20 +763,20 @@ function toggleIntakePanel(id) {
 }
 
 async function sendIntake(id) {
-  const typeEl = document.getElementById('intake-type-' + id);
-  const urlEl  = document.getElementById('intake-url-'  + id);
-  const msgEl  = document.getElementById('intake-msg-'  + id);
-  const sendBtn = document.querySelector('#intake-panel-' + id + ' .eq-intake-send');
+  var typeEl  = document.getElementById('intake-type-' + id);
+  var urlEl   = document.getElementById('intake-url-'  + id);
+  var msgEl   = document.getElementById('intake-msg-'  + id);
+  var sendBtn = document.querySelector('#intake-panel-' + id + ' .eq-intake-send');
 
-  const intakeUrl  = (urlEl.value || '').trim();
-  const clientType = typeEl.value;
+  var intakeUrl  = (urlEl.value || '').trim();
+  var clientType = typeEl.value;
 
   msgEl.className = 'eq-intake-msg';
   msgEl.textContent = '';
 
   if (!intakeUrl) {
     msgEl.className = 'eq-intake-msg err';
-    msgEl.textContent = 'Please paste the Halaxy intake form URL first.';
+    msgEl.textContent = 'Paste the Halaxy intake form URL first.';
     return;
   }
   if (!intakeUrl.startsWith('http')) {
@@ -732,41 +786,31 @@ async function sendIntake(id) {
   }
 
   sendBtn.disabled = true;
-  sendBtn.textContent = 'Sending…';
+  sendBtn.textContent = 'Sending...';
 
   try {
-    const res = await fetch('/api/admin-intake', {
+    await apiFetch('/api/admin-intake', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enquiryId: id, clientType, intakeUrl }),
+      body: { enquiryId: id, clientType, intakeUrl }
     });
-    const data = await res.json();
-
-    if (!res.ok) throw new Error(data.error || 'Unknown error');
 
     msgEl.className = 'eq-intake-msg ok';
     msgEl.textContent = 'Intake email sent. Status updated to In Halaxy.';
 
-    // Update status in UI
-    const card = document.querySelector('.eq-card[data-id="' + id + '"]');
+    var card = document.querySelector('.eq-card[data-id="' + id + '"]');
     if (card) {
       card.dataset.status = 'in_halaxy';
-      const sel = card.querySelector('.eq-status-sel');
+      var sel = card.querySelector('.eq-status-sel');
       if (sel) sel.value = 'in_halaxy';
     }
-
-    // Update the button to a sent state
-    const btn = document.getElementById('intake-btn-' + id);
-    if (btn) {
-      btn.textContent = 'Intake sent ✓';
-      btn.classList.add('sent');
-    }
+    var btn = document.getElementById('intake-btn-' + id);
+    if (btn) { btn.textContent = 'Intake sent'; btn.classList.add('sent'); }
 
   } catch (err) {
     msgEl.className = 'eq-intake-msg err';
     msgEl.textContent = 'Error: ' + err.message;
     sendBtn.disabled = false;
-    sendBtn.textContent = 'Send →';
+    sendBtn.textContent = 'Send';
   }
 }
 </script>
