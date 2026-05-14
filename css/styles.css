@@ -1591,6 +1591,66 @@ footer { background: var(--teal-deep); }
   .ci-snav-inner { padding: 0 20px; }
 }
 
+/* ── INLINE REACH OUT SECTION ─────────────────────────────── */
+.ro-section {
+  background: var(--cream);
+  padding: 80px 72px 88px;
+}
+.ro-wrap {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.ro-card {
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 6px 48px rgba(42,88,80,0.09), 0 1px 0 rgba(255,255,255,0.8) inset;
+  overflow: hidden;
+}
+.ro-card-hd {
+  padding: 44px 52px 32px;
+}
+.ro-ey { margin-bottom: 18px; }
+.ro-title {
+  font-family: var(--serif);
+  font-size: clamp(26px, 3vw, 36px);
+  font-weight: 300;
+  color: var(--teal-deep);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  margin-bottom: 10px;
+}
+.ro-title em { font-style: italic; color: var(--teal-mid); }
+.ro-sub {
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--mid);
+  line-height: 1.7;
+  max-width: 460px;
+}
+.ro-opt { font-size: 11px; font-style: italic; color: var(--faint); font-weight: 300; }
+/* Collapsible form */
+.ro-form-wrap {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.52s var(--ease), opacity 0.35s var(--ease), padding 0.35s var(--ease);
+}
+.ro-form-wrap.ro-open {
+  max-height: 900px;
+  opacity: 1;
+}
+.ro-form-inner {
+  padding: 0 52px 48px;
+  border-top: 1px solid var(--cream-3);
+}
+/* Divider fade-in with the form */
+.ro-form-wrap.ro-open .ro-form-inner { padding-top: 32px; }
+@media (max-width: 580px) {
+  .ro-section { padding: 56px 20px 64px; }
+  .ro-card-hd { padding: 32px 28px 24px; }
+  .ro-form-inner { padding: 24px 28px 36px; }
+}
+
 /* ── MODAL ── */
 .modal-ov { display: none !important; position: fixed; inset: 0; z-index: 1200; background: rgba(20,48,43,0.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 24px; }
 .modal-ov.open { display: flex !important; align-items: center; justify-content: center; }
