@@ -256,6 +256,105 @@ function toggleSetup() {
   if (btn) btn.textContent = open ? '▸' : '▾';
 }
 
+/* ── Side panel toggle (note / halaxy / task) ── */
+function toggleSidePanel(panelId, btn) {
+  var panel = document.getElementById(panelId);
+  if (!panel) return;
+  var open = panel.classList.toggle('open');
+  if (open) {
+    var first = panel.querySelector('input, textarea');
+    if (first) setTimeout(function () { first.focus(); }, 40);
+  }
+}
+
+/* ── Quick task from enquiry card ── */
+function quickAddTask(enquiryId, clientName) {
+  var panel = document.getElementById('task-input-' + enquiryId);
+  if (!panel) return;
+  var wasOpen = panel.classList.contains('open');
+  panel.classList.toggle('open');
+  if (!wasOpen) {
+    var inp = document.getElementById('qtask-' + enquiryId);
+    if (inp) {
+      if (!inp.value) inp.value = 'Follow up: ' + clientName;
+      setTimeout(function () { inp.select(); }, 40);
+    }
+  }
+}
+
+async function submitQuickTask(enquiryId) {
+  var inp = document.getElementById('qtask-' + enquiryId);
+  var title = (inp ? inp.value : '').trim();
+  if (!title) return;
+  inp.disabled = true;
+  try {
+    var task = await apiFetch('/api/admin-tasks', { method: 'POST', body: { title: title } });
+    var list = document.getElementById('task-list');
+    if (list) {
+      var empty = list.querySelector('.task-empty');
+      if (empty) empty.remove();
+      list.insertAdjacentHTML('beforeend', taskHTML(task));
+    }
+    inp.value = '';
+    var panel = document.getElementById('task-input-' + enquiryId);
+    if (panel) panel.classList.remove('open');
+    toast('Task added', 'ok');
+  } catch (e) {
+    toast('Could not add task: ' + e.message, 'err');
+  } finally {
+    inp.disabled = false;
+  }
+}
+
+/* ── Halaxy client record link ── */
+async function saveHalaxy(enquiryId) {
+  var inp = document.getElementById('halaxy-url-' + enquiryId);
+  var url = (inp ? inp.value : '').trim();
+  if (!url) return;
+  if (!url.startsWith('http')) { toast('URL should start with https://', 'err'); return; }
+  try {
+    await apiFetch('/api/admin-enquiries?id=' + enquiryId, { method: 'PATCH', body: { halaxy_client_url: url } });
+    var panel = document.getElementById('halaxy-' + enquiryId);
+    if (panel) {
+      panel.innerHTML = '<div class="eq-halaxy-saved">'
+        + '<a href="' + url + '" target="_blank" rel="noopener" class="eq-halaxy-url">Open in Halaxy ↗</a>'
+        + '<button class="eq-halaxy-clear" onclick="clearHalaxy(\'' + enquiryId + '\')" aria-label="Remove">×</button>'
+        + '</div>';
+    }
+    var btn = panel && panel.previousElementSibling;
+    if (btn && btn.classList.contains('eq-side-action')) {
+      btn.classList.add('active');
+      var span = btn.querySelector('span');
+      if (span) span.textContent = 'Halaxy record';
+    }
+    toast('Halaxy link saved', 'ok');
+  } catch (e) {
+    toast('Could not save link: ' + e.message, 'err');
+  }
+}
+
+async function clearHalaxy(enquiryId) {
+  try {
+    await apiFetch('/api/admin-enquiries?id=' + enquiryId, { method: 'PATCH', body: { halaxy_client_url: null } });
+    var panel = document.getElementById('halaxy-' + enquiryId);
+    if (panel) {
+      panel.innerHTML = '<div class="eq-side-row">'
+        + '<input class="eq-side-input" id="halaxy-url-' + enquiryId + '" type="url" placeholder="Paste Halaxy URL…">'
+        + '<button class="eq-side-save-btn" onclick="saveHalaxy(\'' + enquiryId + '\')">Save</button>'
+        + '</div>';
+    }
+    var btn = panel && panel.previousElementSibling;
+    if (btn && btn.classList.contains('eq-side-action')) {
+      btn.classList.remove('active');
+      var span = btn.querySelector('span');
+      if (span) span.textContent = 'Link Halaxy';
+    }
+    toast('Halaxy link removed', 'ok');
+  } catch (e) {
+    toast('Could not remove link: ' + e.message, 'err');
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   initSetup();
 });
