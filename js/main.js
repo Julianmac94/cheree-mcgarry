@@ -21,6 +21,23 @@ let _submitBtnHTML = null;
    All three "Reach Out" buttons on index.html scroll to the
    existing "Ready when you are" footer CTA section and expand
    the form inline within the practice card — no popup. */
+/* Gentle eased scroll used site-wide */
+function gentleScrollTo(targetTop, duration) {
+  duration = duration || 1100;
+  const start = window.pageYOffset;
+  const end = Math.max(0, targetTop);
+  let startTime = null;
+  function easeInOut(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+  function step(now) {
+    if (!startTime) startTime = now;
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    window.scrollTo(0, start + (end - start) * easeInOut(progress));
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
 function openReachOut() {
   const card = document.getElementById('ft-cta-practice');
   if (!card) return;
@@ -30,13 +47,13 @@ function openReachOut() {
   if (section) {
     const navH = (document.getElementById('nav') || {}).offsetHeight || 68;
     const top  = section.getBoundingClientRect().top + window.scrollY - navH - 24;
-    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    gentleScrollTo(top, 1200);
   }
-  // Auto-focus first field after scroll + transition
+  // Auto-focus first field after scroll settles
   setTimeout(() => {
     const first = document.getElementById('ro-fname');
     if (first) first.focus();
-  }, 680);
+  }, 1280);
 }
 
 function closeReachOut() {
