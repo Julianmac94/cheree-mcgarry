@@ -195,7 +195,7 @@ async function sendIntake(id) {
   sendBtn.textContent = 'Sending...';
 
   try {
-    await apiFetch('/api/admin-intake', {
+    var result = await apiFetch('/api/admin-intake', {
       method: 'POST',
       body: { enquiryId: id, clientType: clientType, intakeUrl: intakeUrl }
     });
@@ -208,7 +208,16 @@ async function sendIntake(id) {
       if (sel) sel.value = 'in_halaxy';
     }
     var btn = document.getElementById('intake-btn-' + id);
-    if (btn) { btn.textContent = 'Intake sent'; btn.classList.add('sent'); }
+    if (btn) {
+      var sentLabel = 'Intake sent';
+      if (result && result.sentAt) {
+        var d = new Date(result.sentAt);
+        var fmtd = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+        sentLabel = 'Intake sent · ' + fmtd;
+      }
+      btn.textContent = sentLabel;
+      btn.classList.add('sent');
+    }
   } catch (err) {
     msgEl.className = 'eq-intake-msg err';
     msgEl.textContent = 'Error: ' + err.message;

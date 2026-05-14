@@ -233,21 +233,24 @@ export default async function handler(req, res) {
   const email = enquiry.email;
 
   try {
+    const sentAt = new Date().toISOString();
+
     await resend.emails.send({
       // TODO: update to admin@chereemcgarry.com once domain is verified on Resend
       from:    'Cheree McGarry <onboarding@resend.dev>',
       to:      [email],
+      bcc:     ['admin@chereemcgarry.com'],
       subject: subjectLine(clientType, firstName),
       html:    intakeEmailHtml({ firstName, clientType, intakeUrl }),
     });
 
-    // Mark enquiry as in_halaxy
+    // Mark enquiry as in_halaxy and record when the intake was sent
     await db
       .from('enquiries')
-      .update({ status: 'in_halaxy' })
+      .update({ status: 'in_halaxy', intake_sent_at: sentAt })
       .eq('id', enquiryId);
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true, sentAt });
   } catch (err) {
     console.error('[api/admin-intake] Resend error:', err);
     return res.status(500).json({ error: 'Failed to send email.' });

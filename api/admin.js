@@ -36,6 +36,9 @@ function enquiryCard(e) {
   const name    = [e.first_name, e.last_name].filter(Boolean).join(' ') || '—';
   const detail  = [e.service, e.reason].filter(Boolean).join(' · ') || e.source || '—';
   const intakeSent = status === 'in_halaxy';
+  const intakeBtnLabel = intakeSent
+    ? 'Intake sent' + (e.intake_sent_at ? ' · ' + fmtDate(e.intake_sent_at) : '')
+    : 'Send intake email';
   return `
 <div class="eq-card" data-id="${e.id}" data-status="${status}">
   <div class="eq-card-top">
@@ -64,7 +67,7 @@ function enquiryCard(e) {
   <!-- Intake action -->
   <div class="eq-actions">
     <button class="eq-intake-btn${intakeSent ? ' sent' : ''}" id="intake-btn-${e.id}" onclick="toggleIntakePanel('${e.id}')">
-      ${intakeSent ? 'Intake sent' : 'Send intake email'}
+      ${intakeBtnLabel}
     </button>
   </div>
   <div class="eq-intake-panel" id="intake-panel-${e.id}">
