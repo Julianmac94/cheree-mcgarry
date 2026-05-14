@@ -32,11 +32,12 @@ function fmtDate(iso) {
 }
 
 function enquiryCard(e) {
-  const st = STATUS_LABELS[e.status] || STATUS_LABELS.new;
-  const name = [e.first_name, e.last_name].filter(Boolean).join(' ') || '—';
-  const detail = [e.service, e.reason].filter(Boolean).join(' · ') || e.source || '—';
+  const status  = e.status || 'new';
+  const name    = [e.first_name, e.last_name].filter(Boolean).join(' ') || '—';
+  const detail  = [e.service, e.reason].filter(Boolean).join(' · ') || e.source || '—';
+  const intakeSent = status === 'in_halaxy';
   return `
-<div class="eq-card" data-id="${e.id}" data-status="${e.status || 'new'}">
+<div class="eq-card" data-id="${e.id}" data-status="${status}">
   <div class="eq-card-top">
     <div class="eq-meta">
       <span class="eq-name">${name}</span>
@@ -44,9 +45,9 @@ function enquiryCard(e) {
     </div>
     <div class="eq-right">
       <span class="eq-date">${fmtDate(e.created_at)}</span>
-      <select class="eq-status-sel" onchange="updateStatus('${e.id}', this.value)">
+      <select class="eq-status-sel status-${status}" onchange="updateStatus('${e.id}', this.value)">
         ${Object.entries(STATUS_LABELS).map(([k,v]) =>
-          `<option value="${k}" ${(e.status||'new')===k?'selected':''}>${v.label}</option>`
+          `<option value="${k}" ${status===k?'selected':''}>${v.label}</option>`
         ).join('')}
       </select>
     </div>
@@ -62,8 +63,8 @@ function enquiryCard(e) {
   </div>
   <!-- Intake action -->
   <div class="eq-actions">
-    <button class="eq-intake-btn" id="intake-btn-${e.id}" onclick="toggleIntakePanel('${e.id}')">
-      Send intake email
+    <button class="eq-intake-btn${intakeSent ? ' sent' : ''}" id="intake-btn-${e.id}" onclick="toggleIntakePanel('${e.id}')">
+      ${intakeSent ? 'Intake sent' : 'Send intake email'}
     </button>
   </div>
   <div class="eq-intake-panel" id="intake-panel-${e.id}">
@@ -238,7 +239,15 @@ body {
   transition: box-shadow 0.2s;
 }
 .eq-card:hover { box-shadow: 0 4px 20px rgba(25,46,42,0.08); }
+.eq-card[data-status="new"]    { border-left: 3px solid ${C.terra}; }
 .eq-card[data-status="closed"] { opacity: 0.55; }
+
+/* ── Status select colour coding ── */
+.eq-status-sel.status-new       { color: ${C.terra};    border-color: rgba(190,110,68,0.35); }
+.eq-status-sel.status-contacted { color: ${C.tealMid};  border-color: rgba(55,107,98,0.35);  }
+.eq-status-sel.status-in_halaxy { color: ${C.teal};     border-color: rgba(42,88,80,0.35);   }
+.eq-status-sel.status-closed    { color: ${C.soft};     border-color: rgba(122,148,143,0.25);}
+
 
 .eq-card-top {
   display: flex; justify-content: space-between; align-items: flex-start;

@@ -57,15 +57,26 @@ function filterEnquiries(status, btn) {
 async function updateStatus(id, status) {
   var card = document.querySelector('.eq-card[data-id="' + id + '"]');
   var prev = card ? card.dataset.status : null;
-  if (card) card.dataset.status = status;
+  var sel  = card ? card.querySelector('.eq-status-sel') : null;
+
+  function applyStatus(s) {
+    if (!card) return;
+    card.dataset.status = s;
+    if (sel) {
+      if (prev) sel.classList.remove('status-' + prev);
+      sel.classList.remove('status-' + status);
+      sel.classList.add('status-' + s);
+    }
+  }
+
+  applyStatus(status);
   try {
     await apiFetch('/api/admin-enquiries?id=' + id, { method: 'PATCH', body: { status: status } });
     toast('Status saved', 'ok');
   } catch (e) {
     toast('Status not saved: ' + e.message, 'err');
-    if (card && prev) {
-      card.dataset.status = prev;
-      var sel = card.querySelector('.eq-status-sel');
+    if (prev) {
+      applyStatus(prev);
       if (sel) sel.value = prev;
     }
   }
