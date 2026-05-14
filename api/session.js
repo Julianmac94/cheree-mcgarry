@@ -12,6 +12,7 @@
  */
 
 import { Resend } from 'resend';
+import { supabase } from './_supabase.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -264,6 +265,23 @@ export default async function handler(req, res) {
         }),
       }),
     ]);
+
+    // 3 — Save to Supabase (non-blocking)
+    supabase().from('enquiries').insert({
+      first_name:      firstName,
+      last_name:       lastName,
+      email,
+      phone:           phone || null,
+      service,
+      coverage,
+      client_type,
+      preferred_times,
+      message,
+      source:          'session-request',
+      status:          'new',
+    }).then(({ error }) => {
+      if (error) console.error('[api/session] Supabase insert error:', error.message);
+    });
 
     return res.status(200).json({ ok: true });
   } catch (err) {
