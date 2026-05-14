@@ -109,6 +109,158 @@
   .sw-svc-suits-row { flex-direction: column; }
   .sw-svc-actions { flex-wrap: wrap; }
 }
+
+/* ── Pricing intro section ── */
+.sw-pricing-intro {
+  background: #fff;
+  border-bottom: 1px solid rgba(42,88,80,0.08);
+  padding: 64px 24px;
+}
+.sw-pi-inner {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.sw-pi-eyebrow {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: #7A948F; margin-bottom: 14px; display: block;
+}
+.sw-pi-headline {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(36px, 5vw, 52px);
+  font-weight: 300; color: #192E2A;
+  line-height: 1.1; margin-bottom: 18px;
+}
+.sw-pi-headline strong { font-weight: 400; color: #2A5850; }
+.sw-pi-body {
+  font-size: 15px; color: #3E5C56;
+  line-height: 1.75; max-width: 560px;
+  margin-bottom: 36px;
+}
+.sw-pi-paths {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.sw-pi-path {
+  border: 1px solid rgba(42,88,80,0.12);
+  border-radius: 12px;
+  padding: 20px 22px;
+  background: rgba(42,88,80,0.02);
+}
+.sw-pi-path-lbl {
+  display: block;
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: #7A948F; margin-bottom: 6px;
+}
+.sw-pi-path-price {
+  display: block;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 26px; font-weight: 400;
+  color: #192E2A; line-height: 1.1;
+  margin-bottom: 8px;
+}
+.sw-pi-path-note {
+  display: block;
+  font-size: 12.5px; color: #7A948F; line-height: 1.6;
+}
+.sw-pi-link {
+  font-size: 13px; color: #2A5850;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(42,88,80,0.25);
+  padding-bottom: 2px;
+  transition: border-color 0.2s, color 0.2s;
+  display: inline-block;
+}
+.sw-pi-link:hover { color: #192E2A; border-color: #192E2A; }
+
+/* ── Service card simplified footer ── */
+.sw-svc-card-foot {
+  padding-top: 18px;
+  border-top: 1px solid rgba(42,88,80,0.08);
+  margin-top: 4px;
+}
+
+/* ── Funding section — hierarchical ── */
+.sw-cg-primary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 32px;
+}
+.sw-cg-item--primary {
+  border-radius: 14px;
+  border: 1px solid rgba(42,88,80,0.1);
+  padding: 28px 28px 24px;
+  background: #fff;
+}
+.sw-cg-item--primary .sw-cg-item-hd {
+  margin-bottom: 10px;
+}
+.sw-cg-lede {
+  font-size: 13.5px; color: #3E5C56;
+  line-height: 1.65; margin-bottom: 14px;
+  font-style: italic;
+}
+.sw-cg-bullets {
+  list-style: none; padding: 0; margin: 0 0 16px;
+}
+.sw-cg-bullets li {
+  font-size: 13px; color: #3E5C56;
+  line-height: 1.6; padding: 3px 0 3px 16px;
+  position: relative;
+}
+.sw-cg-bullets li::before {
+  content: '—'; position: absolute; left: 0;
+  color: #77CFBD; font-size: 11px; line-height: 1.7;
+}
+.sw-cg-who {
+  font-size: 12px; color: #7A948F;
+  line-height: 1.6; padding-top: 12px;
+  border-top: 1px solid rgba(42,88,80,0.07);
+  font-style: italic;
+}
+.sw-cg-secondary-hd {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #7A948F; margin-bottom: 14px; display: block;
+}
+.sw-cg-secondary {
+  border: 1px solid rgba(42,88,80,0.09);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+}
+.sw-cg-sec-item {
+  padding: 20px 26px;
+  border-bottom: 1px solid rgba(42,88,80,0.07);
+}
+.sw-cg-sec-item:last-child { border-bottom: none; }
+.sw-cg-sec-hd {
+  display: flex; align-items: baseline;
+  justify-content: space-between; gap: 16px;
+  margin-bottom: 6px; flex-wrap: wrap;
+}
+.sw-cg-sec-name {
+  font-size: 14px; font-weight: 500;
+  color: #192E2A;
+}
+.sw-cg-sec-price {
+  font-size: 12px; font-weight: 500;
+  color: #2A5850; flex-shrink: 0;
+}
+.sw-cg-sec-body {
+  font-size: 13px; color: #3E5C56;
+  line-height: 1.65; margin: 0;
+}
+
+@media (max-width: 640px) {
+  .sw-pi-paths { grid-template-columns: 1fr; }
+  .sw-cg-primary { grid-template-columns: 1fr; }
+  .sw-pi-inner { max-width: 100%; }
+}
 </style>
 </head>
 <body data-page="sessions">
@@ -216,7 +368,6 @@
       <div class="eyebrow sp-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Understand your options</span></div>
       <h1 class="sp-title">Find your<br><em>path forward</em></h1>
       <p class="sp-intro">Explore the types of support available, understand how funding works, and learn what sessions are actually like &mdash; so you can make an informed choice and reach out when you feel ready.</p>
-      <p class="sp-pricing-hint"><strong>$195</strong> standard rate &nbsp;&middot;&nbsp; <strong>~$107</strong> out of pocket after Medicare rebate &nbsp;&middot;&nbsp; NDIS &amp; EAP also covered</p>
       <a href="#session-start" class="sp-start-link">
         Find the right session for you
         <svg class="sp-start-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v10M3 9l5 4 5-4"/></svg>
@@ -225,6 +376,28 @@
 
   </div>
 
+
+  <!-- Pricing intro -->
+  <section class="sw-pricing-intro" id="sw-pricing">
+    <div class="sw-pi-inner">
+      <span class="sw-pi-eyebrow">Fees &amp; funding</span>
+      <h2 class="sw-pi-headline">Sessions are <strong>$195</strong></h2>
+      <p class="sw-pi-body">That&rsquo;s the standard rate for all session types. Depending on how you access sessions, you may pay significantly less &mdash; or nothing at all.</p>
+      <div class="sw-pi-paths">
+        <div class="sw-pi-path">
+          <span class="sw-pi-path-lbl">Medicare &mdash; Better Access</span>
+          <span class="sw-pi-path-price">~$107 out of pocket</span>
+          <span class="sw-pi-path-note">Medicare rebates $87.25 per session when you hold a GP Mental Health Care Plan</span>
+        </div>
+        <div class="sw-pi-path">
+          <span class="sw-pi-path-lbl">NDIS &amp; employer funded</span>
+          <span class="sw-pi-path-price">May be fully covered</span>
+          <span class="sw-pi-path-note">NDIS, QFES Employee Assistance, and ADFHSC &amp; DVA may cover sessions in full</span>
+        </div>
+      </div>
+      <a href="#sw-coverage-guide" class="sw-pi-link">Understand all funding options &darr;</a>
+    </div>
+  </section>
 
   <!-- Services guide — compact cards -->
   <section class="sw-services-guide" id="sw-services-guide">
@@ -272,15 +445,8 @@
           </div>
         </div>
 
-        <div class="sw-sg-suits sw-svc-suits-row">
-          <div class="sw-svc-suits-text">
-            <span class="sw-sg-suits-lbl">Suits</span>
-            <span>Adults navigating something personal, and children who need support &mdash; at any stage of life</span>
-          </div>
-          <div class="sw-svc-actions">
-            <button class="sw-svc-more-btn" onclick="toggleSvcMore('individual')" id="more-btn-individual">Read more</button>
-            <button class="btn btn-outline sw-sg-btn" onclick="launcherFocus('individual')">Get started &rarr;</button>
-          </div>
+        <div class="sw-svc-card-foot">
+          <button class="sw-svc-more-btn" onclick="toggleSvcMore('individual')" id="more-btn-individual">Read more about individual therapy</button>
         </div>
       </div>
     </div>
@@ -312,15 +478,8 @@
           </div>
         </div>
 
-        <div class="sw-sg-suits sw-svc-suits-row">
-          <div class="sw-svc-suits-text">
-            <span class="sw-sg-suits-lbl">Suits</span>
-            <span>Partners, co-parents, families, adult children &amp; parents, siblings</span>
-          </div>
-          <div class="sw-svc-actions">
-            <button class="sw-svc-more-btn" onclick="toggleSvcMore('couple-family')" id="more-btn-couple-family">Read more</button>
-            <button class="btn btn-outline sw-sg-btn" onclick="launcherFocus('couple-family')">Get started &rarr;</button>
-          </div>
+        <div class="sw-svc-card-foot">
+          <button class="sw-svc-more-btn" onclick="toggleSvcMore('couple-family')" id="more-btn-couple-family">Read more about couple &amp; family therapy</button>
         </div>
       </div>
     </div>
@@ -352,73 +511,81 @@
           </div>
         </div>
 
-        <div class="sw-sg-suits sw-svc-suits-row">
-          <div class="sw-svc-suits-text">
-            <span class="sw-sg-suits-lbl">Suits</span>
-            <span>Workplace conflicts, family disputes, or any situation where an independent facilitator can help two parties reach agreement</span>
-          </div>
-          <div class="sw-svc-actions">
-            <button class="sw-svc-more-btn" onclick="toggleSvcMore('mediation')" id="more-btn-mediation">Read more</button>
-            <button class="btn btn-outline sw-sg-btn" onclick="launcherFocus('mediation')">Get started &rarr;</button>
-          </div>
+        <div class="sw-svc-card-foot">
+          <button class="sw-svc-more-btn" onclick="toggleSvcMore('mediation')" id="more-btn-mediation">Read more about professional mediation</button>
         </div>
       </div>
     </div>
 
   </section>
 
-  <!-- Coverage guide -->
+  <!-- Funding guide — journey-based hierarchy -->
   <section class="sw-coverage-guide" id="sw-coverage-guide">
     <div class="sw-cg-hd">
-      <div class="eyebrow sw-sg-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Coverage &amp; costs</span></div>
-      <h2 class="sw-sg-title">How sessions are paid for</h2>
-      <p class="sw-sg-intro">There&rsquo;s more than one way to access sessions with Cheree. Here&rsquo;s what each option actually means for you.</p>
+      <div class="eyebrow sw-sg-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Funding options</span></div>
+      <h2 class="sw-sg-title">How do you plan to access sessions?</h2>
+      <p class="sw-sg-intro">There&rsquo;s more than one way to access sessions with Cheree. The right path depends on your situation &mdash; most people fall into one of the two main options below.</p>
     </div>
-    <div class="sw-cg-grid">
 
-      <div class="sw-cg-item">
+    <!-- Primary funding paths -->
+    <div class="sw-cg-primary">
+
+      <div class="sw-cg-item sw-cg-item--primary">
         <div class="sw-cg-item-hd">
-          <h4 class="sw-cg-name">Private / Self-funded</h4>
+          <h4 class="sw-cg-name">Paying privately</h4>
           <span class="sw-cg-price">$195 / session</span>
         </div>
-        <p class="sw-cg-body">The most straightforward path &mdash; no referral, no GP visit, no waiting. Book directly and pay on the day. A tax invoice is issued immediately. If you have private health extras, check with your insurer about potential rebates.</p>
-        <p class="sw-cg-note">Available for all session types.</p>
+        <p class="sw-cg-lede">No referral needed &mdash; just book directly and pay on the day.</p>
+        <ul class="sw-cg-bullets">
+          <li>Tax invoice issued immediately; private health extras may partially rebate</li>
+          <li>Straightforward &mdash; no GP visit, no waiting on paperwork</li>
+          <li>Available for all session types</li>
+        </ul>
+        <p class="sw-cg-who">Found Cheree on your own and want to get started without a GP visit? This is the most direct path.</p>
       </div>
 
-      <div class="sw-cg-item">
+      <div class="sw-cg-item sw-cg-item--primary">
         <div class="sw-cg-item-hd">
           <h4 class="sw-cg-name">Medicare &mdash; Better Access</h4>
-          <span class="sw-cg-price">~$107.75 out of pocket</span>
+          <span class="sw-cg-price">~$107 out of pocket</span>
         </div>
-        <p class="sw-cg-body">See your GP and get a Mental Health Care Plan (MHCP) naming Cheree McGarry (AMHSW). You can then claim a $87.25 Medicare rebate per session, bringing your cost to around $107.75. Up to 10 sessions per calendar year, with a GP review after the first 6.</p>
-        <p class="sw-cg-note">Individual and child therapy only.</p>
+        <p class="sw-cg-lede">See your GP first &mdash; a Mental Health Care Plan unlocks a Medicare rebate of $87.25 per session.</p>
+        <ul class="sw-cg-bullets">
+          <li>Ask your GP for a MHCP naming Cheree McGarry, AMHSW</li>
+          <li>Up to 10 sessions per calendar year; GP review after the first 6</li>
+          <li>Individual and child therapy only</li>
+        </ul>
+        <p class="sw-cg-who">Already spoken to your GP, or want to reduce the cost of ongoing sessions? This is the most common funded path.</p>
       </div>
 
-      <div class="sw-cg-item">
-        <div class="sw-cg-item-hd">
-          <h4 class="sw-cg-name">NDIS</h4>
-          <span class="sw-cg-price">Self or plan-managed</span>
+    </div>
+
+    <!-- Secondary / specialist funding paths -->
+    <span class="sw-cg-secondary-hd">Other funding pathways</span>
+    <div class="sw-cg-secondary">
+
+      <div class="sw-cg-sec-item">
+        <div class="sw-cg-sec-hd">
+          <h5 class="sw-cg-sec-name">NDIS &mdash; self or plan-managed</h5>
+          <span class="sw-cg-sec-price">Self or plan-managed</span>
         </div>
-        <p class="sw-cg-body">If counselling is in your NDIS plan, you may be able to use your funding. Self-managed: pay on the day ($195) and claim reimbursement. Plan-managed: invoiced directly to your plan manager at the NDIS rate. Confirm counselling is in your funded supports before booking.</p>
-        <p class="sw-cg-note">Individual and child therapy only.</p>
+        <p class="sw-cg-sec-body">If counselling is in your NDIS plan, you may be able to use your funding. Self-managed: pay $195 on the day and claim reimbursement. Plan-managed: invoiced directly to your plan manager at the NDIS rate. Confirm counselling is in your funded supports before booking. Available for individual and child therapy.</p>
       </div>
 
-      <div class="sw-cg-item">
-        <div class="sw-cg-item-hd">
-          <h4 class="sw-cg-name">QFES &mdash; Employee Assistance</h4>
-          <span class="sw-cg-price">Covered by QFES</span>
+      <div class="sw-cg-sec-item">
+        <div class="sw-cg-sec-hd">
+          <h5 class="sw-cg-sec-name">QFES Employee Assistance</h5>
+          <span class="sw-cg-sec-price">Covered by QFES</span>
         </div>
-        <p class="sw-cg-body">Queensland Fire &amp; Emergency Services employees can access sessions through the EAP at no cost to you. Contact your EAP coordinator to confirm your entitlement and arrange a referral before booking. Couple, family, and mediation sessions may also be covered &mdash; check with your coordinator.</p>
-        <p class="sw-cg-note">QFES employees only.</p>
+        <p class="sw-cg-sec-body">Queensland Fire &amp; Emergency Services employees can access sessions at no cost through the EAP. Contact your EAP coordinator to confirm your entitlement and arrange a referral before booking. Couple, family, and mediation sessions may also be covered &mdash; check with your coordinator.</p>
       </div>
 
-      <div class="sw-cg-item">
-        <div class="sw-cg-item-hd">
-          <h4 class="sw-cg-name">ADFHSC &amp; DVA</h4>
-          <span class="sw-cg-price">Covered by funder</span>
+      <div class="sw-cg-sec-item">
+        <div class="sw-cg-sec-hd">
+          <h5 class="sw-cg-sec-name">ADFHSC &amp; DVA</h5>
+          <span class="sw-cg-sec-price">Covered by funder</span>
         </div>
-        <p class="sw-cg-body">Current and former ADF members, their families, and DVA card holders may be eligible for funded sessions billed directly to ADFHSC or DVA. Contact your unit health officer, Medical Officer, or DVA case manager to arrange a referral before booking.</p>
-        <p class="sw-cg-note">ADF members, veterans &amp; families.</p>
+        <p class="sw-cg-sec-body">Current and former ADF members, their families, and DVA card holders may be eligible for funded sessions billed directly to ADFHSC or DVA. Contact your unit health officer, Medical Officer, or DVA case manager to arrange a referral before booking.</p>
       </div>
 
     </div>
