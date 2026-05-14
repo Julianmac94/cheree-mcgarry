@@ -27,8 +27,8 @@
   --neu-card-hi:  6px 8px 18px rgba(20,48,43,0.10), -5px -5px 14px rgba(255,255,255,0.70);
   --neu-inset:    inset 3px 3px 6px rgba(20,48,43,0.07), inset -3px -3px 6px rgba(255,255,255,0.70);
   --neu-inset-hi: inset 3px 3px 8px rgba(20,48,43,0.10), inset -3px -3px 8px rgba(255,255,255,0.85);
-  --neu-cta:      5px 5px 14px rgba(119,207,189,0.34), -3px -3px 10px rgba(255,255,255,0.60);
-  --neu-cta-hi:   6px 8px 18px rgba(119,207,189,0.42), -3px -3px 10px rgba(255,255,255,0.65);
+  --neu-cta:      0 3px 12px rgba(119,207,189,0.38), 0 1px 0 rgba(255,255,255,0.45) inset;
+  --neu-cta-hi:   0 5px 18px rgba(119,207,189,0.48), 0 1px 0 rgba(255,255,255,0.45) inset;
 }
 html { scroll-behavior: smooth; }
 body {
@@ -101,7 +101,7 @@ body::after {
   transition: background 0.22s, transform 0.22s, box-shadow 0.22s;
 }
 .nav-cta svg { width: 12px; height: 12px; }
-.nav-cta:hover { background: var(--teal); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(42,88,80,0.22); }
+.nav-cta:hover { background: var(--teal); box-shadow: 0 4px 14px rgba(42,88,80,0.22); }
 
 /* ══════════════════════════
    HERO
@@ -256,9 +256,9 @@ body::after {
   box-shadow: 0 8px 32px rgba(20,48,43,0.09);
 }
 .hero-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 18px 48px rgba(20,48,43,0.13);
-  border-color: rgba(255,255,255,0.75);
+  background: rgba(255,255,255,0.80);
+  box-shadow: 0 10px 36px rgba(20,48,43,0.10);
+  border-color: rgba(255,255,255,0.80);
 }
 
 .hc-icon {
@@ -416,16 +416,11 @@ body::after {
 .btn-solid {
   padding: 14px 26px;
   background: var(--cream); color: var(--teal-deep);
-  box-shadow:
-    5px 5px 14px rgba(20,48,43,0.08),
-    -5px -5px 14px rgba(255,255,255,0.7);
+  box-shadow: 0 2px 10px rgba(20,48,43,0.09), 0 1px 0 rgba(255,255,255,0.9) inset;
 }
 .btn-solid:hover {
   color: var(--terra);
-  transform: translateY(-1px);
-  box-shadow:
-    5px 5px 14px rgba(190,110,68,0.18),
-    -4px -4px 14px rgba(255,255,255,0.75);
+  box-shadow: 0 4px 16px rgba(190,110,68,0.14), 0 1px 0 rgba(255,255,255,0.9) inset;
 }
 .btn-outline {
   padding: 13px 26px;
@@ -437,23 +432,17 @@ body::after {
 }
 .btn-outline:hover {
   background: rgba(255,255,255,0.78); border-color: rgba(42,88,80,0.32);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(20,48,43,0.1);
+  box-shadow: 0 4px 14px rgba(20,48,43,0.1);
 }
 /* Primary — mint pill. Reach Out, Book a Session, Send Message, etc. */
 .btn-mint {
   padding: 14px 26px;
   background: var(--mint); color: var(--teal-deep);
-  box-shadow:
-    5px 5px 14px rgba(119,207,189,0.34),
-    -3px -3px 10px rgba(255,255,255,0.6);
+  box-shadow: 0 3px 12px rgba(119,207,189,0.38), 0 1px 0 rgba(255,255,255,0.45) inset;
 }
 .btn-mint:hover {
   background: var(--mint-lt);
-  transform: translateY(-1px);
-  box-shadow:
-    6px 8px 18px rgba(119,207,189,0.42),
-    -3px -3px 10px rgba(255,255,255,0.65);
+  box-shadow: 0 5px 18px rgba(119,207,189,0.48), 0 1px 0 rgba(255,255,255,0.45) inset;
 }
 .btn-terra {
   padding: 14px 28px;
@@ -473,7 +462,6 @@ body::after {
 }
 .btn-ghost-w:hover {
   background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.5);
-  transform: translateY(-2px);
 }
 
 /* ── ABOUT ── */
@@ -1769,7 +1757,6 @@ footer { background: var(--teal-deep); }
 .fsub svg { width: 14px; height: 14px; }
 .fsub:hover {
   background: var(--mint-lt);
-  transform: translateY(-1px);
   box-shadow: var(--neu-cta-hi);
 }
 
