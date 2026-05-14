@@ -1591,6 +1591,53 @@ footer { background: var(--teal-deep); }
   .ci-snav-inner { padding: 0 20px; }
 }
 
+/* ── FOOTER CTA INLINE FORM PANELS ───────────────────────── */
+/* Panel A: default practice info. Panel B: form.
+   Triggered by openReachOut() — panels swap via max-height transitions
+   and the card background shifts to cream for form contrast. */
+.ft-panel-default {
+  overflow: hidden;
+  max-height: 500px;
+  opacity: 1;
+  transition: max-height 0.42s var(--ease), opacity 0.28s var(--ease);
+}
+.ft-cta-practice.ft-open .ft-panel-default {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.ft-panel-form {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: max-height 0.52s var(--ease), opacity 0.38s var(--ease) 0.1s;
+}
+.ft-cta-practice.ft-open .ft-panel-form {
+  max-height: 900px;
+  opacity: 1;
+  pointer-events: all;
+}
+/* Card shifts to cream when form is open for field contrast */
+.ft-cta-practice.ft-open {
+  background: var(--cream);
+  border-color: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* Back button */
+.ft-panel-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; cursor: pointer;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--soft);
+  margin-bottom: 20px;
+  padding: 0;
+  transition: color 0.2s;
+}
+.ft-panel-back:hover { color: var(--teal); }
+
 /* ── MODAL ── */
 .modal-ov { display: none !important; position: fixed; inset: 0; z-index: 1200; background: rgba(20,48,43,0.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 24px; }
 .modal-ov.open { display: flex !important; align-items: center; justify-content: center; }

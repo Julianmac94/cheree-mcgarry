@@ -32,7 +32,7 @@
     <a class="nav-link" href="sessions.html">Sessions</a>
     <a class="nav-link" href="about.html">About</a>
     <a class="nav-link" href="info.html">Client Info</a>
-    <button class="nav-cta" onclick="openModal()">
+    <button class="nav-cta" onclick="openReachOut()">
       <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 8.5c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L4.3 6.6C3.8 5.8 3.55 5.05 3.55 4.4c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H6c.1.08.2.2.27.3L7.4 4.1c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"/></svg>
       Reach Out
     </button>
@@ -58,7 +58,7 @@
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4M11 1v4M2 8h12"/></svg>
       Book a Session
     </a>
-    <button class="btn btn-mint" onclick="openModal()">
+    <button class="btn btn-mint" onclick="openReachOut()">
       <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 8.5c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L4.3 6.6C3.8 5.8 3.55 5.05 3.55 4.4c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H6c.1.08.2.2.27.3L7.4 4.1c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"/></svg>
       Reach Out
     </button>
@@ -101,7 +101,7 @@
         <svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
     </div>
-    <div class="hero-card" style="--hc-accent:#376B62" onclick="openModal()">
+    <div class="hero-card" style="--hc-accent:#376B62" onclick="openReachOut()">
       <div class="hc-icon">
         <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M6 24L24 8l18 16" stroke="#376B62" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -159,7 +159,7 @@
 </section>
 
 <footer>
-  <div class="ft-cta">
+  <div class="ft-cta" id="reach-out">
     <div class="ft-cta-photo"></div>
     <div class="ft-cta-overlay"></div>
     <div class="ft-cta-arcs"></div>
@@ -170,33 +170,74 @@
         <h3 class="ft-cta-title">I&rsquo;m here when<br><em>you&rsquo;re ready</em></h3>
         <p class="ft-cta-sub">No pressure, no obligation &mdash; just a conversation when it feels right for you.</p>
       </div>
-      <div class="ft-cta-practice">
-        <div class="ft-cta-practice-eb"><span>Practice</span></div>
-        <div class="ft-cta-modalities">
-          <div class="ft-cta-modality">
-            <div class="ft-cta-modality-icon">
-              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6.2c0 3.3-4 7-4 7s-4-3.7-4-7a4 4 0 018 0z"/><circle cx="7" cy="6" r="1.5"/></svg>
+      <div class="ft-cta-practice" id="ft-cta-practice">
+
+        <!-- Panel A: default — practice info + Reach Out button -->
+        <div class="ft-panel-default" id="ft-panel-default">
+          <div class="ft-cta-practice-eb"><span>Practice</span></div>
+          <div class="ft-cta-modalities">
+            <div class="ft-cta-modality">
+              <div class="ft-cta-modality-icon">
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6.2c0 3.3-4 7-4 7s-4-3.7-4-7a4 4 0 018 0z"/><circle cx="7" cy="6" r="1.5"/></svg>
+              </div>
+              <div class="ft-cta-modality-meta">
+                <span class="ft-cta-modality-label">In person</span>
+                <span class="ft-cta-modality-value">Karalee, QLD</span>
+              </div>
             </div>
-            <div class="ft-cta-modality-meta">
-              <span class="ft-cta-modality-label">In person</span>
-              <span class="ft-cta-modality-value">Karalee, QLD</span>
+            <div class="ft-cta-modality">
+              <div class="ft-cta-modality-icon">
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3.5" width="9" height="7" rx="1.2"></rect><path d="M10.5 6l2-1.2v4.4l-2-1.2z"></path></svg>
+              </div>
+              <div class="ft-cta-modality-meta">
+                <span class="ft-cta-modality-label">Video</span>
+                <span class="ft-cta-modality-value">Anywhere in Australia</span>
+              </div>
             </div>
           </div>
-          <div class="ft-cta-modality">
-            <div class="ft-cta-modality-icon">
-              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3.5" width="9" height="7" rx="1.2"></rect><path d="M10.5 6l2-1.2v4.4l-2-1.2z"></path></svg>
+          <p class="ft-cta-referrer-note"><em>GPs &amp; allied health</em> &mdash; referrals welcome at <a href="mailto:reachout@chereemcgarry.com">reachout@chereemcgarry.com</a></p>
+          <button class="btn btn-mint ft-reach-btn" onclick="openReachOut()">
+            <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 8.5c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L4.3 6.6C3.8 5.8 3.55 5.05 3.55 4.4c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H6c.1.08.2.2.27.3L7.4 4.1c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"></path></svg>
+            Reach Out
+          </button>
+        </div>
+
+        <!-- Panel B: inline form — expands when triggered -->
+        <div class="ft-panel-form" id="ft-panel-form">
+          <button class="ft-panel-back" onclick="closeReachOut()">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3L4 7l5 4"/></svg>
+            Back
+          </button>
+          <div id="ro-form">
+            <div class="frow">
+              <div class="fg"><label class="fl">First name</label><input class="fi" id="ro-fname" name="ro-fname" type="text" placeholder="Your name" autocomplete="given-name"></div>
+              <div class="fg"><label class="fl">Last name</label><input class="fi" name="ro-lname" type="text" placeholder="Optional" autocomplete="family-name"></div>
             </div>
-            <div class="ft-cta-modality-meta">
-              <span class="ft-cta-modality-label">Video</span>
-              <span class="ft-cta-modality-value">Anywhere in Australia</span>
+            <div class="fg"><label class="fl">Email address</label><input class="fi" name="ro-email" type="email" placeholder="you@example.com" autocomplete="email"></div>
+            <div class="fg"><label class="fl">What brings you here?</label>
+              <select class="fs" name="ro-reason">
+                <option value="">Select an option&hellip;</option>
+                <option>Individual counselling</option>
+                <option>Couples counselling</option>
+                <option>Wellness &amp; wellbeing</option>
+                <option>Not sure yet &mdash; just exploring</option>
+              </select>
             </div>
+            <div class="fg"><label class="fl">A little more <span style="font-size:11px;font-style:italic;color:var(--faint);font-weight:300">(optional)</span></label>
+              <textarea class="ft" name="ro-message" placeholder="Share whatever feels comfortable. There&rsquo;s no pressure to explain everything just yet."></textarea>
+            </div>
+            <button class="fsub" id="ro-submit" onclick="submitReachOutForm()">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>
+              Send Message
+            </button>
+          </div>
+          <div class="m-ok" id="ro-ok">
+            <div class="m-ok-ring">&#127807;</div>
+            <h3>Message Sent</h3>
+            <p>Thank you for reaching out. Cheree will be in touch within 1&ndash;2 business days.<br>Take gentle care until then.</p>
           </div>
         </div>
-        <p class="ft-cta-referrer-note"><em>GPs &amp; allied health</em> &mdash; referrals welcome at <a href="mailto:reachout@chereemcgarry.com">reachout@chereemcgarry.com</a></p>
-        <button class="btn btn-mint ft-reach-btn" onclick="openModal()">
-          <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 8.5c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L4.3 6.6C3.8 5.8 3.55 5.05 3.55 4.4c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H6c.1.08.2.2.27.3L7.4 4.1c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"></path></svg>
-          Reach Out
-        </button>
+
       </div>
     </div>
   </div>
@@ -212,7 +253,7 @@
         <li><a href="index.html">Home</a></li>
         <li><a href="about.html">About Cheree</a></li>
         <li><a href="sessions.html">Sessions</a></li>
-        <li><a href="#" onclick="openModal()">Reach Out</a></li>
+        <li><a href="#reach-out" onclick="openReachOut(); return false;">Reach Out</a></li>
       </ul>
     </div>
     <div class="ftc">
