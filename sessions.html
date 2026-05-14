@@ -1553,15 +1553,15 @@ async function submitExistingForm() {
   btn.textContent = 'Sending…';
 
   try {
-    const resp = await fetch('https://formspree.io/f/' + FORMSPREE_ID, {
+    const resp = await fetch('/api/contact', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name:     [fname, lname].filter(Boolean).join(' '),
+        name:    [fname, lname].filter(Boolean).join(' '),
         email,
-        service,
+        reason:  service || 'Existing client enquiry',
         message,
-        _subject: 'Existing client — session enquiry',
+        _source: 'existing-client',
       }),
     });
     if (resp.ok) {
