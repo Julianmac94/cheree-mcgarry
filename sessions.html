@@ -310,11 +310,11 @@
 
       <!-- Phase 0: initial choice buttons -->
       <div class="sw-btm-choices" id="btm-choices">
-        <button class="sw-btm-choice sw-btm-choice--opt" onclick="btmChoose('new')">
+        <button class="sw-btm-choice sw-btm-choice--opt" data-bclient="new" onclick="btmChoose('new')">
           <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="2.5"/><path d="M1.5 12.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
           I&rsquo;m a new client
         </button>
-        <button class="sw-btm-choice sw-btm-choice--opt" onclick="btmChoose('existing')">
+        <button class="sw-btm-choice sw-btm-choice--opt" data-bclient="existing" onclick="btmChoose('existing')">
           <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c0-2.8 2.2-5 5-5s5 2.2 5 5"/><circle cx="7" cy="4.5" r="2.5"/><path d="M10.5 7.5l1.5 1-1 1.5"/></svg>
           I&rsquo;m an existing client
         </button>
@@ -324,12 +324,16 @@
         </button>
       </div>
 
-      <!-- Phase 1+: expandable content (picker / form / outcome) — injected by JS -->
+      <!-- Phase 1+: expandable content (picker / form) — injected by JS -->
       <div class="sw-btm-expand sw-btm-expand--closed" id="btm-expand">
         <div class="sw-btm-expand-inner" id="btm-expand-inner"></div>
       </div>
 
     </div>
+
+    <!-- Outcome — revealed below card after selections confirmed -->
+    <div class="sw-btm-outcome-section sw-btm-outcome-section--hidden" id="btm-outcome"></div>
+
   </div>
 
   <div class="ft-cols">
@@ -1072,16 +1076,21 @@ let btmService = null;
 let btmFunding = null;
 
 function btmChoose(type) {
+  // Clicking already-selected type = deselect (full reset)
+  if (btmClient === type) { btmReset(); return; }
+
   btmClient  = type;
   btmService = null;
   btmFunding = null;
 
-  const choices = document.getElementById('btm-choices');
+  // Highlight selected choice -- keep buttons visible
+  document.querySelectorAll('.sw-btm-choice--opt').forEach(function(el) {
+    el.classList.toggle('sel', el.dataset.bclient === type);
+  });
+
   const expand  = document.getElementById('btm-expand');
   const inner   = document.getElementById('btm-expand-inner');
   if (!expand || !inner) return;
-
-  if (choices) choices.classList.add('sw-btm-choices--gone');
 
   if (type === 'existing') {
     lncService = null; // clear so form field is editable
@@ -1095,15 +1104,26 @@ function btmChoose(type) {
 }
 
 function btmSetSvc(key) {
+  if (btmService === key) {
+    btmService = null;
+    btmFunding = null;
+    document.querySelectorAll('[data-bsvc]').forEach(function(el) { el.classList.remove('sel'); });
+    document.querySelectorAll('[data-bfund]').forEach(function(el) { el.classList.remove('sel'); });
+    const fundRow = document.getElementById('btm-fund-row');
+    if (fundRow) fundRow.classList.add('sw-btm-prow--hidden');
+    _btmUpdateGoBtn();
+    return;
+  }
   btmService = key;
-  document.querySelectorAll('[data-bsvc]').forEach(el =>
-    el.classList.toggle('sel', el.dataset.bsvc === key));
+  document.querySelectorAll('[data-bsvc]').forEach(function(el) {
+    el.classList.toggle('sel', el.dataset.bsvc === key);
+  });
 
   const fundRow = document.getElementById('btm-fund-row');
   if (fundRow) fundRow.classList.remove('sw-btm-prow--hidden');
 
   const disabled = disabledFunding[key] || [];
-  document.querySelectorAll('[data-bfund]').forEach(p => {
+  document.querySelectorAll('[data-bfund]').forEach(function(p) {
     const off = disabled.includes(p.dataset.bfund);
     p.classList.toggle('sw-ln-chip--off', off);
     if (off && btmFunding === p.dataset.bfund) {
@@ -1116,9 +1136,16 @@ function btmSetSvc(key) {
 
 function btmSetFund(key) {
   if ((disabledFunding[btmService] || []).includes(key)) return;
+  if (btmFunding === key) {
+    btmFunding = null;
+    document.querySelectorAll('[data-bfund]').forEach(function(el) { el.classList.remove('sel'); });
+    _btmUpdateGoBtn();
+    return;
+  }
   btmFunding = key;
-  document.querySelectorAll('[data-bfund]').forEach(el =>
-    el.classList.toggle('sel', el.dataset.bfund === key));
+  document.querySelectorAll('[data-bfund]').forEach(function(el) {
+    el.classList.toggle('sel', el.dataset.bfund === key);
+  });
   _btmUpdateGoBtn();
 }
 
@@ -1128,7 +1155,7 @@ function _btmUpdateGoBtn() {
   if (!btn || !lbl) return;
   const ready = !!(btmService && btmFunding);
   btn.disabled = !ready;
-  lbl.textContent = ready ? 'Show me what\'s next →' : 'Complete your selections above';
+  lbl.textContent = ready ? 'Show me what\'s next' : 'Select a service and coverage above';
 }
 
 function btmSubmit() {
@@ -1137,34 +1164,97 @@ function btmSubmit() {
   selectedFunding = btmFunding;
   currentPlan = (planMatrix[btmService] || {})[btmFunding] || null;
 
-  const inner = document.getElementById('btm-expand-inner');
-  if (!inner) return;
+  // Close picker
+  const expand = document.getElementById('btm-expand');
+  if (expand) expand.classList.add('sw-btm-expand--closed');
 
-  inner.innerHTML =
-    '<div class="sw-btm-outcome-wrap">' +
-      '<button class="sw-back-btn sw-btm-back" onclick="btmReset()">' +
+  // Render outcome in section below the wizard card
+  const outcomeSection = document.getElementById('btm-outcome');
+  if (!outcomeSection) return;
+
+  outcomeSection.innerHTML =
+    '<div class="sw-btm-outcome-inner">' +
+      '<button class="sw-back-btn sw-btm-back" onclick="btmEditSelections()">' +
         '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3L4 7l5 4"/></svg>' +
-        ' Change selections' +
+        ' Edit selections' +
       '</button>' +
       '<div id="btm-outcome-card"></div>' +
     '</div>';
 
+  outcomeSection.classList.remove('sw-btm-outcome-section--hidden');
   renderOutcome('btm-outcome-card');
+
+  setTimeout(function() {
+    var navH = (document.getElementById('nav') || {}).offsetHeight || 68;
+    var top = outcomeSection.getBoundingClientRect().top + window.scrollY - navH - 24;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  }, 60);
 }
 
 function btmReset() {
   btmClient = null; btmService = null; btmFunding = null;
   selectedService = null; selectedClient = null; selectedFunding = null; currentPlan = null;
 
-  const choices = document.getElementById('btm-choices');
+  document.querySelectorAll('.sw-btm-choice--opt').forEach(function(el) { el.classList.remove('sel'); });
+
   const expand  = document.getElementById('btm-expand');
   const inner   = document.getElementById('btm-expand-inner');
+  if (expand) expand.classList.add('sw-btm-expand--closed');
 
-  expand.classList.add('sw-btm-expand--closed');
-  if (choices) choices.classList.remove('sw-btm-choices--gone');
+  var outcomeSection = document.getElementById('btm-outcome');
+  if (outcomeSection) outcomeSection.classList.add('sw-btm-outcome-section--hidden');
 
-  // Clear inner after transition
-  setTimeout(() => { if (inner) inner.innerHTML = ''; }, 380);
+  setTimeout(function() { if (inner) inner.innerHTML = ''; }, 380);
+  _btmScrollToCard();
+}
+
+function btmBack() {
+  btmService = null;
+  btmFunding = null;
+  var expand = document.getElementById('btm-expand');
+  if (expand) expand.classList.add('sw-btm-expand--closed');
+  setTimeout(function() {
+    var inner = document.getElementById('btm-expand-inner');
+    if (inner) inner.innerHTML = '';
+  }, 380);
+  _btmScrollToCard();
+}
+
+function btmEditSelections() {
+  var outcomeSection = document.getElementById('btm-outcome');
+  if (outcomeSection) outcomeSection.classList.add('sw-btm-outcome-section--hidden');
+
+  var savedSvc  = btmService;
+  var savedFund = btmFunding;
+  btmService = null;
+  btmFunding = null;
+
+  var expand = document.getElementById('btm-expand');
+  var inner  = document.getElementById('btm-expand-inner');
+  if (!expand || !inner) return;
+
+  inner.innerHTML = _btmPickerHtml();
+  expand.classList.remove('sw-btm-expand--closed');
+
+  if (savedSvc) {
+    btmService = savedSvc;
+    document.querySelectorAll('[data-bsvc]').forEach(function(el) {
+      el.classList.toggle('sel', el.dataset.bsvc === savedSvc);
+    });
+    var fundRow = document.getElementById('btm-fund-row');
+    if (fundRow) fundRow.classList.remove('sw-btm-prow--hidden');
+    var disabled = disabledFunding[savedSvc] || [];
+    document.querySelectorAll('[data-bfund]').forEach(function(p) {
+      p.classList.toggle('sw-ln-chip--off', disabled.includes(p.dataset.bfund));
+    });
+  }
+  if (savedFund) {
+    btmFunding = savedFund;
+    document.querySelectorAll('[data-bfund]').forEach(function(el) {
+      el.classList.toggle('sel', el.dataset.bfund === savedFund);
+    });
+  }
+  _btmUpdateGoBtn();
   _btmScrollToCard();
 }
 
@@ -1178,7 +1268,7 @@ function _btmScrollToCard() {
 
 function _btmPickerHtml() {
   return '<div class="sw-btm-picker" id="btm-picker">' +
-    '<button class="sw-back-btn sw-btm-back" onclick="btmReset()">' +
+    '<button class="sw-back-btn sw-btm-back" onclick="btmBack()">' +
       '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3L4 7l5 4"/></svg>' +
       ' Back' +
     '</button>' +
