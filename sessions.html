@@ -1128,7 +1128,7 @@ function _btmUpdateGoBtn() {
   if (!btn || !lbl) return;
   const ready = !!(btmService && btmFunding);
   btn.disabled = !ready;
-  lbl.textContent = ready ? 'Show me what’s next →' : 'Complete your selections above';
+  lbl.textContent = ready ? 'Show me what\'s next →' : 'Complete your selections above';
 }
 
 function btmSubmit() {
@@ -1282,25 +1282,25 @@ function renderOutcome(targetId) {
     : '';
 
   const ctaHtml =
-    ‘<div class="sw-oc-cta-row">’ +
-      ‘<a class="btn btn-solid sw-oc-proceed" href="request-session.html?svc=’ + encodeURIComponent(selectedService || ‘’) + ‘&fund=’ + encodeURIComponent(selectedFunding || ‘’) + ‘&client=’ + encodeURIComponent(selectedClient || ‘’) + ‘">Request your first session &rarr;</a>’ +
-      ‘<p class="sw-oc-policy-note">24&#8202;hr cancellation policy applies &middot; <a href="info.html#ci-appointments">Details</a></p>’ +
-    ‘</div>’;
+    '<div class="sw-oc-cta-row">' +
+      '<a class="btn btn-solid sw-oc-proceed" href="request-session.html?svc=' + encodeURIComponent(selectedService || '') + '&fund=' + encodeURIComponent(selectedFunding || '') + '&client=' + encodeURIComponent(selectedClient || '') + '">Request your first session &rarr;</a>' +
+      '<p class="sw-oc-policy-note">24&#8202;hr cancellation policy applies &middot; <a href="info.html#ci-appointments">Details</a></p>' +
+    '</div>';
 
   container.innerHTML =
-    ‘<div class="sw-oc">’ +
-      ‘<div class="sw-oc-head">’ +
+    '<div class="sw-oc">' +
+      '<div class="sw-oc-head">' +
         logoHtml +
-        ‘<div class="sw-oc-hd-text">’ +
-          ‘<div class="sw-oc-title">’ + p.heading + ‘</div>’ +
-          ‘<div class="sw-oc-sub">’ + svcLabels[selectedService] + ‘</div>’ +
-        ‘</div>’ +
+        '<div class="sw-oc-hd-text">' +
+          '<div class="sw-oc-title">' + p.heading + '</div>' +
+          '<div class="sw-oc-sub">' + svcLabels[selectedService] + '</div>' +
+        '</div>' +
         priceHtml +
-      ‘</div>’ +
-      (beforeHtml ? ‘<div class="sw-oc-before-wrap">’ + beforeHtml + ‘</div>’ : ‘’) +
+      '</div>' +
+      (beforeHtml ? '<div class="sw-oc-before-wrap">' + beforeHtml + '</div>' : '') +
       approvalHtml +
       ctaHtml +
-    ‘</div>’;
+    '</div>';
 }
 
 function renderContactOutcome(p) {
