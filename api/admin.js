@@ -1,0 +1,642 @@
+/**
+ * api/admin.js
+ * Protected admin dashboard — served at /admin
+ * Fetches live data from Supabase and renders server-side.
+ */
+
+import { isAuthed, clearSessionCookie } from './_auth.js';
+import { supabase } from './_supabase.js';
+
+const C = {
+  cream:    '#F3EFE6',
+  tealDeep: '#192E2A',
+  teal:     '#2A5850',
+  tealMid:  '#376B62',
+  mint:     '#77CFBD',
+  terra:    '#BE6E44',
+  soft:     '#7A948F',
+  mid:      '#3E5C56',
+};
+
+const STATUS_LABELS = {
+  new:        { label: 'New',        color: C.terra    },
+  contacted:  { label: 'Contacted',  color: C.tealMid  },
+  in_halaxy:  { label: 'In Halaxy', color: C.teal     },
+  closed:     { label: 'Closed',     color: C.soft     },
+};
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function enquiryCard(e) {
+  const st = STATUS_LABELS[e.status] || STATUS_LABELS.new;
+  const name = [e.first_name, e.last_name].filter(Boolean).join(' ') || '—';
+  const detail = [e.service, e.reason].filter(Boolean).join(' · ') || e.source || '—';
+  return `
+<div class="eq-card" data-id="${e.id}" data-status="${e.status || 'new'}">
+  <div class="eq-card-top">
+    <div class="eq-meta">
+      <span class="eq-name">${name}</span>
+      <span class="eq-detail">${detail}</span>
+    </div>
+    <div class="eq-right">
+      <span class="eq-date">${fmtDate(e.created_at)}</span>
+      <select class="eq-status-sel" onchange="updateStatus('${e.id}', this.value)">
+        ${Object.entries(STATUS_LABELS).map(([k,v]) =>
+          `<option value="${k}" ${(e.status||'new')===k?'selected':''}>${v.label}</option>`
+        ).join('')}
+      </select>
+    </div>
+  </div>
+  <div class="eq-contact">
+    <a href="mailto:${e.email}" class="eq-email">${e.email}</a>
+    ${e.phone ? `<span class="eq-phone">${e.phone}</span>` : ''}
+  </div>
+  ${e.message ? `
+  <div class="eq-msg">${e.message}</div>` : ''}
+  <div class="eq-notes-row">
+    <textarea class="eq-notes" placeholder="Notes…" onblur="saveNotes('${e.id}', this.value)">${e.notes || ''}</textarea>
+  </div>
+</div>`;
+}
+
+function taskItem(t) {
+  return `
+<li class="task-item ${t.completed ? 'done' : ''}" data-id="${t.id}">
+  <button class="task-check" onclick="toggleTask('${t.id}', ${!t.completed})" aria-label="Toggle">
+    <svg viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <span class="task-title">${t.title}</span>
+  <button class="task-del" onclick="deleteTask('${t.id}')" aria-label="Delete">
+    <svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+</li>`;
+}
+
+function adminPage({ enquiries = [], tasks = [] }) {
+  const newCount = enquiries.filter(e => (e.status || 'new') === 'new').length;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin · Cheree McGarry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --cream:    ${C.cream};
+  --tealDeep: ${C.tealDeep};
+  --teal:     ${C.teal};
+  --tealMid:  ${C.tealMid};
+  --mint:     ${C.mint};
+  --terra:    ${C.terra};
+  --soft:     ${C.soft};
+  --mid:      ${C.mid};
+  --sans:     'Raleway', sans-serif;
+  --serif:    'Cormorant Garamond', serif;
+}
+
+body {
+  background: #f0ece2;
+  font-family: var(--sans);
+  color: var(--tealDeep);
+  min-height: 100svh;
+}
+
+/* ── Top bar ── */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--tealDeep);
+  padding: 0 32px;
+  height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06), 0 4px 20px rgba(0,0,0,0.3);
+}
+.topbar-brand {
+  display: flex; align-items: center; gap: 10px;
+}
+.topbar-dot {
+  width: 24px; height: 24px;
+  background: var(--teal);
+  border-radius: 50%;
+}
+.topbar-name {
+  font-size: 13px; font-weight: 500;
+  color: rgba(255,255,255,0.9); letter-spacing: 0.02em;
+}
+.topbar-badge {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+  margin-left: 10px;
+  padding: 2px 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 100px;
+}
+.topbar-actions {
+  display: flex; align-items: center; gap: 16px;
+}
+.topbar-link {
+  font-size: 11.5px; color: rgba(255,255,255,0.45);
+  text-decoration: none; letter-spacing: 0.04em;
+  transition: color 0.2s;
+}
+.topbar-link:hover { color: rgba(255,255,255,0.8); }
+.topbar-link.site { color: var(--mint); opacity: 0.8; }
+.topbar-link.site:hover { opacity: 1; }
+
+/* ── Layout ── */
+.layout {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 820px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+/* ── Section header ── */
+.sec-hd {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.sec-title {
+  font-family: var(--serif);
+  font-size: 22px; font-weight: 300;
+  color: var(--tealDeep);
+}
+.sec-title em { font-style: italic; color: var(--terra); }
+.sec-count {
+  font-size: 11px; font-weight: 600;
+  color: var(--terra);
+  background: rgba(190,110,68,0.1);
+  border-radius: 100px;
+  padding: 2px 10px;
+  letter-spacing: 0.06em;
+}
+
+/* ── Filter tabs ── */
+.filter-tabs {
+  display: flex; gap: 4px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.ftab {
+  padding: 5px 14px;
+  border-radius: 100px;
+  border: 1px solid rgba(42,88,80,0.15);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--soft);
+  background: white;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.ftab.active, .ftab:hover {
+  background: var(--tealDeep);
+  border-color: var(--tealDeep);
+  color: white;
+}
+
+/* ── Enquiry cards ── */
+.eq-card {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid rgba(42,88,80,0.09);
+  padding: 18px 20px;
+  margin-bottom: 10px;
+  transition: box-shadow 0.2s;
+}
+.eq-card:hover { box-shadow: 0 4px 20px rgba(25,46,42,0.08); }
+.eq-card[data-status="closed"] { opacity: 0.55; }
+
+.eq-card-top {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px; margin-bottom: 10px;
+}
+.eq-meta { flex: 1; }
+.eq-name {
+  display: block;
+  font-size: 14px; font-weight: 500;
+  color: var(--tealDeep); margin-bottom: 3px;
+}
+.eq-detail {
+  font-size: 11px; color: var(--soft);
+  letter-spacing: 0.02em;
+}
+.eq-right {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+}
+.eq-date { font-size: 11px; color: var(--soft); }
+.eq-status-sel {
+  font-family: var(--sans);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  border: 1px solid rgba(42,88,80,0.2);
+  border-radius: 100px;
+  padding: 3px 10px;
+  background: white; color: var(--teal);
+  cursor: pointer; outline: none;
+}
+.eq-contact {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 10px;
+}
+.eq-email {
+  font-size: 12.5px; color: var(--teal);
+  text-decoration: none; letter-spacing: 0.01em;
+}
+.eq-email:hover { text-decoration: underline; }
+.eq-phone { font-size: 12px; color: var(--soft); }
+.eq-msg {
+  font-size: 12.5px; color: var(--mid); line-height: 1.6;
+  background: rgba(42,88,80,0.04);
+  border-left: 2px solid rgba(42,88,80,0.15);
+  border-radius: 0 6px 6px 0;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+}
+.eq-notes {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 12px; color: var(--mid);
+  border: 1px solid rgba(42,88,80,0.12);
+  border-radius: 8px;
+  padding: 8px 10px;
+  resize: vertical; min-height: 48px;
+  background: rgba(42,88,80,0.02);
+  outline: none; transition: border-color 0.2s;
+}
+.eq-notes:focus { border-color: var(--teal); }
+.eq-empty {
+  text-align: center; padding: 48px 24px;
+  color: var(--soft); font-size: 13px; letter-spacing: 0.02em;
+}
+
+/* ── Right column ── */
+.right-col { display: flex; flex-direction: column; gap: 24px; }
+
+/* ── Panel card ── */
+.panel {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid rgba(42,88,80,0.09);
+  overflow: hidden;
+}
+.panel-hd {
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid rgba(42,88,80,0.07);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-title {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--soft);
+}
+.panel-body { padding: 16px 20px; }
+
+/* ── Tasks ── */
+.task-add {
+  display: flex; gap: 8px; margin-bottom: 14px;
+}
+.task-input {
+  flex: 1;
+  font-family: var(--sans);
+  font-size: 13px; color: var(--tealDeep);
+  border: 1.5px solid rgba(42,88,80,0.15);
+  border-radius: 8px;
+  padding: 8px 12px;
+  outline: none; background: white;
+  transition: border-color 0.2s;
+}
+.task-input:focus { border-color: var(--teal); }
+.task-add-btn {
+  padding: 8px 14px;
+  background: var(--teal); color: white;
+  border: none; border-radius: 8px;
+  font-family: var(--sans); font-size: 18px;
+  cursor: pointer; transition: background 0.2s;
+  line-height: 1;
+}
+.task-add-btn:hover { background: var(--mid); }
+.task-list { list-style: none; }
+.task-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(42,88,80,0.06);
+}
+.task-item:last-child { border-bottom: none; }
+.task-item.done .task-title {
+  text-decoration: line-through;
+  color: var(--soft);
+}
+.task-check {
+  width: 22px; height: 22px; flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(42,88,80,0.25);
+  background: white;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.18s;
+  color: transparent;
+}
+.task-item.done .task-check {
+  background: var(--teal); border-color: var(--teal);
+  color: white;
+}
+.task-check svg { width: 11px; height: 11px; }
+.task-title {
+  flex: 1; font-size: 13px; color: var(--tealDeep);
+  line-height: 1.4;
+}
+.task-del {
+  width: 22px; height: 22px; flex-shrink: 0;
+  border: none; background: transparent;
+  color: rgba(42,88,80,0.2);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; transition: all 0.15s;
+}
+.task-del:hover { color: var(--terra); background: rgba(190,110,68,0.08); }
+.task-del svg { width: 14px; height: 14px; }
+.task-empty {
+  font-size: 12px; color: var(--soft);
+  text-align: center; padding: 12px 0;
+  letter-spacing: 0.02em;
+}
+
+/* ── Site reference panel ── */
+.ref-section { margin-bottom: 14px; }
+.ref-section:last-child { margin-bottom: 0; }
+.ref-label {
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--soft); margin-bottom: 6px;
+}
+.ref-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 12px; padding: 3px 0;
+  border-bottom: 1px solid rgba(42,88,80,0.05);
+  color: var(--mid);
+}
+.ref-row:last-child { border-bottom: none; }
+.ref-row span { font-size: 11px; color: var(--teal); font-weight: 500; }
+.ref-link { font-size: 11.5px; color: var(--teal); text-decoration: none; }
+.ref-link:hover { text-decoration: underline; }
+
+/* ── Stat chips ── */
+.stats-row {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;
+}
+.stat-chip {
+  background: white; border: 1px solid rgba(42,88,80,0.09);
+  border-radius: 10px; padding: 12px 16px; flex: 1; min-width: 90px;
+}
+.stat-n {
+  font-size: 24px; font-weight: 300;
+  color: var(--tealDeep); line-height: 1;
+  font-family: var(--serif);
+  margin-bottom: 4px;
+}
+.stat-l {
+  font-size: 10px; color: var(--soft);
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-dot"></div>
+    <span class="topbar-name">Cheree McGarry</span>
+    <span class="topbar-badge">Admin</span>
+  </div>
+  <div class="topbar-actions">
+    <a class="topbar-link site" href="/" target="_blank">View site →</a>
+    <a class="topbar-link" href="/admin-login?logout=1">Sign out</a>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- Left: Enquiries -->
+  <main>
+    <div class="sec-hd">
+      <h2 class="sec-title">Client <em>enquiries</em></h2>
+      ${newCount > 0 ? `<span class="sec-count">${newCount} new</span>` : ''}
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      ${Object.entries(STATUS_LABELS).map(([k, v]) => {
+        const n = enquiries.filter(e => (e.status || 'new') === k).length;
+        return `<div class="stat-chip"><div class="stat-n">${n}</div><div class="stat-l">${v.label}</div></div>`;
+      }).join('')}
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="filter-tabs">
+      <button class="ftab active" onclick="filterEnquiries('all', this)">All</button>
+      ${Object.entries(STATUS_LABELS).map(([k, v]) =>
+        `<button class="ftab" onclick="filterEnquiries('${k}', this)">${v.label}</button>`
+      ).join('')}
+    </div>
+
+    <!-- Cards -->
+    <div id="eq-list">
+      ${enquiries.length
+        ? enquiries.map(enquiryCard).join('')
+        : '<div class="eq-empty">No enquiries yet — they\'ll appear here when someone fills out a form.</div>'
+      }
+    </div>
+  </main>
+
+  <!-- Right: Tasks + Site reference -->
+  <aside class="right-col">
+
+    <!-- Tasks -->
+    <div class="panel">
+      <div class="panel-hd">
+        <span class="panel-title">Tasks</span>
+      </div>
+      <div class="panel-body">
+        <div class="task-add">
+          <input class="task-input" id="task-input" type="text"
+                 placeholder="Add a task…"
+                 onkeydown="if(event.key==='Enter')addTask()">
+          <button class="task-add-btn" onclick="addTask()">+</button>
+        </div>
+        <ul class="task-list" id="task-list">
+          ${tasks.length
+            ? tasks.map(taskItem).join('')
+            : '<li class="task-empty">No tasks yet</li>'
+          }
+        </ul>
+      </div>
+    </div>
+
+    <!-- Site reference -->
+    <div class="panel">
+      <div class="panel-hd">
+        <span class="panel-title">Site reference</span>
+      </div>
+      <div class="panel-body">
+        <div class="ref-section">
+          <div class="ref-label">Pages</div>
+          ${[
+            ['Home', '/'],
+            ['Sessions', '/sessions.html'],
+            ['About', '/about.html'],
+            ['Client Info', '/info.html'],
+          ].map(([n,h]) => `<div class="ref-row">${n} <a class="ref-link" href="${h}" target="_blank">↗</a></div>`).join('')}
+        </div>
+        <div class="ref-section">
+          <div class="ref-label">Brand tokens</div>
+          ${[
+            ['Teal Deep', '#192E2A'],
+            ['Teal', '#2A5850'],
+            ['Mint', '#77CFBD'],
+            ['Terra', '#BE6E44'],
+            ['Cream', '#F3EFE6'],
+          ].map(([n,v]) => `<div class="ref-row">${n} <span>${v}</span></div>`).join('')}
+        </div>
+        <div class="ref-section">
+          <div class="ref-label">Email</div>
+          <div class="ref-row">Contact <span>reachout@chereemcgarry.com</span></div>
+          <div class="ref-row">Provider <span>Resend</span></div>
+          <div class="ref-row">Domain <span>Pending GoDaddy transfer</span></div>
+        </div>
+        <div class="ref-section">
+          <div class="ref-label">Deploy</div>
+          <div class="ref-row">Host <a class="ref-link" href="https://vercel.com" target="_blank">Vercel ↗</a></div>
+          <div class="ref-row">Repo <a class="ref-link" href="https://github.com/Julianmac94/cheree-mcgarry" target="_blank">GitHub ↗</a></div>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+</div>
+
+<script>
+/* ── Enquiry filter ── */
+function filterEnquiries(status, btn) {
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.eq-card').forEach(card => {
+    const show = status === 'all' || card.dataset.status === status;
+    card.style.display = show ? '' : 'none';
+  });
+}
+
+/* ── Update enquiry status ── */
+async function updateStatus(id, status) {
+  const card = document.querySelector('.eq-card[data-id="' + id + '"]');
+  if (card) card.dataset.status = status;
+  await fetch('/api/admin-enquiries?id=' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+}
+
+/* ── Save notes (on blur) ── */
+async function saveNotes(id, notes) {
+  await fetch('/api/admin-enquiries?id=' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes }),
+  });
+}
+
+/* ── Tasks ── */
+function taskHTML(t) {
+  return '<li class="task-item' + (t.completed ? ' done' : '') + '" data-id="' + t.id + '">'
+    + '<button class="task-check" onclick="toggleTask(\'' + t.id + '\',' + !t.completed + ')" aria-label="Toggle">'
+    + '<svg viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    + '</button>'
+    + '<span class="task-title">' + t.title + '</span>'
+    + '<button class="task-del" onclick="deleteTask(\'' + t.id + '\')" aria-label="Delete">'
+    + '<svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
+    + '</button>'
+    + '</li>';
+}
+
+async function addTask() {
+  const input = document.getElementById('task-input');
+  const title = input.value.trim();
+  if (!title) return;
+  input.value = '';
+  const res = await fetch('/api/admin-tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  const task = await res.json();
+  const list = document.getElementById('task-list');
+  const empty = list.querySelector('.task-empty');
+  if (empty) empty.remove();
+  list.insertAdjacentHTML('beforeend', taskHTML(task));
+}
+
+async function toggleTask(id, completed) {
+  const item = document.querySelector('.task-item[data-id="' + id + '"]');
+  if (item) item.classList.toggle('done', completed);
+  await fetch('/api/admin-tasks?id=' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ completed }),
+  });
+}
+
+async function deleteTask(id) {
+  const item = document.querySelector('.task-item[data-id="' + id + '"]');
+  if (item) item.remove();
+  await fetch('/api/admin-tasks?id=' + id, { method: 'DELETE' });
+}
+</script>
+</body>
+</html>`;
+}
+
+export default async function handler(req, res) {
+  // Logout
+  if (req.method === 'GET' && (req.query?.logout || req.url?.includes('logout'))) {
+    clearSessionCookie(res);
+    res.writeHead(302, { Location: '/admin-login' });
+    return res.end();
+  }
+
+  // Auth gate
+  if (!isAuthed(req)) {
+    res.writeHead(302, { Location: '/admin-login' });
+    return res.end();
+  }
+
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Fetch live data
+  const db = supabase();
+  const [{ data: enquiries }, { data: tasks }] = await Promise.all([
+    db.from('enquiries').select('*').order('created_at', { ascending: false }),
+    db.from('tasks').select('*').order('created_at', { ascending: true }),
+  ]);
+
+  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(200).send(adminPage({
+    enquiries: enquiries || [],
+    tasks:     tasks     || [],
+  }));
+}
