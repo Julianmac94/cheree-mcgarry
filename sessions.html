@@ -7,6 +7,109 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Raleway:wght@200;300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
+<style>
+/* ── Compact service card overrides ── */
+.sw-sg-svc-inner--compact {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 56px 48px;
+  display: block;
+}
+.sw-svc-hd { margin-bottom: 28px; }
+.sw-svc-variants {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin-bottom: 24px;
+  border: 1px solid rgba(42,88,80,0.1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.sw-svc-variant { padding: 20px 24px; }
+.sw-svc-variant + .sw-svc-variant { border-left: 1px solid rgba(42,88,80,0.1); }
+.sw-svc-variant--child { background: rgba(42,88,80,0.03); }
+.sw-svc-variant-lbl {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #2A5850; margin-bottom: 10px;
+  display: block;
+}
+.sw-svc-variant-lbl span {
+  font-weight: 400; color: #7A948F;
+  text-transform: none; letter-spacing: 0; font-size: 10px;
+}
+.sw-svc-list { list-style: none; padding: 0; margin: 0; }
+.sw-svc-list li {
+  font-size: 13.5px; color: #3E5C56; line-height: 1.65;
+  padding: 5px 0 5px 18px; position: relative;
+}
+.sw-svc-list li::before {
+  content: '—'; position: absolute; left: 0;
+  color: #77CFBD; font-size: 12px; line-height: 1.65;
+}
+.sw-svc-list--solo { margin-bottom: 24px; }
+
+/* expandable read more */
+.sw-svc-more {
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+.sw-svc-more.open { max-height: 900px; }
+.sw-svc-more-body {
+  padding: 22px 0 8px;
+  border-top: 1px solid rgba(42,88,80,0.08);
+  margin-bottom: 16px;
+}
+.sw-svc-more-body p {
+  font-size: 13.5px; color: #3E5C56; line-height: 1.75; margin-bottom: 14px;
+}
+.sw-svc-more-section { margin-bottom: 24px; }
+.sw-svc-more-section:last-child { margin-bottom: 0; }
+.sw-svc-more-lbl {
+  display: block; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #7A948F; margin-bottom: 10px;
+}
+
+/* suits + actions footer row */
+.sw-svc-suits-row {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 24px;
+  padding-top: 20px; border-top: 1px solid rgba(42,88,80,0.08);
+  flex-wrap: wrap;
+}
+.sw-svc-suits-text { flex: 1; }
+.sw-svc-actions {
+  display: flex; align-items: center;
+  gap: 12px; flex-shrink: 0;
+}
+.sw-svc-more-btn {
+  font-family: 'Raleway', sans-serif;
+  font-size: 12px; color: #2A5850;
+  background: none; border: none; cursor: pointer;
+  padding: 0; text-decoration: underline;
+  text-underline-offset: 3px; transition: color 0.18s;
+}
+.sw-svc-more-btn:hover { color: #192E2A; }
+
+/* hero pricing hint */
+.sp-pricing-hint {
+  font-size: 12.5px; color: rgba(255,255,255,0.5);
+  margin-top: 18px; line-height: 1.7;
+  letter-spacing: 0.01em;
+}
+.sp-pricing-hint strong { color: rgba(255,255,255,0.82); font-weight: 500; }
+
+@media (max-width: 640px) {
+  .sw-sg-svc-inner--compact { padding: 40px 24px; }
+  .sw-svc-variants { grid-template-columns: 1fr; }
+  .sw-svc-variant + .sw-svc-variant {
+    border-left: none; border-top: 1px solid rgba(42,88,80,0.1);
+  }
+  .sw-svc-suits-row { flex-direction: column; }
+  .sw-svc-actions { flex-wrap: wrap; }
+}
+</style>
 </head>
 <body data-page="sessions">
 <nav id="nav">
@@ -113,8 +216,9 @@
       <div class="eyebrow sp-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Understand your options</span></div>
       <h1 class="sp-title">Find your<br><em>path forward</em></h1>
       <p class="sp-intro">Explore the types of support available, understand how funding works, and learn what sessions are actually like &mdash; so you can make an informed choice and reach out when you feel ready.</p>
+      <p class="sp-pricing-hint"><strong>$195</strong> standard rate &nbsp;&middot;&nbsp; <strong>~$107</strong> out of pocket after Medicare rebate &nbsp;&middot;&nbsp; NDIS &amp; EAP also covered</p>
       <a href="#session-start" class="sp-start-link">
-        Ready to get started?
+        Find the right session for you
         <svg class="sp-start-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v10M3 9l5 4 5-4"/></svg>
       </a>
     </div>
@@ -122,129 +226,145 @@
   </div>
 
 
-  <!-- Services guide — browsable, experience-led narrative -->
+  <!-- Services guide — compact cards -->
   <section class="sw-services-guide" id="sw-services-guide">
-    <!-- Individual -->
+
+    <!-- Individual Therapy (Adults + Children) -->
     <div class="sw-sg-svc" id="guide-individual">
-      <div class="sw-sg-svc-inner">
-        <div class="sw-sg-svc-text">
+      <div class="sw-sg-svc-inner sw-sg-svc-inner--compact">
+        <div class="sw-svc-hd">
           <p class="sw-sg-eyebrow">One-on-one</p>
           <h3 class="sw-sg-name">Individual Therapy</h3>
           <p class="sw-sg-lede">A space that belongs entirely to you &mdash; no agenda, no timeline, no right or wrong way to show up.</p>
-          <p class="sw-sg-body">Your first session is mostly a conversation. Cheree gets to know you &mdash; what&rsquo;s brought you here, what feels heavy, and what you&rsquo;re hoping might shift. You don&rsquo;t need to have it figured out before you arrive. In fact, most people find the first session helps them work out what they actually want to focus on.</p>
-          <p class="sw-sg-body">From there, sessions follow your lead. Some people are working through something specific: anxiety, grief, burnout, relationship stress, a big life change. Others come because something just isn&rsquo;t right and they can&rsquo;t quite name it yet. Both are completely valid starting points.</p>
-          <div class="sw-sg-suits">
-            <span class="sw-sg-suits-lbl">Suits</span>
-            <span>Anyone navigating something personal &mdash; at any stage of life</span>
+        </div>
+
+        <div class="sw-svc-variants">
+          <div class="sw-svc-variant">
+            <span class="sw-svc-variant-lbl">Adults</span>
+            <ul class="sw-svc-list">
+              <li>First session is a conversation &mdash; no need to have it figured out beforehand</li>
+              <li>Sessions follow your lead, at your pace and on your terms</li>
+              <li>Anxiety, grief, burnout, relationships, life changes &mdash; or just something that doesn&rsquo;t feel right yet</li>
+            </ul>
+          </div>
+          <div class="sw-svc-variant sw-svc-variant--child">
+            <span class="sw-svc-variant-lbl">Children <span>(under 16)</span></span>
+            <ul class="sw-svc-list">
+              <li>Age-appropriate &mdash; conversation, activity-based, or a mix</li>
+              <li>Parent or guardian intake comes first; parents stay involved throughout</li>
+              <li>Both parents are welcome at the initial intake session</li>
+            </ul>
           </div>
         </div>
-        <div class="sw-sg-aside">
-          <div class="sw-sg-aside-card">
-            <p class="sw-sg-aside-lbl">Coverage options</p>
-            <ul class="sw-sg-aside-list">
-              <li>Medicare (Better Access)</li>
-              <li>Private / self-funded</li>
-              <li>NDIS &mdash; self or plan-managed</li>
-              <li>QFES Employee Assistance</li>
-              <li>ADFHSC &amp; DVA</li>
-            </ul>
+
+        <div class="sw-svc-more" id="more-individual">
+          <div class="sw-svc-more-body">
+            <div class="sw-svc-more-section">
+              <span class="sw-svc-more-lbl">Adult sessions</span>
+              <p>Your first session is mostly a conversation. Cheree gets to know you &mdash; what&rsquo;s brought you here, what feels heavy, and what you&rsquo;re hoping might shift. You don&rsquo;t need to have it figured out before you arrive. In fact, most people find the first session helps them work out what they actually want to focus on.</p>
+              <p>From there, sessions follow your lead. Some people are working through something specific: anxiety, grief, burnout, relationship stress, a big life change. Others come because something just isn&rsquo;t right and they can&rsquo;t quite name it yet. Both are completely valid starting points.</p>
+            </div>
+            <div class="sw-svc-more-section">
+              <span class="sw-svc-more-lbl">Children&rsquo;s sessions</span>
+              <p>Cheree uses age-appropriate approaches &mdash; some conversational, some more activity-based, depending on the child and what they need. The goal is always to create a space where they feel at ease and engaged, not studied or managed.</p>
+              <p>Parents and guardians are an important part of the process. An initial intake session with you comes first &mdash; to understand the background, share what you&rsquo;ve observed, and shape how the sessions will run. Both parents are welcome to come together for the intake.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="sw-sg-suits sw-svc-suits-row">
+          <div class="sw-svc-suits-text">
+            <span class="sw-sg-suits-lbl">Suits</span>
+            <span>Adults navigating something personal, and children who need support &mdash; at any stage of life</span>
+          </div>
+          <div class="sw-svc-actions">
+            <button class="sw-svc-more-btn" onclick="toggleSvcMore('individual')" id="more-btn-individual">Read more</button>
             <button class="btn btn-outline sw-sg-btn" onclick="launcherFocus('individual')">Get started &rarr;</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Couple / Family -->
+    <!-- Couple or Family Therapy -->
     <div class="sw-sg-svc sw-sg-svc--alt" id="guide-couple-family">
-      <div class="sw-sg-svc-inner">
-        <div class="sw-sg-svc-text">
+      <div class="sw-sg-svc-inner sw-sg-svc-inner--compact">
+        <div class="sw-svc-hd">
           <p class="sw-sg-eyebrow">Together</p>
           <h3 class="sw-sg-name">Couple or Family Therapy</h3>
           <p class="sw-sg-lede">When something feels stuck between you &mdash; having someone outside it can help you hear each other differently.</p>
-          <p class="sw-sg-body">Sessions usually begin with each person having the chance to share their perspective &mdash; not to argue the case, but so Cheree can understand the full picture. From there the work becomes collaborative: practising different ways of communicating, working through something that&rsquo;s caused distance, or simply building something stronger between you.</p>
-          <p class="sw-sg-body">This works for romantic partners, co-parents, adult children and their parents, siblings, or any close relationship that could use some support. You don&rsquo;t need to be in crisis &mdash; some couples and families come simply because they want to.</p>
-          <div class="sw-sg-note">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
-            Each person completes a brief individual intake session before joint sessions begin.
+        </div>
+
+        <ul class="sw-svc-list sw-svc-list--solo">
+          <li>Each person gets space to share their perspective first &mdash; not to argue, but so Cheree understands the full picture</li>
+          <li>Work is collaborative: communication, distance, or simply building something stronger</li>
+          <li>Doesn&rsquo;t require a crisis &mdash; some couples and families come simply because they want to</li>
+          <li>A brief individual intake session with each person comes before joint sessions begin</li>
+        </ul>
+
+        <div class="sw-svc-more" id="more-couple-family">
+          <div class="sw-svc-more-body">
+            <p>Sessions usually begin with each person having the chance to share their perspective &mdash; not to argue the case, but so Cheree can understand the full picture. From there the work becomes collaborative: practising different ways of communicating, working through something that&rsquo;s caused distance, or simply building something stronger between you.</p>
+            <p>This works for romantic partners, co-parents, adult children and their parents, siblings, or any close relationship that could use some support. You don&rsquo;t need to be in crisis &mdash; some couples and families come simply because they want to.</p>
+            <div class="sw-sg-note" style="margin-top:14px;">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
+              Medicare and NDIS are not available for couple or family sessions. Private, QFES, and ADFHSC&nbsp;&amp;&nbsp;DVA funding applies.
+            </div>
           </div>
-          <div class="sw-sg-suits">
+        </div>
+
+        <div class="sw-sg-suits sw-svc-suits-row">
+          <div class="sw-svc-suits-text">
             <span class="sw-sg-suits-lbl">Suits</span>
             <span>Partners, co-parents, families, adult children &amp; parents, siblings</span>
           </div>
-        </div>
-        <div class="sw-sg-aside">
-          <div class="sw-sg-aside-card">
-            <p class="sw-sg-aside-lbl">Coverage options</p>
-            <ul class="sw-sg-aside-list">
-              <li>Private / self-funded</li>
-              <li>QFES Employee Assistance</li>
-              <li>ADFHSC &amp; DVA</li>
-            </ul>
-            <p class="sw-sg-aside-note">Medicare and NDIS are not available for couple or family sessions.</p>
+          <div class="sw-svc-actions">
+            <button class="sw-svc-more-btn" onclick="toggleSvcMore('couple-family')" id="more-btn-couple-family">Read more</button>
             <button class="btn btn-outline sw-sg-btn" onclick="launcherFocus('couple-family')">Get started &rarr;</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Child -->
-    <div class="sw-sg-svc" id="guide-child">
-      <div class="sw-sg-svc-inner">
-        <div class="sw-sg-svc-text">
-          <p class="sw-sg-eyebrow">For children</p>
-          <h3 class="sw-sg-name">Child Counselling (under 16)</h3>
-          <p class="sw-sg-lede">Children carry a lot &mdash; and they don&rsquo;t always have words for it. Sessions are designed to meet them where they are.</p>
-          <p class="sw-sg-body">Cheree uses age-appropriate approaches &mdash; some conversational, some more activity-based, depending on the child and what they need. The goal is always to create a space where they feel at ease and engaged, not studied or managed.</p>
-          <p class="sw-sg-body">Parents and guardians are an important part of the process. An initial intake session with you comes first &mdash; to understand the background, share what you&rsquo;ve observed, and shape how the sessions will run. Both parents are welcome to come together for the intake.</p>
-          <div class="sw-sg-suits">
-            <span class="sw-sg-suits-lbl">Suits</span>
-            <span>Children experiencing anxiety, behavioural challenges, school pressures, family changes, grief, or anything else that seems to be weighing on them</span>
-          </div>
-        </div>
-        <div class="sw-sg-aside">
-          <div class="sw-sg-aside-card">
-            <p class="sw-sg-aside-lbl">Coverage options</p>
-            <ul class="sw-sg-aside-list">
-              <li>Medicare (Better Access)</li>
-              <li>Private / self-funded</li>
-              <li>NDIS &mdash; self or plan-managed</li>
-              <li>QFES Employee Assistance</li>
-              <li>ADFHSC &amp; DVA</li>
-            </ul>
-            <button class="btn btn-outline sw-sg-btn" onclick="launcherFocus('child')">Get started &rarr;</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Mediation -->
-    <div class="sw-sg-svc sw-sg-svc--alt" id="guide-mediation">
-      <div class="sw-sg-svc-inner">
-        <div class="sw-sg-svc-text">
+    <!-- Professional Mediation -->
+    <div class="sw-sg-svc" id="guide-mediation">
+      <div class="sw-sg-svc-inner sw-sg-svc-inner--compact">
+        <div class="sw-svc-hd">
           <p class="sw-sg-eyebrow">Facilitated resolution</p>
           <h3 class="sw-sg-name">Professional Mediation</h3>
           <p class="sw-sg-lede">Not every dispute needs a courtroom &mdash; sometimes it just needs a skilled, neutral person in the room.</p>
-          <p class="sw-sg-body">Mediation is a structured, confidential process. Cheree facilitates dialogue between two parties to help them reach a workable agreement &mdash; without the cost, stress, or adversarial nature of formal proceedings. The outcome isn&rsquo;t decided by Cheree; it&rsquo;s reached by you, with her help.</p>
-          <p class="sw-sg-body">It works best when both parties genuinely want resolution &mdash; not necessarily to agree on everything, but to reach something both can move forward from. An individual intake session with each party comes first.</p>
-          <div class="sw-sg-suits">
+        </div>
+
+        <ul class="sw-svc-list sw-svc-list--solo">
+          <li>Structured and confidential &mdash; Cheree facilitates, you reach the outcome together</li>
+          <li>Less costly and adversarial than formal proceedings</li>
+          <li>Works best when both parties genuinely want resolution</li>
+          <li>Individual intake session with each party comes first</li>
+        </ul>
+
+        <div class="sw-svc-more" id="more-mediation">
+          <div class="sw-svc-more-body">
+            <p>Mediation is a structured, confidential process. Cheree facilitates dialogue between two parties to help them reach a workable agreement &mdash; without the cost, stress, or adversarial nature of formal proceedings. The outcome isn&rsquo;t decided by Cheree; it&rsquo;s reached by you, with her help.</p>
+            <p>It works best when both parties genuinely want resolution &mdash; not necessarily to agree on everything, but to reach something both can move forward from. An individual intake session with each party comes first.</p>
+            <div class="sw-sg-note" style="margin-top:14px;">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
+              Medicare and NDIS are not available for mediation. Private, QFES, and ADFHSC&nbsp;&amp;&nbsp;DVA funding applies.
+            </div>
+          </div>
+        </div>
+
+        <div class="sw-sg-suits sw-svc-suits-row">
+          <div class="sw-svc-suits-text">
             <span class="sw-sg-suits-lbl">Suits</span>
             <span>Workplace conflicts, family disputes, or any situation where an independent facilitator can help two parties reach agreement</span>
           </div>
-        </div>
-        <div class="sw-sg-aside">
-          <div class="sw-sg-aside-card">
-            <p class="sw-sg-aside-lbl">Coverage options</p>
-            <ul class="sw-sg-aside-list">
-              <li>Private / self-funded</li>
-              <li>QFES Employee Assistance</li>
-              <li>ADFHSC &amp; DVA</li>
-            </ul>
-            <p class="sw-sg-aside-note">Medicare and NDIS are not available for mediation services.</p>
+          <div class="sw-svc-actions">
+            <button class="sw-svc-more-btn" onclick="toggleSvcMore('mediation')" id="more-btn-mediation">Read more</button>
             <button class="btn btn-outline sw-sg-btn" onclick="launcherFocus('mediation')">Get started &rarr;</button>
           </div>
         </div>
       </div>
     </div>
+
   </section>
 
   <!-- Coverage guide -->
@@ -1584,6 +1704,14 @@ function showECError(msg) {
     document.getElementById('ec-submit').insertAdjacentElement('afterend', el);
   }
   el.textContent = msg;
+}
+
+function toggleSvcMore(id) {
+  var el  = document.getElementById('more-' + id);
+  var btn = document.getElementById('more-btn-' + id);
+  if (!el) return;
+  var open = el.classList.toggle('open');
+  if (btn) btn.textContent = open ? 'Show less' : 'Read more';
 }
 
 </script>
