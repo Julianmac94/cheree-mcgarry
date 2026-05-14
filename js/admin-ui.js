@@ -4,6 +4,14 @@
    escaping in the server-rendered HTML.
    ─────────────────────────────────────────────────────────────── */
 
+/* ── Halaxy form URL lookup ── */
+var HALAXY_URLS = {
+  // Single adult — covers both private pay and Medicare (MHCP)
+  new:      'https://www.halaxy.com/a/online/form/new-patient/245011/kDQfMObOfT-YECP02pycZm5BSGRoeUNxVVAzMzRCclVNTzdoZnNEZTZPdmc',
+  medicare: 'https://www.halaxy.com/a/online/form/new-patient/245011/kDQfMObOfT-YECP02pycZm5BSGRoeUNxVVAzMzRCclVNTzdoZnNEZTZPdmc',
+  ndis:     '', // pending — paste when available
+};
+
 /* ── Toast notifications ── */
 function toast(msg, type) {
   var el = document.createElement('div');
@@ -49,15 +57,26 @@ function filterEnquiries(status, btn) {
 async function updateStatus(id, status) {
   var card = document.querySelector('.eq-card[data-id="' + id + '"]');
   var prev = card ? card.dataset.status : null;
-  if (card) card.dataset.status = status;
+  var sel  = card ? card.querySelector('.eq-status-sel') : null;
+
+  function applyStatus(s) {
+    if (!card) return;
+    card.dataset.status = s;
+    if (sel) {
+      if (prev) sel.classList.remove('status-' + prev);
+      sel.classList.remove('status-' + status);
+      sel.classList.add('status-' + s);
+    }
+  }
+
+  applyStatus(status);
   try {
     await apiFetch('/api/admin-enquiries?id=' + id, { method: 'PATCH', body: { status: status } });
     toast('Status saved', 'ok');
   } catch (e) {
     toast('Status not saved: ' + e.message, 'err');
-    if (card && prev) {
-      card.dataset.status = prev;
-      var sel = card.querySelector('.eq-status-sel');
+    if (prev) {
+      applyStatus(prev);
       if (sel) sel.value = prev;
     }
   }
@@ -129,12 +148,24 @@ async function deleteTask(id) {
 }
 
 /* ── Intake email ── */
+function updateIntakeUrl(id) {
+  var typeEl = document.getElementById('intake-type-' + id);
+  var urlEl  = document.getElementById('intake-url-' + id);
+  if (!typeEl || !urlEl) return;
+  var known = HALAXY_URLS[typeEl.value] || '';
+  urlEl.value = known;
+  urlEl.style.opacity = known ? '0.65' : '1';
+  urlEl.placeholder = known ? '' : 'Paste Halaxy form URL…';
+  if (!known) urlEl.focus();
+}
+
 function toggleIntakePanel(id) {
   var panel = document.getElementById('intake-panel-' + id);
   var btn = document.getElementById('intake-btn-' + id);
   if (!panel || btn.classList.contains('sent')) return;
   var open = panel.classList.toggle('open');
   btn.textContent = open ? 'Cancel' : 'Send intake email';
+  if (open) updateIntakeUrl(id);
 }
 
 async function sendIntake(id) {
@@ -185,3 +216,37 @@ async function sendIntake(id) {
     sendBtn.textContent = 'Send';
   }
 }
+
+/* ── Setup checklist (localStorage-backed) ── */
+function initSetup() {
+  document.querySelectorAll('.setup-item').forEach(function (label) {
+    var key = label.dataset.key;
+    var cb  = label.querySelector('input[type="checkbox"]');
+    if (!cb) return;
+    if (localStorage.getItem(key) === '1') {
+      cb.checked = true;
+      label.classList.add('done');
+    }
+  });
+}
+
+function saveSetup(i, checked) {
+  var key   = 'setup-' + i;
+  var label = document.querySelector('.setup-item[data-key="' + key + '"]');
+  if (checked) localStorage.setItem(key, '1');
+  else         localStorage.removeItem(key);
+  if (label) label.classList.toggle('done', checked);
+}
+
+function toggleSetup() {
+  var body = document.getElementById('setup-body');
+  var btn  = document.getElementById('setup-toggle-btn');
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if (btn) btn.textContent = open ? '▸' : '▾';
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  initSetup();
+});
