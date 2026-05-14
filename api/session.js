@@ -246,7 +246,7 @@ export default async function handler(req, res) {
       }),
 
       // 2 — Detailed notification to Cheree
-      // TODO: update from address to notifications@chereemcgarry.com once domain is verified on Resend
+      // TODO: update from address to admin@chereemcgarry.com once domain is verified on Resend
       resend.emails.send({
         from:    'Website <onboarding@resend.dev>',
         to:      ['reachout@chereemcgarry.com'],

@@ -234,7 +234,7 @@ export default async function handler(req, res) {
 
   try {
     await resend.emails.send({
-      // TODO: update to notifications@chereemcgarry.com once domain is verified on Resend
+      // TODO: update to admin@chereemcgarry.com once domain is verified on Resend
       from:    'Cheree McGarry <onboarding@resend.dev>',
       to:      [email],
       subject: subjectLine(clientType, firstName),

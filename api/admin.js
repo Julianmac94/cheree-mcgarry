@@ -616,7 +616,7 @@ body {
           'Get remaining Halaxy form URLs — couple, NDIS, child/adolescent',
           'GoDaddy DNS transfer complete — chereemcgarry.com live',
           'Add DKIM records to Resend after DNS transfer',
-          'Update email sender: onboarding@resend.dev → notifications@chereemcgarry.com',
+          'Update email sender: onboarding@resend.dev → admin@chereemcgarry.com',
           'Build: 48-hr appointment reminder email',
           'Build: post-session follow-up email',
           'Build: invoice cover email',
