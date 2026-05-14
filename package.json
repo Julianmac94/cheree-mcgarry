@@ -1,0 +1,9 @@
+{
+  "name": "cheree-mcgarry",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "resend": "^4.0.0"
+  }
+}

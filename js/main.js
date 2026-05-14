@@ -76,9 +76,9 @@ async function submitReachOutForm() {
   btn.textContent = 'Sending…';
 
   try {
-    const resp = await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
+    const resp = await fetch('/api/contact', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name:    [fname, lname].filter(Boolean).join(' '),
         email,
@@ -133,13 +133,10 @@ function closeModal() {
 }
 
 /* ── FORM SUBMISSION ─────────────────────────────────────────
-   Powered by Formspree (free tier: 50 submissions/month).
-   Steps to activate:
-     1. Sign up at https://formspree.io
-     2. Create a new form — you'll receive a short ID like 'xpwqjnkb'
-     3. Replace 'YOUR_FORM_ID' below with that ID.
+   Powered by Resend via Vercel serverless functions.
+   Handler: api/contact.js
+   Env var required: RESEND_API_KEY (set via `vercel env add RESEND_API_KEY`)
 ─────────────────────────────────────────────────────────────── */
-const FORMSPREE_ID = 'xvzlyrjk';
 
 function showFormError(msg) {
   let el = document.getElementById('form-error');
@@ -171,14 +168,15 @@ async function submitForm() {
   btn.textContent = 'Sending…';
 
   try {
-    const resp = await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
+    const resp = await fetch('/api/contact', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: [fname, lname].filter(Boolean).join(' '),
+        name:    [fname, lname].filter(Boolean).join(' '),
         email,
         reason,
         message,
+        _source: 'modal',
       }),
     });
     if (resp.ok) {

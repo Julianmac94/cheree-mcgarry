@@ -592,7 +592,7 @@
 <script>
 /* ── Request-session page JS ──────────────────────────────────── */
 
-const FORMSPREE_ID_RS = 'xvzlyrjk';
+/* Session requests are handled by api/session.js via Resend */
 
 const svcLabelsRS = {
   individual:      'Individual therapy',
@@ -686,9 +686,9 @@ async function submitSessionRequest() {
   btn.textContent = 'Sending…';
 
   try {
-    const resp = await fetch('https://formspree.io/f/' + FORMSPREE_ID_RS, {
+    const resp = await fetch('/api/session', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name:            [fname, lname].filter(Boolean).join(' '),
         email,
@@ -698,8 +698,6 @@ async function submitSessionRequest() {
         coverage:        fundLabelsRS[p.fund]?.replace(/&amp;/g, '&').replace(/&mdash;/g, '—') || p.fund || '(not specified)',
         preferred_times: times || '(not specified)',
         message:         note  || '(no additional notes)',
-        _source:         'request-session-page',
-        _subject:        'Session request — ' + (svcLabelsRS[p.svc] || 'General') + (p.fund ? ' · ' + (fundLabelsRS[p.fund] || p.fund) : ''),
       }),
     });
 
