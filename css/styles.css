@@ -1999,3 +1999,114 @@ footer { background: var(--teal-deep); }
 @media (max-width: 580px) {
   .sw-oc-head { flex-direction: column; align-items: flex-start; }
 }
+
+
+/* ══════════════════════════════════════════════════
+   ORGANIC ATMOSPHERE SYSTEM
+   Grain + flow lines + slow animation language.
+   Structural, not illustrative. 5–8% visual strength.
+══════════════════════════════════════════════════ */
+
+/* ── Paper grain — fixed overlay, multiply blend ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23grain)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  background-repeat: repeat;
+  opacity: 0.028;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: multiply;
+}
+
+/* ── Hero organic flow lines ── */
+.hero-organic {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0; /* sits below .hero > * { z-index: 1 } */
+  animation: organicDrift 46s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* ── Sessions page organic background layer ── */
+.sp-head-organic {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  animation: organicDrift 52s ease-in-out infinite;
+  animation-delay: -18s;
+  will-change: transform, opacity;
+}
+
+/* ── Breathing drift — alive, not animated ── */
+@keyframes organicDrift {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+    opacity: 1;
+  }
+  28% {
+    transform: translate(7px, -18px) scale(1.007);
+    opacity: 0.76;
+  }
+  56% {
+    transform: translate(-5px, -10px) scale(1.003);
+    opacity: 0.9;
+  }
+  78% {
+    transform: translate(4px, -6px) scale(1.005);
+    opacity: 0.83;
+  }
+}
+
+/* ── Section flow divider — between long sections ── */
+.org-divider {
+  position: relative;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  margin: 0;
+  padding: 0;
+  z-index: 1;
+}
+.org-divider svg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(1200px, 100vw);
+  overflow: visible;
+  pointer-events: none;
+  animation: organicSway 58s ease-in-out infinite;
+}
+
+@keyframes organicSway {
+  0%, 100% {
+    transform: translate(-50%, -50%) translateX(0px);
+    opacity: 0.88;
+  }
+  38% {
+    transform: translate(-50%, -50%) translateX(12px);
+    opacity: 0.68;
+  }
+  70% {
+    transform: translate(-50%, -50%) translateX(-8px);
+    opacity: 0.8;
+  }
+}
+
+/* Reduce motion — honour system preference */
+@media (prefers-reduced-motion: reduce) {
+  .hero-organic,
+  .sp-head-organic,
+  .org-divider svg {
+    animation: none !important;
+  }
+}
