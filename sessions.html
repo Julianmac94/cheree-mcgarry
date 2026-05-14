@@ -175,7 +175,7 @@
 }
 .sw-cg-item--primary .sw-cg-price {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 22px; font-weight: 400; color: #BE6E44;
+  font-size: 22px; font-weight: 400; color: #2A5850;
   white-space: nowrap; padding-top: 0;
 }
 .sw-cg-lede {
@@ -214,41 +214,50 @@
   border: 1px solid rgba(42,88,80,0.09);
   border-radius: 14px; overflow: hidden; background: #fff;
   max-width: 1040px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(3, 1fr);
 }
 .sw-cg-sec-item {
-  display: flex; gap: 16px; align-items: flex-start;
-  padding: 20px 26px;
-  border-bottom: 1px solid rgba(42,88,80,0.07);
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 24px 26px;
+  border-right: 1px solid rgba(42,88,80,0.07);
 }
-.sw-cg-sec-item:last-child { border-bottom: none; }
+.sw-cg-sec-item:last-child { border-right: none; }
 .sw-cg-sec-icon {
   width: 32px; height: 32px; flex-shrink: 0;
   background: rgba(42,88,80,0.06);
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  color: #2A5850; margin-top: 1px;
+  color: #2A5850;
 }
 .sw-cg-sec-icon svg { width: 15px; height: 15px; }
 .sw-cg-sec-content { flex: 1; }
 .sw-cg-sec-hd {
   display: flex; align-items: baseline;
-  justify-content: space-between; gap: 16px;
+  justify-content: space-between; gap: 10px;
   margin-bottom: 5px; flex-wrap: wrap;
 }
 .sw-cg-sec-name { font-size: 14px; font-weight: 500; color: #192E2A; }
 .sw-cg-sec-price {
-  font-size: 13px; font-weight: 500; color: #BE6E44; flex-shrink: 0;
+  font-size: 13px; font-weight: 500; color: #2A5850; flex-shrink: 0;
 }
 .sw-cg-sec-body { font-size: 13px; color: #3E5C56; line-height: 1.65; margin: 0; }
 @media (max-width: 820px) {
   .sw-cg-primary { grid-template-columns: 1fr; max-width: 100%; }
-  .sw-cg-secondary { max-width: 100%; }
+  .sw-cg-secondary { max-width: 100%; grid-template-columns: 1fr; }
   .sw-cg-secondary-hd { max-width: 100%; }
+  .sw-cg-sec-item { border-right: none; border-bottom: 1px solid rgba(42,88,80,0.07); }
+  .sw-cg-sec-item:last-child { border-bottom: none; }
 }
 
 /* ── Bottom CTA — dark ── */
 .sw-bottom-cta { background: #192E2A !important; }
-.sw-btm-card { box-shadow: 0 8px 48px rgba(0,0,0,0.25), 0 1px 6px rgba(0,0,0,0.12) !important; }
+.sw-btm-card {
+  max-width: 1040px !important;
+  display: flex !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.25), 0 1px 6px rgba(0,0,0,0.12) !important;
+}
 </style>
 </head>
 <body data-page="sessions">
