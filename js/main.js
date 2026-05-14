@@ -19,11 +19,12 @@ let _submitBtnHTML = null;
 
 /* ── INLINE REACH OUT (home page) ──────────────────────────
    All three "Reach Out" buttons on index.html scroll to the
-   #reach-out section and expand the form inline — no popup. */
+   existing "Ready when you are" footer CTA section and expand
+   the form inline within the practice card — no popup. */
 function openReachOut() {
-  const wrap = document.getElementById('ro-form-wrap');
-  if (!wrap) return;
-  wrap.classList.add('ro-open');
+  const card = document.getElementById('ft-cta-practice');
+  if (!card) return;
+  card.classList.add('ft-open');
 
   const section = document.getElementById('reach-out');
   if (section) {
@@ -31,11 +32,28 @@ function openReachOut() {
     const top  = section.getBoundingClientRect().top + window.scrollY - navH - 24;
     window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   }
-  // Auto-focus first field after scroll completes
+  // Auto-focus first field after scroll + transition
   setTimeout(() => {
     const first = document.getElementById('ro-fname');
     if (first) first.focus();
-  }, 620);
+  }, 680);
+}
+
+function closeReachOut() {
+  const card = document.getElementById('ft-cta-practice');
+  if (card) card.classList.remove('ft-open');
+  // Reset form
+  const form = document.getElementById('ro-form');
+  const ok   = document.getElementById('ro-ok');
+  const btn  = document.getElementById('ro-submit');
+  const err  = document.getElementById('ro-error');
+  if (form) {
+    form.querySelectorAll('input, select, textarea').forEach(el => { el.value = ''; });
+    form.style.display = '';
+  }
+  if (ok)  ok.style.display  = 'none';
+  if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg> Send Message'; }
+  if (err) err.textContent = '';
 }
 
 async function submitReachOutForm() {
