@@ -115,7 +115,7 @@
   </div>
 
   <div class="hero-cards">
-    <div class="hero-card" style="--hc-accent:#1e5e63" onclick="document.getElementById('about-section').scrollIntoView({behavior:'smooth'})">
+    <div class="hero-card" style="--hc-accent:#1e5e63" onclick="easeScrollTo('about-section')">
       <div class="hc-icon">
         <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="24" cy="14" r="7" stroke="#1e5e63" stroke-width="1.5" fill="rgba(30,94,99,0.1)"/>
@@ -412,5 +412,26 @@
 </div>
 
 <script src="js/main.js"></script>
+<script>
+/* Gentle eased scroll — replaces native smooth which can feel abrupt */
+function easeScrollTo(id, duration) {
+  duration = duration || 1100;
+  var el = document.getElementById(id);
+  if (!el) return;
+  var navH = (document.getElementById('nav') || {}).offsetHeight || 68;
+  var start = window.pageYOffset;
+  var end = el.getBoundingClientRect().top + start - navH - 20;
+  var startTime = null;
+  function easeInOut(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+  function step(now) {
+    if (!startTime) startTime = now;
+    var elapsed = now - startTime;
+    var progress = Math.min(elapsed / duration, 1);
+    window.scrollTo(0, start + (end - start) * easeInOut(progress));
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+</script>
 </body>
 </html>
