@@ -963,6 +963,12 @@ footer { background: var(--teal-deep); }
   border-color: rgba(190,110,68,0.45);
   color: var(--terra);
 }
+.sw-btm-choice--opt.sel {
+  background: rgba(42,88,80,0.08);
+  border-color: var(--teal);
+  color: var(--teal);
+  font-weight: 600;
+}
 .sw-btm-choice--reach:hover {
   background: rgba(119,207,189,0.14);
   border-color: rgba(119,207,189,0.55);
@@ -993,6 +999,35 @@ footer { background: var(--teal-deep); }
 /* ── Outcome wrapper inside card ── */
 .sw-btm-outcome-wrap { padding-top: 4px; }
 .sw-btm-outcome-wrap .sw-btm-back { margin-bottom: 20px; }
+/* ── Outcome section — below the wizard card ── */
+.sw-btm-outcome-section {
+  max-width: 640px; width: 100%;
+  margin: 20px auto 0;
+  opacity: 1;
+  animation: outcomeIn 0.38s cubic-bezier(0.16,1,0.3,1);
+}
+.sw-btm-outcome-section--hidden { display: none; }
+@keyframes outcomeIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.sw-btm-outcome-inner { text-align: left; }
+.sw-btm-outcome-inner .sw-btm-back { margin-bottom: 16px; }
+/* ── Go button: hint state (disabled) vs active state ── */
+.sw-btm-go:disabled {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  color: var(--soft) !important;
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.03em;
+  cursor: default;
+  padding: 4px 0 !important;
+  gap: 0 !important;
+  opacity: 1 !important;
+}
+.sw-btm-go:disabled svg { display: none; }
 
 /* ── FOOTER CTA ── */
 .ft-cta {
@@ -1628,7 +1663,8 @@ footer { background: var(--teal-deep); }
 
 /* ── MODAL ── */
 .modal-ov { display: none !important; position: fixed; inset: 0; z-index: 1200; background: rgba(20,48,43,0.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 24px; }
-.modal-ov.open { display: flex !important; align-items: center; justify-content: center; }
+.modal-ov.open { display: flex !important; align-items: center; justify-content: center; animation: ovIn 0.28s ease forwards; }
+@keyframes ovIn { from { opacity: 0; } to { opacity: 1; } }
 .modal {
   background: var(--cream);
   border-radius: 24px;
