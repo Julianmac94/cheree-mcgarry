@@ -197,15 +197,16 @@ export default async function handler(req, res) {
     await Promise.all([
       // 1 — Auto-reply to client
       resend.emails.send({
-        from:    'Cheree McGarry <hello@chereemcgarry.com>',
+        from:    'Cheree McGarry <onboarding@resend.dev>',
         to:      [email],
         subject: 'Thanks for reaching out — Cheree McGarry Counselling',
         html:    clientReplyHtml({ firstName, reason }),
       }),
 
       // 2 — Notification to Cheree
+      // TODO: update from address to notifications@chereemcgarry.com once domain is verified on Resend
       resend.emails.send({
-        from:    'Website <notifications@chereemcgarry.com>',
+        from:    'Website <onboarding@resend.dev>',
         to:      ['reachout@chereemcgarry.com'],
         replyTo: email,
         subject: `New enquiry from ${name.trim()} — ${reason || 'Reach Out form'}`,

@@ -234,7 +234,7 @@ export default async function handler(req, res) {
     await Promise.all([
       // 1 — Confirmation to client
       resend.emails.send({
-        from:    'Cheree McGarry <hello@chereemcgarry.com>',
+        from:    'Cheree McGarry <onboarding@resend.dev>',
         to:      [email],
         subject: 'Your session request — Cheree McGarry Counselling',
         html:    clientConfirmationHtml({
@@ -245,8 +245,9 @@ export default async function handler(req, res) {
       }),
 
       // 2 — Detailed notification to Cheree
+      // TODO: update from address to notifications@chereemcgarry.com once domain is verified on Resend
       resend.emails.send({
-        from:    'Website <notifications@chereemcgarry.com>',
+        from:    'Website <onboarding@resend.dev>',
         to:      ['reachout@chereemcgarry.com'],
         replyTo: email,
         subject: `Session request from ${name.trim()} — ${service || 'General'}${coverage ? ' · ' + coverage : ''}`,
