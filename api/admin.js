@@ -68,7 +68,7 @@ function enquiryCard(e) {
   </div>
   <div class="eq-intake-panel" id="intake-panel-${e.id}">
     <div class="eq-intake-row">
-      <select class="eq-intake-type" id="intake-type-${e.id}">
+      <select class="eq-intake-type" id="intake-type-${e.id}" onchange="updateIntakeUrl('${e.id}')">
         <option value="new">New client</option>
         <option value="medicare">Medicare (MHCP)</option>
         <option value="ndis">NDIS</option>
@@ -468,6 +468,31 @@ body {
   letter-spacing: 0.02em;
 }
 
+/* ── Setup checklist ── */
+.setup-item {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(42,88,80,0.06);
+  cursor: pointer;
+  font-size: 12px; color: var(--mid); line-height: 1.45;
+}
+.setup-item:last-child { border-bottom: none; }
+.setup-item input[type="checkbox"] {
+  margin-top: 2px; flex-shrink: 0;
+  accent-color: var(--teal);
+  width: 13px; height: 13px;
+}
+.setup-item.done span {
+  text-decoration: line-through; color: var(--soft);
+}
+.setup-toggle-btn {
+  background: none; border: none;
+  font-size: 10px; color: var(--soft);
+  cursor: pointer; padding: 0; line-height: 1;
+  transition: color 0.15s;
+}
+.setup-toggle-btn:hover { color: var(--teal); }
+
 /* ── Site reference panel ── */
 .ref-section { margin-bottom: 14px; }
 .ref-section:last-child { margin-bottom: 0; }
@@ -580,6 +605,30 @@ body {
       </div>
     </div>
 
+    <!-- Setup checklist -->
+    <div class="panel" id="setup-panel">
+      <div class="panel-hd" style="cursor:pointer" onclick="toggleSetup()">
+        <span class="panel-title">Setup checklist</span>
+        <button class="setup-toggle-btn" id="setup-toggle-btn" aria-label="Toggle">▾</button>
+      </div>
+      <div class="panel-body" id="setup-body">
+        ${[
+          'Get remaining Halaxy form URLs — couple, NDIS, child/adolescent',
+          'GoDaddy DNS transfer complete — chereemcgarry.com live',
+          'Add DKIM records to Resend after DNS transfer',
+          'Update email sender: onboarding@resend.dev → notifications@chereemcgarry.com',
+          'Build: 48-hr appointment reminder email',
+          'Build: post-session follow-up email',
+          'Build: invoice cover email',
+          'Rebuild client info page (info.html)',
+        ].map((item, i) => `
+        <label class="setup-item" data-key="setup-${i}">
+          <input type="checkbox" onchange="saveSetup(${i}, this.checked)">
+          <span>${item}</span>
+        </label>`).join('')}
+      </div>
+    </div>
+
     <!-- Site reference -->
     <div class="panel">
       <div class="panel-hd">
@@ -596,14 +645,12 @@ body {
           ].map(([n,h]) => `<div class="ref-row">${n} <a class="ref-link" href="${h}" target="_blank">↗</a></div>`).join('')}
         </div>
         <div class="ref-section">
-          <div class="ref-label">Brand tokens</div>
-          ${[
-            ['Teal Deep', '#192E2A'],
-            ['Teal', '#2A5850'],
-            ['Mint', '#77CFBD'],
-            ['Terra', '#BE6E44'],
-            ['Cream', '#F3EFE6'],
-          ].map(([n,v]) => `<div class="ref-row">${n} <span>${v}</span></div>`).join('')}
+          <div class="ref-label">Quick links</div>
+          <div class="ref-row">Halaxy <a class="ref-link" href="https://www.halaxy.com/practitioner" target="_blank">Open ↗</a></div>
+          <div class="ref-row">Resend <a class="ref-link" href="https://resend.com/emails" target="_blank">Open ↗</a></div>
+          <div class="ref-row">Supabase <a class="ref-link" href="https://supabase.com/dashboard" target="_blank">Open ↗</a></div>
+          <div class="ref-row">Vercel <a class="ref-link" href="https://vercel.com/dashboard" target="_blank">Open ↗</a></div>
+          <div class="ref-row">GitHub <a class="ref-link" href="https://github.com/Julianmac94/cheree-mcgarry" target="_blank">Open ↗</a></div>
         </div>
         <div class="ref-section">
           <div class="ref-label">Email</div>
