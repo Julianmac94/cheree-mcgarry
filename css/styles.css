@@ -507,11 +507,29 @@ body::after {
 }
 .sp-head-art-svg { width: 100%; height: 100%; max-height: 520px; }
 /* Hero text */
-.sp-head-content { max-width: 600px; margin-bottom: 52px; position: relative; z-index: 1; }
+.sp-head-content { max-width: 600px; margin-bottom: 0; position: relative; z-index: 1; }
 .sp-ey .eyebrow-text { color: rgba(255,255,255,0.36); }
 .sp-title { font-family: var(--serif); font-size: clamp(36px,5vw,60px); font-weight: 300; line-height: 1.0; color: white; margin-bottom: 18px; }
 .sp-title em { display: block; font-style: italic; color: rgba(255,255,255,0.5); }
-.sp-intro { font-size: 15px; font-weight: 300; color: rgba(255,255,255,0.42); line-height: 1.8; max-width: 500px; }
+.sp-intro { font-size: 15px; font-weight: 300; color: rgba(255,255,255,0.42); line-height: 1.8; max-width: 500px; margin-bottom: 32px; }
+/* Scroll-to-bottom CTA in hero */
+.sp-start-link {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 13px; font-weight: 500; letter-spacing: 0.04em;
+  color: rgba(255,255,255,0.72);
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 100px;
+  padding: 10px 20px 10px 22px;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.sp-start-link:hover {
+  background: rgba(255,255,255,0.17);
+  border-color: rgba(255,255,255,0.32);
+  color: white;
+}
+.sp-start-arrow { width: 16px; height: 16px; flex-shrink: 0; }
 /* ── LAUNCHER WIDGET — default (light bg, used standalone) ── */
 .sw-launcher {
   background: white;
@@ -822,8 +840,8 @@ body::after {
 @media (max-width: 560px) {
   .sw-cg-grid { grid-template-columns: 1fr; }
   .sw-ln-chip { font-size: 12px; padding: 8px 16px; }
-  .sw-bottom-cta-btns { flex-direction: column; align-items: stretch; }
-  .sw-btm-btn, .sw-btm-btn--opt { justify-content: center; }
+  .sw-btm-choices { flex-direction: column; align-items: stretch; }
+  .sw-btm-choice { justify-content: center; }
   .sw-ln-callout { flex-direction: column; align-items: flex-start; gap: 14px; }
   .sw-ln-toggle { align-self: flex-start; }
   .sw-btm-card { border-radius: 16px; padding: 32px 20px 36px; }
@@ -902,46 +920,65 @@ footer { background: var(--teal-deep); }
 .sw-btm-ey { margin-bottom: 16px; }
 .sw-bottom-cta-q {
   font-family: var(--serif); font-size: 28px; font-weight: 300;
-  color: var(--teal-deep); margin-bottom: 12px; line-height: 1.25;
+  color: var(--teal-deep); margin-bottom: 10px; line-height: 1.25;
 }
 .sw-btm-desc {
   font-size: 13px; font-weight: 300; color: var(--soft);
   line-height: 1.75; max-width: 440px; margin: 0 auto 28px;
 }
-.sw-bottom-cta-btns {
-  display: flex; align-items: center; justify-content: center;
-  flex-wrap: wrap; gap: 10px; width: 100%;
+/* ── Initial choice buttons ── */
+.sw-btm-choices {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+  transition: opacity 0.22s ease, max-height 0.32s ease;
+  overflow: hidden; max-height: 200px;
 }
-.sw-btm-btn {
+.sw-btm-choices--gone {
+  max-height: 0; opacity: 0; pointer-events: none; margin: 0;
+}
+.sw-btm-choice {
   display: inline-flex; align-items: center; gap: 9px;
   font-family: var(--sans); font-size: 13px; font-weight: 500;
   padding: 13px 26px; border-radius: 100px;
-  border: 1.5px solid transparent; cursor: pointer;
-  transition: all 0.2s ease; line-height: 1.2;
+  border: 1.5px solid rgba(42,88,80,0.28);
+  background: transparent; color: var(--teal-deep);
+  cursor: pointer; transition: all 0.2s ease; line-height: 1.2;
 }
-.sw-btm-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
-/* New / existing client — neutral outlined, terracotta hover */
-.sw-btm-btn--opt {
-  background: transparent;
-  color: var(--teal-deep);
-  border-color: rgba(42,88,80,0.28);
-}
-.sw-btm-btn--opt:hover {
+.sw-btm-choice svg { width: 14px; height: 14px; flex-shrink: 0; }
+.sw-btm-choice--opt:hover {
   background: rgba(190,110,68,0.07);
   border-color: rgba(190,110,68,0.45);
   color: var(--terra);
 }
-/* Reach out — teal-mint hover (matches nav Reach Out button) */
-.sw-btm-btn--reach {
-  background: transparent;
-  color: var(--teal-deep);
-  border-color: rgba(42,88,80,0.28);
-}
-.sw-btm-btn--reach:hover {
+.sw-btm-choice--reach:hover {
   background: rgba(119,207,189,0.14);
   border-color: rgba(119,207,189,0.55);
   color: var(--teal-deep);
 }
+/* ── Expand area (picker / form / outcome) ── */
+.sw-btm-expand {
+  overflow: hidden;
+  max-height: 2000px;
+  transition: max-height 0.42s ease, opacity 0.3s ease, margin-top 0.3s ease;
+  opacity: 1; margin-top: 28px;
+}
+.sw-btm-expand--closed {
+  max-height: 0; opacity: 0; margin-top: 0; pointer-events: none;
+}
+/* ── Bottom picker (injected) ── */
+.sw-btm-picker { padding-top: 4px; }
+.sw-btm-back { margin-bottom: 22px; }
+.sw-btm-prow { margin-bottom: 22px; }
+.sw-btm-prow--hidden { display: none; }
+.sw-btm-q {
+  display: block; margin-bottom: 10px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--teal);
+}
+.sw-btm-cta-row { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--cream-3); }
+.sw-btm-go { gap: 8px; }
+/* ── Outcome wrapper inside card ── */
+.sw-btm-outcome-wrap { padding-top: 4px; }
+.sw-btm-outcome-wrap .sw-btm-back { margin-bottom: 20px; }
 
 /* ── FOOTER CTA ── */
 .ft-cta {

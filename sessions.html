@@ -79,93 +79,14 @@
       <div class="eyebrow sp-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Understand your options</span></div>
       <h1 class="sp-title">Find your<br><em>path forward</em></h1>
       <p class="sp-intro">Explore the types of support available, understand how funding works, and learn what sessions are actually like &mdash; so you can make an informed choice and reach out when you feel ready.</p>
-    </div>
-
-    <!-- Launcher — frosted card within the hero -->
-    <div class="sw-launcher sw-launcher--frosted" id="sw-launcher">
-      <div class="sw-launcher-inner">
-
-        <!-- Callout strip — always visible, click to expand -->
-        <div class="sw-ln-callout" id="sw-ln-callout" onclick="launcherToggle()" role="button" tabindex="0" aria-expanded="false" aria-controls="sw-ln-body" onkeydown="if(event.key==='Enter'||event.key===' ')launcherToggle()">
-          <div class="sw-ln-callout-text">
-            <p class="sw-ln-title">Ready to get started?</p>
-            <p class="sw-ln-sub">Tell us who you are, what you&rsquo;re looking for, and how sessions are covered &mdash; we&rsquo;ll show you exactly what to do next.</p>
-          </div>
-          <span class="sw-ln-toggle">
-            <span class="sw-ln-toggle-label">Let&rsquo;s begin</span>
-            <svg class="sw-ln-toggle-arrow" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l4 4 4-4"/></svg>
-          </span>
-        </div>
-
-        <!-- Collapsible body — hidden by default -->
-        <div class="sw-ln-body sw-ln-body--closed" id="sw-ln-body">
-          <div class="sw-ln-body-inner">
-
-            <!-- A: New or existing -->
-            <div class="sw-ln-row">
-              <span class="sw-ln-q">Are you a new or existing client?</span>
-              <div class="sw-ln-chips">
-                <button class="sw-ln-chip" data-client="new" onclick="launcherSetClient('new')">New client</button>
-                <button class="sw-ln-chip" data-client="existing" onclick="launcherSetClient('existing')">Existing client</button>
-              </div>
-            </div>
-
-            <!-- B: Service type -->
-            <div class="sw-ln-row">
-              <span class="sw-ln-q">What type of support?</span>
-              <div class="sw-ln-chips">
-                <button class="sw-ln-chip" data-svc="individual" onclick="launcherSetSvc('individual')">Individual therapy</button>
-                <button class="sw-ln-chip" data-svc="couple-family" onclick="launcherSetSvc('couple-family')">Couple or family</button>
-                <button class="sw-ln-chip" data-svc="child" onclick="launcherSetSvc('child')">Child (under 16)</button>
-                <button class="sw-ln-chip" data-svc="mediation" onclick="launcherSetSvc('mediation')">Professional mediation</button>
-              </div>
-            </div>
-
-            <!-- C: Coverage — new clients only -->
-            <div class="sw-ln-row sw-ln-row--hidden" id="sw-ln-coverage">
-              <span class="sw-ln-q">How are sessions covered?</span>
-              <div class="sw-ln-chips">
-                <button class="sw-ln-chip" data-fund="medicare" onclick="launcherSetFund('medicare')">Medicare</button>
-                <button class="sw-ln-chip" data-fund="private" onclick="launcherSetFund('private')">Private / self-funded</button>
-                <button class="sw-ln-chip" data-fund="ndis-self" onclick="launcherSetFund('ndis-self')">NDIS &mdash; self-managed</button>
-                <button class="sw-ln-chip" data-fund="ndis-plan" onclick="launcherSetFund('ndis-plan')">NDIS &mdash; plan-managed</button>
-                <button class="sw-ln-chip" data-fund="qfes" onclick="launcherSetFund('qfes')">QFES</button>
-                <button class="sw-ln-chip" data-fund="dva" onclick="launcherSetFund('dva')">ADFHSC &amp; DVA</button>
-                <button class="sw-ln-chip" data-fund="not-sure" onclick="launcherSetFund('not-sure')">Not sure</button>
-              </div>
-            </div>
-
-            <!-- CTA -->
-            <div class="sw-ln-cta">
-              <button class="btn sw-ln-btn" id="sw-ln-submit" disabled onclick="launcherSubmit()">
-                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>
-                <span id="sw-ln-btn-lbl">Complete your selections above</span>
-              </button>
-              <a class="sw-ln-browse" href="#sw-services-guide">or browse the options below &darr;</a>
-            </div>
-
-          </div>
-        </div>
-
-      </div>
+      <a href="#session-start" class="sp-start-link">
+        Ready to get started?
+        <svg class="sp-start-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v10M3 9l5 4 5-4"/></svg>
+      </a>
     </div>
 
   </div>
 
-
-  <!-- Outcome panel — appears after launcher submit -->
-  <div class="sw-outcome-wrap sw-outcome-hidden" id="sw-outcome-wrap">
-    <div class="sw-outcome-inner">
-      <div class="sw-outcome-nav">
-        <button class="sw-back-btn" onclick="launcherReset()">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3L4 7l5 4"/></svg>
-          Change selections
-        </button>
-      </div>
-      <div id="sw-outcome-card"></div>
-      <div id="sw-existing-outcome" class="sw-outcome-hidden"></div>
-    </div>
-  </div>
 
   <!-- Services guide — browsable, experience-led narrative -->
   <section class="sw-services-guide" id="sw-services-guide">
@@ -353,12 +274,11 @@
 </div><!-- /page-top-pad -->
 
 <footer>
-  <!-- Bottom CTA — sessions page only -->
-  <div class="sw-bottom-cta">
+  <!-- Session starter — self-contained picker, inline outcome reveal -->
+  <div class="sw-bottom-cta" id="session-start">
     <!-- Botanical art background -->
     <div class="sw-btm-art" aria-hidden="true">
       <svg class="sw-btm-art-svg" viewBox="0 0 1280 280" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
-        <!-- Left botanical cluster -->
         <path d="M60 240 C52 205 68 172 98 158 C118 148 145 154 148 176 C152 198 135 226 112 238 C90 248 66 260 60 240Z" stroke="rgba(190,110,68,0.18)" stroke-width="1.4" fill="rgba(190,110,68,0.05)"/>
         <path d="M60 240 C84 208 118 182 148 176" stroke="rgba(190,110,68,0.1)" stroke-width="1"/>
         <path d="M80 260 C68 232 72 202 92 190 C106 183 126 188 130 205 C134 222 122 246 106 254 C92 261 83 270 80 260Z" stroke="rgba(190,110,68,0.14)" stroke-width="1.2" fill="rgba(190,110,68,0.04)"/>
@@ -366,7 +286,6 @@
         <circle cx="148" cy="130" r="3" fill="rgba(190,110,68,0.12)"/>
         <circle cx="160" cy="148" r="2" fill="rgba(190,110,68,0.09)"/>
         <circle cx="130" cy="115" r="2.5" fill="rgba(190,110,68,0.1)"/>
-        <!-- Right botanical cluster (mirrored) -->
         <path d="M1220 240 C1228 205 1212 172 1182 158 C1162 148 1135 154 1132 176 C1128 198 1145 226 1168 238 C1190 248 1214 260 1220 240Z" stroke="rgba(190,110,68,0.18)" stroke-width="1.4" fill="rgba(190,110,68,0.05)"/>
         <path d="M1220 240 C1196 208 1162 182 1132 176" stroke="rgba(190,110,68,0.1)" stroke-width="1"/>
         <path d="M1200 260 C1212 232 1208 202 1188 190 C1174 183 1154 188 1150 205 C1146 222 1158 246 1174 254 C1188 261 1197 270 1200 260Z" stroke="rgba(190,110,68,0.14)" stroke-width="1.2" fill="rgba(190,110,68,0.04)"/>
@@ -374,32 +293,45 @@
         <circle cx="1132" cy="130" r="3" fill="rgba(190,110,68,0.12)"/>
         <circle cx="1120" cy="148" r="2" fill="rgba(190,110,68,0.09)"/>
         <circle cx="1150" cy="115" r="2.5" fill="rgba(190,110,68,0.1)"/>
-        <!-- Subtle arcs centre -->
         <path d="M520 10 C580 -8 700 -8 760 10" stroke="rgba(42,88,80,0.07)" stroke-width="1" stroke-linecap="round"/>
         <path d="M560 280 C620 265 660 265 720 280" stroke="rgba(42,88,80,0.06)" stroke-width="1" stroke-linecap="round"/>
       </svg>
     </div>
+
     <!-- Content card -->
-    <div class="sw-btm-card">
-      <div class="eyebrow sw-btm-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Ready to begin</span></div>
-      <p class="sw-bottom-cta-q">Where are you at?</p>
-      <p class="sw-btm-desc">Whether you&rsquo;re ready to book your first session, want to reconnect as an existing client, or just need a conversation before committing &mdash; Cheree is here for all of it.</p>
-      <div class="sw-bottom-cta-btns">
-        <button class="sw-btm-btn sw-btm-btn--opt" onclick="launcherExpand('new')">
+    <div class="sw-btm-card" id="btm-card">
+
+      <!-- Static header -->
+      <div class="sw-btm-hd">
+        <div class="eyebrow sw-btm-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Ready to begin</span></div>
+        <p class="sw-bottom-cta-q">Where are you at?</p>
+        <p class="sw-btm-desc">Whether you&rsquo;re ready to book your first session, want to reconnect as an existing client, or just need a conversation first &mdash; Cheree is here for all of it.</p>
+      </div>
+
+      <!-- Phase 0: initial choice buttons -->
+      <div class="sw-btm-choices" id="btm-choices">
+        <button class="sw-btm-choice sw-btm-choice--opt" onclick="btmChoose('new')">
           <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="2.5"/><path d="M1.5 12.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
           I&rsquo;m a new client
         </button>
-        <button class="sw-btm-btn sw-btm-btn--opt" onclick="launcherExpand('existing')">
+        <button class="sw-btm-choice sw-btm-choice--opt" onclick="btmChoose('existing')">
           <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c0-2.8 2.2-5 5-5s5 2.2 5 5"/><circle cx="7" cy="4.5" r="2.5"/><path d="M10.5 7.5l1.5 1-1 1.5"/></svg>
           I&rsquo;m an existing client
         </button>
-        <button class="sw-btm-btn sw-btm-btn--reach" onclick="openModal()">
+        <button class="sw-btm-choice sw-btm-choice--reach" onclick="openModal()">
           <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 8.5c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L4.3 6.6C3.8 5.8 3.55 5.05 3.55 4.4c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H6c.1.08.2.2.27.3L7.4 4.1c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"/></svg>
           Reach out &mdash; talk to Cheree
         </button>
       </div>
+
+      <!-- Phase 1+: expandable content (picker / form / outcome) — injected by JS -->
+      <div class="sw-btm-expand sw-btm-expand--closed" id="btm-expand">
+        <div class="sw-btm-expand-inner" id="btm-expand-inner"></div>
+      </div>
+
     </div>
   </div>
+
   <div class="ft-cols">
     <div class="ft-brand">
       <p class="ftc-name">Cheree McGarry</p>
@@ -1123,13 +1055,161 @@ function launcherToggle() {
 
 // Called from bottom CTA buttons — pre-selects client type, expands, scrolls
 function launcherExpand(clientType) {
-  _launcherOpen(true);
-  if (clientType) launcherSetClient(clientType);
+  // Routes to bottom picker
+  btmChoose(clientType || 'new');
 }
 
 function launcherFocus(svcKey) {
-  _launcherOpen(true);
-  launcherSetSvc(svcKey);
+  // Routes to bottom picker, pre-selects service
+  btmChoose('new');
+  btmSetSvc(svcKey);
+}
+
+/* ─── Bottom picker — self-contained hub at page end ───────────────────────── */
+
+let btmClient  = null;
+let btmService = null;
+let btmFunding = null;
+
+function btmChoose(type) {
+  btmClient  = type;
+  btmService = null;
+  btmFunding = null;
+
+  const choices = document.getElementById('btm-choices');
+  const expand  = document.getElementById('btm-expand');
+  const inner   = document.getElementById('btm-expand-inner');
+  if (!expand || !inner) return;
+
+  if (choices) choices.classList.add('sw-btm-choices--gone');
+
+  if (type === 'existing') {
+    lncService = null; // clear so form field is editable
+    inner.innerHTML = buildExistingClientHtml();
+  } else {
+    inner.innerHTML = _btmPickerHtml();
+  }
+
+  expand.classList.remove('sw-btm-expand--closed');
+  _btmScrollToCard();
+}
+
+function btmSetSvc(key) {
+  btmService = key;
+  document.querySelectorAll('[data-bsvc]').forEach(el =>
+    el.classList.toggle('sel', el.dataset.bsvc === key));
+
+  const fundRow = document.getElementById('btm-fund-row');
+  if (fundRow) fundRow.classList.remove('sw-btm-prow--hidden');
+
+  const disabled = disabledFunding[key] || [];
+  document.querySelectorAll('[data-bfund]').forEach(p => {
+    const off = disabled.includes(p.dataset.bfund);
+    p.classList.toggle('sw-ln-chip--off', off);
+    if (off && btmFunding === p.dataset.bfund) {
+      btmFunding = null;
+      p.classList.remove('sel');
+    }
+  });
+  _btmUpdateGoBtn();
+}
+
+function btmSetFund(key) {
+  if ((disabledFunding[btmService] || []).includes(key)) return;
+  btmFunding = key;
+  document.querySelectorAll('[data-bfund]').forEach(el =>
+    el.classList.toggle('sel', el.dataset.bfund === key));
+  _btmUpdateGoBtn();
+}
+
+function _btmUpdateGoBtn() {
+  const btn = document.getElementById('btm-go-btn');
+  const lbl = document.getElementById('btm-go-lbl');
+  if (!btn || !lbl) return;
+  const ready = !!(btmService && btmFunding);
+  btn.disabled = !ready;
+  lbl.textContent = ready ? 'Show me what’s next →' : 'Complete your selections above';
+}
+
+function btmSubmit() {
+  selectedService = btmService;
+  selectedClient  = btmClient;
+  selectedFunding = btmFunding;
+  currentPlan = (planMatrix[btmService] || {})[btmFunding] || null;
+
+  const inner = document.getElementById('btm-expand-inner');
+  if (!inner) return;
+
+  inner.innerHTML =
+    '<div class="sw-btm-outcome-wrap">' +
+      '<button class="sw-back-btn sw-btm-back" onclick="btmReset()">' +
+        '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3L4 7l5 4"/></svg>' +
+        ' Change selections' +
+      '</button>' +
+      '<div id="btm-outcome-card"></div>' +
+    '</div>';
+
+  renderOutcome('btm-outcome-card');
+}
+
+function btmReset() {
+  btmClient = null; btmService = null; btmFunding = null;
+  selectedService = null; selectedClient = null; selectedFunding = null; currentPlan = null;
+
+  const choices = document.getElementById('btm-choices');
+  const expand  = document.getElementById('btm-expand');
+  const inner   = document.getElementById('btm-expand-inner');
+
+  expand.classList.add('sw-btm-expand--closed');
+  if (choices) choices.classList.remove('sw-btm-choices--gone');
+
+  // Clear inner after transition
+  setTimeout(() => { if (inner) inner.innerHTML = ''; }, 380);
+  _btmScrollToCard();
+}
+
+function _btmScrollToCard() {
+  const card = document.getElementById('btm-card');
+  if (!card) return;
+  const navH = (document.getElementById('nav') || {}).offsetHeight || 68;
+  const top  = card.getBoundingClientRect().top + window.scrollY - navH - 24;
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
+
+function _btmPickerHtml() {
+  return '<div class="sw-btm-picker" id="btm-picker">' +
+    '<button class="sw-back-btn sw-btm-back" onclick="btmReset()">' +
+      '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3L4 7l5 4"/></svg>' +
+      ' Back' +
+    '</button>' +
+    '<div class="sw-btm-prow">' +
+      '<span class="sw-btm-q">What type of support?</span>' +
+      '<div class="sw-ln-chips">' +
+        '<button class="sw-ln-chip" data-bsvc="individual" onclick="btmSetSvc(\'individual\')">Individual therapy</button>' +
+        '<button class="sw-ln-chip" data-bsvc="couple-family" onclick="btmSetSvc(\'couple-family\')">Couple or family</button>' +
+        '<button class="sw-ln-chip" data-bsvc="child" onclick="btmSetSvc(\'child\')">Child (under 16)</button>' +
+        '<button class="sw-ln-chip" data-bsvc="mediation" onclick="btmSetSvc(\'mediation\')">Professional mediation</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="sw-btm-prow sw-btm-prow--hidden" id="btm-fund-row">' +
+      '<span class="sw-btm-q">How are sessions covered?</span>' +
+      '<div class="sw-ln-chips">' +
+        '<button class="sw-ln-chip" data-bfund="medicare" onclick="btmSetFund(\'medicare\')">Medicare</button>' +
+        '<button class="sw-ln-chip" data-bfund="private" onclick="btmSetFund(\'private\')">Private / self-funded</button>' +
+        '<button class="sw-ln-chip" data-bfund="ndis-self" onclick="btmSetFund(\'ndis-self\')">NDIS — self-managed</button>' +
+        '<button class="sw-ln-chip" data-bfund="ndis-plan" onclick="btmSetFund(\'ndis-plan\')">NDIS — plan-managed</button>' +
+        '<button class="sw-ln-chip" data-bfund="qfes" onclick="btmSetFund(\'qfes\')">QFES</button>' +
+        '<button class="sw-ln-chip" data-bfund="dva" onclick="btmSetFund(\'dva\')">ADFHSC &amp; DVA</button>' +
+        '<button class="sw-ln-chip" data-bfund="not-sure" onclick="btmSetFund(\'not-sure\')">Not sure</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="sw-btm-cta-row">' +
+      '<button class="btn btn-solid sw-btm-go" id="btm-go-btn" disabled onclick="btmSubmit()">' +
+        '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>' +
+        '<span id="btm-go-lbl">Complete your selections above</span>' +
+      '</button>' +
+    '</div>' +
+  '</div>';
 }
 
 function buildExistingClientHtml() {
@@ -1165,9 +1245,10 @@ function buildExistingClientHtml() {
 
 /* ─ Outcome card renderer ────────────────────────────────────────────────── */
 
-function renderOutcome() {
+function renderOutcome(targetId) {
   const p = currentPlan;
-  const container = document.getElementById('sw-outcome-card');
+  const container = document.getElementById(targetId || 'sw-outcome-card');
+  if (!container) return;
   if (!p) { container.innerHTML = ''; return; }
 
   if (p.ctaType === 'contact') {
