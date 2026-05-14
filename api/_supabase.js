@@ -4,7 +4,7 @@
  *
  * Env vars required:
  *   SUPABASE_URL          — from Supabase project settings
- *   SUPABASE_SERVICE_KEY  — service_role key (Settings → API)
+ *   SUPABASE_SERVICE_ROLE_KEY  — service_role key (Settings → API)
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -15,7 +15,7 @@ export function supabase() {
   if (!_client) {
     _client = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_KEY,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
       { auth: { persistSession: false } }
     );
   }
