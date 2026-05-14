@@ -60,6 +60,25 @@ function enquiryCard(e) {
   <div class="eq-notes-row">
     <textarea class="eq-notes" placeholder="Notes…" onblur="saveNotes('${e.id}', this.value)">${e.notes || ''}</textarea>
   </div>
+  <!-- Intake action -->
+  <div class="eq-actions">
+    <button class="eq-intake-btn" id="intake-btn-${e.id}" onclick="toggleIntakePanel('${e.id}')">
+      Send intake email
+    </button>
+  </div>
+  <div class="eq-intake-panel" id="intake-panel-${e.id}">
+    <div class="eq-intake-row">
+      <select class="eq-intake-type" id="intake-type-${e.id}">
+        <option value="new">New client</option>
+        <option value="medicare">Medicare (MHCP)</option>
+        <option value="ndis">NDIS</option>
+      </select>
+      <input class="eq-intake-url" id="intake-url-${e.id}"
+             type="url" placeholder="Paste Halaxy intake form URL…">
+      <button class="eq-intake-send" onclick="sendIntake('${e.id}')">Send &rarr;</button>
+    </div>
+    <div class="eq-intake-msg" id="intake-msg-${e.id}"></div>
+  </div>
 </div>`;
 }
 
@@ -284,6 +303,80 @@ body {
   text-align: center; padding: 48px 24px;
   color: var(--soft); font-size: 13px; letter-spacing: 0.02em;
 }
+
+/* ── Enquiry card footer actions ── */
+.eq-actions {
+  display: flex; align-items: center; gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(42,88,80,0.07);
+  margin-top: 4px;
+}
+.eq-intake-btn {
+  font-family: var(--sans);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--teal);
+  background: rgba(42,88,80,0.07);
+  border: none; border-radius: 100px;
+  padding: 5px 14px; cursor: pointer;
+  transition: background 0.18s;
+}
+.eq-intake-btn:hover { background: rgba(42,88,80,0.14); }
+.eq-intake-btn.sent {
+  color: var(--soft);
+  background: rgba(42,88,80,0.04);
+  cursor: default;
+}
+
+/* ── Intake panel (inline in card) ── */
+.eq-intake-panel {
+  display: none;
+  margin-top: 12px;
+  background: rgba(42,88,80,0.03);
+  border: 1px solid rgba(42,88,80,0.10);
+  border-radius: 10px;
+  padding: 16px;
+}
+.eq-intake-panel.open { display: block; }
+.eq-intake-row {
+  display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap;
+}
+.eq-intake-type {
+  font-family: var(--sans);
+  font-size: 12px; color: var(--tealDeep);
+  border: 1.5px solid rgba(42,88,80,0.15);
+  border-radius: 8px; padding: 8px 10px;
+  background: white; outline: none; cursor: pointer;
+  flex-shrink: 0; min-width: 130px;
+  transition: border-color 0.2s;
+}
+.eq-intake-type:focus { border-color: var(--teal); }
+.eq-intake-url {
+  flex: 1; min-width: 180px;
+  font-family: var(--sans);
+  font-size: 12px; color: var(--tealDeep);
+  border: 1.5px solid rgba(42,88,80,0.15);
+  border-radius: 8px; padding: 8px 12px;
+  background: white; outline: none;
+  transition: border-color 0.2s;
+}
+.eq-intake-url:focus { border-color: var(--teal); }
+.eq-intake-url::placeholder { color: var(--soft); font-size: 11.5px; }
+.eq-intake-send {
+  font-family: var(--sans);
+  font-size: 12px; font-weight: 500;
+  padding: 8px 18px;
+  background: var(--teal); color: white;
+  border: none; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s; white-space: nowrap;
+}
+.eq-intake-send:hover { background: var(--mid); }
+.eq-intake-send:disabled { opacity: 0.55; cursor: not-allowed; }
+.eq-intake-msg {
+  font-size: 11.5px; margin-top: 8px; padding: 0 2px;
+}
+.eq-intake-msg.ok { color: var(--teal); }
+.eq-intake-msg.err { color: var(--terra); }
 
 /* ── Right column ── */
 .right-col { display: flex; flex-direction: column; gap: 24px; }
@@ -604,6 +697,77 @@ async function deleteTask(id) {
   const item = document.querySelector('.task-item[data-id="' + id + '"]');
   if (item) item.remove();
   await fetch('/api/admin-tasks?id=' + id, { method: 'DELETE' });
+}
+
+/* ── Intake email ── */
+function toggleIntakePanel(id) {
+  const panel = document.getElementById('intake-panel-' + id);
+  const btn   = document.getElementById('intake-btn-' + id);
+  if (!panel || btn.classList.contains('sent')) return;
+  const open = panel.classList.toggle('open');
+  btn.textContent = open ? 'Cancel' : 'Send intake email';
+}
+
+async function sendIntake(id) {
+  const typeEl = document.getElementById('intake-type-' + id);
+  const urlEl  = document.getElementById('intake-url-'  + id);
+  const msgEl  = document.getElementById('intake-msg-'  + id);
+  const sendBtn = document.querySelector('#intake-panel-' + id + ' .eq-intake-send');
+
+  const intakeUrl  = (urlEl.value || '').trim();
+  const clientType = typeEl.value;
+
+  msgEl.className = 'eq-intake-msg';
+  msgEl.textContent = '';
+
+  if (!intakeUrl) {
+    msgEl.className = 'eq-intake-msg err';
+    msgEl.textContent = 'Please paste the Halaxy intake form URL first.';
+    return;
+  }
+  if (!intakeUrl.startsWith('http')) {
+    msgEl.className = 'eq-intake-msg err';
+    msgEl.textContent = 'URL should start with https://';
+    return;
+  }
+
+  sendBtn.disabled = true;
+  sendBtn.textContent = 'Sending…';
+
+  try {
+    const res = await fetch('/api/admin-intake', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enquiryId: id, clientType, intakeUrl }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Unknown error');
+
+    msgEl.className = 'eq-intake-msg ok';
+    msgEl.textContent = 'Intake email sent. Status updated to In Halaxy.';
+
+    // Update status in UI
+    const card = document.querySelector('.eq-card[data-id="' + id + '"]');
+    if (card) {
+      card.dataset.status = 'in_halaxy';
+      const sel = card.querySelector('.eq-status-sel');
+      if (sel) sel.value = 'in_halaxy';
+    }
+
+    // Update the button to a sent state
+    const btn = document.getElementById('intake-btn-' + id);
+    if (btn) {
+      btn.textContent = 'Intake sent ✓';
+      btn.classList.add('sent');
+    }
+
+  } catch (err) {
+    msgEl.className = 'eq-intake-msg err';
+    msgEl.textContent = 'Error: ' + err.message;
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Send →';
+  }
 }
 </script>
 </body>
