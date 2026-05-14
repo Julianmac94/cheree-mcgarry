@@ -1104,49 +1104,14 @@ function btmChoose(type) {
 }
 
 function btmSetSvc(key) {
-  if (btmService === key) {
-    btmService = null;
-    btmFunding = null;
-    document.querySelectorAll('[data-bsvc]').forEach(function(el) { el.classList.remove('sel'); });
-    document.querySelectorAll('[data-bfund]').forEach(function(el) { el.classList.remove('sel'); });
-    const fundRow = document.getElementById('btm-fund-row');
-    if (fundRow) fundRow.classList.add('sw-btm-prow--hidden');
-    _btmUpdateGoBtn();
-    return;
-  }
   btmService = key;
-  document.querySelectorAll('[data-bsvc]').forEach(function(el) {
-    el.classList.toggle('sel', el.dataset.bsvc === key);
-  });
-
-  const fundRow = document.getElementById('btm-fund-row');
-  if (fundRow) fundRow.classList.remove('sw-btm-prow--hidden');
-
-  const disabled = disabledFunding[key] || [];
-  document.querySelectorAll('[data-bfund]').forEach(function(p) {
-    const off = disabled.includes(p.dataset.bfund);
-    p.classList.toggle('sw-ln-chip--off', off);
-    if (off && btmFunding === p.dataset.bfund) {
-      btmFunding = null;
-      p.classList.remove('sel');
-    }
-  });
-  _btmUpdateGoBtn();
+  btmFunding = null; // clear coverage when service changes
+  _rerenderPicker();
 }
 
 function btmSetFund(key) {
-  if ((disabledFunding[btmService] || []).includes(key)) return;
-  if (btmFunding === key) {
-    btmFunding = null;
-    document.querySelectorAll('[data-bfund]').forEach(function(el) { el.classList.remove('sel'); });
-    _btmUpdateGoBtn();
-    return;
-  }
   btmFunding = key;
-  document.querySelectorAll('[data-bfund]').forEach(function(el) {
-    el.classList.toggle('sel', el.dataset.bfund === key);
-  });
-  _btmUpdateGoBtn();
+  _rerenderPicker();
 }
 
 function _btmUpdateGoBtn() {
@@ -1164,12 +1129,12 @@ function btmSubmit() {
   selectedFunding = btmFunding;
   currentPlan = (planMatrix[btmService] || {})[btmFunding] || null;
 
-  // Close picker
-  const expand = document.getElementById('btm-expand');
-  if (expand) expand.classList.add('sw-btm-expand--closed');
+  // Hide the wizard card entirely
+  var card = document.getElementById('btm-card');
+  if (card) card.classList.add('sw-btm-card--hidden');
 
-  // Render outcome in section below the wizard card
-  const outcomeSection = document.getElementById('btm-outcome');
+  // Build outcome section: plan details + inline form
+  var outcomeSection = document.getElementById('btm-outcome');
   if (!outcomeSection) return;
 
   outcomeSection.innerHTML =
@@ -1179,10 +1144,15 @@ function btmSubmit() {
         ' Edit selections' +
       '</button>' +
       '<div id="btm-outcome-card"></div>' +
+      _inlineRequestHtml() +
     '</div>';
 
   outcomeSection.classList.remove('sw-btm-outcome-section--hidden');
   renderOutcome('btm-outcome-card');
+
+  // Remove the "Request your first session" link row — inline form replaces it
+  var ctaRow = document.querySelector('#btm-outcome-card .sw-oc-cta-row');
+  if (ctaRow) ctaRow.remove();
 
   setTimeout(function() {
     var navH = (document.getElementById('nav') || {}).offsetHeight || 68;
@@ -1197,8 +1167,11 @@ function btmReset() {
 
   document.querySelectorAll('.sw-btm-choice--opt').forEach(function(el) { el.classList.remove('sel'); });
 
-  const expand  = document.getElementById('btm-expand');
-  const inner   = document.getElementById('btm-expand-inner');
+  var card = document.getElementById('btm-card');
+  if (card) card.classList.remove('sw-btm-card--hidden');
+
+  var expand  = document.getElementById('btm-expand');
+  var inner   = document.getElementById('btm-expand-inner');
   if (expand) expand.classList.add('sw-btm-expand--closed');
 
   var outcomeSection = document.getElementById('btm-outcome');
@@ -1224,37 +1197,17 @@ function btmEditSelections() {
   var outcomeSection = document.getElementById('btm-outcome');
   if (outcomeSection) outcomeSection.classList.add('sw-btm-outcome-section--hidden');
 
-  var savedSvc  = btmService;
-  var savedFund = btmFunding;
-  btmService = null;
-  btmFunding = null;
+  // Show wizard card again
+  var card = document.getElementById('btm-card');
+  if (card) card.classList.remove('sw-btm-card--hidden');
 
   var expand = document.getElementById('btm-expand');
   var inner  = document.getElementById('btm-expand-inner');
   if (!expand || !inner) return;
 
+  // btmService / btmFunding are still set from last submit -- picker re-renders with chips shown
   inner.innerHTML = _btmPickerHtml();
   expand.classList.remove('sw-btm-expand--closed');
-
-  if (savedSvc) {
-    btmService = savedSvc;
-    document.querySelectorAll('[data-bsvc]').forEach(function(el) {
-      el.classList.toggle('sel', el.dataset.bsvc === savedSvc);
-    });
-    var fundRow = document.getElementById('btm-fund-row');
-    if (fundRow) fundRow.classList.remove('sw-btm-prow--hidden');
-    var disabled = disabledFunding[savedSvc] || [];
-    document.querySelectorAll('[data-bfund]').forEach(function(p) {
-      p.classList.toggle('sw-ln-chip--off', disabled.includes(p.dataset.bfund));
-    });
-  }
-  if (savedFund) {
-    btmFunding = savedFund;
-    document.querySelectorAll('[data-bfund]').forEach(function(el) {
-      el.classList.toggle('sel', el.dataset.bfund === savedFund);
-    });
-  }
-  _btmUpdateGoBtn();
   _btmScrollToCard();
 }
 
@@ -1267,39 +1220,168 @@ function _btmScrollToCard() {
 }
 
 function _btmPickerHtml() {
+  var disabled = btmService ? (disabledFunding[btmService] || []) : [];
+  var svcLabel  = btmService ? (svcLabels[btmService] || btmService) : '';
+  var fundLabel = btmFunding ? (fundLabels[btmFunding] || btmFunding).replace(/&mdash;/g,'--').replace(/&amp;/g,'&') : '';
+  var ready = !!(btmService && btmFunding);
+
+  var svcHtml = btmService
+    ? '<div class="sw-btm-chip-sel"><span>' + svcLabel + '</span>' +
+        '<button class="sw-btm-chip-x" onclick="btmClearSvc()" aria-label="Clear">×</button></div>'
+    : '<select class="sw-btm-select" id="svc-select" onchange="if(this.value)btmSetSvc(this.value)">' +
+        '<option value="">Choose a service type…</option>' +
+        '<option value="individual">Individual therapy</option>' +
+        '<option value="couple-family">Couple or family therapy</option>' +
+        '<option value="child">Child therapy (under 16)</option>' +
+        '<option value="mediation">Professional mediation</option>' +
+      '</select>';
+
+  var fundHtml = '';
+  if (btmService) {
+    fundHtml = btmFunding
+      ? '<div class="sw-btm-field"><span class="sw-btm-q">How are sessions covered?</span>' +
+          '<div class="sw-btm-chip-sel"><span>' + fundLabel + '</span>' +
+          '<button class="sw-btm-chip-x" onclick="btmClearFund()" aria-label="Clear">×</button></div></div>'
+      : '<div class="sw-btm-field"><span class="sw-btm-q">How are sessions covered?</span>' +
+          '<select class="sw-btm-select" id="fund-select" onchange="if(this.value)btmSetFund(this.value)">' +
+            '<option value="">Choose coverage type…</option>' +
+            (disabled.includes('medicare') ? '' : '<option value="medicare">Medicare (MHCP)</option>') +
+            '<option value="private">Private / self-funded</option>' +
+            (disabled.includes('ndis-self') ? '' : '<option value="ndis-self">NDIS — self-managed</option>') +
+            (disabled.includes('ndis-plan') ? '' : '<option value="ndis-plan">NDIS — plan-managed</option>') +
+            (disabled.includes('qfes') ? '' : '<option value="qfes">QFES</option>') +
+            (disabled.includes('dva') ? '' : '<option value="dva">ADFHSC &amp; DVA</option>') +
+            '<option value="not-sure">Not sure</option>' +
+          '</select></div>';
+  }
+
   return '<div class="sw-btm-picker" id="btm-picker">' +
-    '<button class="sw-back-btn sw-btm-back" onclick="btmBack()">' +
-      '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3L4 7l5 4"/></svg>' +
-      ' Back' +
-    '</button>' +
-    '<div class="sw-btm-prow">' +
-      '<span class="sw-btm-q">What type of support?</span>' +
-      '<div class="sw-ln-chips">' +
-        '<button class="sw-ln-chip" data-bsvc="individual" onclick="btmSetSvc(\'individual\')">Individual therapy</button>' +
-        '<button class="sw-ln-chip" data-bsvc="couple-family" onclick="btmSetSvc(\'couple-family\')">Couple or family</button>' +
-        '<button class="sw-ln-chip" data-bsvc="child" onclick="btmSetSvc(\'child\')">Child (under 16)</button>' +
-        '<button class="sw-ln-chip" data-bsvc="mediation" onclick="btmSetSvc(\'mediation\')">Professional mediation</button>' +
-      '</div>' +
-    '</div>' +
-    '<div class="sw-btm-prow sw-btm-prow--hidden" id="btm-fund-row">' +
-      '<span class="sw-btm-q">How are sessions covered?</span>' +
-      '<div class="sw-ln-chips">' +
-        '<button class="sw-ln-chip" data-bfund="medicare" onclick="btmSetFund(\'medicare\')">Medicare</button>' +
-        '<button class="sw-ln-chip" data-bfund="private" onclick="btmSetFund(\'private\')">Private / self-funded</button>' +
-        '<button class="sw-ln-chip" data-bfund="ndis-self" onclick="btmSetFund(\'ndis-self\')">NDIS — self-managed</button>' +
-        '<button class="sw-ln-chip" data-bfund="ndis-plan" onclick="btmSetFund(\'ndis-plan\')">NDIS — plan-managed</button>' +
-        '<button class="sw-ln-chip" data-bfund="qfes" onclick="btmSetFund(\'qfes\')">QFES</button>' +
-        '<button class="sw-ln-chip" data-bfund="dva" onclick="btmSetFund(\'dva\')">ADFHSC &amp; DVA</button>' +
-        '<button class="sw-ln-chip" data-bfund="not-sure" onclick="btmSetFund(\'not-sure\')">Not sure</button>' +
-      '</div>' +
-    '</div>' +
+    '<div class="sw-btm-field"><span class="sw-btm-q">What type of support?</span>' + svcHtml + '</div>' +
+    fundHtml +
     '<div class="sw-btm-cta-row">' +
-      '<button class="btn btn-solid sw-btm-go" id="btm-go-btn" disabled onclick="btmSubmit()">' +
+      '<button class="btn btn-solid sw-btm-go" id="btm-go-btn"' + (ready ? '' : ' disabled') + ' onclick="btmSubmit()">' +
         '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>' +
-        '<span id="btm-go-lbl">Complete your selections above</span>' +
+        '<span id="btm-go-lbl">' + (ready ? 'Show me what\'s next' : 'Select a service and coverage above') + '</span>' +
       '</button>' +
     '</div>' +
   '</div>';
+}
+
+function _rerenderPicker() {
+  var inner = document.getElementById('btm-expand-inner');
+  if (inner) inner.innerHTML = _btmPickerHtml();
+}
+
+function btmClearSvc() { btmService = null; btmFunding = null; _rerenderPicker(); }
+function btmClearFund() { btmFunding = null; _rerenderPicker(); }
+
+function _inlineRequestHtml() {
+  return '<div class="sw-ir" id="sw-ir-wrap">' +
+    '<div class="sw-ir-steps-wrap">' +
+      '<div class="sw-ir-steps-head">What happens next</div>' +
+      '<div class="sw-ir-steps">' +
+        '<div class="sw-ir-step">' +
+          '<div class="sw-ir-step-num">Step 1</div>' +
+          '<div class="sw-ir-step-body">Cheree reviews your request</div>' +
+          '<div class="sw-ir-step-sub">She\'ll check availability and confirm your spot — usually within one business day.</div>' +
+        '</div>' +
+        '<div class="sw-ir-step">' +
+          '<div class="sw-ir-step-num">Step 2</div>' +
+          '<div class="sw-ir-step-body">You receive an intake form &amp; booking link</div>' +
+          '<div class="sw-ir-step-sub">A short intake form helps Cheree prepare. Complete it before your first session — no rush.</div>' +
+        '</div>' +
+        '<div class="sw-ir-step">' +
+          '<div class="sw-ir-step-num">Step 3</div>' +
+          '<div class="sw-ir-step-body">Your first session</div>' +
+          '<div class="sw-ir-step-sub">In person at Karalee (QLD) or online — wherever works best for you.</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="sw-ir-form-wrap">' +
+      '<h3 class="sw-ir-form-title">A few details</h3>' +
+      '<p class="sw-ir-form-sub">No commitment — just the first step of a conversation.</p>' +
+      '<div id="sw-ir-form">' +
+        '<div class="frow">' +
+          '<div class="fg"><label class="fl">First name</label><input class="fi" id="ir-fname" type="text" placeholder="Your name" autocomplete="given-name"></div>' +
+          '<div class="fg"><label class="fl">Last name <span class="sw-req-opt">(optional)</span></label><input class="fi" id="ir-lname" type="text" autocomplete="family-name"></div>' +
+        '</div>' +
+        '<div class="fg"><label class="fl">Email address</label><input class="fi" id="ir-email" type="email" placeholder="you@example.com" autocomplete="email"></div>' +
+        '<div class="fg"><label class="fl">Phone <span class="sw-req-opt">(optional)</span></label><input class="fi" id="ir-phone" type="tel" placeholder="0400 000 000" autocomplete="tel"></div>' +
+        '<div class="fg"><label class="fl">Preferred days or times <span class="sw-req-opt">(optional)</span></label><input class="fi" id="ir-times" type="text" placeholder="e.g. Tuesday afternoons"></div>' +
+        '<div class="fg"><label class="fl">Anything else? <span class="sw-req-opt">(optional)</span></label><textarea class="ft" id="ir-note" style="min-height:72px" placeholder="Keep it brief — no pressure to explain everything just yet."></textarea></div>' +
+      '</div>' +
+      '<div class="sw-ir-ok" id="sw-ir-ok">' +
+        '<div class="sw-ir-ok-ring">&#127807;</div>' +
+        '<h3 class="sw-ir-ok-title">Request received</h3>' +
+        '<p class="sw-ir-ok-body">Cheree will be in touch within 1 business day to confirm your spot and send through your intake form and booking link. Take gentle care until then.</p>' +
+      '</div>' +
+    '</div>' +
+    '<div class="sw-ir-submit-row" id="sw-ir-submit-row">' +
+      '<button class="btn btn-solid" id="ir-submit" onclick="submitInlineRequest()">' +
+        '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>' +
+        ' Send request' +
+      '</button>' +
+      '<p class="sw-ir-policy">24&#8202;hr cancellation policy applies once confirmed · <a href="info.html#ci-appointments">Details</a></p>' +
+    '</div>' +
+  '</div>';
+}
+
+async function submitInlineRequest() {
+  var fname = (document.getElementById('ir-fname') || {}).value.trim() || '';
+  var email = (document.getElementById('ir-email') || {}).value.trim() || '';
+  var errEl = document.getElementById('ir-error');
+  if (errEl) errEl.remove();
+
+  if (!fname) { _irError('Please enter your first name.'); return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { _irError('Please enter a valid email address.'); return; }
+
+  var lname = (document.getElementById('ir-lname') || {}).value.trim() || '';
+  var phone = (document.getElementById('ir-phone') || {}).value.trim() || '';
+  var times = (document.getElementById('ir-times') || {}).value.trim() || '';
+  var note  = (document.getElementById('ir-note')  || {}).value.trim() || '';
+  var btn   = document.getElementById('ir-submit');
+  var fundLabel = selectedFunding ? (fundLabels[selectedFunding] || selectedFunding).replace(/&mdash;/g,'--').replace(/&amp;/g,'&') : '(not specified)';
+
+  btn.disabled    = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    var resp = await fetch('/api/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name:            [fname, lname].filter(Boolean).join(' '),
+        email:           email,
+        phone:           phone || '(not provided)',
+        service:         svcLabels[selectedService] || selectedService || '(not specified)',
+        client_type:     selectedClient === 'new' ? 'New client' : (selectedClient === 'existing' ? 'Returning client' : '(not specified)'),
+        coverage:        fundLabel,
+        preferred_times: times || '(not specified)',
+        message:         note  || '(no additional notes)',
+      }),
+    });
+    if (resp.ok) {
+      document.getElementById('sw-ir-form').style.display = 'none';
+      document.getElementById('sw-ir-submit-row').style.display = 'none';
+      document.getElementById('sw-ir-ok').style.display = 'block';
+    } else { throw new Error('server'); }
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg> Send request';
+    _irError('Something went wrong — please email reachout@chereemcgarry.com directly.');
+  }
+}
+
+function _irError(msg) {
+  var el = document.getElementById('ir-error');
+  if (!el) {
+    el = document.createElement('p');
+    el.id = 'ir-error';
+    el.style.cssText = 'color:#b02828;font-size:13px;margin:0 0 10px;font-family:var(--sans)';
+    var submitRow = document.getElementById('sw-ir-submit-row');
+    if (submitRow) submitRow.insertAdjacentElement('beforebegin', el);
+  }
+  el.textContent = msg;
 }
 
 function buildExistingClientHtml() {
