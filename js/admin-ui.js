@@ -1204,79 +1204,128 @@ async function openCalSessionPanel(cardUid, eventId) {
 function _renderCalClientResults(cardUid, eventId, query) {
   var res = document.getElementById('pl-cs-res-' + cardUid);
   if (!res || !_pipelineData) return;
-  var clients = (_pipelineData.clients || []).filter(function(c) { return c.active !== false; });
-  if (query) {
-    var q = query.toLowerCase();
-    clients = clients.filter(function(c) { return (c.display_name || '').toLowerCase().indexOf(q) !== -1; });
-  }
-  if (!clients.length) {
-    res.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:5px 2px">No clients found</div>';
+
+  var q = query ? query.toLowerCase() : '';
+
+  // Active clients
+  var clients = (_pipelineData.clients || []).filter(function(c) {
+    return c.active !== false && (!q || (c.display_name || '').toLowerCase().indexOf(q) !== -1);
+  });
+
+  // Non-closed enquiries (people not yet formally converted)
+  var enquiries = (_pipelineData.enquiries || []).filter(function(e) {
+    if (e.status === 'closed') return false;
+    var name = [e.first_name, e.last_name].filter(Boolean).join(' ');
+    return !q || name.toLowerCase().indexOf(q) !== -1;
+  });
+
+  if (!clients.length && !enquiries.length) {
+    res.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:5px 2px">No clients or enquiries found</div>';
     return;
   }
-  res.innerHTML = clients.slice(0, 8).map(function(c) {
-    var rate  = FUNDER_RATES[c.funder] ? '$' + FUNDER_RATES[c.funder] : '';
-    var fdr   = FUNDER_LABELS[c.funder] || c.funder || '';
-    var meta  = [fdr, rate, c.halaxy_id ? 'H✓' : ''].filter(Boolean).join(' · ');
-    return '<div class="pl-link-result" onclick="event.stopPropagation();_showCalFeeForm(\'' + cardUid + '\',\'' + eventId + '\',\'' + c.id + '\')">'
-      + '<span class="pl-link-result-name">' + escHtml(c.display_name) + '</span>'
-      + '<span class="pl-link-result-meta">' + escHtml(meta) + '</span>'
-      + '</div>';
-  }).join('');
+
+  var html = '';
+
+  if (clients.length) {
+    html += clients.slice(0, 6).map(function(c) {
+      var rate = FUNDER_RATES[c.funder] ? '$' + FUNDER_RATES[c.funder] : '';
+      var meta = [FUNDER_LABELS[c.funder] || c.funder, rate, c.halaxy_id ? 'H✓' : ''].filter(Boolean).join(' · ');
+      return '<div class="pl-link-result" onclick="event.stopPropagation();_showCalFeeForm(\'' + cardUid + '\',\'' + eventId + '\',\'' + c.id + '\',\'client\')">'
+        + '<span class="pl-link-result-name">' + escHtml(c.display_name) + '</span>'
+        + '<span class="pl-link-result-meta">' + escHtml(meta) + '</span>'
+        + '</div>';
+    }).join('');
+  }
+
+  if (enquiries.length) {
+    if (clients.length) html += '<div style="font-size:10px;color:var(--soft);padding:4px 2px 2px;text-transform:uppercase;letter-spacing:.03em">Enquiries — will convert on save</div>';
+    html += enquiries.slice(0, 4).map(function(e) {
+      var name = [e.first_name, e.last_name].filter(Boolean).join(' ') || '—';
+      var meta = e.service || e.source || 'Enquiry';
+      return '<div class="pl-link-result" onclick="event.stopPropagation();_showCalFeeForm(\'' + cardUid + '\',\'' + eventId + '\',\'' + e.id + '\',\'enquiry\')">'
+        + '<span class="pl-link-result-name">' + escHtml(name) + '</span>'
+        + '<span class="pl-link-result-meta" style="color:var(--terra)">' + escHtml(meta) + ' · needs funder</span>'
+        + '</div>';
+    }).join('');
+  }
+
+  res.innerHTML = html;
 }
 
-function _showCalFeeForm(cardUid, eventId, clientId) {
+function _showCalFeeForm(cardUid, eventId, sourceId, sourceType) {
   if (!_pipelineData) return;
-  var client = (_pipelineData.clients || []).find(function(c) { return String(c.id) === String(clientId); });
-  if (!client) return;
-  var evt    = _calEventMap[eventId] || {};
-  var funder = FUNDER_LABELS[client.funder] || client.funder || '';
-  var halaxy = client.halaxy_id ? 'In Halaxy ✓' : 'Not yet in Halaxy';
+
+  // Resolve to a display object — either a real client or an enquiry
+  var isEnquiry = sourceType === 'enquiry';
+  var client = null, enquiry = null, displayName = '', funderVal = '', halaxyId = '';
+
+  if (isEnquiry) {
+    enquiry = (_pipelineData.enquiries || []).find(function(e) { return String(e.id) === String(sourceId); });
+    if (!enquiry) return;
+    displayName = [enquiry.first_name, enquiry.last_name].filter(Boolean).join(' ') || '—';
+  } else {
+    client = (_pipelineData.clients || []).find(function(c) { return String(c.id) === String(sourceId); });
+    if (!client) return;
+    displayName = client.display_name;
+    funderVal   = client.funder || '';
+    halaxyId    = client.halaxy_id || '';
+  }
+
+  var evt        = _calEventMap[eventId] || {};
+  var funderLabel = FUNDER_LABELS[funderVal] || funderVal || (isEnquiry ? '— select funder' : '');
+  var halaxyStr  = halaxyId ? 'In Halaxy ✓' : (isEnquiry ? 'Enquiry — no client record yet' : 'Not yet in Halaxy');
 
   var panel = document.getElementById('pl-link-' + cardUid);
   if (!panel) return;
 
-  // Build fee selector — Halaxy list if available, fallback to manual entry
-  var feeHtml;
+  // Funder selector shown only for enquiries (clients already have a funder)
+  var funderPickerHtml = '';
+  if (isEnquiry) {
+    var funderOpts = Object.keys(FUNDER_LABELS).map(function(k) {
+      return '<option value="' + k + '">' + FUNDER_LABELS[k] + '</option>';
+    }).join('');
+    funderPickerHtml = '<select class="pl-link-input" id="pl-cs-funder-' + cardUid + '"'
+      + ' onclick="event.stopPropagation()" onchange="_updateEnqFeeDefault(\'' + cardUid + '\')"'
+      + ' style="margin-top:6px"><option value="">— select funder —</option>' + funderOpts + '</select>';
+  }
+
+  // Fee selector — Halaxy dropdown if available, fallback to amount input
   var fees = _halaxyFees || [];
+  var defaultRate = FUNDER_RATES[funderVal] || '';
+  var feeHtml;
   if (fees.length > 0) {
-    // Dropdown from Halaxy ChargeItemDefinition
-    var defaultRate = FUNDER_RATES[client.funder] || '';
     var options = fees.map(function(f) {
-      var label = escHtml(f.name) + ' — $' + Number(f.amount).toFixed(2);
-      // Pre-select closest match to funder default rate
+      var lbl      = escHtml(f.name) + ' — $' + Number(f.amount).toFixed(2);
       var selected = defaultRate && Math.abs(f.amount - parseFloat(defaultRate)) < 1 ? ' selected' : '';
-      return '<option value="' + f.amount + '" data-id="' + escHtml(f.id) + '"' + selected + '>' + label + '</option>';
+      return '<option value="' + f.amount + '"' + selected + '>' + lbl + '</option>';
     }).join('');
     feeHtml = '<div class="pl-fee-row" style="flex-direction:column;align-items:stretch;gap:4px">'
       + '<label class="pl-fee-label">Fee item</label>'
       + '<select class="pl-link-input" id="pl-cs-fee-' + cardUid + '" onclick="event.stopPropagation()"'
       + ' onchange="_syncFeeInput(\'' + cardUid + '\')">'
-      + '<option value="">— select a fee —</option>'
-      + options
+      + '<option value="">— select a fee —</option>' + options
       + '</select>'
       + '<div style="display:flex;align-items:center;gap:5px;margin-top:3px">'
       + '<span class="pl-fee-currency">$</span>'
       + '<input class="pl-fee-input" id="pl-cs-fee-amt-' + cardUid + '" type="number" step="0.01" min="0"'
-      + ' placeholder="or enter amount" onclick="event.stopPropagation()">'
-      + '</div>'
+      + ' placeholder="or enter amount" onclick="event.stopPropagation()"></div>'
       + '</div>';
   } else {
-    // Fallback: plain amount input with funder default
-    var rate = FUNDER_RATES[client.funder] || '';
     feeHtml = '<div class="pl-fee-row">'
-      + '<label class="pl-fee-label">Fee</label>'
-      + '<span class="pl-fee-currency">$</span>'
+      + '<label class="pl-fee-label">Fee</label><span class="pl-fee-currency">$</span>'
       + '<input class="pl-fee-input" id="pl-cs-fee-amt-' + cardUid + '" type="number" step="0.01" min="0"'
-      + ' value="' + escHtml(rate) + '" placeholder="0.00" onclick="event.stopPropagation()">'
-      + '<span class="pl-fee-funder">' + escHtml(funder) + '</span>'
+      + ' value="' + escHtml(defaultRate) + '" placeholder="0.00" onclick="event.stopPropagation()">'
+      + '<span class="pl-fee-funder">' + escHtml(funderLabel) + '</span>'
       + '</div>';
   }
 
+  // Save button passes sourceId + sourceType so we can auto-create client for enquiries
   panel.innerHTML = '<div class="pl-link-panel">'
     + '<div class="pl-link-preview">'
-    + '<div class="pl-link-preview-name">' + escHtml(client.display_name) + '</div>'
-    + '<div class="pl-link-preview-meta">' + escHtml(funder) + ' · ' + halaxy + '</div>'
+    + '<div class="pl-link-preview-name">' + escHtml(displayName) + '</div>'
+    + '<div class="pl-link-preview-meta">' + escHtml(funderLabel) + ' · ' + halaxyStr + '</div>'
     + '</div>'
+    + funderPickerHtml
     + feeHtml
     + '<input class="pl-link-input" id="pl-cs-notes-' + cardUid + '" type="text"'
     + ' value="' + escHtml(evt.title || '') + '" placeholder="Session notes…"'
@@ -1285,12 +1334,33 @@ function _showCalFeeForm(cardUid, eventId, clientId) {
     + '<button class="pl-action-btn pl-action-btn--soft"'
     + ' onclick="event.stopPropagation();openCalSessionPanel(\'' + cardUid + '\',\'' + eventId + '\')">← Back</button>'
     + '<button class="pl-action-btn pl-action-btn--primary"'
-    + ' onclick="event.stopPropagation();_saveCalSession(\'' + cardUid + '\',\'' + eventId + '\',\'' + clientId + '\')">Save session →</button>'
+    + ' onclick="event.stopPropagation();_saveCalSession(\'' + cardUid + '\',\'' + eventId + '\',\'' + sourceId + '\',\'' + sourceType + '\')">Save session →</button>'
     + '</div>'
     + '</div>';
 
-  // If dropdown pre-selected, sync the amount field
   _syncFeeInput(cardUid);
+}
+
+/** Re-fill fee default when funder is selected for an enquiry */
+function _updateEnqFeeDefault(cardUid) {
+  var sel = document.getElementById('pl-cs-funder-' + cardUid);
+  if (!sel || !sel.value) return;
+  var rate = FUNDER_RATES[sel.value] || '';
+  // Update the fee dropdown pre-selection or amount field
+  var feeSel = document.getElementById('pl-cs-fee-' + cardUid);
+  var feeAmt = document.getElementById('pl-cs-fee-amt-' + cardUid);
+  if (feeSel) {
+    // Find closest fee in dropdown
+    var best = null, bestDiff = Infinity;
+    Array.from(feeSel.options).forEach(function(o) {
+      if (!o.value) return;
+      var diff = Math.abs(parseFloat(o.value) - parseFloat(rate));
+      if (diff < bestDiff) { bestDiff = diff; best = o; }
+    });
+    if (best && bestDiff < 5) { best.selected = true; _syncFeeInput(cardUid); }
+  } else if (feeAmt && rate) {
+    feeAmt.value = rate;
+  }
 }
 
 /** When the fee dropdown changes, sync the manual amount field */
@@ -1300,23 +1370,42 @@ function _syncFeeInput(cardUid) {
   if (sel && amt && sel.value) amt.value = sel.value;
 }
 
-async function _saveCalSession(cardUid, eventId, clientId) {
-  var feeEl   = document.getElementById('pl-cs-fee-amt-' + cardUid);
-  var notesEl = document.getElementById('pl-cs-notes-' + cardUid);
-  var evt     = _calEventMap[eventId] || {};
-  var amount  = feeEl   ? (parseFloat(feeEl.value)   || null) : null;
-  var notes   = notesEl ? (notesEl.value.trim() || (evt.title || '')) : (evt.title || '');
-  var date    = evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10);
+async function _saveCalSession(cardUid, eventId, sourceId, sourceType) {
+  var feeEl    = document.getElementById('pl-cs-fee-amt-' + cardUid);
+  var notesEl  = document.getElementById('pl-cs-notes-' + cardUid);
+  var funderEl = document.getElementById('pl-cs-funder-' + cardUid);
+  var evt      = _calEventMap[eventId] || {};
+  var amount   = feeEl   ? (parseFloat(feeEl.value)   || null) : null;
+  var notes    = notesEl ? (notesEl.value.trim() || (evt.title || '')) : (evt.title || '');
+  var date     = evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10);
+
   try {
+    var clientId = sourceId;
+
+    if (sourceType === 'enquiry') {
+      // Auto-create client record from enquiry
+      var funder = funderEl ? funderEl.value : '';
+      if (!funder) { toast('Please select a funder first.', 'err'); return; }
+      var enq = (_pipelineData.enquiries || []).find(function(e) { return String(e.id) === String(sourceId); });
+      var name = enq ? ([enq.first_name, enq.last_name].filter(Boolean).join(' ') || '—') : '—';
+      var newClient = await apiFetch('/api/clients', {
+        method: 'POST',
+        body: { display_name: name, funder: funder, enquiry_id: sourceId, notes: notes || null },
+      });
+      clientId = newClient.id;
+      // Also close the enquiry
+      await apiFetch('/api/admin-enquiries?id=' + sourceId, { method: 'PATCH', body: { status: 'closed' } }).catch(function(){});
+    }
+
     await apiFetch('/api/sessions', {
       method: 'POST',
       body: { client_id: clientId, session_date: date, status: 'upcoming', amount: amount, notes: notes },
     });
     dismissCalEvent(eventId);
-    toast('Session saved ✓');
+    toast(sourceType === 'enquiry' ? 'Client created and session saved ✓' : 'Session saved ✓');
     refreshPipeline();
   } catch (err) {
-    toast('Could not save session: ' + err.message, 'err');
+    toast('Could not save: ' + err.message, 'err');
   }
 }
 
