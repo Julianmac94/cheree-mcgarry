@@ -341,6 +341,26 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── GET ?halaxy_invoices_raw=1 — diagnostic: dump raw Invoice resources ── */
+  if (req.method === 'GET' && params.get('halaxy_invoices_raw')) {
+    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ invoices: [] });
+    try {
+      const now = new Date();
+      const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      const bundle = await halaxyGet('/Invoice', {
+        date:   `ge${ninetyDaysAgo.toISOString().slice(0, 10)}`,
+        _sort:  '-date',
+        _count: '20',
+      });
+      return res.status(200).json({
+        count:   (bundle.entry || []).length,
+        entries: (bundle.entry || []).map(e => e.resource),
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   /* ── GET ?halaxy_funders=1 — fetch Organisation list (funders) ── */
   if (req.method === 'GET' && params.get('halaxy_funders')) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ funders: [] });
@@ -465,7 +485,8 @@ export default async function handler(req, res) {
       try {
         const now           = new Date();
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        const [apptBundle, patientBundle] = await Promise.all([
+        const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        const [apptBundle, patientBundle, invoiceBundle] = await Promise.all([
           halaxyGet('/Appointment', {
             date:     `ge${thirtyDaysAgo.toISOString().slice(0, 10)}`, // past 30 days + future
             _sort:    'date',
@@ -473,6 +494,11 @@ export default async function handler(req, res) {
             _include: 'Appointment:patient',
           }),
           halaxyGet('/Patient', { _count: '200' }),
+          halaxyGet('/Invoice', {
+            date:   `ge${ninetyDaysAgo.toISOString().slice(0, 10)}`,
+            _sort:  '-date',
+            _count: '200',
+          }).catch(() => ({ entry: [] })),
         ]);
         // _include=Appointment:patient adds Patient resources as extra entries —
         // split by resourceType so we don't treat Patient records as Appointments.
@@ -488,6 +514,28 @@ export default async function handler(req, res) {
           if (n) patientMap[p.id] = n;
         });
 
+        // Map Invoice resources → clean billing objects
+        const invoices = (invoiceBundle.entry || [])
+          .map(e => e.resource).filter(r => r?.resourceType === 'Invoice')
+          .map(inv => {
+            const status = inv.status;
+            if (!status || status === 'cancelled') return null;
+            // Extract patient ID from "Patient/12345" subject reference
+            const subjectRef = inv.subject?.reference || '';
+            const patientId  = subjectRef.includes('/') ? subjectRef.split('/').pop() : subjectRef || null;
+            if (!patientId) return null;
+            return {
+              id:       inv.id,
+              status,                                          // draft | issued | balanced
+              patientId,
+              date:     (inv.date || '').slice(0, 10) || null,
+              amount:   inv.totalGross?.value ?? inv.totalNet?.value ?? null,
+              currency: inv.totalGross?.currency || inv.totalNet?.currency || 'AUD',
+              ref:      inv.identifier?.[0]?.value || inv.id,
+            };
+          })
+          .filter(Boolean);
+
         halaxy = {
           connected:    true,
           appointments,
@@ -495,6 +543,7 @@ export default async function handler(req, res) {
           patients:     (patientBundle.entry || []).map(e => e.resource).filter(Boolean).map(p => ({
             id: p.id, name: fhirPatientLegalName(p),
           })),
+          invoices,
           funders:      cachedFunders,
           fees:         cachedFees,
           feeMap:       cachedFeeMap,

@@ -839,6 +839,14 @@ function renderAppointmentsPanel() {
 
   var halaxyAppts = (_halaxyData && _halaxyData.appointments) || [];
 
+  // Build invoiced set from Halaxy invoices so we can suppress false "Needs recording" entries
+  // and show correct status on 7-day cards. Key format: "patientId|YYYY-MM-DD"
+  var invoices = (_halaxyData && _halaxyData.invoices) || [];
+  var invoicedSet = new Set();
+  invoices.forEach(function(inv) {
+    if (inv.patientId && inv.date) invoicedSet.add(String(inv.patientId) + '|' + inv.date);
+  });
+
   /* ── Inline helpers ── */
   function _apptPatientId(appt) {
     var pid = null;
@@ -934,23 +942,37 @@ function renderAppointmentsPanel() {
         var actionBtns = '';
 
         if (isClinical) {
-          var bi = _apptBillingInfo(appt);
-          if (bi) {
-            if (!bi.session) {
-              billingBadge = '<span class="dp-badge dp-badge--needs-log">Not recorded</span>';
-              if (patientId) {
-                var apptUid = 'hx-7d-' + patientId + '-' + apptDateStr.replace(/-/g, '');
-                actionBtns = '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px;margin-top:4px" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(label) + '\',\'' + apptDateStr + '\')">Create Invoice →</button>'
-                  + '<div id="pl-link-' + apptUid + '"></div>';
-              }
+          // Check Halaxy invoices first (source of truth)
+          var invKey7 = patientId ? (String(patientId) + '|' + apptDateStr) : null;
+          var matchInv7 = invKey7 ? invoices.find(function(inv) { return (String(inv.patientId) + '|' + inv.date) === invKey7; }) : null;
+          if (matchInv7) {
+            if (matchInv7.status === 'balanced') {
+              billingBadge = '<span class="dp-badge dp-badge--status-paid">Paid ✓</span>';
+            } else if (matchInv7.status === 'issued') {
+              billingBadge = '<span class="dp-badge dp-badge--status-invoiced">Invoice sent</span>';
+              actionBtns = '<a class="dp-btn dp-btn--ghost" style="font-size:10px;padding:4px 9px;margin-top:4px" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">View in Halaxy →</a>';
             } else {
-              var sStatus = bi.session.status;
-              if (sStatus === 'paid') {
-                billingBadge = '<span class="dp-badge dp-badge--status-paid">Paid ✓</span>';
-              } else if (sStatus === 'invoiced' || sStatus === 'submitted' || sStatus === 'lodged') {
-                billingBadge = '<span class="dp-badge dp-badge--status-invoiced">Awaiting payment</span>';
+              billingBadge = '<span class="dp-badge dp-badge--action">Draft invoice</span>';
+            }
+          } else {
+            var bi = _apptBillingInfo(appt);
+            if (bi) {
+              if (!bi.session) {
+                billingBadge = '<span class="dp-badge dp-badge--needs-log">Not recorded</span>';
+                if (patientId) {
+                  var apptUid = 'hx-7d-' + patientId + '-' + apptDateStr.replace(/-/g, '');
+                  actionBtns = '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px;margin-top:4px" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(label) + '\',\'' + apptDateStr + '\')">Create Invoice →</button>'
+                    + '<div id="pl-link-' + apptUid + '"></div>';
+                }
               } else {
-                billingBadge = '<span class="dp-badge dp-badge--action">Needs billing</span>';
+                var sStatus = bi.session.status;
+                if (sStatus === 'paid') {
+                  billingBadge = '<span class="dp-badge dp-badge--status-paid">Paid ✓</span>';
+                } else if (sStatus === 'invoiced' || sStatus === 'submitted' || sStatus === 'lodged') {
+                  billingBadge = '<span class="dp-badge dp-badge--status-invoiced">Awaiting payment</span>';
+                } else {
+                  billingBadge = '<span class="dp-badge dp-badge--action">Needs billing</span>';
+                }
               }
             }
           }
@@ -1016,6 +1038,10 @@ function renderAppointmentsPanel() {
     if (!_isClinicalAppt(a)) return;
     var apptD = new Date(startStr); apptD.setHours(0, 0, 0, 0);
     if (apptD.getTime() >= today.getTime()) return;
+    // Suppress if Halaxy already has an invoice for this patient+date (source of truth)
+    var pidNR = _apptPatientId(a);
+    var dtNR  = startStr.slice(0, 10);
+    if (pidNR && invoicedSet.has(String(pidNR) + '|' + dtNR)) return;
     var bi = _apptBillingInfo(a);
     if (bi && !bi.session) {
       needsLogging.push({ type: 'halaxy', ev: a, start: startStr, dateMs: new Date(startStr).getTime() });
@@ -1181,11 +1207,101 @@ function _billingActionBtn(client, session) {
 
 function renderBillingPanel() {
   var body = document.getElementById('billing-panel-body');
-  if (!body || !_pipelineData) return;
+  if (!body) return;
 
-  var clients  = _pipelineData.clients || [];
+  var halaxyInvoices = (_halaxyData && _halaxyData.invoices) || [];
+  var patientMapBP   = (_halaxyData && _halaxyData.patientMap) || {};
+  var patientsBP     = (_halaxyData && _halaxyData.patients)   || [];
+  var clients        = (_pipelineData && _pipelineData.clients) || [];
 
-  // Flatten all sessions paired with their client
+  /* Resolve a display name for a Halaxy patient ID */
+  function resolveName(patientId) {
+    if (!patientId) return 'Unknown';
+    if (patientMapBP[patientId]) return patientMapBP[patientId];
+    var p = patientsBP.find(function(pt) { return String(pt.id) === String(patientId); });
+    if (p) return p.name;
+    var c = clients.find(function(cl) { return String(cl.halaxy_id) === String(patientId); });
+    if (c) return c.display_name;
+    return 'Client #' + patientId;
+  }
+
+  var html = '';
+
+  /* ── Halaxy invoice-based view (source of truth) ──────────────── */
+  if (_halaxyData && _halaxyData.connected && halaxyInvoices.length > 0) {
+    var outstanding = halaxyInvoices.filter(function(inv) { return inv.status === 'issued' || inv.status === 'draft'; });
+    var balanced    = halaxyInvoices.filter(function(inv) { return inv.status === 'balanced'; });
+
+    // Outstanding oldest first (most overdue at top), paid newest first
+    outstanding.sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); });
+    balanced.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+
+    var totalOwing = outstanding.reduce(function(sum, inv) { return sum + (parseFloat(inv.amount) || 0); }, 0);
+
+    var countEl = document.getElementById('billing-count');
+    if (countEl) countEl.textContent = outstanding.length || '';
+
+    html += '<div class="billing-open-header">'
+      + '<span class="billing-open-label">Outstanding</span>'
+      + (outstanding.length ? '<span class="billing-open-count">' + outstanding.length + ' invoice' + (outstanding.length !== 1 ? 's' : '') + '</span>' : '')
+      + (totalOwing ? '<span class="billing-open-total">$' + totalOwing.toFixed(2) + '</span>' : '')
+      + '</div>';
+
+    if (!outstanding.length) {
+      html += '<div class="dp-empty">No outstanding invoices ✓</div>';
+    } else {
+      outstanding.forEach(function(inv) {
+        var name        = resolveName(inv.patientId);
+        var dt          = inv.date ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
+        var amt         = inv.amount ? '$' + Number(inv.amount).toFixed(2) : '';
+        var statusLabel = inv.status === 'draft' ? 'Draft' : 'Awaiting payment';
+        var statusClass = inv.status === 'draft' ? 'dp-badge--action' : 'dp-badge--status-invoiced';
+        html += '<div class="bill-card bill-card--open">'
+          + '<div class="bill-card-top">'
+          + '<span class="bill-card-name">' + escHtml(name) + '</span>'
+          + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
+          + '</div>'
+          + '<div class="bill-card-meta">'
+          + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
+          + '<span class="dp-badge ' + statusClass + '">' + statusLabel + '</span>'
+          + '</div>'
+          + '<div class="dp-card-actions"><a class="dp-btn dp-btn--primary" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">View in Halaxy →</a></div>'
+          + '</div>';
+      });
+    }
+
+    // Paid / Balanced — collapsible
+    html += '<div class="dp-collapsible">'
+      + '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'paid-sessions\')">'
+      + '<span id="paid-sessions-arrow">▸</span> Paid (' + balanced.length + ')'
+      + '</button>'
+      + '<div class="dp-collapsible-body" id="paid-sessions">';
+    if (!balanced.length) {
+      html += '<div class="dp-empty">No paid invoices yet</div>';
+    } else {
+      balanced.slice(0, 40).forEach(function(inv) {
+        var name = resolveName(inv.patientId);
+        var dt   = inv.date ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
+        var amt  = inv.amount ? '$' + Number(inv.amount).toFixed(2) : '';
+        html += '<div class="bill-card" style="opacity:0.7">'
+          + '<div class="bill-card-top">'
+          + '<span class="bill-card-name">' + escHtml(name) + '</span>'
+          + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
+          + '</div>'
+          + '<div class="bill-card-meta">'
+          + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
+          + '<span class="dp-badge dp-badge--status-paid">Paid ✓</span>'
+          + '</div>'
+          + '</div>';
+      });
+    }
+    html += '</div></div>';
+    body.innerHTML = html;
+    return;
+  }
+
+  /* ── Fallback: sessions-based view (Halaxy not connected or no invoices) ── */
+  if (!_pipelineData) return;
   var needsAction = [];
   var awaiting    = [];
   var paid        = [];
@@ -1202,26 +1318,20 @@ function renderBillingPanel() {
     });
   });
 
-  // Sort by session date desc
   function byDateDesc(a, b) { return (b.session.session_date || '').localeCompare(a.session.session_date || ''); }
   needsAction.sort(byDateDesc);
   awaiting.sort(byDateDesc);
   paid.sort(byDateDesc);
 
   var actionCount = needsAction.length + awaiting.length;
-  var countEl = document.getElementById('billing-count');
-  if (countEl) countEl.textContent = actionCount || '';
+  var countElFb = document.getElementById('billing-count');
+  if (countElFb) countElFb.textContent = actionCount || '';
 
-  // Combine open items into one flat list sorted oldest-first (most overdue at top)
   var openItems = needsAction.concat(awaiting);
   openItems.sort(function(a, b) { return (a.session.session_date || '').localeCompare(b.session.session_date || ''); });
 
-  // Running total for unpaid
   var totalUnpaid = openItems.reduce(function(sum, item) { return sum + (parseFloat(item.session.amount) || 0); }, 0);
 
-  var html = '';
-
-  // Unpaid / Open header with total
   html += '<div class="billing-open-header">'
     + '<span class="billing-open-label">Open invoices</span>'
     + (openItems.length ? '<span class="billing-open-count">' + openItems.length + ' item' + (openItems.length !== 1 ? 's' : '') + '</span>' : '')
@@ -1239,13 +1349,12 @@ function renderBillingPanel() {
       var amt = s.amount ? '$' + Number(s.amount).toFixed(2) : '';
       var isAction = (s.status === 'upcoming' || s.status === 'completed');
       var statusClass = 'dp-badge--status-' + (s.status || 'upcoming');
-
-      html += '<div class="bill-card bill-card--open">';
-      html += '<div class="bill-card-top">'
+      html += '<div class="bill-card bill-card--open">'
+        + '<div class="bill-card-top">'
         + '<span class="bill-card-name">' + escHtml(c.display_name) + '</span>'
         + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
-        + '</div>';
-      html += '<div class="bill-card-meta">'
+        + '</div>'
+        + '<div class="bill-card-meta">'
         + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
         + '<span class="dp-badge dp-badge--funder">' + escHtml(funderLabel) + '</span>'
         + '<span class="dp-badge ' + statusClass + '">' + escHtml(STATUS_DISPLAY[s.status] || s.status) + '</span>'
@@ -1259,12 +1368,11 @@ function renderBillingPanel() {
     });
   }
 
-  // Paid (collapsed)
-  html += '<div class="dp-collapsible">';
-  html += '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'paid-sessions\')">';
-  html += '<span id="paid-sessions-arrow">▸</span> Paid (' + paid.length + ')';
-  html += '</button>';
-  html += '<div class="dp-collapsible-body" id="paid-sessions">';
+  html += '<div class="dp-collapsible">'
+    + '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'paid-sessions\')">'
+    + '<span id="paid-sessions-arrow">▸</span> Paid (' + paid.length + ')'
+    + '</button>'
+    + '<div class="dp-collapsible-body" id="paid-sessions">';
   if (!paid.length) {
     html += '<div class="dp-empty">No paid sessions yet</div>';
   } else {
@@ -1273,16 +1381,16 @@ function renderBillingPanel() {
       var s  = item.session;
       var dt = s.session_date ? new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
       var amt = s.amount ? '$' + Number(s.amount).toFixed(2) : '';
-      html += '<div class="bill-card" style="opacity:0.7">';
-      html += '<div class="bill-card-top">'
+      html += '<div class="bill-card" style="opacity:0.7">'
+        + '<div class="bill-card-top">'
         + '<span class="bill-card-name">' + escHtml(c.display_name) + '</span>'
         + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
-        + '</div>';
-      html += '<div class="bill-card-meta">'
+        + '</div>'
+        + '<div class="bill-card-meta">'
         + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
         + '<span class="dp-badge dp-badge--status-paid">Paid</span>'
+        + '</div>'
         + '</div>';
-      html += '</div>';
     });
   }
   html += '</div></div>';
