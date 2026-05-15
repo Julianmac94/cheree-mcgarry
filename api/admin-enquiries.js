@@ -473,9 +473,24 @@ export default async function handler(req, res) {
           }),
           halaxyGet('/Patient', { _count: '200' }),
         ]);
+        // _include=Appointment:patient adds Patient resources as extra entries —
+        // split by resourceType so we don't treat Patient records as Appointments.
+        const allBundleResources = (apptBundle.entry || []).map(e => e.resource).filter(Boolean);
+        const appointments       = allBundleResources.filter(r => r.resourceType === 'Appointment');
+        const includedPatients   = allBundleResources.filter(r => r.resourceType === 'Patient');
+
+        // Build a fast id→name map from the included Patient resources
+        const patientMap = {};
+        includedPatients.forEach(p => {
+          if (!p.id) return;
+          const n = fhirPatientLegalName(p);
+          if (n) patientMap[p.id] = n;
+        });
+
         halaxy = {
           connected:    true,
-          appointments: (apptBundle.entry    || []).map(e => e.resource).filter(Boolean),
+          appointments,
+          patientMap,
           patients:     (patientBundle.entry || []).map(e => e.resource).filter(Boolean).map(p => ({
             id: p.id, name: fhirPatientLegalName(p),
           })),

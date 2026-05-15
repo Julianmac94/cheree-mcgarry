@@ -367,7 +367,7 @@ document.addEventListener('DOMContentLoaded', function () {
    ═══════════════════════════════════════════════════════════════ */
 
 var _pipelineData    = null;
-var _halaxyData      = { connected: false, appointments: [], patients: [], funders: [] };
+var _halaxyData      = { connected: false, appointments: [], patients: [], patientMap: {}, funders: [] };
 var _calEventMap     = {};    // eventId → event object
 var _calDismissed    = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
 var _halaxyFees      = null; // cached ChargeItemDefinition list
@@ -779,12 +779,17 @@ function _halaxyApptLabel(a) {
       if (pid) {
         var name = actor.display || '';
         if (!name) {
-          // 1. Halaxy patients list (fetched on page load — always has names)
+          // 1. patientMap built from _include=Appointment:patient (most reliable)
+          var pm = _halaxyData && _halaxyData.patientMap;
+          if (pm && pm[pid]) name = pm[pid];
+        }
+        if (!name) {
+          // 2. Halaxy patients list (separate /Patient bundle fetch)
           var hp = _halaxyData && (_halaxyData.patients || []).find(function(p) { return String(p.id) === String(pid); });
           if (hp && hp.name) name = hp.name;
         }
         if (!name) {
-          // 2. Local dashboard client linked by halaxy_id
+          // 3. Local dashboard client linked by halaxy_id
           var local = _pipelineData && (_pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(pid); });
           if (local && local.display_name) name = local.display_name;
         }
