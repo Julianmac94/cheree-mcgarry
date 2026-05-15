@@ -1169,6 +1169,8 @@ body {
 .dp-badge--funder      { background: rgba(42,88,80,0.1); color: var(--teal); }
 .dp-badge--needs-log   { background: rgba(190,110,68,0.13); color: var(--terra); }
 .dp-badge--action      { background: rgba(200,160,40,0.15); color: #8a6a00; }
+.dp-badge--cal         { background: rgba(46,125,138,0.12); color: #1e6e7a; }
+.dp-badge--halaxy      { background: rgba(122,90,138,0.12); color: #6a4a7a; }
 .dp-badge--status-invoiced  { background: rgba(190,110,68,0.12); color: var(--terra); }
 .dp-badge--status-submitted { background: rgba(200,160,40,0.15); color: #8a6a00; }
 .dp-badge--status-lodged    { background: rgba(119,207,189,0.18); color: #1a6e5e; }
@@ -1351,7 +1353,12 @@ body {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
   flex-wrap: wrap;
 }
-.appt-7day-card--personal { border-left-color: #aaa; opacity: 0.6; }
+/* Google Calendar — blue-green left border */
+.appt-7day-card--cal      { border-left-color: #2e7d8a; background: rgba(46,125,138,0.04); }
+/* Halaxy clinical — purple left border */
+.appt-7day-card--halaxy   { border-left-color: #7a5a8a; background: rgba(122,90,138,0.04); }
+/* Personal / unnamed block */
+.appt-7day-card--personal { border-left-color: #aaa; opacity: 0.55; }
 .appt-7day-left  { flex: 1; min-width: 0; }
 .appt-7day-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
 .appt-7day-when  { font-size: 10px; color: var(--soft); margin-bottom: 2px; }

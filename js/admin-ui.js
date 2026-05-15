@@ -899,13 +899,14 @@ function renderAppointmentsPanel() {
         var time = ev.allDay ? 'All day' : new Date(ev.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
         var dateLabel = new Date(ev.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
         var title = ev.title || ev.summary || 'Event';
-        html += '<div class="appt-7day-card">'
+        html += '<div class="appt-7day-card appt-7day-card--cal">'
           + '<div class="appt-7day-left">'
           + '<div class="appt-7day-when">' + escHtml(dateLabel) + ' · ' + escHtml(time) + '</div>'
           + '<div class="appt-7day-title">' + escHtml(title) + '</div>'
           + '</div>'
           + '<div class="appt-7day-right">'
-          + '<span class="dp-badge dp-badge--source">Calendar</span>'
+          + '<span class="dp-badge dp-badge--cal">Google Cal</span>'
+          + '<button class="dp-btn dp-btn--soft" style="font-size:10px;padding:4px 9px;margin-top:4px" onclick="openCalSessionPanel(\'' + uid + '\',\'' + eid + '\')">Log →</button>'
           + '</div>'
           + '<div id="pl-link-' + uid + '"></div>'
           + '</div>';
@@ -943,13 +944,14 @@ function renderAppointmentsPanel() {
           }
         }
 
-        html += '<div class="appt-7day-card' + (isClinical ? '' : ' appt-7day-card--personal') + '">'
+        var cardClass = isClinical ? 'appt-7day-card appt-7day-card--halaxy' : 'appt-7day-card appt-7day-card--personal';
+        html += '<div class="' + cardClass + '">'
           + '<div class="appt-7day-left">'
           + '<div class="appt-7day-when">' + escHtml(dateLabel2) + ' · ' + escHtml(time2) + '</div>'
           + '<div class="appt-7day-title">' + escHtml(label) + '</div>'
           + '</div>'
           + '<div class="appt-7day-right">'
-          + '<span class="dp-badge" style="background:rgba(80,42,88,0.08);color:#7a5a8a;font-size:9px">' + (isClinical ? 'Halaxy' : 'Personal') + '</span>'
+          + '<span class="dp-badge ' + (isClinical ? 'dp-badge--halaxy' : 'dp-badge--source') + '">' + (isClinical ? 'Halaxy' : 'Personal') + '</span>'
           + billingBadge
           + actionBtns
           + '</div>'
