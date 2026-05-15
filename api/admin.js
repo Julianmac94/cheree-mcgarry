@@ -2202,9 +2202,10 @@ function switchTab(tab, btn) {
   if (gcal === 'connected')  setTimeout(function(){ toast('Google Calendar connected!'); }, 300);
   if (gcal === 'error')      setTimeout(function(){ toast('Google Calendar connection failed — try again.', 'err'); }, 300);
   if (gcal === 'no_refresh') setTimeout(function(){ toast('No refresh token returned — visit /api/google-auth again to reconnect.', 'err'); }, 300);
-  // Default tab: pipeline
+  // Default tab: pipeline — also kick off the data load
   var defaultBtn = document.querySelector('.dash-tab');
   if (defaultBtn) switchDashTab('pipeline', defaultBtn);
+  loadPipeline();
 })();
 </script>
 </body>
