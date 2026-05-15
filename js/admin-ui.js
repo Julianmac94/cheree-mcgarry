@@ -400,8 +400,20 @@ var ENQ_ADVANCE = {
 };
 
 /* ── Load pipeline ── */
+function plSkeletons(n) {
+  var heights = [64, 52, 58, 48, 60];
+  var html = '<div class="pl-loading">';
+  for (var i = 0; i < n; i++) html += '<div class="pl-skeleton" style="height:' + heights[i % heights.length] + 'px"></div>';
+  return html + '</div>';
+}
+
 async function loadPipeline() {
   window._pipelineLoaded = true;
+  // Show skeletons in all columns while loading
+  ['new','contacted','intake','active','closed'].forEach(function(col) {
+    var el = document.getElementById('cards-' + col);
+    if (el && el.querySelector('.pl-loading')) el.innerHTML = plSkeletons(col === 'new' ? 3 : 2);
+  });
   loadCalendarPending(); // non-blocking
   try {
     var r = await fetch('/api/admin-enquiries');

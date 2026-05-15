@@ -1162,8 +1162,21 @@ body {
 .halaxy-dot--ok       { background: #2a9a60; }
 .halaxy-dot--error    { background: var(--terra); }
 
-.pl-loading { font-size: 12px; color: var(--soft); padding: 8px 2px; }
-.pl-empty   { font-size: 11px; color: rgba(122,148,143,0.6); padding: 8px 2px; font-style: italic; }
+/* Skeleton loading cards */
+.pl-loading {
+  display: flex; flex-direction: column; gap: 7px; padding: 2px 0;
+}
+.pl-skeleton {
+  background: linear-gradient(90deg, rgba(42,88,80,0.07) 25%, rgba(42,88,80,0.12) 50%, rgba(42,88,80,0.07) 75%);
+  background-size: 200% 100%;
+  animation: pl-shimmer 1.4s ease-in-out infinite;
+  border-radius: 10px;
+}
+@keyframes pl-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.pl-empty { font-size: 11px; color: rgba(122,148,143,0.6); padding: 8px 2px; font-style: italic; }
 
 /* Intake panel inside pipeline card */
 .pl-intake-panel { margin-top: 8px; display: none; }
@@ -1228,7 +1241,7 @@ body {
       </div>
       <div id="pending-events"></div>
       <div class="pipeline-col-cards" id="cards-new">
-        <div class="pl-loading">Loading…</div>
+        <div class="pl-loading"><div class="pl-skeleton" style="height:64px"></div><div class="pl-skeleton" style="height:52px"></div><div class="pl-skeleton" style="height:58px"></div></div>
       </div>
     </div>
     <div class="pipeline-col" id="col-contacted">
