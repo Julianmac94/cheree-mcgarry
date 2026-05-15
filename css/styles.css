@@ -168,7 +168,7 @@ body::after {
 .hero-logo {
   width: 172px; height: 172px;
   margin-bottom: 28px;
-  margin-top: -8vh;
+  margin-top: -6vh;
 }
 .hero-logo svg, .hero-logo img { width: 100%; height: 100%; object-fit: contain; }
 
@@ -340,16 +340,23 @@ body::after {
 .hc-btn {
   display: inline-flex; align-items: center;
   padding: 9px 20px;
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.28);
+  background: #2A5850;
+  border: 1px solid rgba(255,255,255,0.15);
   border-radius: 100px;
   font-family: var(--sans); font-size: 12.5px; font-weight: 400;
   letter-spacing: 0.06em;
   color: #fff;
   text-decoration: none;
+  cursor: pointer;
   transition: background 0.2s var(--ease), border-color 0.2s;
 }
-.hc-btn:hover { background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.5); }
+.hc-btn:hover { background: #192E2A; border-color: rgba(255,255,255,0.3); }
+.hc-btn--mint {
+  background: rgba(119,207,189,0.22);
+  border-color: rgba(119,207,189,0.55);
+  color: #e8f9f6;
+}
+.hc-btn--mint:hover { background: rgba(119,207,189,0.35); border-color: rgba(119,207,189,0.8); }
 
 
 
@@ -1317,8 +1324,10 @@ footer { background: var(--teal-deep); }
   .nav-sub { display: none; }
 
   /* Hero: remove bottom padding reservation, let cards flow naturally */
-  .hero { padding: 56px 20px 32px; }
+  .hero { padding: 56px 20px 24px; }
   .hero-name { white-space: normal; font-size: clamp(44px,11vw,72px); }
+  .hero-logo { width: 130px; height: 130px; margin-top: 0; margin-bottom: 20px; }
+  .hero-scroll { display: none; }
 
   /* Learn more label: in-flow on mobile */
   .hero-learn {
@@ -1350,7 +1359,7 @@ footer { background: var(--teal-deep); }
 }
 @media (max-width: 580px) {
   .sh-grid { grid-template-columns: 1fr; }
-  .hero-scroll { margin-bottom: 4px; }
+  .hero-logo { width: 100px; height: 100px; }
   .frow { grid-template-columns: 1fr; }
   .nav-link:not(.nav-cta) { display: none; }
   .ft-cols { grid-template-columns: 1fr; }
