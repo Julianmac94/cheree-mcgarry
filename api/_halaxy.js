@@ -18,6 +18,13 @@ const db = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+/** Fetch with a hard timeout — throws AbortError if exceeded. */
+function fetchTimeout(url, opts = {}, ms = 7000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
 /**
  * Returns a valid Halaxy access token, using Supabase as a cache.
  * Fetches a new token when the cached one is missing or within 2 min of expiry.
@@ -39,8 +46,8 @@ export async function getHalaxyToken() {
     }
   } catch (_) {}
 
-  // Fetch new token
-  const resp = await fetch(HALAXY_TOKEN_URL, {
+  // Fetch new token (7s timeout)
+  const resp = await fetchTimeout(HALAXY_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -78,7 +85,7 @@ export async function halaxyGet(path, params = {}) {
   const url   = new URL(HALAXY_FHIR_BASE + path);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
-  const resp = await fetch(url.toString(), {
+  const resp = await fetchTimeout(url.toString(), {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept:        'application/fhir+json',
