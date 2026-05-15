@@ -1212,10 +1212,14 @@ function _renderCalClientResults(cardUid, eventId, query) {
     return c.active !== false && (!q || (c.display_name || '').toLowerCase().indexOf(q) !== -1);
   });
 
-  // Non-closed enquiries (people not yet formally converted)
+  // Build set of names already present as clients (to suppress duplicate enquiries)
+  var clientNames = new Set(clients.map(function(c) { return (c.display_name || '').toLowerCase(); }));
+
+  // Non-closed enquiries not already converted to a client
   var enquiries = (_pipelineData.enquiries || []).filter(function(e) {
     if (e.status === 'closed') return false;
     var name = [e.first_name, e.last_name].filter(Boolean).join(' ');
+    if (clientNames.has(name.toLowerCase())) return false; // already a client
     return !q || name.toLowerCase().indexOf(q) !== -1;
   });
 
@@ -1341,25 +1345,47 @@ function _showCalFeeForm(cardUid, eventId, sourceId, sourceType) {
   _syncFeeInput(cardUid);
 }
 
-/** Re-fill fee default when funder is selected for an enquiry */
+/* Funder → fee keyword map: filter Halaxy fee names by these terms */
+var FUNDER_KEYWORDS = {
+  ndis_plan: ['ndis'],
+  ndis_self: ['ndis'],
+  medicare:  ['medicare', 'mbs', 'mhcp'],
+  qfes:      ['qfes', 'eap'],
+  dva:       ['dva', 'defence', 'veterans'],
+  private:   ['private', 'self'],
+};
+
+/** Rebuild the fee select options filtered to the chosen funder, then sync amount */
 function _updateEnqFeeDefault(cardUid) {
-  var sel = document.getElementById('pl-cs-funder-' + cardUid);
-  if (!sel || !sel.value) return;
-  var rate = FUNDER_RATES[sel.value] || '';
-  // Update the fee dropdown pre-selection or amount field
+  var funderSel = document.getElementById('pl-cs-funder-' + cardUid);
+  if (!funderSel || !funderSel.value) return;
+  var funderKey = funderSel.value;
+
   var feeSel = document.getElementById('pl-cs-fee-' + cardUid);
   var feeAmt = document.getElementById('pl-cs-fee-amt-' + cardUid);
-  if (feeSel) {
-    // Find closest fee in dropdown
-    var best = null, bestDiff = Infinity;
-    Array.from(feeSel.options).forEach(function(o) {
-      if (!o.value) return;
-      var diff = Math.abs(parseFloat(o.value) - parseFloat(rate));
-      if (diff < bestDiff) { bestDiff = diff; best = o; }
-    });
-    if (best && bestDiff < 5) { best.selected = true; _syncFeeInput(cardUid); }
-  } else if (feeAmt && rate) {
-    feeAmt.value = rate;
+  var fees   = _halaxyFees || [];
+
+  if (feeSel && fees.length) {
+    // Filter fees to those matching funder keywords, fall back to all fees
+    var keywords = FUNDER_KEYWORDS[funderKey] || [];
+    var filtered = keywords.length
+      ? fees.filter(function(f) {
+          var n = (f.name || '').toLowerCase();
+          return keywords.some(function(k) { return n.indexOf(k) !== -1; });
+        })
+      : fees;
+    if (!filtered.length) filtered = fees; // no keyword match → show all
+
+    var defaultRate = FUNDER_RATES[funderKey] || '';
+    feeSel.innerHTML = '<option value="">— select a fee —</option>'
+      + filtered.map(function(f) {
+          var lbl      = escHtml(f.name) + ' — $' + Number(f.amount).toFixed(2);
+          var selected = defaultRate && Math.abs(f.amount - parseFloat(defaultRate)) < 1 ? ' selected' : '';
+          return '<option value="' + f.amount + '"' + selected + '>' + lbl + '</option>';
+        }).join('');
+    _syncFeeInput(cardUid);
+  } else if (feeAmt) {
+    feeAmt.value = FUNDER_RATES[funderKey] || '';
   }
 }
 
@@ -1390,7 +1416,7 @@ async function _saveCalSession(cardUid, eventId, sourceId, sourceType) {
       var name = enq ? ([enq.first_name, enq.last_name].filter(Boolean).join(' ') || '—') : '—';
       var newClient = await apiFetch('/api/clients', {
         method: 'POST',
-        body: { display_name: name, funder: funder, enquiry_id: sourceId, notes: notes || null },
+        body: { display_name: name, funder: funder, notes: notes || null },
       });
       clientId = newClient.id;
       // Also close the enquiry

@@ -41,7 +41,7 @@ export default async function handler(req, res) {
   // ── POST ─────────────────────────────────────────────────────────────
   if (req.method === 'POST') {
     const body = req.body || {};
-    const { display_name, funder, plan_manager, halaxy_id, enquiry_id, notes } = body;
+    const { display_name, funder, plan_manager, halaxy_id, notes } = body;
 
     if (!display_name || !funder) {
       return res.status(400).json({ error: 'display_name and funder are required' });
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
 
     const { data, error } = await db
       .from('clients')
-      .insert({ display_name, funder, plan_manager: plan_manager || null, halaxy_id: halaxy_id || null, enquiry_id: enquiry_id || null, notes: notes || null })
+      .insert({ display_name, funder, plan_manager: plan_manager || null, halaxy_id: halaxy_id || null, notes: notes || null })
       .select()
       .single();
 
