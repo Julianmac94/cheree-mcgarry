@@ -79,19 +79,60 @@ function mapCidToFee(r) {
   return { id: r.id, name, amount, currency, funderOrgId, funderName };
 }
 
+const KNOWN_FUNDERS = [
+  { id: 'medicare',         name: 'Medicare',                       type: 'Medicare',              billingKey: 'medicare'  },
+  { id: 'private',          name: 'Private',                        type: 'Private',               billingKey: 'private'   },
+  { id: 'thorne-collins',   name: 'Thorne Collins',                 type: 'Private',               billingKey: 'private'   },
+  { id: 'in-choice',        name: 'In Choice Plan Management',      type: 'NDIS',                  billingKey: 'ndis_plan' },
+  { id: 'plan-partners',    name: 'Plan Partners',                  type: 'NDIS',                  billingKey: 'ndis_plan' },
+  { id: 'ndsp',             name: 'NDSP',                           type: 'NDIS',                  billingKey: 'ndis_plan' },
+  { id: 'icasau',           name: 'ICASAU',                         type: 'NDIS',                  billingKey: 'ndis_plan' },
+  { id: 'future-by-design', name: 'Future By Design',               type: 'NDIS',                  billingKey: 'ndis_plan' },
+  { id: 'freedom-pm',       name: 'Freedom Plan Management',        type: 'NDIS',                  billingKey: 'ndis_plan' },
+  { id: 'alliance-pm',      name: 'Alliance Plan Management',       type: 'Third-party body',      billingKey: 'ndis_plan' },
+  { id: 'purple-leopard',   name: 'Purple Leopard Plan Management', type: 'NDIS',                  billingKey: 'ndis_plan' },
+  { id: 'ndis-direct',      name: 'NDIS',                           type: 'NDIS',                  billingKey: 'ndis_self' },
+  { id: 'qfes',             name: 'QFES',                           type: 'Third-party body',      billingKey: 'qfes'      },
+  { id: 'bupa-adf',         name: 'BUPA ADF Health Services',       type: 'BUPA ADF',              billingKey: 'dva'       },
+  { id: 'rtwsa',            name: 'ReturnToWorkSA',                 type: "Worker's Compensation", billingKey: 'other'     },
+  { id: 'workcover-qld',    name: 'WorkCover QLD',                  type: "Worker's Compensation", billingKey: 'other'     },
+];
+
 async function syncHalaxyConfig(db) {
   const [orgBundle, cidBundle] = await Promise.all([
     halaxyGet('/Organization',         { _count: '100' }).catch(e => { console.error('Org fetch:', e.message); return { entry: [] }; }),
     halaxyGet('/ChargeItemDefinition', { status: 'active', _count: '200' }).catch(e => { console.error('CID fetch:', e.message); return { entry: [] }; }),
   ]);
-  const funders = (orgBundle.entry || []).map(e => e.resource).filter(Boolean).map(mapOrgToFunder).filter(Boolean);
-  const fees    = (cidBundle.entry || []).map(e => e.resource).filter(Boolean).map(mapCidToFee).filter(Boolean);
-  console.log(`Halaxy sync: ${funders.length} funders, ${fees.length} fees`);
+
+  // Try to get funders from Halaxy; fall back to seed list if the endpoint returns 0 results
+  let funders = (orgBundle.entry || []).map(e => e.resource).filter(Boolean).map(mapOrgToFunder).filter(Boolean);
+  let funderSource = 'halaxy';
+  if (funders.length === 0) {
+    console.log('Halaxy /Organization returned 0 results — seeding from KNOWN_FUNDERS');
+    funders = KNOWN_FUNDERS;
+    funderSource = 'seed';
+  }
+
+  const fees = (cidBundle.entry || []).map(e => e.resource).filter(Boolean).map(mapCidToFee).filter(Boolean);
+  console.log(`Halaxy sync: ${funders.length} funders (${funderSource}), ${fees.length} fees`);
+
+  // Build fee-to-funder map: funderOrgId → array of fee IDs
+  // If Halaxy doesn't populate funderOrgId, store empty map for manual assignment later
+  const feeMap = {};
+  const feesWithOrg = fees.filter(f => f.funderOrgId);
+  if (feesWithOrg.length > 0) {
+    feesWithOrg.forEach(f => {
+      if (!feeMap[f.funderOrgId]) feeMap[f.funderOrgId] = [];
+      feeMap[f.funderOrgId].push(f.id);
+    });
+  }
+
   await Promise.all([
-    writeCache(db, 'halaxy_funders_cache', { funders, synced_at: new Date().toISOString() }),
+    writeCache(db, 'halaxy_funders_cache', { funders, synced_at: new Date().toISOString(), source: funderSource }),
     writeCache(db, 'halaxy_fees_cache',    { fees,    synced_at: new Date().toISOString() }),
+    writeCache(db, 'halaxy_fee_funder_map', feeMap),
   ]);
-  return { funders, fees };
+  return { funders, fees, feeMap };
 }
 
 /**
@@ -118,8 +159,8 @@ export default async function handler(req, res) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ ok: false, error: 'Halaxy not configured' });
     const db = supabase();
     try {
-      const { funders, fees } = await syncHalaxyConfig(db);
-      return res.status(200).json({ ok: true, funders: funders.length, fees: fees.length });
+      const { funders, fees, feeMap } = await syncHalaxyConfig(db);
+      return res.status(200).json({ ok: true, funders: funders.length, fees: fees.length, feeMapEntries: Object.keys(feeMap).length });
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
     }
@@ -278,7 +319,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const [
       { data: enquiries }, { data: clients }, { data: activityRaw },
-      fundersCached, feesCached,
+      fundersCached, feesCached, feeMapCached,
     ] = await Promise.all([
       db.from('enquiries').select('*').order('created_at', { ascending: false }),
       db.from('clients').select(`
@@ -289,16 +330,19 @@ export default async function handler(req, res) {
       db.from('activity_log').select('*').order('created_at', { ascending: false }).limit(200),
       readCache(db, 'halaxy_funders_cache'),
       readCache(db, 'halaxy_fees_cache'),
+      readCache(db, 'halaxy_fee_funder_map'),
     ]);
 
     // Auto-sync config from Halaxy if cache is empty (first run)
     let cachedFunders = fundersCached?.funders || [];
     let cachedFees    = feesCached?.fees       || [];
+    let cachedFeeMap  = feeMapCached           || {};
     if (process.env.HALAXY_CLIENT_ID && (!cachedFunders.length || !cachedFees.length)) {
       try {
         const synced  = await syncHalaxyConfig(db);
         cachedFunders = synced.funders;
         cachedFees    = synced.fees;
+        cachedFeeMap  = synced.feeMap;
       } catch (e) { console.error('Auto-sync failed:', e.message); }
     }
 
@@ -313,7 +357,7 @@ export default async function handler(req, res) {
       activity: activityByEnquiry[e.id] || [],
     }));
 
-    let halaxy = { connected: false, appointments: [], patients: [], funders: cachedFunders, fees: cachedFees };
+    let halaxy = { connected: false, appointments: [], patients: [], funders: cachedFunders, fees: cachedFees, feeMap: cachedFeeMap };
     if (process.env.HALAXY_CLIENT_ID && process.env.HALAXY_CLIENT_SECRET) {
       try {
         const now    = new Date();
@@ -333,12 +377,13 @@ export default async function handler(req, res) {
           })),
           funders:      cachedFunders,
           fees:         cachedFees,
+          feeMap:       cachedFeeMap,
           funders_synced_at: fundersCached?.synced_at || null,
           fees_synced_at:    feesCached?.synced_at    || null,
         };
       } catch (err) {
         console.error('Halaxy API error:', err.message);
-        halaxy = { connected: false, error: err.message, appointments: [], patients: [], funders: cachedFunders, fees: cachedFees };
+        halaxy = { connected: false, error: err.message, appointments: [], patients: [], funders: cachedFunders, fees: cachedFees, feeMap: cachedFeeMap };
       }
     }
 

@@ -427,7 +427,8 @@ var ENQ_ADVANCE = {
 };
 
 var _modalSearchTimer = null; // debounce timer for Add Client modal Halaxy search
-var _halaxyFunders   = null; // cached Halaxy funder org list
+var _halaxyFunders   = null; // cached Halaxy funder org list (null = not yet loaded; [] = loaded but empty)
+var _halaxyFeeMap    = {};   // funder ID → array of fee IDs (from halaxy_fee_funder_map setting)
 
 /* ── Load pipeline ── */
 function plSkeletons(n) {
@@ -457,9 +458,11 @@ async function loadPipeline() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     var d = await r.json();
     _pipelineData  = d;
-    _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [] };
-    _halaxyFunders = (_halaxyData.funders && _halaxyData.funders.length) ? _halaxyData.funders : null;
-    _halaxyFees    = (_halaxyData.fees    && _halaxyData.fees.length)    ? _halaxyData.fees    : _halaxyFees;
+    _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [], feeMap: {} };
+    // Always set _halaxyFunders to an array after pipeline loads — never leave it null
+    _halaxyFunders = _halaxyData.funders || [];
+    _halaxyFeeMap  = _halaxyData.feeMap  || {};
+    _halaxyFees    = (_halaxyData.fees && _halaxyData.fees.length) ? _halaxyData.fees : _halaxyFees;
     renderPipeline();
     updateHalaxyDot();
   } catch (err) {
@@ -500,9 +503,11 @@ function refreshPipeline() {
     return r.json();
   }).then(function(d) {
     _pipelineData  = d;
-    _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [] };
-    _halaxyFunders = (_halaxyData.funders && _halaxyData.funders.length) ? _halaxyData.funders : null;
-    _halaxyFees    = (_halaxyData.fees    && _halaxyData.fees.length)    ? _halaxyData.fees    : _halaxyFees;
+    _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [], feeMap: {} };
+    // Always set _halaxyFunders to an array after pipeline loads — never leave it null
+    _halaxyFunders = _halaxyData.funders || [];
+    _halaxyFeeMap  = _halaxyData.feeMap  || {};
+    _halaxyFees    = (_halaxyData.fees && _halaxyData.fees.length) ? _halaxyData.fees : _halaxyFees;
     renderPipeline();
     updateHalaxyDot();
     toast('Pipeline refreshed');
@@ -1414,35 +1419,46 @@ function _buildFunderDropdownHtml(funders) {
 function _populateFunderDropdown() {
   var sel = document.getElementById('cl-funder');
   if (!sel) return;
-  if (_halaxyFunders && _halaxyFunders.length) {
-    sel.innerHTML = _buildFunderDropdownHtml(_halaxyFunders);
-  } else {
-    // Pipeline still loading — poll every 300ms until funders arrive
+  // _halaxyFunders is null only before the first pipeline response arrives
+  if (_halaxyFunders === null) {
+    // Pipeline still loading — poll every 300ms until funders arrive (or pipeline confirms empty)
     sel.innerHTML = '<option value="">Loading funders…</option>';
     var attempts = 0;
     var poll = setInterval(function() {
       attempts++;
-      if (_halaxyFunders && _halaxyFunders.length) {
+      if (_halaxyFunders !== null) {
         clearInterval(poll);
         var cur = document.getElementById('cl-funder');
-        if (cur) cur.innerHTML = _buildFunderDropdownHtml(_halaxyFunders);
-      } else if (attempts > 30) { // 9 seconds — give up
+        if (!cur) return;
+        if (_halaxyFunders.length) {
+          cur.innerHTML = _buildFunderDropdownHtml(_halaxyFunders);
+        } else {
+          cur.innerHTML = '<option value="">No funders loaded — click \'⟳ Sync Halaxy data\' to load</option>';
+        }
+      } else if (attempts > 30) { // 9 seconds — give up waiting for pipeline
         clearInterval(poll);
         var cur = document.getElementById('cl-funder');
-        if (cur) cur.innerHTML = '<option value="">Funders unavailable — check Halaxy connection</option>';
+        if (cur) cur.innerHTML = '<option value="">No funders loaded — click \'⟳ Sync Halaxy data\' to load</option>';
       }
     }, 300);
+  } else if (_halaxyFunders.length) {
+    sel.innerHTML = _buildFunderDropdownHtml(_halaxyFunders);
+  } else {
+    // Pipeline loaded but returned 0 funders
+    sel.innerHTML = '<option value="">No funders loaded — click \'⟳ Sync Halaxy data\' to load</option>';
   }
 }
 
 /** Called when the funder dropdown changes (data-billing drives plan manager + fee load) */
 function onModalFunderChange(sel) {
   var opt        = sel.options[sel.selectedIndex];
+  // billingKey is always in data-billing (set by _buildFunderDropdownHtml)
   var billingKey = (opt && opt.dataset.billing) || '';
   var pmField    = document.getElementById('plan-manager-field');
   if (pmField) pmField.style.display = billingKey === 'ndis_plan' ? '' : 'none';
-  var orgId = sel.value; // Halaxy Organisation ID
-  _loadModalFees(billingKey, orgId);
+  // sel.value is the funder ID (seed ID like 'in-choice', or Halaxy org ID if from API)
+  var funderId = sel.value;
+  _loadModalFees(billingKey, funderId);
 }
 
 /** Legacy alias used in a few places */
@@ -1451,35 +1467,23 @@ function togglePlanManager(billingKey) {
   if (field) field.style.display = billingKey === 'ndis_plan' ? '' : 'none';
 }
 
-async function _loadModalFees(funderKey, orgId) {
+async function _loadModalFees(funderKey, funderId) {
   var feeRow = document.getElementById('cl-session-fee-row');
   var feeSel = document.getElementById('cl-session-fee');
   if (!feeRow || !feeSel) return;
   if (!funderKey) { feeRow.style.display = 'none'; return; }
 
-  // Fetch fees — if we have an orgId try filtering server-side, else use full cached list
-  var fees;
-  if (orgId && orgId.length > 3) {
+  // Ensure fees are loaded
+  if (!_halaxyFees) {
     try {
-      var r = await fetch('/api/admin-enquiries?halaxy_fees=1&org_id=' + encodeURIComponent(orgId));
-      var d = await r.json();
-      fees = d.fees || [];
-      // If server-side filter returned results, cache per org
-      if (fees.length) { _halaxyFees = _halaxyFees || fees; } // keep full list if already loaded
-    } catch (_) { fees = null; }
+      var r2 = await fetch('/api/admin-enquiries?halaxy_fees=1');
+      var d2 = await r2.json();
+      _halaxyFees = d2.fees || [];
+    } catch (_) { _halaxyFees = []; }
   }
-  if (!fees) {
-    if (!_halaxyFees) {
-      try {
-        var r2 = await fetch('/api/admin-enquiries?halaxy_fees=1');
-        var d2 = await r2.json();
-        _halaxyFees = d2.fees || [];
-      } catch (_) { _halaxyFees = []; }
-    }
-    fees = _halaxyFees;
-  }
+  var fees = _halaxyFees;
 
-  var filtered = _filterFeesForFunder(fees, funderKey);
+  var filtered = _filterFeesForFunder(fees, funderKey, funderId);
 
   var defaultRate = FUNDER_RATES[funderKey] || '';
   feeSel.innerHTML = '<option value="">— select fee —</option>'
@@ -1831,14 +1835,27 @@ var FUNDER_KEYWORDS = {
 };
 
 /**
- * Filter a fees array for a given funder key.
- * Prefers matching fee.funderName (from Halaxy useContext) if present on any fee,
- * otherwise falls back to keyword matching on fee.name.
+ * Filter a fees array for a given funder key and optional funder ID.
+ * Priority:
+ *   1. Explicit fee map (_halaxyFeeMap[funderId]) if we have one
+ *   2. funderName matching (from Halaxy useContext) if present on any fee
+ *   3. Keyword matching on fee.name
+ *   4. Full list if no matches
  */
-function _filterFeesForFunder(fees, funderKey) {
-  if (!funderKey || !fees || !fees.length) return fees || [];
+function _filterFeesForFunder(fees, funderKey, funderId) {
+  if (!fees || !fees.length) return fees || [];
+
+  // 1. Explicit fee map: funderOrgId → array of fee IDs
+  if (funderId && _halaxyFeeMap && _halaxyFeeMap[funderId] && _halaxyFeeMap[funderId].length) {
+    var mappedIds = _halaxyFeeMap[funderId];
+    var mapped = fees.filter(function(f) { return mappedIds.indexOf(f.id) !== -1; });
+    if (mapped.length) return mapped;
+  }
+
+  if (!funderKey) return fees;
   var kw = FUNDER_KEYWORDS[funderKey] || [];
-  // If fees have funderName data, use it for matching
+
+  // 2. If fees have funderName data, use it for matching
   var hasFunderName = fees.some(function(f) { return f.funderName; });
   if (hasFunderName) {
     var matched = fees.filter(function(f) {
@@ -1848,7 +1865,8 @@ function _filterFeesForFunder(fees, funderKey) {
     });
     if (matched.length) return matched;
   }
-  // Fallback: keyword match on fee name
+
+  // 3. Keyword match on fee name
   if (kw.length) {
     var byName = fees.filter(function(f) {
       var n = (f.name || '').toLowerCase();
@@ -1856,6 +1874,7 @@ function _filterFeesForFunder(fees, funderKey) {
     });
     if (byName.length) return byName;
   }
+
   return fees; // no match — return full list
 }
 
