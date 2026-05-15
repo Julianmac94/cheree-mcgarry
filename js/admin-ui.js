@@ -759,34 +759,41 @@ function _isClinicalAppt(a) {
 
 function _halaxyApptLabel(a) {
   var parts = [];
-  var patientId = null;
 
-  // Patient name: try actor.display first, then look up local client by halaxy_id
+  // Patient name resolution (for clinical appointments)
   if (a.participant) {
     for (var i = 0; i < a.participant.length; i++) {
       var actor = a.participant[i].actor || {};
       if ((actor.reference || '').indexOf('Patient/') === 0) {
-        if (actor.display) {
-          parts.push(actor.display);
-        } else {
-          // Extract patient ID and look up in local client list
-          patientId = actor.reference.replace('Patient/', '');
-          var local = _pipelineData && (_pipelineData.clients || []).find(function(c) {
-            return String(c.halaxy_id) === String(patientId);
-          });
-          if (local && local.display_name) parts.push(local.display_name);
+        var name = actor.display || '';
+        if (!name) {
+          var pid = actor.reference.replace('Patient/', '');
+          // 1. Look up in Halaxy patients list (already fetched, always has names)
+          var hp = _halaxyData && (_halaxyData.patients || []).find(function(p) { return String(p.id) === String(pid); });
+          if (hp && hp.name) { name = hp.name; }
+          // 2. Fall back to local dashboard client
+          if (!name) {
+            var local = _pipelineData && (_pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(pid); });
+            if (local && local.display_name) name = local.display_name;
+          }
         }
+        if (name) parts.push(name);
         break;
       }
     }
   }
 
-  // Service type as secondary label
+  // Service type as secondary context
   var svc = (a.serviceType && a.serviceType[0] && (a.serviceType[0].text || (a.serviceType[0].coding && a.serviceType[0].coding[0] && a.serviceType[0].coding[0].display))) || '';
   if (svc) parts.push(svc);
 
-  // Fall back to description, comment, or a generic label
-  return parts.length ? parts.join(' · ') : (a.description || a.comment || 'Halaxy appointment');
+  // For personal / admin appointments fall back to description or appointmentType
+  if (!parts.length) {
+    var apptType = (a.appointmentType && (a.appointmentType.text || (a.appointmentType.coding && a.appointmentType.coding[0] && a.appointmentType.coding[0].display))) || '';
+    return a.description || a.comment || apptType || svc || 'Halaxy appointment';
+  }
+
+  return parts.join(' · ');
 }
 
 function toggleWeekEvent(el) {
