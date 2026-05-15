@@ -77,9 +77,12 @@ function mapOrgToFunder(org) {
   return { id: org.id, name, type: typeText, billingKey };
 }
 
+// Fee names that are junk/admin and should never appear in the billing dropdown
+const SKIP_FEE_PATTERNS = [/archived/i, /^test fee$/i, /^business development$/i, /ayurveda/i, /set.up appointment/i];
+
 function mapCidToFee(r) {
   const name = r.title || r.name || r.description || 'Fee';
-  if (/archived/i.test(name)) return null;
+  if (SKIP_FEE_PATTERNS.some(p => p.test(name))) return null;
   let amount = null, currency = 'AUD';
   if (r.propertyGroup) {
     for (const pg of r.propertyGroup) {
@@ -90,23 +93,9 @@ function mapCidToFee(r) {
     }
   }
   if (amount === null) return null;
-  let funderOrgId = '', funderName = '';
-  for (const uc of (r.useContext || [])) {
-    const ref = uc.valueReference?.reference || '';
-    if (ref.startsWith('Organization/')) { funderOrgId = ref.replace('Organization/', ''); funderName = uc.valueReference?.display || ''; break; }
-    const v = uc.valueCodeableConcept?.text || uc.valueCodeableConcept?.coding?.[0]?.display || '';
-    if (v) { funderName = v; break; }
-  }
-  if (!funderOrgId) {
-    for (const ext of (r.extension || [])) {
-      if (ext.valueReference?.reference?.startsWith('Organization/')) {
-        funderOrgId = ext.valueReference.reference.replace('Organization/', '');
-        funderName  = ext.valueReference.display || funderName;
-        break;
-      }
-    }
-  }
-  return { id: r.id, name, amount, currency, funderOrgId, funderName };
+  // Halaxy does not embed Organization references in ChargeItemDefinition useContext —
+  // funderOrgId/funderName will always be empty; filtering is done client-side by keywords.
+  return { id: r.id, name, amount, currency, funderOrgId: '', funderName: '' };
 }
 
 const KNOWN_FUNDERS = [
@@ -180,32 +169,22 @@ async function syncHalaxyConfig(db) {
   console.log(`Halaxy sync: ${halaxyOrgs.length} filtered Halaxy orgs → ${funders.length} funders (${funderSource})`);
 
   // ── Fees ─────────────────────────────────────────────────────────────
-  const fees = (cidBundle.entry || []).map(e => e.resource).filter(Boolean).map(mapCidToFee).filter(Boolean);
-  console.log(`Halaxy sync: ${fees.length} fees. Names: ${fees.slice(0,10).map(f=>f.name).join(' | ')}`);
+  // Halaxy has no funder references inside ChargeItemDefinition — feeMap will be empty
+  // and client-side keyword matching is the only filter mechanism.
+  const rawFees = (cidBundle.entry || []).map(e => e.resource).filter(Boolean).map(mapCidToFee).filter(Boolean);
 
-  // Build fee→funder map using real Halaxy org IDs (populated when Halaxy embeds them)
-  const feeMap = {};
-  fees.filter(f => f.funderOrgId).forEach(f => {
-    if (!feeMap[f.funderOrgId]) feeMap[f.funderOrgId] = [];
-    feeMap[f.funderOrgId].push(f.id);
+  // Deduplicate by name+amount (Halaxy often has the same fee set up multiple times)
+  const seen = new Set();
+  const fees = rawFees.filter(f => {
+    const key = `${f.name}|${f.amount}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 
-  // Also build a name-based fee→funder map: normalise funder name → fee IDs
-  // This fires when fees have a funderName but no funderOrgId (e.g. Halaxy uses text not ref)
-  const feeMapByName = {};
-  fees.filter(f => f.funderName && !f.funderOrgId).forEach(f => {
-    const k = normalise(f.funderName);
-    if (!feeMapByName[k]) feeMapByName[k] = [];
-    feeMapByName[k].push(f.id);
-  });
-  // Merge name-based map into id-based map using funders as bridge
-  funders.forEach(fu => {
-    const k = normalise(fu.name);
-    if (feeMapByName[k] && feeMapByName[k].length) {
-      if (!feeMap[fu.id]) feeMap[fu.id] = [];
-      feeMap[fu.id].push(...feeMapByName[k].filter(id => !feeMap[fu.id].includes(id)));
-    }
-  });
+  console.log(`Halaxy sync: ${rawFees.length} raw fees → ${fees.length} after dedup. Sample: ${fees.slice(0,8).map(f=>f.name).join(' | ')}`);
+
+  const feeMap = {}; // always empty — Halaxy doesn't provide org refs in fees
 
   await Promise.all([
     writeCache(db, 'halaxy_funders_cache', { funders, synced_at: new Date().toISOString(), source: funderSource }),

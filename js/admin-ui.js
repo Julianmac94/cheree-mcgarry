@@ -1836,16 +1836,45 @@ function _mapCoverageToFunderKey(str) {
   return null;
 }
 
-// Keywords matched against fee names as a fallback filter.
-// Kept broad so common naming patterns are caught even if fees are named generically.
+// Keyword sets matched against fee names to filter by funder.
+// Derived from actual Halaxy fee naming conventions (Halaxy does not provide
+// funder references inside ChargeItemDefinition — keyword matching is the only option).
 var FUNDER_KEYWORDS = {
-  ndis_plan: ['ndis', 'plan manag', 'support coord', 'therapeutic support'],
-  ndis_self: ['ndis', 'self manag'],
-  medicare:  ['medicare', 'mbs', 'mhcp', 'mental health care', 'better access', 'rebate'],
-  qfes:      ['qfes', 'eap', 'third-party', 'third party', 'employee assist'],
-  dva:       ['dva', 'defence', 'veteran', 'bupa adf', 'adfhcs', 'military'],
-  private:   ['private', 'self-fund', 'self fund', 'thorne'],
-  other:     ['workers comp', "worker's comp", 'workcover', 'return to work'],
+  // NDIS fees are consistently named with Social Worker credentials / NDIS line items
+  ndis_plan: [
+    'ndis', 'social worker', 'amhsw', 'aasw',
+    'therapeutic supports', 'improved daily living',
+    'early childhood intervention', 'provider travel',
+    'client non-attendance', 'training for carers',
+    'case conference', 'communication - ',
+  ],
+  ndis_self: [
+    'ndis', 'social worker', 'amhsw', 'aasw',
+    'therapeutic supports', 'improved daily living',
+    'early childhood intervention', 'training for carers',
+  ],
+  // Medicare fees are the "Other than Client" rebate items
+  medicare: [
+    'medicare', 'mbs', 'mhcp', 'other than client',
+    'better access', 'rebate',
+  ],
+  // QFES fees are all explicitly named "QFES Consultation / Cancellation"
+  qfes: ['qfes'],
+  // DVA fees use DVA item codes and rate-specific names
+  dva: [
+    'dva', 'defence', 'veteran', 'bupa adf', 'adfhcs',
+    'us04', 'initial consultation', 'subsequent consultation',
+    'consultation 50',
+  ],
+  // Private fees are the generic session types without funder-specific naming
+  private: [
+    'in person consultation', 'video telehealth', 'phone telehealth',
+    'face to face', 'online', 'ongoing session',
+    'couple session', 'parent intake',
+  ],
+  other: [
+    'workcover', "worker's comp", 'workers comp', 'return to work', 'worksafe',
+  ],
 };
 
 /**
