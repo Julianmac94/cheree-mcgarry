@@ -1121,16 +1121,21 @@ body {
 
 /* Small pipeline cards for three-panel view */
 .dp-card {
-  background: rgba(42,88,80,0.025);
+  background: white;
   border: 1px solid rgba(42,88,80,0.1);
   border-radius: 10px;
   padding: 11px 13px;
   margin-bottom: 7px;
   position: relative;
+  display: flex; align-items: flex-start; gap: 10px;
   transition: box-shadow 0.15s, border-color 0.15s;
 }
 .dp-card:hover { box-shadow: 0 3px 14px rgba(25,46,42,0.09); border-color: rgba(42,88,80,0.2); }
-.dp-card--new { border-left: 3px solid ${C.terra}; background: rgba(190,110,68,0.025); }
+.dp-card--new { border-left: 3px solid ${C.terra}; }
+
+/* Two-column layout inside triage cards */
+.dp-card-left  { flex: 1; min-width: 0; }
+.dp-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
 
 .dp-card-name {
   font-size: 13px; font-weight: 500; color: var(--tealDeep);
@@ -1141,16 +1146,12 @@ body {
 .dp-card-sub {
   font-size: 11px; color: var(--soft);
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  margin-bottom: 7px;
+  margin-bottom: 5px;
 }
 .dp-card-email {
   font-size: 11px; color: var(--teal); text-decoration: none;
 }
 .dp-card-email:hover { text-decoration: underline; }
-.dp-card-actions {
-  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
-  margin-top: 8px;
-}
 .dp-badge {
   font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
   text-transform: uppercase; padding: 2px 7px;
@@ -1337,7 +1338,7 @@ body {
 
 /* 7-day actionable appointment cards */
 .appt-7day-card {
-  background: rgba(42,88,80,0.025);
+  background: white;
   border: 1px solid rgba(42,88,80,0.1);
   border-left: 3px solid ${C.tealMid};
   border-radius: 9px; padding: 9px 12px;
@@ -1346,11 +1347,11 @@ body {
   flex-wrap: wrap;
 }
 /* Google Calendar — blue-green left border */
-.appt-7day-card--cal      { border-left-color: #2e7d8a; background: rgba(46,125,138,0.04); }
+.appt-7day-card--cal      { border-left-color: #2e7d8a; }
 /* Halaxy clinical — purple left border */
-.appt-7day-card--halaxy   { border-left-color: #7a5a8a; background: rgba(122,90,138,0.04); }
+.appt-7day-card--halaxy   { border-left-color: #7a5a8a; }
 /* Personal / unnamed block */
-.appt-7day-card--personal { border-left-color: #aaa; opacity: 0.55; }
+.appt-7day-card--personal { border-left-color: #bbb; opacity: 0.5; }
 .appt-7day-left  { flex: 1; min-width: 0; }
 .appt-7day-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
 .appt-7day-when  { font-size: 10px; color: var(--soft); margin-bottom: 2px; }
