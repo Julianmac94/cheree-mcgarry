@@ -1609,6 +1609,7 @@ body {
 </div>
 
 <script>window.ADMIN_USER = '${currentUser?.name || ''}';</script>
+<script src="/js/admin-ui.js"></script>
 <script>
 function switchTab(tab, btn) {
   document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
@@ -1634,7 +1635,6 @@ function switchTab(tab, btn) {
   if (defaultBtn) switchTab('pipeline', defaultBtn);
 })();
 </script>
-<script src="/js/admin-ui.js"></script>
 </body>
 </html>`;
 }
