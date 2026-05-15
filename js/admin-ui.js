@@ -1836,29 +1836,32 @@ function _mapCoverageToFunderKey(str) {
   return null;
 }
 
-// Keywords matched against fee.funderName (the funder field from Halaxy ChargeItemDefinition)
-// Used as fallback when funderName is absent from fee data
+// Keywords matched against fee names as a fallback filter.
+// Kept broad so common naming patterns are caught even if fees are named generically.
 var FUNDER_KEYWORDS = {
-  ndis_plan: ['ndis'],
-  ndis_self: ['ndis'],
-  medicare:  ['medicare', 'mbs', 'mhcp'],
-  qfes:      ['qfes', 'eap', 'third-party', 'third party'],
-  dva:       ['dva', 'defence', 'veteran', 'bupa adf', 'adfhcs'],
-  private:   ['private', 'self', 'thorne'],
+  ndis_plan: ['ndis', 'plan manag', 'support coord', 'therapeutic support'],
+  ndis_self: ['ndis', 'self manag'],
+  medicare:  ['medicare', 'mbs', 'mhcp', 'mental health care', 'better access', 'rebate'],
+  qfes:      ['qfes', 'eap', 'third-party', 'third party', 'employee assist'],
+  dva:       ['dva', 'defence', 'veteran', 'bupa adf', 'adfhcs', 'military'],
+  private:   ['private', 'self-fund', 'self fund', 'thorne'],
+  other:     ['workers comp', "worker's comp", 'workcover', 'return to work'],
 };
 
 /**
  * Filter a fees array for a given funder key and optional funder ID.
  * Priority:
- *   1. Explicit fee map (_halaxyFeeMap[funderId]) if we have one
- *   2. funderName matching (from Halaxy useContext) if present on any fee
- *   3. Keyword matching on fee.name
- *   4. Full list if no matches
+ *   1. Explicit fee map (_halaxyFeeMap[funderId]) when Halaxy provides org refs in fees
+ *   2. funderName field on fee (if Halaxy stores it as text)
+ *   3. Combined keyword set: predefined FUNDER_KEYWORDS + significant words from
+ *      the funder's own display name (so "In Choice Plan Management" → searches
+ *      fees for "choice", "plan", etc.)
+ *   4. Full list when nothing matches (better than showing nothing)
  */
 function _filterFeesForFunder(fees, funderKey, funderId) {
   if (!fees || !fees.length) return fees || [];
 
-  // 1. Explicit fee map: funderOrgId → array of fee IDs
+  // 1. Explicit fee map: funderOrgId → array of fee IDs (when Halaxy embeds org refs)
   if (funderId && _halaxyFeeMap && _halaxyFeeMap[funderId] && _halaxyFeeMap[funderId].length) {
     var mappedIds = _halaxyFeeMap[funderId];
     var mapped = fees.filter(function(f) { return mappedIds.indexOf(f.id) !== -1; });
@@ -1866,20 +1869,35 @@ function _filterFeesForFunder(fees, funderKey, funderId) {
   }
 
   if (!funderKey) return fees;
-  var kw = FUNDER_KEYWORDS[funderKey] || [];
 
-  // 2. If fees have funderName data, use it for matching
+  // Build keyword set: predefined + significant words from the funder's display name
+  var kw = (FUNDER_KEYWORDS[funderKey] || []).slice();
+  var funderObj = funderId
+    ? (_halaxyFunders || []).find(function(f) { return f.id === funderId; })
+    : (_halaxyFunders || []).find(function(f) { return f.billingKey === funderKey; });
+  if (funderObj && funderObj.name) {
+    // Add words of 4+ chars from the funder name (skip common filler words)
+    var skipWords = ['plan', 'the', 'and', 'for', 'with', 'services', 'health', 'care'];
+    funderObj.name.toLowerCase().split(/\s+/).forEach(function(w) {
+      if (w.length >= 4 && skipWords.indexOf(w) === -1 && kw.indexOf(w) === -1) kw.push(w);
+    });
+    // Also add the full normalised funder name as a single keyword
+    var fullName = funderObj.name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (kw.indexOf(fullName) === -1) kw.push(fullName);
+  }
+
+  // 2. Match on fee's funderName field (when Halaxy stores it as text not a ref)
   var hasFunderName = fees.some(function(f) { return f.funderName; });
   if (hasFunderName) {
-    var matched = fees.filter(function(f) {
+    var byFunderName = fees.filter(function(f) {
       if (!f.funderName) return false;
       var fn = f.funderName.toLowerCase();
       return kw.some(function(k) { return fn.indexOf(k) !== -1; });
     });
-    if (matched.length) return matched;
+    if (byFunderName.length) return byFunderName;
   }
 
-  // 3. Keyword match on fee name
+  // 3. Keyword match on fee name itself
   if (kw.length) {
     var byName = fees.filter(function(f) {
       var n = (f.name || '').toLowerCase();
