@@ -712,7 +712,7 @@ body {
       <span class="user-label">${currentUser.name}</span>
     </div>` : ''}
     <a class="topbar-link site" href="/" target="_blank">View site →</a>
-    <a class="topbar-link" href="/admin-login?logout=1">Sign out</a>
+    <a class="topbar-link" href="/admin?logout=1">Sign out</a>
   </div>
 </header>
 
