@@ -1157,6 +1157,7 @@ body {
 .pl-badge--funder   { background: rgba(42,88,80,0.1); color: var(--teal); }
 .pl-badge--pending  { background: rgba(200,160,40,0.15); color: #8a6a00; }
 .pl-badge--appt     { background: rgba(119,207,189,0.2); color: #1a6e5e; }
+.pl-badge--nohalaxy { background: rgba(190,110,68,0.08); color: ${C.terra}; border: 1px solid rgba(190,110,68,0.2); }
 
 .pl-card-actions {
   display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;
@@ -1217,6 +1218,35 @@ body {
   100% { background-position: -200% 0; }
 }
 .pl-empty { font-size: 11px; color: rgba(122,148,143,0.6); padding: 8px 2px; font-style: italic; }
+
+/* Halaxy link section inside client card */
+.pl-halaxy-section {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid rgba(42,88,80,0.08);
+}
+.pl-halaxy-linked {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 11px;
+}
+.pl-halaxy-linked-label { color: #1a7a50; font-weight: 600; }
+.pl-halaxy-id-val { color: var(--soft); font-size: 10px; font-family: monospace; background: rgba(42,88,80,0.06); padding: 2px 6px; border-radius: 4px; }
+.pl-halaxy-open { font-size: 10px; color: var(--teal); text-decoration: none; }
+.pl-halaxy-open:hover { text-decoration: underline; }
+.pl-halaxy-clear-btn { font-family: var(--sans); font-size: 10px; color: var(--soft); background: none; border: none; cursor: pointer; padding: 0; }
+.pl-halaxy-clear-btn:hover { color: var(--terra); }
+.pl-halaxy-unlinked { font-size: 11px; }
+.pl-halaxy-steps { color: var(--soft); margin-bottom: 7px; line-height: 1.5; }
+.pl-halaxy-steps strong { color: var(--mid); }
+.pl-halaxy-input-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.pl-halaxy-input {
+  flex: 1; min-width: 120px;
+  font-family: var(--sans); font-size: 11px; color: var(--tealDeep);
+  border: 1px solid rgba(42,88,80,0.2); border-radius: 6px;
+  padding: 5px 8px; background: white; outline: none;
+  transition: border-color 0.2s;
+}
+.pl-halaxy-input:focus { border-color: var(--teal); }
+.pl-halaxy-input::placeholder { color: var(--soft); }
 
 /* Intake panel inside pipeline card */
 .pl-intake-panel { margin-top: 8px; display: none; }
@@ -1562,6 +1592,10 @@ body {
     <div class="cl-modal-field" id="plan-manager-field" style="display:none">
       <label for="cl-plan-manager">Plan manager name</label>
       <input class="cl-modal-input" id="cl-plan-manager" type="text" placeholder="e.g. ABC Plan Management">
+    </div>
+    <div class="cl-modal-field">
+      <label for="cl-halaxy-id">Halaxy Patient ID <span style="font-weight:400;color:var(--soft)">(optional — paste if already in Halaxy)</span></label>
+      <input class="cl-modal-input" id="cl-halaxy-id" type="text" placeholder="e.g. 12345">
     </div>
     <div class="cl-modal-field">
       <label for="cl-notes">Notes (optional)</label>

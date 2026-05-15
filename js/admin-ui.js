@@ -589,11 +589,12 @@ function renderClientCardPl(c) {
   var pendingCount = sessions.filter(function(s) {
     return s.status === 'upcoming' || s.status === 'completed' || s.status === 'invoiced' || s.status === 'submitted';
   }).length;
-  var uid = 'cl-' + c.id;
+  var uid        = 'cl-' + c.id;
+  var hasHalaxy  = !!(c.halaxy_id && c.halaxy_id.trim());
 
   // Halaxy next appointment
   var apptBadge = '';
-  if (_halaxyData.connected && c.halaxy_id) {
+  if (_halaxyData.connected && hasHalaxy) {
     var today = new Date().toISOString().slice(0, 10);
     var nextAppt = (_halaxyData.appointments || []).find(function(a) {
       if (!a.start || a.start.slice(0, 10) < today) return false;
@@ -609,12 +610,34 @@ function renderClientCardPl(c) {
 
   var badges = '<span class="pl-badge pl-badge--funder funder-' + escHtml(c.funder || '') + '">' + escHtml(funderLabel) + '</span>';
   if (pendingCount) badges += '<span class="pl-badge pl-badge--pending">' + pendingCount + ' pending</span>';
-  if (apptBadge) badges += apptBadge;
+  if (apptBadge)    badges += apptBadge;
+  if (!hasHalaxy)   badges += '<span class="pl-badge pl-badge--nohalaxy">Not in Halaxy</span>';
 
   var sortedSess = (sessions || []).slice().sort(function(a, b) { return b.session_date.localeCompare(a.session_date); });
   var sessHtml = sortedSess.length
     ? '<div class="pl-detail-sessions">' + sortedSess.map(function(s) { return renderSessionMiniPl(s, c.id); }).join('') + '</div>'
     : '<div class="pl-empty" style="font-size:10px;margin:4px 0">No sessions yet</div>';
+
+  // Halaxy link section
+  var halaxySection = '<div class="pl-halaxy-section" id="pl-halaxy-sect-' + c.id + '">';
+  if (hasHalaxy) {
+    halaxySection += '<div class="pl-halaxy-linked">'
+      + '<span class="pl-halaxy-linked-label">✓ Halaxy linked</span>'
+      + '<span class="pl-halaxy-id-val">' + escHtml(c.halaxy_id) + '</span>'
+      + '<a href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="pl-halaxy-open">Open ↗</a>'
+      + '<button class="pl-halaxy-clear-btn" onclick="event.stopPropagation();clearHalaxyIdPl(\'' + c.id + '\')">Unlink</button>'
+      + '</div>';
+  } else {
+    halaxySection += '<div class="pl-halaxy-unlinked">'
+      + '<div class="pl-halaxy-steps">To link: <strong>1)</strong> Create a Patient in Halaxy &amp; set up a professional appointment &nbsp;·&nbsp; <strong>2)</strong> Paste their Halaxy Patient ID below</div>'
+      + '<div class="pl-halaxy-input-row">'
+      + '<input class="pl-halaxy-input" id="pl-halaxy-inp-' + c.id + '" type="text" placeholder="Halaxy Patient ID…" onclick="event.stopPropagation()">'
+      + '<a href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="pl-action-btn pl-action-btn--soft" style="text-decoration:none;font-size:10px">Open Halaxy ↗</a>'
+      + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();saveHalaxyIdPl(\'' + c.id + '\')">Link</button>'
+      + '</div>'
+      + '</div>';
+  }
+  halaxySection += '</div>';
 
   var archiveBtn = c.active
     ? '<button class="pl-action-btn pl-action-btn--danger" onclick="event.stopPropagation();setClientActivePl(\'' + c.id + '\',false)">Archive</button>'
@@ -622,6 +645,7 @@ function renderClientCardPl(c) {
 
   var detailHtml = sessHtml
     + renderAddSessionFormPl(c.id)
+    + halaxySection
     + '<div style="display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(42,88,80,0.07)">'
     + '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();toggleAddSessionFormPl(\'' + c.id + '\')">+ Session</button>'
     + '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();editClientPl(\'' + c.id + '\')">Edit</button>'
@@ -796,6 +820,7 @@ function openAddClient() {
   document.getElementById('cl-display-name').value = '';
   document.getElementById('cl-funder').value        = '';
   document.getElementById('cl-plan-manager').value  = '';
+  document.getElementById('cl-halaxy-id').value     = '';
   document.getElementById('cl-notes').value         = '';
   togglePlanManager('');
   document.getElementById('add-client-modal').classList.add('open');
@@ -811,16 +836,17 @@ function togglePlanManager(funder) {
 }
 
 async function saveNewClient() {
-  var name   = (document.getElementById('cl-display-name') || {}).value.trim();
-  var funder = (document.getElementById('cl-funder') || {}).value;
-  var pm     = (document.getElementById('cl-plan-manager') || {}).value.trim();
-  var notes  = (document.getElementById('cl-notes') || {}).value.trim();
+  var name      = (document.getElementById('cl-display-name') || {}).value.trim();
+  var funder    = (document.getElementById('cl-funder') || {}).value;
+  var pm        = (document.getElementById('cl-plan-manager') || {}).value.trim();
+  var halaxyId  = (document.getElementById('cl-halaxy-id') || {}).value.trim();
+  var notes     = (document.getElementById('cl-notes') || {}).value.trim();
   if (!name)   { toast('Please enter a name.', 'err');    return; }
   if (!funder) { toast('Please select a funder.', 'err'); return; }
   try {
     await apiFetch('/api/clients', {
       method: 'POST',
-      body: { display_name: name, funder: funder, plan_manager: pm || null, notes: notes || null },
+      body: { display_name: name, funder: funder, plan_manager: pm || null, halaxy_id: halaxyId || null, notes: notes || null },
     });
     toast('Client added');
     closeAddClient();
@@ -856,6 +882,31 @@ async function editClientPl(clientId) {
     refreshPipeline();
   } catch (err) {
     toast('Could not update: ' + err.message, 'err');
+  }
+}
+
+/* ── Halaxy Patient ID link / unlink ── */
+async function saveHalaxyIdPl(clientId) {
+  var inp = document.getElementById('pl-halaxy-inp-' + clientId);
+  var val = (inp ? inp.value : '').trim();
+  if (!val) { toast('Paste a Halaxy Patient ID first.', 'err'); return; }
+  try {
+    await apiFetch('/api/clients', { method: 'PATCH', body: { id: clientId, halaxy_id: val } });
+    toast('Halaxy linked ✓');
+    refreshPipeline();
+  } catch (err) {
+    toast('Could not link: ' + err.message, 'err');
+  }
+}
+
+async function clearHalaxyIdPl(clientId) {
+  if (!confirm('Unlink this client from Halaxy? Appointment data won\'t show until you re-link.')) return;
+  try {
+    await apiFetch('/api/clients', { method: 'PATCH', body: { id: clientId, halaxy_id: null } });
+    toast('Halaxy unlinked');
+    refreshPipeline();
+  } catch (err) {
+    toast('Could not unlink: ' + err.message, 'err');
   }
 }
 
@@ -917,6 +968,7 @@ function convertPendingPl(event) {
   document.getElementById('cl-display-name').value = event.title || '';
   document.getElementById('cl-funder').value        = '';
   document.getElementById('cl-plan-manager').value  = '';
+  document.getElementById('cl-halaxy-id').value     = '';
   document.getElementById('cl-notes').value         = event.description || '';
   togglePlanManager('');
   document.getElementById('add-client-modal').classList.add('open');
