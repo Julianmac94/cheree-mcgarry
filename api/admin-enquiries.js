@@ -498,7 +498,7 @@ export default async function handler(req, res) {
             date:   `ge${ninetyDaysAgo.toISOString().slice(0, 10)}`,
             _sort:  '-date',
             _count: '200',
-          }).catch(() => ({ entry: [] })),
+          }).catch(e => ({ entry: [], _fetchError: e.message })),
         ]);
         // _include=Appointment:patient adds Patient resources as extra entries —
         // split by resourceType so we don't treat Patient records as Appointments.
@@ -544,6 +544,7 @@ export default async function handler(req, res) {
             id: p.id, name: fhirPatientLegalName(p),
           })),
           invoices,
+          invoiceError: invoiceBundle._fetchError || null,
           funders:      cachedFunders,
           fees:         cachedFees,
           feeMap:       cachedFeeMap,

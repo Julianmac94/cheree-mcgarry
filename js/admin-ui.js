@@ -464,7 +464,9 @@ async function loadPipeline() {
     _halaxyFeeMap  = _halaxyData.feeMap  || {};
     _halaxyFees    = (_halaxyData.fees && _halaxyData.fees.length) ? _halaxyData.fees : _halaxyFees;
     // Debug: log invoice data so we can verify Halaxy /Invoice response structure
-    console.log('[Halaxy invoices] count:', (_halaxyData.invoices || []).length, '| sample:', (_halaxyData.invoices || []).slice(0, 3));
+    console.log('[Halaxy invoices] count:', (_halaxyData.invoices || []).length,
+      '| error:', _halaxyData.invoiceError || 'none',
+      '| sample:', (_halaxyData.invoices || []).slice(0, 3));
     renderHelloSection();
     renderPipeline();
     updateHalaxyDot();
