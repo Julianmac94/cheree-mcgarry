@@ -1682,14 +1682,8 @@ body {
     </div>
     <div class="cl-modal-field">
       <label for="cl-funder">Funder</label>
-      <select class="cl-modal-select" id="cl-funder" onchange="togglePlanManager(this.value)">
-        <option value="">Select…</option>
-        <option value="ndis_plan">NDIS — Plan-managed</option>
-        <option value="ndis_self">NDIS — Self-managed</option>
-        <option value="medicare">Medicare</option>
-        <option value="qfes">QFES EAP</option>
-        <option value="dva">DVA / ADFHCS</option>
-        <option value="private">Private</option>
+      <select class="cl-modal-select" id="cl-funder" onchange="onModalFunderChange(this)">
+        <option value="">Loading…</option>
       </select>
     </div>
     <div class="cl-modal-field" id="plan-manager-field" style="display:none">

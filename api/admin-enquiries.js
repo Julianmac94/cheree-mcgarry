@@ -19,14 +19,17 @@ export default async function handler(req, res) {
   const user  = getSessionUser(req);
   const actor = user?.name || 'Admin';
 
-  /* ── GET /api/admin-enquiries?halaxy_fees=1 — fetch ChargeItemDefinition list ── */
+  /* ── GET /api/admin-enquiries?halaxy_fees=1[&org_id=<id>] — fetch ChargeItemDefinition list ── */
   if (req.method === 'GET' && (req.query?.halaxy_fees || params.get('halaxy_fees'))) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ fees: [] });
     try {
-      const bundle = await halaxyGet('/ChargeItemDefinition', { status: 'active', _count: '200' });
+      const orgId    = req.query?.org_id || params.get('org_id') || null;
+      const query    = { status: 'active', _count: '200' };
+      // If an org ID is supplied, try filtering fees by that funder organisation
+      if (orgId) query['context'] = `Organization/${orgId}`;
+      const bundle = await halaxyGet('/ChargeItemDefinition', query);
       const fees   = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(r => {
         const name = r.title || r.name || r.description || 'Fee';
-
         // Skip archived fees (Halaxy doesn't always honour status filter)
         if (/archived/i.test(name)) return null;
 
@@ -42,27 +45,41 @@ export default async function handler(req, res) {
         }
         if (amount === null) return null;
 
-        // Extract funder reference from useContext (Halaxy stores funder here)
-        // Possible shapes: valueReference.display, valueCodeableConcept.text, valueCodeableConcept.coding[].display
-        let funderName = '';
+        // Try to extract funder org reference from useContext or extensions
+        let funderOrgId = '', funderName = '';
         for (const uc of (r.useContext || [])) {
-          const v = uc.valueReference?.display
-            || uc.valueCodeableConcept?.text
-            || uc.valueCodeableConcept?.coding?.[0]?.display
-            || uc.valueCodeableConcept?.coding?.[0]?.code
-            || '';
+          const ref = uc.valueReference?.reference || '';
+          if (ref.startsWith('Organization/')) { funderOrgId = ref.replace('Organization/', ''); funderName = uc.valueReference?.display || ''; break; }
+          const v = uc.valueCodeableConcept?.text || uc.valueCodeableConcept?.coding?.[0]?.display || '';
           if (v) { funderName = v; break; }
         }
-        // Also check applicability[].description as fallback
-        if (!funderName && r.applicability?.length) {
-          funderName = r.applicability[0].description || '';
+        // Check extensions for funder reference (Halaxy may use proprietary extension)
+        if (!funderOrgId) {
+          for (const ext of (r.extension || [])) {
+            if (ext.valueReference?.reference?.startsWith('Organization/')) {
+              funderOrgId = ext.valueReference.reference.replace('Organization/', '');
+              funderName  = ext.valueReference.display || funderName;
+              break;
+            }
+          }
         }
-
-        return { id: r.id, name, amount, currency, funderName };
+        return { id: r.id, name, amount, currency, funderOrgId, funderName };
       }).filter(Boolean);
       return res.status(200).json({ fees });
     } catch (err) {
       return res.status(200).json({ fees: [], error: err.message });
+    }
+  }
+
+  /* ── GET ?halaxy_fees_raw=1 — return first 5 raw ChargeItemDefinition resources for debugging ── */
+  if (req.method === 'GET' && params.get('halaxy_fees_raw')) {
+    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ raw: [] });
+    try {
+      const bundle = await halaxyGet('/ChargeItemDefinition', { status: 'active', _count: '5' });
+      const raw = (bundle.entry || []).slice(0, 5).map(e => e.resource).filter(Boolean);
+      return res.status(200).json({ raw });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
     }
   }
 
@@ -72,10 +89,24 @@ export default async function handler(req, res) {
     try {
       const bundle = await halaxyGet('/Organization', { _count: '100' });
       const funders = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(org => {
-        const typeCode = org.type?.[0]?.coding?.[0]?.code || '';
-        const typeText = org.type?.[0]?.text || org.type?.[0]?.coding?.[0]?.display || typeCode;
-        return { id: org.id, name: org.name || org.id, type: typeText };
-      }).filter(f => f.name);
+        const typeText = org.type?.[0]?.text || org.type?.[0]?.coding?.[0]?.display || org.type?.[0]?.coding?.[0]?.code || '';
+        const name     = org.name || '';
+        if (!name || name === 'nil') return null;
+
+        // Map Halaxy funder type → our billing workflow key
+        const t = typeText.toLowerCase();
+        const n = name.toLowerCase();
+        let billingKey = 'private';
+        if (t === 'medicare')                                          billingKey = 'medicare';
+        else if (t === 'ndis')                                         billingKey = 'ndis_plan';
+        else if (t.includes('bupa adf') || n.includes('bupa adf')
+              || n.includes('defence') || n.includes('dva'))          billingKey = 'dva';
+        else if (t.includes('third-party') || t.includes('third party')
+              || n.includes('qfes') || n.includes('eap'))             billingKey = 'qfes';
+        else if (t.includes('worker') || t.includes('compensation'))  billingKey = 'other';
+
+        return { id: org.id, name, type: typeText, billingKey };
+      }).filter(Boolean);
       return res.status(200).json({ funders });
     } catch (err) {
       return res.status(200).json({ funders: [], error: err.message });

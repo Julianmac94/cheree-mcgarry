@@ -425,6 +425,7 @@ var ENQ_ADVANCE = {
 };
 
 var _modalSearchTimer = null; // debounce timer for Add Client modal Halaxy search
+var _halaxyFunders   = null; // cached Halaxy funder org list
 
 /* ── Load pipeline ── */
 function plSkeletons(n) {
@@ -866,19 +867,19 @@ async function sendIntakePl(id) {
 
 /* ── Add client modal ── */
 function openAddClient() {
-  document.getElementById('cl-display-name').value = '';
-  document.getElementById('cl-funder').value        = '';
-  document.getElementById('cl-plan-manager').value  = '';
-  document.getElementById('cl-halaxy-search').value = '';
-  document.getElementById('cl-halaxy-id').value     = '';
-  document.getElementById('cl-notes').value         = '';
-  document.getElementById('cl-session-date').value  = '';
+  document.getElementById('cl-display-name').value    = '';
+  document.getElementById('cl-plan-manager').value    = '';
+  document.getElementById('cl-halaxy-search').value   = '';
+  document.getElementById('cl-halaxy-id').value       = '';
+  document.getElementById('cl-notes').value           = '';
+  document.getElementById('cl-session-date').value    = '';
   document.getElementById('cl-session-fee-amt').value = '';
   togglePlanManager('');
   _hideHalaxyLookup();
   var feeRow = document.getElementById('cl-session-fee-row');
   if (feeRow) feeRow.style.display = 'none';
   delete document.getElementById('add-client-modal').dataset.enquiryId;
+  _populateFunderDropdown(); // async — fills dropdown from Halaxy
   document.getElementById('add-client-modal').classList.add('open');
   document.getElementById('cl-display-name').focus();
 }
@@ -886,28 +887,99 @@ function closeAddClient() {
   var modal = document.getElementById('add-client-modal');
   if (modal) modal.classList.remove('open');
 }
-function togglePlanManager(funder) {
-  var field = document.getElementById('plan-manager-field');
-  if (field) field.style.display = funder === 'ndis_plan' ? '' : 'none';
-  _loadModalFees(funder);
+/** Load Halaxy funders and populate the modal dropdown */
+async function _ensureFundersLoaded() {
+  if (_halaxyFunders) return _halaxyFunders;
+  try {
+    var r = await fetch('/api/admin-enquiries?halaxy_funders=1');
+    var d = await r.json();
+    _halaxyFunders = d.funders || [];
+  } catch (_) { _halaxyFunders = []; }
+  return _halaxyFunders;
 }
 
-async function _loadModalFees(funderKey) {
+async function _populateFunderDropdown() {
+  var sel = document.getElementById('cl-funder');
+  if (!sel) return;
+  var funders = await _ensureFundersLoaded();
+  if (!funders.length) {
+    // Fallback to hardcoded list if Halaxy not connected
+    sel.innerHTML = '<option value="">Select…</option>'
+      + '<option value="ndis_plan">NDIS — Plan-managed</option>'
+      + '<option value="ndis_self">NDIS — Self-managed</option>'
+      + '<option value="medicare">Medicare</option>'
+      + '<option value="qfes">QFES EAP</option>'
+      + '<option value="dva">DVA / ADFHCS</option>'
+      + '<option value="private">Private</option>';
+    return;
+  }
+  // Group by billingKey for the optgroup display
+  var groups = {};
+  var groupOrder = ['medicare','ndis_plan','private','qfes','dva','other'];
+  var groupLabels = { medicare:'Medicare', ndis_plan:'NDIS', private:'Private', qfes:'Third-party / EAP', dva:'DVA / Defence', other:'Other' };
+  funders.forEach(function(f) {
+    var k = f.billingKey || 'other';
+    if (!groups[k]) groups[k] = [];
+    groups[k].push(f);
+  });
+  var html = '<option value="">Select…</option>';
+  groupOrder.forEach(function(key) {
+    var grp = groups[key];
+    if (!grp || !grp.length) return;
+    html += '<optgroup label="' + escHtml(groupLabels[key] || key) + '">';
+    grp.forEach(function(f) {
+      html += '<option value="' + escHtml(f.id) + '" data-billing="' + escHtml(f.billingKey) + '" data-name="' + escHtml(f.name) + '">'
+            + escHtml(f.name) + '</option>';
+    });
+    html += '</optgroup>';
+  });
+  sel.innerHTML = html;
+}
+
+/** Called when the funder dropdown changes (data-billing drives plan manager + fee load) */
+function onModalFunderChange(sel) {
+  var opt        = sel.options[sel.selectedIndex];
+  var billingKey = (opt && opt.dataset.billing) || '';
+  var pmField    = document.getElementById('plan-manager-field');
+  if (pmField) pmField.style.display = billingKey === 'ndis_plan' ? '' : 'none';
+  var orgId = sel.value; // Halaxy Organisation ID
+  _loadModalFees(billingKey, orgId);
+}
+
+/** Legacy alias used in a few places */
+function togglePlanManager(billingKey) {
+  var field = document.getElementById('plan-manager-field');
+  if (field) field.style.display = billingKey === 'ndis_plan' ? '' : 'none';
+}
+
+async function _loadModalFees(funderKey, orgId) {
   var feeRow = document.getElementById('cl-session-fee-row');
   var feeSel = document.getElementById('cl-session-fee');
   if (!feeRow || !feeSel) return;
   if (!funderKey) { feeRow.style.display = 'none'; return; }
 
-  // Ensure fee list is loaded
-  if (!_halaxyFees) {
+  // Fetch fees — if we have an orgId try filtering server-side, else use full cached list
+  var fees;
+  if (orgId && orgId.length > 3) {
     try {
-      var r = await fetch('/api/admin-enquiries?halaxy_fees=1');
+      var r = await fetch('/api/admin-enquiries?halaxy_fees=1&org_id=' + encodeURIComponent(orgId));
       var d = await r.json();
-      _halaxyFees = d.fees || [];
-    } catch (_) { _halaxyFees = []; }
+      fees = d.fees || [];
+      // If server-side filter returned results, cache per org
+      if (fees.length) { _halaxyFees = _halaxyFees || fees; } // keep full list if already loaded
+    } catch (_) { fees = null; }
+  }
+  if (!fees) {
+    if (!_halaxyFees) {
+      try {
+        var r2 = await fetch('/api/admin-enquiries?halaxy_fees=1');
+        var d2 = await r2.json();
+        _halaxyFees = d2.fees || [];
+      } catch (_) { _halaxyFees = []; }
+    }
+    fees = _halaxyFees;
   }
 
-  var fees     = _halaxyFees;
   var filtered = _filterFeesForFunder(fees, funderKey);
 
   var defaultRate = FUNDER_RATES[funderKey] || '';
@@ -972,8 +1044,14 @@ function _selectModalHalaxyPatient(patientId, patientName) {
 
 async function saveNewClient() {
   var name        = (document.getElementById('cl-display-name') || {}).value.trim();
-  var funder      = (document.getElementById('cl-funder') || {}).value;
-  var pm          = (document.getElementById('cl-plan-manager') || {}).value.trim();
+  var funderSel   = document.getElementById('cl-funder');
+  var funderOpt   = funderSel && funderSel.options[funderSel.selectedIndex];
+  // billingKey drives workflow (ndis_plan, medicare, etc.)
+  // If using Halaxy funder list, it's in data-billing; for fallback hardcoded list the value IS the key
+  var funder      = (funderOpt && (funderOpt.dataset.billing || funderSel.value)) || '';
+  // For NDIS plan-managed, store the actual plan manager org name
+  var pm          = (document.getElementById('cl-plan-manager') || {}).value.trim()
+                 || (funderOpt && funderOpt.dataset.billing === 'ndis_plan' ? funderOpt.dataset.name || '' : '');
   var halaxyId    = (document.getElementById('cl-halaxy-id') || {}).value.trim();
   var notes       = (document.getElementById('cl-notes') || {}).value.trim();
   var sessionDate = (document.getElementById('cl-session-date') || {}).value;
