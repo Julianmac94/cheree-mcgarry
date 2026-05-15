@@ -10,8 +10,8 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const HALAXY_TOKEN_URL = 'https://www.halaxy.com/api/oauth2/token';
-const HALAXY_FHIR_BASE = 'https://www.halaxy.com/api/fhir/r4';
+const HALAXY_TOKEN_URL = 'https://au-api.halaxy.com/main/oauth/token';
+const HALAXY_FHIR_BASE = 'https://au-api.halaxy.com/main';
 
 const db = createClient(
   process.env.SUPABASE_URL,
@@ -49,8 +49,11 @@ export async function getHalaxyToken() {
   // Fetch new token (7s timeout)
   const resp = await fetchTimeout(HALAXY_TOKEN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept':       'application/fhir+json',
+    },
+    body: JSON.stringify({
       grant_type:    'client_credentials',
       client_id:     process.env.HALAXY_CLIENT_ID,
       client_secret: process.env.HALAXY_CLIENT_SECRET,
