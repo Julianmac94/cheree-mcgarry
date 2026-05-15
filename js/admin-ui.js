@@ -358,3 +358,383 @@ async function clearHalaxy(enquiryId) {
 document.addEventListener('DOMContentLoaded', function () {
   initSetup();
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   CLIENTS TAB — billing tracker + Google Calendar intake queue
+   ═══════════════════════════════════════════════════════════════ */
+
+var _clientsLoaded = false;
+var _allClients    = [];
+var _showInactive  = false;
+
+var FUNDER_LABELS = {
+  ndis_plan: 'NDIS Plan-managed',
+  ndis_self: 'NDIS Self-managed',
+  medicare:  'Medicare',
+  qfes:      'QFES EAP',
+  dva:       'DVA / ADFHCS',
+  private:   'Private',
+};
+
+var STATUS_NEXT = {
+  upcoming:  { label: 'Mark complete', next: 'completed' },
+  completed: { label: 'Invoice',       next: 'invoiced'  },
+  invoiced:  { label: 'Mark submitted',next: 'submitted' },
+  submitted: { label: 'Mark paid',     next: 'paid'      },
+  paid:      null,
+  cancelled: null,
+};
+
+var STATUS_DISPLAY = {
+  upcoming:  'Upcoming',
+  completed: 'Completed',
+  invoiced:  'Invoiced',
+  submitted: 'Submitted',
+  paid:      'Paid',
+  cancelled: 'Cancelled',
+};
+
+/* ── Load everything ── */
+function loadClientsTab() {
+  window._clientsLoaded = true;
+  loadCalendarPending();
+  loadClients();
+}
+
+/* ── Google Calendar pending events ── */
+async function loadCalendarPending() {
+  var banner = document.getElementById('gcal-banner');
+  var list   = document.getElementById('pending-list');
+  try {
+    var r = await fetch('/api/calendar-pending');
+    var d = await r.json();
+
+    if (!d.connected) {
+      banner.className = 'gcal-banner disconnected';
+      banner.style.display = 'flex';
+      banner.innerHTML = '<span>Google Calendar not connected — pending intake events won\'t appear until you connect it.</span>'
+        + '<a class="gcal-connect-btn" href="/api/google-auth">Connect calendar</a>';
+      list.innerHTML = '<div class="cl-empty">Connect Google Calendar above to see pending intake events.</div>';
+      return;
+    }
+
+    banner.className = 'gcal-banner connected';
+    banner.style.display = 'flex';
+    banner.innerHTML = '<span>✓ Google Calendar connected — New Clients calendar syncing.</span>'
+      + '<a class="gcal-connect-btn" href="/api/google-auth" style="background:var(--mid)">Reconnect</a>';
+
+    if (!d.events || !d.events.length) {
+      list.innerHTML = '<div class="cl-empty">No upcoming events in the New Clients calendar.</div>';
+      return;
+    }
+
+    var countEl = document.getElementById('pending-count');
+    if (countEl) { countEl.textContent = d.events.length; countEl.style.display = ''; }
+
+    list.innerHTML = d.events.map(function(e) {
+      var dateStr = e.allDay
+        ? new Date(e.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+        : new Date(e.start).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+      return '<div class="pending-card">'
+        + '<div class="pending-card-info">'
+        + '<div class="pending-card-title">' + escHtml(e.title) + '</div>'
+        + '<div class="pending-card-date">' + dateStr + '</div>'
+        + (e.description ? '<div class="pending-card-desc">' + escHtml(e.description) + '</div>' : '')
+        + '</div>'
+        + '<button class="pending-convert-btn" onclick="convertPending(' + JSON.stringify(e).replace(/"/g,'&quot;') + ')">Convert →</button>'
+        + '</div>';
+    }).join('');
+  } catch (err) {
+    banner.className = 'gcal-banner disconnected';
+    banner.style.display = 'flex';
+    banner.innerHTML = '<span>Could not load calendar — ' + err.message + '</span>'
+      + '<a class="gcal-connect-btn" href="/api/google-auth">Connect calendar</a>';
+    list.innerHTML = '<div class="cl-empty">Calendar unavailable.</div>';
+  }
+}
+
+/* ── Convert a calendar event into a new client ── */
+function convertPending(event) {
+  // Pre-fill the add-client modal with the event title as the display name
+  document.getElementById('cl-display-name').value = event.title || '';
+  document.getElementById('cl-funder').value        = '';
+  document.getElementById('cl-plan-manager').value  = '';
+  document.getElementById('cl-notes').value         = event.description || '';
+  togglePlanManager('');
+  document.getElementById('add-client-modal').classList.add('open');
+  document.getElementById('cl-funder').focus();
+}
+
+/* ── Load active clients ── */
+async function loadClients() {
+  var list = document.getElementById('clients-list');
+  try {
+    var r = await fetch('/api/clients?all=1');
+    _allClients = await r.json();
+    renderClientsList();
+  } catch (err) {
+    list.innerHTML = '<div class="cl-empty">Could not load clients: ' + err.message + '</div>';
+  }
+}
+
+function renderClientsList() {
+  var list     = document.getElementById('clients-list');
+  var toggle   = document.getElementById('inactive-toggle');
+  var active   = _allClients.filter(function(c) { return c.active; });
+  var inactive = _allClients.filter(function(c) { return !c.active; });
+
+  if (!active.length) {
+    list.innerHTML = '<div class="cl-empty">No active clients yet — add one above.</div>';
+  } else {
+    list.innerHTML = active.map(renderClientCard).join('');
+  }
+
+  if (inactive.length) {
+    toggle.style.display = '';
+    toggle.textContent   = _showInactive
+      ? 'Hide inactive clients'
+      : 'Show inactive clients (' + inactive.length + ')';
+    if (_showInactive) {
+      list.innerHTML += '<div style="margin-top:20px;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin-bottom:8px">INACTIVE</div>';
+      list.innerHTML += inactive.map(function(c) { return renderClientCard(c, true); }).join('');
+    }
+  } else {
+    toggle.style.display = 'none';
+  }
+}
+
+function renderClientCard(client, inactive) {
+  var sessions     = client.sessions || [];
+  var pendingCount = sessions.filter(function(s) {
+    return s.status === 'upcoming' || s.status === 'completed' || s.status === 'invoiced' || s.status === 'submitted';
+  }).length;
+  var funderLabel  = FUNDER_LABELS[client.funder] || client.funder;
+  var metaParts    = [funderLabel];
+  if (client.plan_manager) metaParts.push(client.plan_manager);
+  if (pendingCount) metaParts.push(pendingCount + ' pending');
+
+  var sessionsHtml = sessions.length
+    ? sessions.sort(function(a,b){ return b.session_date.localeCompare(a.session_date); })
+        .map(function(s) { return renderSessionRow(s, client.id); }).join('')
+    : '<div class="cl-empty" style="font-size:12px;padding:10px 0">No sessions yet.</div>';
+
+  return '<div class="cl-card' + (inactive ? ' inactive' : '') + '" id="cl-card-' + client.id + '">'
+    + '<div class="cl-card-head" onclick="toggleClientCard(\'' + client.id + '\')">'
+    + '<div class="cl-card-head-info">'
+    + '<div class="cl-name">' + escHtml(client.display_name) + '</div>'
+    + '<div class="cl-meta">' + escHtml(metaParts.join(' · ')) + '</div>'
+    + '</div>'
+    + '<span class="cl-funder-badge funder-' + client.funder + '">' + escHtml(funderLabel) + '</span>'
+    + '<span class="cl-chevron">▾</span>'
+    + '</div>'
+    + '<div class="cl-body">'
+    + '<div class="cl-sessions">'
+    + '<div class="cl-sessions-head">'
+    + '<span class="cl-sessions-label">Sessions</span>'
+    + '<button class="cl-add-session-btn" onclick="toggleAddSessionForm(\'' + client.id + '\')">+ Add session</button>'
+    + '</div>'
+    + sessionsHtml
+    + renderAddSessionForm(client.id)
+    + '</div>'
+    + '<div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid rgba(42,88,80,0.07);padding-top:12px">'
+    + '<button class="cl-form-cancel" style="font-size:11px;padding:5px 12px" onclick="editClient(\'' + client.id + '\')">Edit client</button>'
+    + (inactive
+        ? '<button class="cl-form-cancel" style="font-size:11px;padding:5px 12px" onclick="setClientActive(\'' + client.id + '\',true)">Reactivate</button>'
+        : '<button class="cl-form-cancel" style="font-size:11px;padding:5px 12px;color:var(--terra)" onclick="setClientActive(\'' + client.id + '\',false)">Archive</button>'
+      )
+    + '</div>'
+    + '</div>'
+    + '</div>';
+}
+
+function renderSessionRow(s, clientId) {
+  var d = new Date(s.session_date + 'T12:00:00');
+  var dateStr = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' });
+  var next = STATUS_NEXT[s.status];
+  return '<div class="cl-session-row" id="sess-row-' + s.id + '">'
+    + '<span class="cl-session-date">' + dateStr + '</span>'
+    + '<span class="cl-session-inv">' + (s.invoice_ref ? escHtml(s.invoice_ref) : '<span style="color:rgba(0,0,0,0.2)">—</span>') + '</span>'
+    + '<span class="cl-session-notes">' + (s.notes ? escHtml(s.notes) : '') + '</span>'
+    + '<div class="cl-session-actions">'
+    + (next
+        ? '<button class="cl-status-btn status-' + s.status + '" onclick="advanceSession(\'' + s.id + '\',\'' + next.next + '\',\'' + clientId + '\')">' + next.label + '</button>'
+        : '<span class="cl-status-btn status-' + s.status + '" style="cursor:default">' + STATUS_DISPLAY[s.status] + '</span>'
+      )
+    + '</div>'
+    + '</div>';
+}
+
+function renderAddSessionForm(clientId) {
+  return '<div class="cl-add-session-form" id="add-session-form-' + clientId + '">'
+    + '<div class="cl-form-row">'
+    + '<div class="cl-form-field"><label for="sess-date-' + clientId + '">Date</label>'
+    + '<input class="cl-form-input" id="sess-date-' + clientId + '" type="date"></div>'
+    + '<div class="cl-form-field"><label for="sess-status-' + clientId + '">Status</label>'
+    + '<select class="cl-form-input" id="sess-status-' + clientId + '">'
+    + '<option value="upcoming">Upcoming</option>'
+    + '<option value="completed">Completed</option>'
+    + '<option value="invoiced">Invoiced</option>'
+    + '</select></div>'
+    + '</div>'
+    + '<div class="cl-form-row">'
+    + '<div class="cl-form-field"><label for="sess-inv-' + clientId + '">Invoice ref</label>'
+    + '<input class="cl-form-input" id="sess-inv-' + clientId + '" type="text" placeholder="e.g. INV-001"></div>'
+    + '<div class="cl-form-field"><label for="sess-notes-' + clientId + '">Notes</label>'
+    + '<input class="cl-form-input" id="sess-notes-' + clientId + '" type="text" placeholder="Optional…"></div>'
+    + '</div>'
+    + '<div class="cl-form-actions">'
+    + '<button class="cl-form-save" onclick="saveSession(\'' + clientId + '\')">Save session</button>'
+    + '<button class="cl-form-cancel" onclick="toggleAddSessionForm(\'' + clientId + '\')">Cancel</button>'
+    + '</div>'
+    + '</div>';
+}
+
+/* ── Toggle client card open/closed ── */
+function toggleClientCard(clientId) {
+  var card = document.getElementById('cl-card-' + clientId);
+  if (card) card.classList.toggle('open');
+}
+
+/* ── Toggle add-session form ── */
+function toggleAddSessionForm(clientId) {
+  var form = document.getElementById('add-session-form-' + clientId);
+  if (!form) return;
+  form.classList.toggle('open');
+  if (form.classList.contains('open')) {
+    var dateInput = document.getElementById('sess-date-' + clientId);
+    if (dateInput) dateInput.valueAsDate = new Date();
+  }
+}
+
+/* ── Save new session ── */
+async function saveSession(clientId) {
+  var date   = (document.getElementById('sess-date-' + clientId) || {}).value;
+  var status = (document.getElementById('sess-status-' + clientId) || {}).value || 'upcoming';
+  var inv    = (document.getElementById('sess-inv-' + clientId) || {}).value.trim();
+  var notes  = (document.getElementById('sess-notes-' + clientId) || {}).value.trim();
+  if (!date) { toast('Please enter a session date.', 'err'); return; }
+  try {
+    var r = await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: clientId, session_date: date, status, invoice_ref: inv || null, notes: notes || null }),
+    });
+    if (!r.ok) throw new Error((await r.json()).error);
+    toast('Session added');
+    await loadClients();
+    // Re-open the card
+    var card = document.getElementById('cl-card-' + clientId);
+    if (card) card.classList.add('open');
+  } catch (err) {
+    toast('Could not save session: ' + err.message, 'err');
+  }
+}
+
+/* ── Advance session to next status ── */
+async function advanceSession(sessionId, newStatus, clientId) {
+  try {
+    var r = await fetch('/api/sessions', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: sessionId, status: newStatus }),
+    });
+    if (!r.ok) throw new Error((await r.json()).error);
+    toast('Updated to ' + STATUS_DISPLAY[newStatus]);
+    await loadClients();
+    var card = document.getElementById('cl-card-' + clientId);
+    if (card) card.classList.add('open');
+  } catch (err) {
+    toast('Could not update session: ' + err.message, 'err');
+  }
+}
+
+/* ── Add client modal ── */
+function openAddClient() {
+  document.getElementById('cl-display-name').value = '';
+  document.getElementById('cl-funder').value        = '';
+  document.getElementById('cl-plan-manager').value  = '';
+  document.getElementById('cl-notes').value         = '';
+  togglePlanManager('');
+  document.getElementById('add-client-modal').classList.add('open');
+  document.getElementById('cl-display-name').focus();
+}
+function closeAddClient() {
+  document.getElementById('add-client-modal').classList.remove('open');
+}
+function togglePlanManager(funder) {
+  var field = document.getElementById('plan-manager-field');
+  if (field) field.style.display = funder === 'ndis_plan' ? '' : 'none';
+}
+
+async function saveNewClient() {
+  var name   = (document.getElementById('cl-display-name') || {}).value.trim();
+  var funder = (document.getElementById('cl-funder') || {}).value;
+  var pm     = (document.getElementById('cl-plan-manager') || {}).value.trim();
+  var notes  = (document.getElementById('cl-notes') || {}).value.trim();
+  if (!name)   { toast('Please enter a name.', 'err');   return; }
+  if (!funder) { toast('Please select a funder.', 'err'); return; }
+  try {
+    var r = await fetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ display_name: name, funder, plan_manager: pm || null, notes: notes || null }),
+    });
+    if (!r.ok) throw new Error((await r.json()).error);
+    toast('Client added');
+    closeAddClient();
+    await loadClients();
+  } catch (err) {
+    toast('Could not add client: ' + err.message, 'err');
+  }
+}
+
+/* ── Archive / reactivate client ── */
+async function setClientActive(clientId, active) {
+  var label = active ? 'reactivated' : 'archived';
+  if (!active && !confirm('Archive this client? They\'ll move to the inactive list.')) return;
+  try {
+    var r = await fetch('/api/clients', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: clientId, active }),
+    });
+    if (!r.ok) throw new Error((await r.json()).error);
+    toast('Client ' + label);
+    await loadClients();
+  } catch (err) {
+    toast('Could not update client: ' + err.message, 'err');
+  }
+}
+
+/* ── Toggle inactive clients ── */
+function toggleInactive() {
+  _showInactive = !_showInactive;
+  renderClientsList();
+}
+
+/* ── Edit client (simple prompt for now) ── */
+async function editClient(clientId) {
+  var client = _allClients.find(function(c) { return c.id === clientId; });
+  if (!client) return;
+  var newName = prompt('Edit display name:', client.display_name);
+  if (newName === null || newName.trim() === client.display_name) return;
+  try {
+    var r = await fetch('/api/clients', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: clientId, display_name: newName.trim() }),
+    });
+    if (!r.ok) throw new Error((await r.json()).error);
+    toast('Client updated');
+    await loadClients();
+  } catch (err) {
+    toast('Could not update client: ' + err.message, 'err');
+  }
+}
+
+/* ── Escape HTML helper ── */
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}

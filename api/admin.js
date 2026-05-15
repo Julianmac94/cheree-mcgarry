@@ -788,6 +788,244 @@ body {
   font-size: 10px; color: var(--soft);
   letter-spacing: 0.06em; text-transform: uppercase;
 }
+
+/* ── Clients tab ── */
+.clients-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.cl-add-btn {
+  font-family: var(--sans); font-size: 12px; font-weight: 500;
+  color: white; background: var(--teal);
+  border: none; border-radius: 8px;
+  padding: 7px 14px; cursor: pointer;
+  transition: background 0.2s;
+}
+.cl-add-btn:hover { background: var(--mid); }
+
+/* Google Calendar banner */
+.gcal-banner {
+  border-radius: 12px; padding: 12px 16px;
+  font-size: 12px; margin-bottom: 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.gcal-banner.connected {
+  background: rgba(42,88,80,0.07);
+  border: 1px solid rgba(42,88,80,0.15);
+  color: var(--mid);
+}
+.gcal-banner.disconnected {
+  background: rgba(190,110,68,0.07);
+  border: 1px solid rgba(190,110,68,0.18);
+  color: var(--terra);
+}
+.gcal-connect-btn {
+  font-family: var(--sans); font-size: 11px; font-weight: 600;
+  padding: 5px 12px; border-radius: 6px; border: none;
+  background: var(--terra); color: white;
+  cursor: pointer; white-space: nowrap;
+  text-decoration: none; display: inline-block;
+}
+
+/* Pending calendar events */
+.pending-card {
+  background: white; border-radius: 12px;
+  border: 1px solid rgba(42,88,80,0.09);
+  border-left: 4px solid var(--mint);
+  padding: 12px 16px; margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.pending-card-info { flex: 1; min-width: 0; }
+.pending-card-title {
+  font-size: 14px; font-weight: 500; color: var(--tealDeep);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pending-card-date { font-size: 11px; color: var(--soft); margin-top: 2px; }
+.pending-card-desc { font-size: 11px; color: var(--mid); margin-top: 3px; }
+.pending-convert-btn {
+  font-family: var(--sans); font-size: 11px; font-weight: 600;
+  padding: 6px 14px; border-radius: 7px; border: none;
+  background: var(--teal); color: white;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: background 0.2s;
+}
+.pending-convert-btn:hover { background: var(--mid); }
+
+/* Client cards */
+.cl-card {
+  background: white; border-radius: 14px;
+  border: 1px solid rgba(42,88,80,0.09);
+  margin-bottom: 10px; overflow: hidden;
+}
+.cl-card-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; cursor: pointer;
+  transition: background 0.15s;
+}
+.cl-card-head:hover { background: rgba(42,88,80,0.03); }
+.cl-card-head-info { flex: 1; min-width: 0; }
+.cl-name {
+  font-size: 14px; font-weight: 500; color: var(--tealDeep);
+}
+.cl-meta { font-size: 11px; color: var(--soft); margin-top: 2px; }
+.cl-funder-badge {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 3px 9px;
+  border-radius: 100px; white-space: nowrap; flex-shrink: 0;
+}
+.funder-ndis_plan  { background: rgba(42,88,80,0.1);    color: var(--teal); }
+.funder-ndis_self  { background: rgba(42,88,80,0.07);   color: var(--mid); }
+.funder-medicare   { background: rgba(119,207,189,0.2); color: #1a6e5e; }
+.funder-qfes       { background: rgba(190,110,68,0.1);  color: var(--terra); }
+.funder-dva        { background: rgba(100,80,160,0.1);  color: #5a4a9a; }
+.funder-private    { background: rgba(122,148,143,0.15); color: var(--mid); }
+
+.cl-chevron {
+  color: var(--soft); font-size: 12px; flex-shrink: 0;
+  transition: transform 0.2s;
+}
+.cl-card.open .cl-chevron { transform: rotate(180deg); }
+
+.cl-body { display: none; border-top: 1px solid rgba(42,88,80,0.07); padding: 0 18px 14px; }
+.cl-card.open .cl-body { display: block; }
+
+/* Session rows */
+.cl-sessions { margin-top: 14px; }
+.cl-sessions-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.cl-sessions-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--soft);
+}
+.cl-add-session-btn {
+  font-family: var(--sans); font-size: 11px; font-weight: 500;
+  color: var(--teal); background: none; border: none;
+  cursor: pointer; padding: 0;
+}
+.cl-add-session-btn:hover { text-decoration: underline; }
+
+.cl-session-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto auto;
+  gap: 10px; align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(42,88,80,0.05);
+  font-size: 12px;
+}
+.cl-session-row:last-child { border-bottom: none; }
+.cl-session-date { color: var(--mid); font-weight: 500; }
+.cl-session-inv  { color: var(--soft); font-size: 11px; }
+.cl-session-notes { color: var(--soft); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl-session-actions { display: flex; gap: 6px; }
+
+.cl-status-btn {
+  font-family: var(--sans); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.06em; padding: 4px 10px;
+  border-radius: 6px; border: none; cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.cl-status-btn:hover { opacity: 0.82; }
+.status-upcoming  { background: rgba(122,148,143,0.15); color: var(--mid); }
+.status-completed { background: rgba(42,88,80,0.12);    color: var(--teal); }
+.status-invoiced  { background: rgba(190,110,68,0.12);  color: var(--terra); }
+.status-submitted { background: rgba(200,160,40,0.15);  color: #8a6a00; }
+.status-paid      { background: rgba(42,150,100,0.12);  color: #1a7a50; }
+.status-cancelled { background: rgba(122,122,122,0.1);  color: #999; }
+
+/* Inline add-session form */
+.cl-add-session-form {
+  background: rgba(42,88,80,0.04); border-radius: 8px;
+  padding: 12px; margin-top: 8px;
+  display: none;
+}
+.cl-add-session-form.open { display: block; }
+.cl-form-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;
+}
+.cl-form-field label {
+  display: block; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--soft); margin-bottom: 4px;
+}
+.cl-form-input {
+  width: 100%; padding: 7px 10px;
+  border: 1.5px solid rgba(42,88,80,0.18); border-radius: 7px;
+  font-family: var(--sans); font-size: 12px; color: var(--tealDeep);
+  background: white; outline: none;
+  transition: border-color 0.2s;
+}
+.cl-form-input:focus { border-color: var(--teal); }
+.cl-form-actions { display: flex; gap: 8px; }
+.cl-form-save {
+  font-family: var(--sans); font-size: 12px; font-weight: 500;
+  padding: 7px 16px; border-radius: 7px; border: none;
+  background: var(--teal); color: white; cursor: pointer;
+}
+.cl-form-cancel {
+  font-family: var(--sans); font-size: 12px;
+  padding: 7px 12px; border-radius: 7px;
+  border: 1px solid rgba(42,88,80,0.18);
+  background: white; color: var(--soft); cursor: pointer;
+}
+
+/* Add client modal */
+.cl-modal-ov {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(25,46,42,0.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+}
+.cl-modal-ov.open { opacity: 1; pointer-events: all; }
+.cl-modal {
+  background: white; border-radius: 16px;
+  width: 100%; max-width: 440px;
+  padding: 28px; box-shadow: 0 24px 60px rgba(25,46,42,0.2);
+  transform: translateY(16px); transition: transform 0.25s;
+}
+.cl-modal-ov.open .cl-modal { transform: none; }
+.cl-modal-title {
+  font-family: var(--serif); font-size: 22px; font-weight: 300;
+  color: var(--tealDeep); margin-bottom: 20px;
+}
+.cl-modal-title em { font-style: italic; color: var(--terra); }
+.cl-modal-field { margin-bottom: 14px; }
+.cl-modal-field label {
+  display: block; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--soft); margin-bottom: 5px;
+}
+.cl-modal-input, .cl-modal-select {
+  width: 100%; padding: 9px 12px;
+  border: 1.5px solid rgba(42,88,80,0.18); border-radius: 9px;
+  font-family: var(--sans); font-size: 13px; color: var(--tealDeep);
+  background: white; outline: none; transition: border-color 0.2s;
+}
+.cl-modal-input:focus, .cl-modal-select:focus { border-color: var(--teal); }
+.cl-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.cl-modal-save {
+  flex: 1; font-family: var(--sans); font-size: 13px; font-weight: 500;
+  padding: 10px; border-radius: 9px; border: none;
+  background: var(--teal); color: white; cursor: pointer;
+  transition: background 0.2s;
+}
+.cl-modal-save:hover { background: var(--mid); }
+.cl-modal-cancel {
+  font-family: var(--sans); font-size: 13px;
+  padding: 10px 18px; border-radius: 9px;
+  border: 1px solid rgba(42,88,80,0.18);
+  background: white; color: var(--soft); cursor: pointer;
+}
+.cl-empty { color: var(--soft); font-size: 13px; padding: 20px 0; }
+.cl-inactive-toggle {
+  font-family: var(--sans); font-size: 11px; color: var(--soft);
+  background: none; border: none; cursor: pointer; margin-top: 12px;
+  text-decoration: underline;
+}
 </style>
 </head>
 <body>
@@ -814,6 +1052,7 @@ body {
 <div class="layout-full">
   <div class="main-tabs">
     <button class="main-tab active" onclick="switchTab('enquiries', this)">Enquiries</button>
+    <button class="main-tab" onclick="switchTab('clients', this)">Clients</button>
     <button class="main-tab" onclick="switchTab('website', this)">Website</button>
   </div>
 </div>
@@ -851,6 +1090,35 @@ body {
       }
     </div>
   </main>
+
+  <!-- Clients & billing tracker tab -->
+  <div id="clients-tab" style="display:none">
+
+    <!-- Google Calendar status banner -->
+    <div id="gcal-banner" class="gcal-banner disconnected" style="display:none"></div>
+
+    <!-- Pending intake queue -->
+    <div class="sec-hd" style="margin-bottom:12px">
+      <h2 class="sec-title">Pending <em>intake</em></h2>
+      <span class="sec-count" id="pending-count" style="display:none"></span>
+    </div>
+    <div id="pending-list">
+      <div class="cl-empty">Loading calendar…</div>
+    </div>
+
+    <!-- Active clients -->
+    <div class="clients-header" style="margin-top:32px">
+      <h2 class="sec-title">Active <em>clients</em></h2>
+      <button class="cl-add-btn" onclick="openAddClient()">+ Add client</button>
+    </div>
+    <div id="clients-list">
+      <div class="cl-empty">Loading…</div>
+    </div>
+    <button class="cl-inactive-toggle" id="inactive-toggle" onclick="toggleInactive()" style="display:none">
+      Show inactive clients
+    </button>
+
+  </div>
 
   <!-- Website management tab -->
   <div id="website-tab">
@@ -1068,15 +1336,65 @@ body {
   </aside>
 </div>
 
+<!-- Add client modal -->
+<div class="cl-modal-ov" id="add-client-modal" onclick="if(event.target===this)closeAddClient()">
+  <div class="cl-modal">
+    <h2 class="cl-modal-title">Add <em>client</em></h2>
+    <div class="cl-modal-field">
+      <label for="cl-display-name">Name / alias</label>
+      <input class="cl-modal-input" id="cl-display-name" type="text" placeholder="e.g. Sarah J.">
+    </div>
+    <div class="cl-modal-field">
+      <label for="cl-funder">Funder</label>
+      <select class="cl-modal-select" id="cl-funder" onchange="togglePlanManager(this.value)">
+        <option value="">Select…</option>
+        <option value="ndis_plan">NDIS — Plan-managed</option>
+        <option value="ndis_self">NDIS — Self-managed</option>
+        <option value="medicare">Medicare</option>
+        <option value="qfes">QFES EAP</option>
+        <option value="dva">DVA / ADFHCS</option>
+        <option value="private">Private</option>
+      </select>
+    </div>
+    <div class="cl-modal-field" id="plan-manager-field" style="display:none">
+      <label for="cl-plan-manager">Plan manager name</label>
+      <input class="cl-modal-input" id="cl-plan-manager" type="text" placeholder="e.g. ABC Plan Management">
+    </div>
+    <div class="cl-modal-field">
+      <label for="cl-notes">Notes (optional)</label>
+      <input class="cl-modal-input" id="cl-notes" type="text" placeholder="Any useful context…">
+    </div>
+    <div class="cl-modal-actions">
+      <button class="cl-modal-cancel" onclick="closeAddClient()">Cancel</button>
+      <button class="cl-modal-save" onclick="saveNewClient()">Add client</button>
+    </div>
+  </div>
+</div>
+
 <script>window.ADMIN_USER = '${currentUser?.name || ''}';</script>
 <script>
 function switchTab(tab, btn) {
   document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('enquiries-tab').style.display = tab === 'enquiries' ? 'block' : 'none';
-  document.getElementById('website-tab').style.display = tab === 'website' ? 'block' : 'none';
+  document.getElementById('clients-tab').style.display   = tab === 'clients'    ? 'block' : 'none';
+  document.getElementById('website-tab').style.display   = tab === 'website'    ? 'block' : 'none';
+  if (tab === 'clients' && !window._clientsLoaded) loadClientsTab();
 }
 
+// Auto-open tab from URL param and show gcal connection toasts
+(function() {
+  var params = new URLSearchParams(location.search);
+  var tab = params.get('tab');
+  var gcal = params.get('gcal');
+  if (tab) {
+    var btn = document.querySelector('.main-tab[onclick*="' + tab + '"]');
+    if (btn) switchTab(tab, btn);
+  }
+  if (gcal === 'connected') setTimeout(function(){ toast('Google Calendar connected!'); }, 300);
+  if (gcal === 'error')     setTimeout(function(){ toast('Google Calendar connection failed — try again.', 'err'); }, 300);
+  if (gcal === 'no_refresh') setTimeout(function(){ toast('No refresh token returned — visit /api/google-auth again to reconnect.', 'err'); }, 300);
+})();
 </script>
 <script src="/js/admin-ui.js"></script>
 </body>
