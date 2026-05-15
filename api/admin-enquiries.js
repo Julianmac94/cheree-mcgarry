@@ -317,34 +317,25 @@ export default async function handler(req, res) {
     }
   }
 
-  /* ── GET ?halaxy_appts_raw=1 — diagnostic: raw appointment + patient data ── */
+  /* ── GET ?halaxy_appts_raw=1 — diagnostic: dump full raw appointment resources ── */
   if (req.method === 'GET' && params.get('halaxy_appts_raw')) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ appointments: [] });
     try {
       const now = new Date();
-      const [apptBundle, patientBundle] = await Promise.all([
-        halaxyGet('/Appointment', { date: `ge${now.toISOString().slice(0, 10)}`, _sort: 'date', _count: '20' }),
-        halaxyGet('/Patient', { _count: '10' }),
-      ]);
-      const appts = (apptBundle.entry || []).map(e => e.resource).filter(Boolean).map(a => ({
-        id:              a.id,
-        status:          a.status,
-        start:           a.start,
-        description:     a.description,
-        comment:         a.comment,
-        appointmentType: a.appointmentType,
-        serviceType:     a.serviceType,
-        participant:     (a.participant || []).map(p => ({
-          status:    p.status,
-          actorRef:  p.actor?.reference,
-          actorDisp: p.actor?.display,
-        })),
-      }));
-      const patients = (patientBundle.entry || []).map(e => e.resource).filter(Boolean).map(p => ({
-        id:   p.id,
-        name: (p.name || []).map(n => [n.use, [n.family, ...(n.given || [])].filter(Boolean).join(' ')].filter(Boolean).join(':')),
-      }));
-      return res.status(200).json({ apptCount: appts.length, appts, patientSample: patients });
+      // Fetch first 5 appointments with _include AND dump the raw resource so we can see every field
+      const apptBundle = await halaxyGet('/Appointment', {
+        date: `ge${now.toISOString().slice(0, 10)}`, _sort: 'date', _count: '5', _include: 'Appointment:actor',
+      });
+      // Also fetch a single appointment individually to see if it has more fields
+      const firstId = apptBundle.entry?.[0]?.resource?.id;
+      let singleAppt = null;
+      if (firstId) {
+        try { singleAppt = await halaxyGet(`/Appointment/${firstId}`); } catch (_) {}
+      }
+      return res.status(200).json({
+        bundleEntries: (apptBundle.entry || []).map(e => e.resource),
+        singleAppt,
+      });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
