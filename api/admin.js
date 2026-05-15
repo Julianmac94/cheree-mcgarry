@@ -1697,13 +1697,33 @@ body {
       <input class="cl-modal-input" id="cl-plan-manager" type="text" placeholder="e.g. ABC Plan Management">
     </div>
     <div class="cl-modal-field">
-      <label for="cl-halaxy-id">Halaxy Patient ID <span style="font-weight:400;color:var(--soft)">(optional)</span></label>
-      <input class="cl-modal-input" id="cl-halaxy-id" type="text" placeholder="e.g. 12345">
-      <div id="cl-halaxy-lookup" style="display:none;margin-top:6px"></div>
+      <label>Halaxy patient <span style="font-weight:400;color:var(--soft)">(optional)</span></label>
+      <input class="cl-modal-input" id="cl-halaxy-search" type="text" placeholder="Search by name…"
+        autocomplete="off" oninput="_debounceModalHalaxySearch(this.value)">
+      <input type="hidden" id="cl-halaxy-id">
+      <div id="cl-halaxy-lookup" style="margin-top:6px"></div>
     </div>
     <div class="cl-modal-field">
       <label for="cl-notes">Notes (optional)</label>
       <input class="cl-modal-input" id="cl-notes" type="text" placeholder="Any useful context…">
+    </div>
+    <div style="border-top:1px solid rgba(0,0,0,0.08);margin-top:14px;padding-top:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--soft);margin-bottom:10px;text-transform:uppercase">Log session (optional)</div>
+      <div class="cl-modal-field">
+        <label for="cl-session-date">Date / time</label>
+        <input class="cl-modal-input" id="cl-session-date" type="datetime-local">
+      </div>
+      <div class="cl-modal-field" id="cl-session-fee-row" style="display:none">
+        <label>Fee</label>
+        <select class="cl-modal-select" id="cl-session-fee" onchange="_syncModalFeeAmt()">
+          <option value="">— select fee —</option>
+        </select>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:5px">
+          <span style="color:var(--soft);font-size:13px">$</span>
+          <input class="cl-modal-input" id="cl-session-fee-amt" type="number" step="0.01" min="0"
+            placeholder="or enter amount" style="margin:0">
+        </div>
+      </div>
     </div>
     <div class="cl-modal-actions">
       <button class="cl-modal-cancel" onclick="closeAddClient()">Cancel</button>

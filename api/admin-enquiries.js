@@ -43,6 +43,22 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── GET ?halaxy_funders=1 — fetch Organisation list (funders) ── */
+  if (req.method === 'GET' && params.get('halaxy_funders')) {
+    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ funders: [] });
+    try {
+      const bundle = await halaxyGet('/Organization', { _count: '100' });
+      const funders = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(org => {
+        const typeCode = org.type?.[0]?.coding?.[0]?.code || '';
+        const typeText = org.type?.[0]?.text || org.type?.[0]?.coding?.[0]?.display || typeCode;
+        return { id: org.id, name: org.name || org.id, type: typeText };
+      }).filter(f => f.name);
+      return res.status(200).json({ funders });
+    } catch (err) {
+      return res.status(200).json({ funders: [], error: err.message });
+    }
+  }
+
   /* ── GET ?halaxy_patient_name=<query> — search Halaxy patients by name ── */
   if (req.method === 'GET' && params.get('halaxy_patient_name')) {
     const q = params.get('halaxy_patient_name').trim();

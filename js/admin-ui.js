@@ -424,6 +424,8 @@ var ENQ_ADVANCE = {
   in_halaxy: { label: 'Close →',          next: 'closed'     },
 };
 
+var _modalSearchTimer = null; // debounce timer for Add Client modal Halaxy search
+
 /* ── Load pipeline ── */
 function plSkeletons(n) {
   var heights = [64, 52, 58, 48, 60];
@@ -867,10 +869,15 @@ function openAddClient() {
   document.getElementById('cl-display-name').value = '';
   document.getElementById('cl-funder').value        = '';
   document.getElementById('cl-plan-manager').value  = '';
+  document.getElementById('cl-halaxy-search').value = '';
   document.getElementById('cl-halaxy-id').value     = '';
   document.getElementById('cl-notes').value         = '';
+  document.getElementById('cl-session-date').value  = '';
+  document.getElementById('cl-session-fee-amt').value = '';
   togglePlanManager('');
   _hideHalaxyLookup();
+  var feeRow = document.getElementById('cl-session-fee-row');
+  if (feeRow) feeRow.style.display = 'none';
   delete document.getElementById('add-client-modal').dataset.enquiryId;
   document.getElementById('add-client-modal').classList.add('open');
   document.getElementById('cl-display-name').focus();
@@ -882,22 +889,116 @@ function closeAddClient() {
 function togglePlanManager(funder) {
   var field = document.getElementById('plan-manager-field');
   if (field) field.style.display = funder === 'ndis_plan' ? '' : 'none';
+  _loadModalFees(funder);
+}
+
+async function _loadModalFees(funderKey) {
+  var feeRow = document.getElementById('cl-session-fee-row');
+  var feeSel = document.getElementById('cl-session-fee');
+  if (!feeRow || !feeSel) return;
+  if (!funderKey) { feeRow.style.display = 'none'; return; }
+
+  // Ensure fee list is loaded
+  if (!_halaxyFees) {
+    try {
+      var r = await fetch('/api/admin-enquiries?halaxy_fees=1');
+      var d = await r.json();
+      _halaxyFees = d.fees || [];
+    } catch (_) { _halaxyFees = []; }
+  }
+
+  var fees = _halaxyFees;
+  var kw   = FUNDER_KEYWORDS[funderKey] || [];
+  var filtered = kw.length
+    ? fees.filter(function(f) { var n = (f.name||'').toLowerCase(); return kw.some(function(k){ return n.indexOf(k)!==-1; }); })
+    : fees;
+  if (!filtered.length) filtered = fees;
+
+  var defaultRate = FUNDER_RATES[funderKey] || '';
+  feeSel.innerHTML = '<option value="">— select fee —</option>'
+    + filtered.map(function(f) {
+        var sel = defaultRate && Math.abs(f.amount - parseFloat(defaultRate)) < 1 ? ' selected' : '';
+        return '<option value="' + f.amount + '"' + sel + '>' + escHtml(f.name) + ' — $' + Number(f.amount).toFixed(2) + '</option>';
+      }).join('');
+  feeRow.style.display = '';
+  _syncModalFeeAmt();
+}
+
+function _syncModalFeeAmt() {
+  var sel = document.getElementById('cl-session-fee');
+  var amt = document.getElementById('cl-session-fee-amt');
+  if (sel && amt && sel.value) amt.value = sel.value;
+}
+
+function _debounceModalHalaxySearch(query) {
+  clearTimeout(_modalSearchTimer);
+  var el = document.getElementById('cl-halaxy-lookup');
+  if (!query || query.length < 2) {
+    if (el) el.innerHTML = '';
+    return;
+  }
+  if (el) el.innerHTML = '<div class="cl-halaxy-lookup-searching">🔍 Searching Halaxy…</div>';
+  _modalSearchTimer = setTimeout(function() { _searchHalaxyPatientsModal(query); }, 350);
+}
+
+async function _searchHalaxyPatientsModal(query) {
+  var el = document.getElementById('cl-halaxy-lookup');
+  if (!el) return;
+  try {
+    var r = await fetch('/api/admin-enquiries?halaxy_patient_name=' + encodeURIComponent(query));
+    var d = await r.json();
+    var pts = d.patients || [];
+    if (!pts.length) {
+      el.innerHTML = '<div class="cl-halaxy-lookup-notfound">No Halaxy patients found for "' + escHtml(query) + '"</div>';
+      return;
+    }
+    el.innerHTML = pts.map(function(p) {
+      var local = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(p.id); });
+      var meta  = local ? ' <span style="color:var(--accent);font-size:10px">· in dashboard ✓</span>' : '';
+      return '<div class="cl-halaxy-lookup-found" style="cursor:pointer;padding:5px 8px;border-radius:5px;margin-bottom:3px" '
+        + 'onclick="_selectModalHalaxyPatient(\'' + escHtml(String(p.id)) + '\',\'' + escHtml(p.name) + '\')">'
+        + escHtml(p.name) + meta + '</div>';
+    }).join('');
+  } catch (_) {
+    if (el) el.innerHTML = '';
+  }
+}
+
+function _selectModalHalaxyPatient(patientId, patientName) {
+  document.getElementById('cl-halaxy-id').value     = patientId;
+  document.getElementById('cl-halaxy-search').value = patientName;
+  var el = document.getElementById('cl-halaxy-lookup');
+  if (el) el.innerHTML = '<div class="cl-halaxy-lookup-found">✓ Linked: <strong>' + escHtml(patientName) + '</strong>'
+    + ' <span style="color:var(--soft);font-size:10px">(ID: ' + escHtml(patientId) + ')</span>'
+    + ' <button class="pl-action-btn pl-action-btn--soft" style="padding:2px 8px;font-size:10px;margin-left:6px"'
+    + ' onclick="document.getElementById(\'cl-halaxy-id\').value=\'\';document.getElementById(\'cl-halaxy-search\').value=\'\';this.parentNode.innerHTML=\'\'">✕</button></div>';
 }
 
 async function saveNewClient() {
-  var name      = (document.getElementById('cl-display-name') || {}).value.trim();
-  var funder    = (document.getElementById('cl-funder') || {}).value;
-  var pm        = (document.getElementById('cl-plan-manager') || {}).value.trim();
-  var halaxyId  = (document.getElementById('cl-halaxy-id') || {}).value.trim();
-  var notes     = (document.getElementById('cl-notes') || {}).value.trim();
+  var name        = (document.getElementById('cl-display-name') || {}).value.trim();
+  var funder      = (document.getElementById('cl-funder') || {}).value;
+  var pm          = (document.getElementById('cl-plan-manager') || {}).value.trim();
+  var halaxyId    = (document.getElementById('cl-halaxy-id') || {}).value.trim();
+  var notes       = (document.getElementById('cl-notes') || {}).value.trim();
+  var sessionDate = (document.getElementById('cl-session-date') || {}).value;
+  var sessionAmt  = parseFloat((document.getElementById('cl-session-fee-amt') || {}).value) || null;
   if (!name)   { toast('Please enter a name.', 'err');    return; }
   if (!funder) { toast('Please select a funder.', 'err'); return; }
   try {
-    await apiFetch('/api/clients', {
+    var client = await apiFetch('/api/clients', {
       method: 'POST',
       body: { display_name: name, funder: funder, plan_manager: pm || null, halaxy_id: halaxyId || null, notes: notes || null },
     });
-    toast('Client added');
+    if (sessionDate && client && client.id) {
+      var dateStr = sessionDate.slice(0, 10); // YYYY-MM-DD
+      await apiFetch('/api/sessions', {
+        method: 'POST',
+        body: { client_id: client.id, session_date: dateStr, status: 'upcoming', amount: sessionAmt, notes: notes || null },
+      });
+      toast('Client + session added ✓');
+    } else {
+      toast('Client added ✓');
+    }
     closeAddClient();
     refreshPipeline();
   } catch (err) {
@@ -1045,11 +1146,16 @@ async function convertEnquiryPl(enquiryId) {
 
   // Pre-fill modal with enquiry data
   var name = [enq.first_name, enq.last_name].filter(Boolean).join(' ') || enq.display_name || '';
-  document.getElementById('cl-display-name').value = name;
-  document.getElementById('cl-funder').value        = '';
-  document.getElementById('cl-plan-manager').value  = '';
-  document.getElementById('cl-halaxy-id').value     = '';
-  document.getElementById('cl-notes').value         = enq.message || enq.notes || '';
+  document.getElementById('cl-display-name').value    = name;
+  document.getElementById('cl-funder').value           = '';
+  document.getElementById('cl-plan-manager').value     = '';
+  document.getElementById('cl-halaxy-search').value   = '';
+  document.getElementById('cl-halaxy-id').value        = '';
+  document.getElementById('cl-notes').value            = enq.message || enq.notes || '';
+  document.getElementById('cl-session-date').value    = '';
+  document.getElementById('cl-session-fee-amt').value = '';
+  var feeRow = document.getElementById('cl-session-fee-row');
+  if (feeRow) feeRow.style.display = 'none';
   togglePlanManager('');
 
   // Store source enquiry id on the modal for reference
@@ -1069,66 +1175,34 @@ async function convertEnquiryPl(enquiryId) {
     return;
   }
 
-  _showHalaxyLookup('searching', null);
+  var el = document.getElementById('cl-halaxy-lookup');
+  if (el) el.innerHTML = '<div class="cl-halaxy-lookup-searching">🔍 Searching Halaxy by email…</div>';
   try {
     var r = await fetch('/api/admin-enquiries?halaxy_search=' + encodeURIComponent(enq.email));
     var d = await r.json();
     var patients = d.patients || [];
     if (patients.length > 0) {
-      _showHalaxyLookup('found', patients[0]);
+      var p    = patients[0];
+      var n    = p.name?.[0] || {};
+      var pname = [(n.given || []).join(' '), n.family].filter(Boolean).join(' ') || 'Patient #' + p.id;
+      _selectModalHalaxyPatient(String(p.id), pname);
     } else {
-      _showHalaxyLookup('not_found', null);
+      if (el) el.innerHTML = '<div class="cl-halaxy-lookup-notfound">⚠ No Halaxy patient found with this email yet. Search by name above, or link manually once they complete intake.</div>';
     }
   } catch (_) {
     _hideHalaxyLookup();
   }
 }
 
-function _showHalaxyLookup(state, patient) {
-  var el = document.getElementById('cl-halaxy-lookup');
-  if (!el) return;
-  el.style.display = 'block';
-
-  if (state === 'searching') {
-    el.innerHTML = '<div class="cl-halaxy-lookup-searching">🔍 Searching Halaxy for a matching patient…</div>';
-
-  } else if (state === 'found') {
-    var pid   = patient.id || '';
-    var pname = '';
-    if (patient.name && patient.name[0]) {
-      var n = patient.name[0];
-      pname = [(n.given || []).join(' '), n.family].filter(Boolean).join(' ');
-    }
-    pname = pname || 'Patient #' + pid;
-    el.innerHTML = '<div class="cl-halaxy-lookup-found">'
-      + '✓ Found in Halaxy: <strong>' + escHtml(pname) + '</strong>'
-      + ' <button class="pl-action-btn pl-action-btn--soft" style="padding:3px 10px;font-size:10px;margin-left:6px" '
-      + 'onclick="_useHalaxyPatient(\'' + escHtml(pid) + '\',\'' + escHtml(pname) + '\')">Use this patient</button>'
-      + '</div>';
-
-  } else if (state === 'not_found') {
-    el.innerHTML = '<div class="cl-halaxy-lookup-notfound">'
-      + '⚠ No Halaxy patient found with this email yet. '
-      + 'They may not have filled in the intake form. You can paste their Halaxy Patient ID above once they do.'
-      + '</div>';
-
-  } else if (state === 'no_email') {
-    el.innerHTML = '<div class="cl-halaxy-lookup-noemail">No email on this enquiry — Halaxy lookup skipped.</div>';
-
-  } else {
-    _hideHalaxyLookup();
-  }
-}
+/* _showHalaxyLookup removed — replaced by _selectModalHalaxyPatient / _debounceModalHalaxySearch */
 
 function _hideHalaxyLookup() {
   var el = document.getElementById('cl-halaxy-lookup');
-  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+  if (el) { el.innerHTML = ''; }
 }
 
 function _useHalaxyPatient(patientId, patientName) {
-  document.getElementById('cl-halaxy-id').value = patientId;
-  var el = document.getElementById('cl-halaxy-lookup');
-  if (el) el.innerHTML = '<div class="cl-halaxy-lookup-found">✓ Linked to ' + escHtml(patientName) + ' (ID: ' + escHtml(patientId) + ')</div>';
+  _selectModalHalaxyPatient(patientId, patientName);
 }
 
 /* ═══════════════════════════════════════
