@@ -550,6 +550,10 @@ function renderEnquiryCardPl(e) {
   if (status === 'in_halaxy') {
     actionsHtml += '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();togglePipelineIntake(\'' + e.id + '\')">Send intake</button>';
   }
+  // Convert to client — available on any non-closed enquiry
+  if (status !== 'closed') {
+    actionsHtml += '<button class="pl-action-btn pl-action-btn--convert" onclick="event.stopPropagation();convertEnquiryPl(\'' + e.id + '\')">Convert to client →</button>';
+  }
   if (actionsHtml) actionsHtml = '<div class="pl-card-actions" style="margin-top:8px">' + actionsHtml + '</div>';
 
   var intakeHtml = '';
@@ -823,6 +827,8 @@ function openAddClient() {
   document.getElementById('cl-halaxy-id').value     = '';
   document.getElementById('cl-notes').value         = '';
   togglePlanManager('');
+  _hideHalaxyLookup();
+  delete document.getElementById('add-client-modal').dataset.enquiryId;
   document.getElementById('add-client-modal').classList.add('open');
   document.getElementById('cl-display-name').focus();
 }
@@ -971,8 +977,103 @@ function convertPendingPl(event) {
   document.getElementById('cl-halaxy-id').value     = '';
   document.getElementById('cl-notes').value         = event.description || '';
   togglePlanManager('');
+  _hideHalaxyLookup();
   document.getElementById('add-client-modal').classList.add('open');
   document.getElementById('cl-funder').focus();
+}
+
+/* ── Convert enquiry → client (with Halaxy email match) ── */
+async function convertEnquiryPl(enquiryId) {
+  if (!_pipelineData) return;
+  var enq = (_pipelineData.enquiries || []).find(function(e) { return String(e.id) === String(enquiryId); });
+  if (!enq) return;
+
+  // Pre-fill modal with enquiry data
+  var name = [enq.first_name, enq.last_name].filter(Boolean).join(' ') || enq.display_name || '';
+  document.getElementById('cl-display-name').value = name;
+  document.getElementById('cl-funder').value        = '';
+  document.getElementById('cl-plan-manager').value  = '';
+  document.getElementById('cl-halaxy-id').value     = '';
+  document.getElementById('cl-notes').value         = enq.message || enq.notes || '';
+  togglePlanManager('');
+
+  // Store source enquiry id on the modal for reference
+  document.getElementById('add-client-modal').dataset.enquiryId = enquiryId;
+
+  // Open modal
+  document.getElementById('add-client-modal').classList.add('open');
+  document.getElementById('cl-funder').focus();
+
+  // Halaxy email lookup
+  if (!enq.email) {
+    _showHalaxyLookup('no_email', null);
+    return;
+  }
+  if (!_halaxyData.connected) {
+    _hideHalaxyLookup();
+    return;
+  }
+
+  _showHalaxyLookup('searching', null);
+  try {
+    var r = await fetch('/api/admin-enquiries?halaxy_search=' + encodeURIComponent(enq.email));
+    var d = await r.json();
+    var patients = d.patients || [];
+    if (patients.length > 0) {
+      _showHalaxyLookup('found', patients[0]);
+    } else {
+      _showHalaxyLookup('not_found', null);
+    }
+  } catch (_) {
+    _hideHalaxyLookup();
+  }
+}
+
+function _showHalaxyLookup(state, patient) {
+  var el = document.getElementById('cl-halaxy-lookup');
+  if (!el) return;
+  el.style.display = 'block';
+
+  if (state === 'searching') {
+    el.innerHTML = '<div class="cl-halaxy-lookup-searching">🔍 Searching Halaxy for a matching patient…</div>';
+
+  } else if (state === 'found') {
+    var pid   = patient.id || '';
+    var pname = '';
+    if (patient.name && patient.name[0]) {
+      var n = patient.name[0];
+      pname = [(n.given || []).join(' '), n.family].filter(Boolean).join(' ');
+    }
+    pname = pname || 'Patient #' + pid;
+    el.innerHTML = '<div class="cl-halaxy-lookup-found">'
+      + '✓ Found in Halaxy: <strong>' + escHtml(pname) + '</strong>'
+      + ' <button class="pl-action-btn pl-action-btn--soft" style="padding:3px 10px;font-size:10px;margin-left:6px" '
+      + 'onclick="_useHalaxyPatient(\'' + escHtml(pid) + '\',\'' + escHtml(pname) + '\')">Use this patient</button>'
+      + '</div>';
+
+  } else if (state === 'not_found') {
+    el.innerHTML = '<div class="cl-halaxy-lookup-notfound">'
+      + '⚠ No Halaxy patient found with this email yet. '
+      + 'They may not have filled in the intake form. You can paste their Halaxy Patient ID above once they do.'
+      + '</div>';
+
+  } else if (state === 'no_email') {
+    el.innerHTML = '<div class="cl-halaxy-lookup-noemail">No email on this enquiry — Halaxy lookup skipped.</div>';
+
+  } else {
+    _hideHalaxyLookup();
+  }
+}
+
+function _hideHalaxyLookup() {
+  var el = document.getElementById('cl-halaxy-lookup');
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+}
+
+function _useHalaxyPatient(patientId, patientName) {
+  document.getElementById('cl-halaxy-id').value = patientId;
+  var el = document.getElementById('cl-halaxy-lookup');
+  if (el) el.innerHTML = '<div class="cl-halaxy-lookup-found">✓ Linked to ' + escHtml(patientName) + ' (ID: ' + escHtml(patientId) + ')</div>';
 }
 
 /* ── Escape HTML helper ── */

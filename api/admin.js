@@ -1024,6 +1024,31 @@ body {
   background: white; color: var(--soft); cursor: pointer;
 }
 .cl-empty { color: var(--soft); font-size: 13px; padding: 20px 0; }
+/* Halaxy lookup result inside Add Client modal */
+.cl-halaxy-lookup-searching {
+  font-size: 11px; color: var(--soft);
+  padding: 7px 10px; border-radius: 7px;
+  background: rgba(42,88,80,0.05);
+  display: flex; align-items: center; gap: 6px;
+}
+.cl-halaxy-lookup-found {
+  font-size: 11px; color: var(--teal);
+  padding: 7px 10px; border-radius: 7px;
+  background: rgba(42,88,80,0.07);
+  border: 1px solid rgba(42,88,80,0.2);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.cl-halaxy-lookup-notfound {
+  font-size: 11px; color: var(--terra);
+  padding: 7px 10px; border-radius: 7px;
+  background: rgba(190,110,68,0.06);
+  border: 1px solid rgba(190,110,68,0.18);
+  line-height: 1.5;
+}
+.cl-halaxy-lookup-noemail {
+  font-size: 11px; color: var(--soft);
+  padding: 5px 0;
+}
 .cl-inactive-toggle {
   font-family: var(--sans); font-size: 11px; color: var(--soft);
   background: none; border: none; cursor: pointer; margin-top: 12px;
@@ -1171,6 +1196,7 @@ body {
 .pl-action-btn:hover { opacity: 0.82; }
 .pl-action-btn--primary { background: var(--teal); color: white; }
 .pl-action-btn--soft    { background: rgba(42,88,80,0.1); color: var(--mid); }
+.pl-action-btn--convert { background: rgba(42,88,80,0.07); color: var(--teal); border: 1px solid rgba(42,88,80,0.25); font-style: italic; }
 .pl-action-btn--danger  { background: rgba(190,110,68,0.1); color: var(--terra); }
 
 /* Expanded card detail */
@@ -1594,8 +1620,9 @@ body {
       <input class="cl-modal-input" id="cl-plan-manager" type="text" placeholder="e.g. ABC Plan Management">
     </div>
     <div class="cl-modal-field">
-      <label for="cl-halaxy-id">Halaxy Patient ID <span style="font-weight:400;color:var(--soft)">(optional — paste if already in Halaxy)</span></label>
+      <label for="cl-halaxy-id">Halaxy Patient ID <span style="font-weight:400;color:var(--soft)">(optional)</span></label>
       <input class="cl-modal-input" id="cl-halaxy-id" type="text" placeholder="e.g. 12345">
+      <div id="cl-halaxy-lookup" style="display:none;margin-top:6px"></div>
     </div>
     <div class="cl-modal-field">
       <label for="cl-notes">Notes (optional)</label>

@@ -12,10 +12,24 @@ import { halaxyGet } from './_halaxy.js';
 export default async function handler(req, res) {
   if (!isAuthed(req)) return res.status(401).json({ error: 'Unauthorised' });
 
-  const db    = supabase();
-  const id    = req.query?.id || (req.url && new URL(req.url, 'http://x').searchParams.get('id'));
+  const db           = supabase();
+  const params       = req.url ? new URL(req.url, 'http://x').searchParams : new URLSearchParams();
+  const id           = req.query?.id           || params.get('id');
+  const halaxySearch = req.query?.halaxy_search || params.get('halaxy_search');
   const user  = getSessionUser(req);
   const actor = user?.name || 'Admin';
+
+  /* ── GET /api/admin-enquiries?halaxy_search=<email> — find Halaxy patient by email ── */
+  if (req.method === 'GET' && halaxySearch) {
+    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ patients: [] });
+    try {
+      const bundle   = await halaxyGet('/Patient', { email: halaxySearch.trim(), _count: '5' });
+      const patients = (bundle.entry || []).map(e => e.resource).filter(Boolean);
+      return res.status(200).json({ patients });
+    } catch (err) {
+      return res.status(200).json({ patients: [], error: err.message });
+    }
+  }
 
   /* ── GET — pipeline data ── */
   if (req.method === 'GET') {
