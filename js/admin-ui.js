@@ -401,6 +401,14 @@ function loadClientsTab() {
   loadClients();
 }
 
+function refreshClientsTab() {
+  var btn = document.getElementById('refresh-btn');
+  if (btn) { btn.textContent = '↺ Refreshing…'; btn.disabled = true; }
+  Promise.all([loadCalendarPending(), loadClients()]).then(function() {
+    if (btn) { btn.textContent = '↺ Refresh'; btn.disabled = false; }
+  });
+}
+
 /* ── Google Calendar pending events ── */
 async function loadCalendarPending() {
   var banner = document.getElementById('gcal-banner');

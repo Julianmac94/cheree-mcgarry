@@ -1100,7 +1100,10 @@ body {
     <!-- Pending intake queue -->
     <div class="sec-hd" style="margin-bottom:12px">
       <h2 class="sec-title">Pending <em>intake</em></h2>
-      <span class="sec-count" id="pending-count" style="display:none"></span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="sec-count" id="pending-count" style="display:none"></span>
+        <button onclick="refreshClientsTab()" id="refresh-btn" style="font-family:var(--sans);font-size:11px;color:var(--soft);background:none;border:none;cursor:pointer;padding:0;letter-spacing:0.02em" title="Refresh">↺ Refresh</button>
+      </div>
     </div>
     <div id="pending-list">
       <div class="cl-empty">Loading calendar…</div>
