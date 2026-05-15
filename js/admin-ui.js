@@ -730,6 +730,29 @@ function nextWeek() {
   renderAppointmentsPanel();
 }
 
+/** Extract patient display name from a FHIR Appointment resource */
+function _halaxyApptLabel(a) {
+  var parts = [];
+  // Patient name from participant[].actor where reference starts "Patient/"
+  if (a.participant) {
+    for (var i = 0; i < a.participant.length; i++) {
+      var actor = a.participant[i].actor || {};
+      if ((actor.reference || '').indexOf('Patient/') === 0 && actor.display) {
+        parts.push(actor.display);
+        break;
+      }
+    }
+  }
+  // Service type as secondary label
+  var svc = (a.serviceType && a.serviceType[0] && (a.serviceType[0].text || (a.serviceType[0].coding && a.serviceType[0].coding[0] && a.serviceType[0].coding[0].display))) || '';
+  if (svc) parts.push(svc);
+  return parts.length ? parts.join(' · ') : (a.description || a.comment || 'Appointment');
+}
+
+function toggleWeekEvent(el) {
+  el.classList.toggle('is-expanded');
+}
+
 function renderAppointmentsPanel() {
   var body = document.getElementById('appointments-panel-body');
   if (!body) return;
@@ -738,16 +761,15 @@ function renderAppointmentsPanel() {
   var today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Build array of 7 days (Mon–Sun)
+  // Mon–Fri only (5 columns — weekends rarely used in a psych practice)
   var days = [];
-  for (var di = 0; di < 7; di++) {
+  for (var di = 0; di < 5; di++) {
     var d = new Date(_currentWeekStart);
     d.setDate(d.getDate() + di);
     days.push(d);
   }
 
-  // Collect events per day
-  var eventsByDay = [[], [], [], [], [], [], []];
+  var eventsByDay = [[], [], [], [], []];
 
   // Google Calendar events
   Object.keys(_calEventMap).forEach(function(eid) {
@@ -756,7 +778,7 @@ function renderAppointmentsPanel() {
     if (!ev || !ev.start) return;
     var evDate = new Date(ev.start);
     evDate.setHours(0, 0, 0, 0);
-    for (var di2 = 0; di2 < 7; di2++) {
+    for (var di2 = 0; di2 < 5; di2++) {
       if (evDate.getTime() === days[di2].getTime()) {
         eventsByDay[di2].push({ type: 'cal', ev: ev });
         break;
@@ -771,7 +793,7 @@ function renderAppointmentsPanel() {
     if (!startStr) return;
     var apptDate = new Date(startStr);
     apptDate.setHours(0, 0, 0, 0);
-    for (var di3 = 0; di3 < 7; di3++) {
+    for (var di3 = 0; di3 < 5; di3++) {
       if (apptDate.getTime() === days[di3].getTime()) {
         eventsByDay[di3].push({ type: 'halaxy', ev: a, start: startStr });
         break;
@@ -786,7 +808,7 @@ function renderAppointmentsPanel() {
     + '<button class="week-nav-btn" onclick="nextWeek()">→</button>'
     + '</div>';
 
-  // Week columns grid
+  // Week columns grid (Mon–Fri)
   html += '<div class="week-cols">';
   days.forEach(function(day, di) {
     var isToday = day.getTime() === today.getTime();
@@ -798,29 +820,40 @@ function renderAppointmentsPanel() {
       + '</div>';
 
     if (!dayEvents.length) {
-      html += '<div style="font-size:9px;color:rgba(122,148,143,0.4);text-align:center;padding:4px 0">—</div>';
+      html += '<div style="font-size:9px;color:rgba(122,148,143,0.3);text-align:center;padding:8px 0">—</div>';
     } else {
+      dayEvents.sort(function(a, b) {
+        var ta = a.type === 'cal' ? new Date(a.ev.start) : new Date(a.start);
+        var tb = b.type === 'cal' ? new Date(b.ev.start) : new Date(b.start);
+        return ta - tb;
+      });
       dayEvents.forEach(function(item) {
         if (item.type === 'cal') {
-          var ev = item.ev;
-          var eid = String(ev.id);
-          var cardUid = 'cal-' + eid;
-          var timeStr = ev.allDay ? 'All day' : new Date(ev.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
-          html += '<div class="week-event">'
-            + '<div class="week-event-time">' + escHtml(timeStr) + '</div>'
-            + '<div class="week-event-title">' + escHtml(ev.title || ev.summary || '') + '</div>'
-            + '<button class="week-event-btn" onclick="openCalSessionPanel(\'' + cardUid + '\',\'' + eid + '\')">Log session →</button>'
-            + '<div id="pl-link-' + cardUid + '"></div>'
+          var ev     = item.ev;
+          var eid    = String(ev.id);
+          var uid    = 'cal-' + eid;
+          var time   = ev.allDay ? 'All day' : new Date(ev.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+          var title  = ev.title || ev.summary || 'Event';
+          html += '<div class="week-event" onclick="toggleWeekEvent(this)">'
+            + '<div class="week-event-time">' + escHtml(time) + '</div>'
+            + '<span class="week-event-source">Calendar</span>'
+            + '<div class="week-event-title">' + escHtml(title) + '</div>'
+            + '<div class="week-event-actions">'
+            + '<button class="week-event-btn" onclick="event.stopPropagation();openCalSessionPanel(\'' + uid + '\',\'' + eid + '\')">Log session →</button>'
+            + '<button class="week-event-dismiss" onclick="event.stopPropagation();dismissCalEvent(\'' + eid + '\')">Dismiss</button>'
+            + '</div>'
+            + '<div id="pl-link-' + uid + '"></div>'
             + '</div>';
         } else {
-          // Halaxy appointment
-          var apptObj   = item.ev;
-          var startStr2 = item.start;
-          var timeStr2  = new Date(startStr2).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
-          var desc2 = (apptObj.description || apptObj.comment || '');
-          html += '<div class="week-event week-event--halaxy">'
-            + '<div class="week-event-time">' + escHtml(timeStr2) + ' · Halaxy</div>'
-            + '<div class="week-event-title">' + escHtml(desc2 || 'Appointment') + '</div>'
+          var appt   = item.ev;
+          var time2  = new Date(item.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+          var label  = _halaxyApptLabel(appt);
+          var status = appt.status || '';
+          html += '<div class="week-event week-event--halaxy" onclick="toggleWeekEvent(this)">'
+            + '<div class="week-event-time">' + escHtml(time2) + '</div>'
+            + '<span class="week-event-source">Halaxy</span>'
+            + '<div class="week-event-title">' + escHtml(label) + '</div>'
+            + (status ? '<div class="week-event-sub">' + escHtml(status) + '</div>' : '')
             + '</div>';
         }
       });
