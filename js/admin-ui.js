@@ -404,7 +404,7 @@ async function loadPipeline() {
   window._pipelineLoaded = true;
   loadCalendarPending(); // non-blocking
   try {
-    var r = await fetch('/api/pipeline');
+    var r = await fetch('/api/admin-enquiries');
     if (!r.ok) throw new Error('HTTP ' + r.status);
     var d = await r.json();
     _pipelineData = d;
@@ -423,7 +423,7 @@ function refreshPipeline() {
   var btn = document.getElementById('pl-refresh-btn');
   if (btn) { btn.textContent = '↺ Refreshing…'; btn.disabled = true; }
   loadCalendarPending();
-  fetch('/api/pipeline').then(function(r) {
+  fetch('/api/admin-enquiries').then(function(r) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.json();
   }).then(function(d) {
