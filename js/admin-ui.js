@@ -1055,20 +1055,16 @@ function renderAppointmentsPanel() {
         var patientId = _apptPatientId(appt);
         var apptDateStr = item.start.slice(0, 10);
         var apptUid = 'hx-log-' + (patientId || 'unk') + '-' + apptDateStr.replace(/-/g, '');
-        var localClient = patientId
-          ? ((_pipelineData && _pipelineData.clients) || []).find(function(c) { return String(c.halaxy_id) === String(patientId); })
-          : null;
+        var hxPatientName = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId]) || label;
         html += '<div class="log-card">'
           + '<div class="log-card-info">'
           + '<div class="log-card-title">' + escHtml(label) + '</div>'
           + '<div class="log-card-date">' + escHtml(dateStr) + ' · Halaxy</div>'
           + '</div>'
           + (patientId
-              ? (localClient
-                  ? '<button class="dp-btn dp-btn--primary" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(String(patientId)) + '\',\'' + escHtml(localClient.display_name) + '\',\'' + apptDateStr + '\')">Create Invoice →</button>'
-                  : '<a class="dp-btn dp-btn--ghost" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">Invoice in Halaxy →</a>')
+              ? '<button class="dp-btn dp-btn--primary" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(String(patientId)) + '\',\'' + escHtml(hxPatientName) + '\',\'' + apptDateStr + '\')">Create Invoice →</button>'
               : '<span class="dp-badge dp-badge--source" style="white-space:nowrap">No patient</span>')
-          + (localClient ? '<div id="pl-link-' + apptUid + '"></div>' : '')
+          + (patientId ? '<div id="pl-link-' + apptUid + '"></div>' : '')
           + '</div>';
       }
     });
