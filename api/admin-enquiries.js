@@ -23,8 +23,13 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && (req.query?.halaxy_fees || params.get('halaxy_fees'))) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ fees: [] });
     try {
-      const bundle = await halaxyGet('/ChargeItemDefinition', { status: 'active', _count: '100' });
+      const bundle = await halaxyGet('/ChargeItemDefinition', { status: 'active', _count: '200' });
       const fees   = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(r => {
+        const name = r.title || r.name || r.description || 'Fee';
+
+        // Skip archived fees (Halaxy doesn't always honour status filter)
+        if (/archived/i.test(name)) return null;
+
         // Extract price from propertyGroup[].priceComponent[].amount
         let amount = null, currency = 'AUD';
         if (r.propertyGroup) {
@@ -35,8 +40,26 @@ export default async function handler(req, res) {
             if (amount !== null) break;
           }
         }
-        return { id: r.id, name: r.title || r.name || r.description || 'Fee', amount, currency };
-      }).filter(f => f.amount !== null);
+        if (amount === null) return null;
+
+        // Extract funder reference from useContext (Halaxy stores funder here)
+        // Possible shapes: valueReference.display, valueCodeableConcept.text, valueCodeableConcept.coding[].display
+        let funderName = '';
+        for (const uc of (r.useContext || [])) {
+          const v = uc.valueReference?.display
+            || uc.valueCodeableConcept?.text
+            || uc.valueCodeableConcept?.coding?.[0]?.display
+            || uc.valueCodeableConcept?.coding?.[0]?.code
+            || '';
+          if (v) { funderName = v; break; }
+        }
+        // Also check applicability[].description as fallback
+        if (!funderName && r.applicability?.length) {
+          funderName = r.applicability[0].description || '';
+        }
+
+        return { id: r.id, name, amount, currency, funderName };
+      }).filter(Boolean);
       return res.status(200).json({ fees });
     } catch (err) {
       return res.status(200).json({ fees: [], error: err.message });

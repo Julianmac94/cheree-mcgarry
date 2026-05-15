@@ -907,12 +907,8 @@ async function _loadModalFees(funderKey) {
     } catch (_) { _halaxyFees = []; }
   }
 
-  var fees = _halaxyFees;
-  var kw   = FUNDER_KEYWORDS[funderKey] || [];
-  var filtered = kw.length
-    ? fees.filter(function(f) { var n = (f.name||'').toLowerCase(); return kw.some(function(k){ return n.indexOf(k)!==-1; }); })
-    : fees;
-  if (!filtered.length) filtered = fees;
+  var fees     = _halaxyFees;
+  var filtered = _filterFeesForFunder(fees, funderKey);
 
   var defaultRate = FUNDER_RATES[funderKey] || '';
   feeSel.innerHTML = '<option value="">— select fee —</option>'
@@ -1264,14 +1260,45 @@ function _mapCoverageToFunderKey(str) {
   return null;
 }
 
+// Keywords matched against fee.funderName (the funder field from Halaxy ChargeItemDefinition)
+// Used as fallback when funderName is absent from fee data
 var FUNDER_KEYWORDS = {
   ndis_plan: ['ndis'],
   ndis_self: ['ndis'],
   medicare:  ['medicare', 'mbs', 'mhcp'],
-  qfes:      ['qfes', 'eap'],
-  dva:       ['dva', 'defence', 'veteran'],
-  private:   ['private', 'self'],
+  qfes:      ['qfes', 'eap', 'third-party', 'third party'],
+  dva:       ['dva', 'defence', 'veteran', 'bupa adf', 'adfhcs'],
+  private:   ['private', 'self', 'thorne'],
 };
+
+/**
+ * Filter a fees array for a given funder key.
+ * Prefers matching fee.funderName (from Halaxy useContext) if present on any fee,
+ * otherwise falls back to keyword matching on fee.name.
+ */
+function _filterFeesForFunder(fees, funderKey) {
+  if (!funderKey || !fees || !fees.length) return fees || [];
+  var kw = FUNDER_KEYWORDS[funderKey] || [];
+  // If fees have funderName data, use it for matching
+  var hasFunderName = fees.some(function(f) { return f.funderName; });
+  if (hasFunderName) {
+    var matched = fees.filter(function(f) {
+      if (!f.funderName) return false;
+      var fn = f.funderName.toLowerCase();
+      return kw.some(function(k) { return fn.indexOf(k) !== -1; });
+    });
+    if (matched.length) return matched;
+  }
+  // Fallback: keyword match on fee name
+  if (kw.length) {
+    var byName = fees.filter(function(f) {
+      var n = (f.name || '').toLowerCase();
+      return kw.some(function(k) { return n.indexOf(k) !== -1; });
+    });
+    if (byName.length) return byName;
+  }
+  return fees; // no match — return full list
+}
 
 async function openCalSessionPanel(cardUid, eventId) {
   var panel = document.getElementById('pl-link-' + cardUid);
@@ -1367,14 +1394,7 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
   var funderLabel = FUNDER_LABELS[funderKey] || funderDisplay || '';
   var fees        = _halaxyFees || [];
 
-  // Filter fees by funder keywords; fall back to full list
-  var filtered = funderKey && FUNDER_KEYWORDS[funderKey]
-    ? fees.filter(function(f) {
-        var n = (f.name || '').toLowerCase();
-        return (FUNDER_KEYWORDS[funderKey] || []).some(function(k) { return n.indexOf(k) !== -1; });
-      })
-    : fees;
-  if (!filtered.length) filtered = fees;
+  var filtered = _filterFeesForFunder(fees, funderKey);
 
   // Build fee selector
   var feeHtml;
@@ -1441,12 +1461,9 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
 function _rebuildFeesForFunder(cardUid) {
   var sel = document.getElementById('pl-cs-funder-' + cardUid);
   if (!sel || !sel.value) return;
-  var fk   = sel.value;
-  var fees = _halaxyFees || [];
-  var filtered = (FUNDER_KEYWORDS[fk] || []).length
-    ? fees.filter(function(f) { var n = (f.name||'').toLowerCase(); return (FUNDER_KEYWORDS[fk]||[]).some(function(k){return n.indexOf(k)!==-1;}); })
-    : fees;
-  if (!filtered.length) filtered = fees;
+  var fk       = sel.value;
+  var fees     = _halaxyFees || [];
+  var filtered = _filterFeesForFunder(fees, fk);
   var feeSel = document.getElementById('pl-cs-fee-' + cardUid);
   var feeAmt = document.getElementById('pl-cs-fee-amt-' + cardUid);
   if (feeSel) {
