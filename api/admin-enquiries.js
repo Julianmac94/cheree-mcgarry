@@ -70,8 +70,10 @@ function mapOrgToFunder(org) {
   else if (t.includes('bupa adf') || n.includes('bupa adf')
         || n.includes('defence')  || n.includes('dva'))              billingKey = 'dva';
   else if (t.includes('third-party') || t.includes('third party')
-        || n.includes('qfes')     || n.includes('eap'))              billingKey = 'qfes';
-  else if (t.includes('worker')  || t.includes('compensation'))      billingKey = 'other';
+        || n.includes('qfes')     || n.includes('eap')
+        || n.includes('queensland fire') || n.includes('fire and emergency')) billingKey = 'qfes';
+  else if (t.includes('worker')  || t.includes('compensation')
+        || n.includes('workcover') || n.includes('return to work'))   billingKey = 'other';
   return { id: org.id, name, type: typeText, billingKey };
 }
 
@@ -133,29 +135,45 @@ async function syncHalaxyConfig(db) {
   ]);
 
   // ── Funders ──────────────────────────────────────────────────────────
-  // mapOrgToFunder already filters out professionals; this gives us real Halaxy IDs.
-  const halaxyOrgs = (orgBundle.entry || []).map(e => e.resource).filter(Boolean).map(mapOrgToFunder).filter(Boolean);
-
-  // Build a lookup: normalised name → real Halaxy org ID (for fee-map enrichment)
   const normalise = s => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+  // Get all Halaxy orgs (mapOrgToFunder still filters obvious professionals by type text)
+  const halaxyOrgs = (orgBundle.entry || []).map(e => e.resource).filter(Boolean).map(mapOrgToFunder).filter(Boolean);
+  console.log(`Halaxy /Organization returned ${(orgBundle.entry||[]).length} total, ${halaxyOrgs.length} after professional filter`);
+
+  // Build a lookup: normalised name → Halaxy org (for name-matching)
   const halaxyOrgByName = {};
   halaxyOrgs.forEach(o => { halaxyOrgByName[normalise(o.name)] = o; });
 
-  // Merge strategy:
-  //  1. Start with KNOWN_FUNDERS (canonical list, seed IDs).
-  //  2. For each, if a Halaxy org name-matches it, swap in the real Halaxy ID
-  //     (so feeMap lookups by real ID work when Halaxy embeds org refs in fees).
-  //  3. Add any Halaxy orgs that weren't matched to a known funder (new ones).
+  // Merge strategy — KNOWN_FUNDERS is the canonical allowlist:
+  //  1. For each KNOWN_FUNDER, look for a Halaxy org with a matching name.
+  //     If found, swap in the real Halaxy ID so feeMap lookups work.
+  //  2. Only add a Halaxy org that isn't in KNOWN_FUNDERS if its type text
+  //     explicitly marks it as a funding body (not just any unknown org).
+  //     This prevents referrer clinics and practitioners leaking through.
   const funders = KNOWN_FUNDERS.map(kf => {
     const match = halaxyOrgByName[normalise(kf.name)];
     if (match) return { ...kf, id: match.id, halaxyId: match.id };
     return kf;
   });
 
-  // Add Halaxy orgs that aren't in KNOWN_FUNDERS at all (by normalised name)
+  // Add Halaxy orgs not in KNOWN_FUNDERS ONLY if their type clearly marks them as a funder
   const knownNames = new Set(KNOWN_FUNDERS.map(kf => normalise(kf.name)));
+  const EXPLICIT_FUNDER_TYPE_PATTERNS = [
+    'medicare', 'ndis', 'plan management', 'plan manager',
+    'insurance', 'insurer', 'workers comp', "worker's comp",
+    'dva', 'defence', 'adf', 'eap', 'third.party', 'government fund',
+  ];
   halaxyOrgs.forEach(o => {
-    if (!knownNames.has(normalise(o.name))) funders.push(o);
+    if (knownNames.has(normalise(o.name))) return; // already included via KNOWN_FUNDERS
+    const t = (o.type || '').toLowerCase(), n = normalise(o.name);
+    const looksLikeFunder = EXPLICIT_FUNDER_TYPE_PATTERNS.some(p => t.includes(p) || n.includes(p));
+    if (looksLikeFunder) {
+      console.log(`Adding unlisted funder from Halaxy: ${o.name} (${o.type})`);
+      funders.push(o);
+    } else {
+      console.log(`Skipping Halaxy org (not a known funder): ${o.name} (${o.type})`);
+    }
   });
 
   const funderSource = halaxyOrgs.length > 0 ? 'halaxy+seed' : 'seed';
@@ -288,13 +306,33 @@ export default async function handler(req, res) {
     }
   }
 
-  /* ── GET ?halaxy_fees_raw=1 — return first 5 raw ChargeItemDefinition resources for debugging ── */
+  /* ── GET ?halaxy_fees_raw=1 — diagnostic: fee names + funder fields ── */
   if (req.method === 'GET' && params.get('halaxy_fees_raw')) {
-    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ raw: [] });
+    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ fees: [] });
     try {
-      const bundle = await halaxyGet('/ChargeItemDefinition', { status: 'active', _count: '5' });
-      const raw = (bundle.entry || []).slice(0, 5).map(e => e.resource).filter(Boolean);
-      return res.status(200).json({ raw });
+      const bundle = await halaxyGet('/ChargeItemDefinition', { status: 'active', _count: '200' });
+      const fees = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(r => {
+        const name = r.title || r.name || r.description || 'Fee';
+        let amount = null;
+        if (r.propertyGroup) {
+          for (const pg of r.propertyGroup) {
+            for (const pc of (pg.priceComponent || [])) {
+              if (pc.amount?.value != null) { amount = pc.amount.value; break; }
+            }
+            if (amount !== null) break;
+          }
+        }
+        // Capture all useContext entries and extensions so we can see what Halaxy sends
+        const useContextSummary = (r.useContext || []).map(uc => ({
+          code: uc.code?.code, valueRef: uc.valueReference?.reference,
+          valueDisplay: uc.valueReference?.display, valueConcept: uc.valueCodeableConcept?.text,
+        }));
+        const extSummary = (r.extension || []).slice(0, 3).map(e => ({
+          url: e.url, valueRef: e.valueReference?.reference, valueDisplay: e.valueReference?.display,
+        }));
+        return { name, amount, useContext: useContextSummary, extensions: extSummary };
+      });
+      return res.status(200).json({ count: fees.length, fees });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
