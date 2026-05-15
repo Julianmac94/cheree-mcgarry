@@ -1273,6 +1273,8 @@ body {
   background: rgba(42,88,80,0.08); color: var(--soft); margin-bottom: 4px;
 }
 .week-event--halaxy .week-event-source { background: rgba(80,42,88,0.08); color: #7a5a8a; }
+.week-event--personal { opacity: 0.5; border-left-color: #aaa; }
+.week-event--personal .week-event-source { background: rgba(0,0,0,0.08); color: #888; }
 .week-event-title {
   font-size: 11px; font-weight: 600; color: var(--tealDeep);
   margin-bottom: 2px; line-height: 1.3;
@@ -1667,7 +1669,7 @@ body {
     <!-- 1. INTAKE panel -->
     <div class="dash-panel" id="panel-intake">
       <div class="dash-panel-hd">
-        <span class="dash-panel-title">Intake</span>
+        <span class="dash-panel-title">Website Contacts</span>
         <span class="dash-panel-count" id="intake-count" style="background:${C.terra}"></span>
       </div>
       <div class="dash-panel-body" id="intake-panel-body">
@@ -1976,6 +1978,71 @@ body {
     <div class="cl-modal-actions">
       <button class="cl-modal-cancel" onclick="closeAddClient()">Cancel</button>
       <button class="cl-modal-save" onclick="saveNewClient()">Add client</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Session modal (from Website Contact) -->
+<div class="cl-modal-ov" id="create-session-modal" onclick="if(event.target===this)closeCreateSessionModal()">
+  <div class="cl-modal" style="max-width:480px">
+    <h2 class="cl-modal-title">Create <em>session</em></h2>
+
+    <!-- Contact info (read-only) -->
+    <div id="cs-contact-card" style="background:rgba(42,88,80,0.05);border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:13px;line-height:1.5"></div>
+
+    <!-- Halaxy patient match -->
+    <div class="cl-modal-field">
+      <label>Halaxy patient</label>
+      <div id="cs-halaxy-status" style="margin-bottom:4px"></div>
+      <input class="cl-modal-input" id="cs-halaxy-search" type="text" placeholder="Search by name…"
+        autocomplete="off" oninput="_debounceCsSearch(this.value)" style="display:none">
+      <div id="cs-halaxy-results"></div>
+      <input type="hidden" id="cs-halaxy-id">
+      <input type="hidden" id="cs-halaxy-name">
+    </div>
+
+    <!-- Funder -->
+    <div class="cl-modal-field">
+      <label for="cs-funder">Funder</label>
+      <select class="cl-modal-select" id="cs-funder" onchange="onCsFunderChange(this)">
+        <option value="">Select funder…</option>
+      </select>
+    </div>
+
+    <!-- Plan manager (NDIS only) -->
+    <div class="cl-modal-field" id="cs-pm-field" style="display:none">
+      <label for="cs-plan-manager">Plan manager</label>
+      <input class="cl-modal-input" id="cs-plan-manager" type="text" placeholder="e.g. In Choice Plan Management">
+    </div>
+
+    <!-- Session date/time -->
+    <div class="cl-modal-field">
+      <label for="cs-session-date">Session date / time</label>
+      <input class="cl-modal-input" id="cs-session-date" type="datetime-local">
+    </div>
+
+    <!-- Fee -->
+    <div class="cl-modal-field" id="cs-fee-row" style="display:none">
+      <label>Fee</label>
+      <select class="cl-modal-select" id="cs-fee" onchange="_syncCsFeeAmt()">
+        <option value="">— select fee —</option>
+      </select>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:5px">
+        <span style="color:var(--soft);font-size:13px">$</span>
+        <input class="cl-modal-input" id="cs-fee-amt" type="number" step="0.01" min="0"
+          placeholder="or enter amount" style="margin:0">
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="cl-modal-field">
+      <label for="cs-notes">Notes (optional)</label>
+      <input class="cl-modal-input" id="cs-notes" type="text" placeholder="Session notes…">
+    </div>
+
+    <div class="cl-modal-actions">
+      <button class="cl-modal-cancel" onclick="closeCreateSessionModal()">Cancel</button>
+      <button class="cl-modal-save" id="cs-save-btn" onclick="saveCreateSession()">Create session →</button>
     </div>
   </div>
 </div>
