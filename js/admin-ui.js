@@ -877,11 +877,21 @@ function renderAppointmentsPanel() {
   });
   actionItems.sort(function(a, b) { return a.dateMs - b.dateMs; });
 
+  // Separate named items from unnamed Halaxy blocks
+  var namedItems = actionItems.filter(function(item) {
+    if (item.type === 'cal') return true;
+    return _halaxyApptLabel(item.ev) !== 'Halaxy appointment';
+  });
+  var otherItems = actionItems.filter(function(item) {
+    if (item.type === 'cal') return false;
+    return _halaxyApptLabel(item.ev) === 'Halaxy appointment';
+  });
+
   html += '<div class="appt-section-label">Next 7 days</div>';
-  if (!actionItems.length) {
+  if (!namedItems.length && !otherItems.length) {
     html += '<div class="dp-empty">No appointments in the next 7 days</div>';
   } else {
-    actionItems.forEach(function(item) {
+    namedItems.forEach(function(item) {
       if (item.type === 'cal') {
         var ev = item.ev;
         var eid = String(ev.id);
@@ -946,6 +956,29 @@ function renderAppointmentsPanel() {
           + '</div>';
       }
     });
+
+    // Unnamed Halaxy blocks → collapsible "Other" at the bottom
+    if (otherItems.length) {
+      html += '<div class="dp-collapsible" style="margin-top:4px">'
+        + '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'appt-other\')">'
+        + '<span id="appt-other-arrow">▸</span> Other (' + otherItems.length + ')'
+        + '</button>'
+        + '<div class="dp-collapsible-body" id="appt-other">';
+      otherItems.forEach(function(item) {
+        var time3 = new Date(item.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+        var dateLabel3 = new Date(item.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+        html += '<div class="appt-7day-card appt-7day-card--personal">'
+          + '<div class="appt-7day-left">'
+          + '<div class="appt-7day-when">' + escHtml(dateLabel3) + ' · ' + escHtml(time3) + '</div>'
+          + '<div class="appt-7day-title" style="color:var(--soft)">Halaxy block</div>'
+          + '</div>'
+          + '<div class="appt-7day-right">'
+          + '<span class="dp-badge dp-badge--source">Personal</span>'
+          + '</div>'
+          + '</div>';
+      });
+      html += '</div></div>';
+    }
   }
 
   /* ══════════════════════════════════════════════════
