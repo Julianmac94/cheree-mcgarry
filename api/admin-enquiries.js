@@ -43,6 +43,41 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── GET ?halaxy_patient_name=<query> — search Halaxy patients by name ── */
+  if (req.method === 'GET' && params.get('halaxy_patient_name')) {
+    const q = params.get('halaxy_patient_name').trim();
+    if (!q || !process.env.HALAXY_CLIENT_ID) return res.status(200).json({ patients: [] });
+    try {
+      const bundle   = await halaxyGet('/Patient', { name: q, _count: '10' });
+      const patients = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(p => {
+        const n    = p.name?.[0] || {};
+        const name = [[...(n.given || [])].join(' '), n.family].filter(Boolean).join(' ') || p.id;
+        return { id: p.id, name };
+      });
+      return res.status(200).json({ patients });
+    } catch (err) {
+      return res.status(200).json({ patients: [], error: err.message });
+    }
+  }
+
+  /* ── GET ?halaxy_coverage=<patientId> — fetch patient's Coverage (funder) ── */
+  if (req.method === 'GET' && params.get('halaxy_coverage')) {
+    const patientId = params.get('halaxy_coverage').trim();
+    if (!patientId || !process.env.HALAXY_CLIENT_ID) return res.status(200).json({ coverage: [] });
+    try {
+      const bundle   = await halaxyGet('/Coverage', { patient: patientId, _count: '5' });
+      const coverage = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(c => ({
+        id:       c.id,
+        payor:    c.payor?.[0]?.display || c.payor?.[0]?.reference || '',
+        typeText: c.type?.text || c.type?.coding?.[0]?.display || '',
+        status:   c.status,
+      }));
+      return res.status(200).json({ coverage });
+    } catch (err) {
+      return res.status(200).json({ coverage: [], error: err.message });
+    }
+  }
+
   /* ── GET /api/admin-enquiries?halaxy_search=<email> — find Halaxy patient by email ── */
   if (req.method === 'GET' && halaxySearch) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ patients: [] });

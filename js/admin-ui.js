@@ -365,9 +365,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
 var _pipelineData = null;
 var _halaxyData   = { connected: false, appointments: [], patients: [] };
-var _calEventMap  = {};  // eventId → event object (for link-to-client lookups)
-var _calDismissed = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
-var _halaxyFees   = null;  // cached ChargeItemDefinition list from Halaxy
+var _calEventMap    = {};    // eventId → event object
+var _calDismissed   = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
+var _halaxyFees     = null; // cached ChargeItemDefinition list
+var _calSearchTimer = null; // debounce timer for Halaxy patient search
 
 /* Close any open card dropdown when clicking elsewhere */
 document.addEventListener('click', function(e) {
@@ -1163,264 +1164,233 @@ function toggleCardMenu(uid) {
 
 /* ═══════════════════════════════════════
    LOG CALENDAR EVENT AS SESSION
+   Searches Halaxy patients directly — no local list.
    ═══════════════════════════════════════ */
+
+/** Map funder display name from Halaxy Coverage → our funder key */
+function _mapCoverageToFunderKey(str) {
+  if (!str) return null;
+  var s = str.toLowerCase();
+  if (s.indexOf('ndis') !== -1)                                return 'ndis_plan';
+  if (s.indexOf('medicare') !== -1 || s.indexOf('mbs') !== -1) return 'medicare';
+  if (s.indexOf('dva') !== -1 || s.indexOf('veteran') !== -1)  return 'dva';
+  if (s.indexOf('qfes') !== -1 || s.indexOf('eap') !== -1)     return 'qfes';
+  if (s.indexOf('private') !== -1 || s.indexOf('self') !== -1) return 'private';
+  return null;
+}
+
+var FUNDER_KEYWORDS = {
+  ndis_plan: ['ndis'],
+  ndis_self: ['ndis'],
+  medicare:  ['medicare', 'mbs', 'mhcp'],
+  qfes:      ['qfes', 'eap'],
+  dva:       ['dva', 'defence', 'veteran'],
+  private:   ['private', 'self'],
+};
 
 async function openCalSessionPanel(cardUid, eventId) {
   var panel = document.getElementById('pl-link-' + cardUid);
   if (!panel) return;
 
-  // Show loading state while fees fetch
-  panel.innerHTML = '<div class="pl-link-panel"><div class="cl-halaxy-lookup-searching">Loading fees from Halaxy…</div></div>';
-
-  // Load fees once (cached after first call)
+  // Preload fees cache while showing search UI
   if (_halaxyFees === null && _halaxyData.connected) {
+    panel.innerHTML = '<div class="pl-link-panel"><div class="cl-halaxy-lookup-searching">Loading…</div></div>';
     try {
-      var r = await fetch('/api/admin-enquiries?halaxy_fees=1');
-      var d = await r.json();
-      _halaxyFees = d.fees || [];
-    } catch (_) {
-      _halaxyFees = [];
-    }
-  } else if (_halaxyFees === null) {
-    _halaxyFees = [];
-  }
+      var fr = await fetch('/api/admin-enquiries?halaxy_fees=1');
+      _halaxyFees = ((await fr.json()).fees) || [];
+    } catch (_) { _halaxyFees = []; }
+  } else if (_halaxyFees === null) { _halaxyFees = []; }
 
   panel.innerHTML = '<div class="pl-link-panel">'
-    + '<div class="pl-link-panel-title">Which client is this for?</div>'
+    + '<div class="pl-link-panel-title">Search Halaxy patient</div>'
     + '<input class="pl-link-input" id="pl-cs-inp-' + cardUid + '"'
-    + ' placeholder="Search by name…" autocomplete="off" onclick="event.stopPropagation()"'
-    + ' oninput="_renderCalClientResults(\'' + cardUid + '\',\'' + eventId + '\',this.value)">'
-    + '<div id="pl-cs-res-' + cardUid + '" class="pl-link-results"></div>'
+    + ' placeholder="Type patient name…" autocomplete="off" onclick="event.stopPropagation()"'
+    + ' oninput="_debounceCalSearch(\'' + cardUid + '\',\'' + eventId + '\',this.value)">'
+    + '<div id="pl-cs-res-' + cardUid + '" class="pl-link-results">'
+    + '<div style="font-size:11px;color:var(--soft);padding:5px 2px">Type at least 2 characters…</div>'
+    + '</div>'
     + '<button class="pl-dd-item" style="margin-top:4px;font-size:10px;padding:5px 8px;color:var(--soft)"'
     + ' onclick="event.stopPropagation();closeLinkPanel(\'' + cardUid + '\')">✕ Cancel</button>'
     + '</div>';
-  _renderCalClientResults(cardUid, eventId, '');
   setTimeout(function() {
     var inp = document.getElementById('pl-cs-inp-' + cardUid);
     if (inp) inp.focus();
   }, 60);
 }
 
-function _renderCalClientResults(cardUid, eventId, query) {
+function _debounceCalSearch(cardUid, eventId, query) {
+  clearTimeout(_calSearchTimer);
+  _calSearchTimer = setTimeout(function() { _searchHalaxyPatients(cardUid, eventId, query); }, 350);
+}
+
+async function _searchHalaxyPatients(cardUid, eventId, query) {
   var res = document.getElementById('pl-cs-res-' + cardUid);
-  if (!res || !_pipelineData) return;
-
-  var q = query ? query.toLowerCase() : '';
-
-  // Active clients
-  var clients = (_pipelineData.clients || []).filter(function(c) {
-    return c.active !== false && (!q || (c.display_name || '').toLowerCase().indexOf(q) !== -1);
-  });
-
-  // Build set of names already present as clients (to suppress duplicate enquiries)
-  var clientNames = new Set(clients.map(function(c) { return (c.display_name || '').toLowerCase(); }));
-
-  // Non-closed enquiries not already converted to a client
-  var enquiries = (_pipelineData.enquiries || []).filter(function(e) {
-    if (e.status === 'closed') return false;
-    var name = [e.first_name, e.last_name].filter(Boolean).join(' ');
-    if (clientNames.has(name.toLowerCase())) return false; // already a client
-    return !q || name.toLowerCase().indexOf(q) !== -1;
-  });
-
-  if (!clients.length && !enquiries.length) {
-    res.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:5px 2px">No clients or enquiries found</div>';
+  if (!res) return;
+  if (!query || query.trim().length < 2) {
+    res.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:5px 2px">Type at least 2 characters…</div>';
     return;
   }
-
-  var html = '';
-
-  if (clients.length) {
-    html += clients.slice(0, 6).map(function(c) {
-      var rate = FUNDER_RATES[c.funder] ? '$' + FUNDER_RATES[c.funder] : '';
-      var meta = [FUNDER_LABELS[c.funder] || c.funder, rate, c.halaxy_id ? 'H✓' : ''].filter(Boolean).join(' · ');
-      return '<div class="pl-link-result" onclick="event.stopPropagation();_showCalFeeForm(\'' + cardUid + '\',\'' + eventId + '\',\'' + c.id + '\',\'client\')">'
-        + '<span class="pl-link-result-name">' + escHtml(c.display_name) + '</span>'
+  res.innerHTML = '<div class="cl-halaxy-lookup-searching">Searching Halaxy…</div>';
+  try {
+    var r = await fetch('/api/admin-enquiries?halaxy_patient_name=' + encodeURIComponent(query.trim()));
+    var d = await r.json();
+    var patients = d.patients || [];
+    if (!patients.length) {
+      res.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:5px 2px">No Halaxy patients found for "' + escHtml(query) + '"</div>';
+      return;
+    }
+    res.innerHTML = patients.map(function(p) {
+      var local = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(p.id); });
+      var meta  = local ? (FUNDER_LABELS[local.funder] || '') + ' · in dashboard ✓' : 'Halaxy patient';
+      return '<div class="pl-link-result" onclick="event.stopPropagation();_selectHalaxyPatient(\'' + cardUid + '\',\'' + eventId + '\',\'' + escHtml(String(p.id)) + '\',\'' + escHtml(p.name) + '\')">'
+        + '<span class="pl-link-result-name">' + escHtml(p.name) + '</span>'
         + '<span class="pl-link-result-meta">' + escHtml(meta) + '</span>'
         + '</div>';
     }).join('');
+  } catch (_) {
+    res.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:5px 2px">Search error — try again</div>';
   }
-
-  if (enquiries.length) {
-    if (clients.length) html += '<div style="font-size:10px;color:var(--soft);padding:4px 2px 2px;text-transform:uppercase;letter-spacing:.03em">Enquiries — will convert on save</div>';
-    html += enquiries.slice(0, 4).map(function(e) {
-      var name = [e.first_name, e.last_name].filter(Boolean).join(' ') || '—';
-      var meta = e.service || e.source || 'Enquiry';
-      return '<div class="pl-link-result" onclick="event.stopPropagation();_showCalFeeForm(\'' + cardUid + '\',\'' + eventId + '\',\'' + e.id + '\',\'enquiry\')">'
-        + '<span class="pl-link-result-name">' + escHtml(name) + '</span>'
-        + '<span class="pl-link-result-meta" style="color:var(--terra)">' + escHtml(meta) + ' · needs funder</span>'
-        + '</div>';
-    }).join('');
-  }
-
-  res.innerHTML = html;
 }
 
-function _showCalFeeForm(cardUid, eventId, sourceId, sourceType) {
-  if (!_pipelineData) return;
-
-  // Resolve to a display object — either a real client or an enquiry
-  var isEnquiry = sourceType === 'enquiry';
-  var client = null, enquiry = null, displayName = '', funderVal = '', halaxyId = '';
-
-  if (isEnquiry) {
-    enquiry = (_pipelineData.enquiries || []).find(function(e) { return String(e.id) === String(sourceId); });
-    if (!enquiry) return;
-    displayName = [enquiry.first_name, enquiry.last_name].filter(Boolean).join(' ') || '—';
-  } else {
-    client = (_pipelineData.clients || []).find(function(c) { return String(c.id) === String(sourceId); });
-    if (!client) return;
-    displayName = client.display_name;
-    funderVal   = client.funder || '';
-    halaxyId    = client.halaxy_id || '';
-  }
-
-  var evt        = _calEventMap[eventId] || {};
-  var funderLabel = FUNDER_LABELS[funderVal] || funderVal || (isEnquiry ? '— select funder' : '');
-  var halaxyStr  = halaxyId ? 'In Halaxy ✓' : (isEnquiry ? 'Enquiry — no client record yet' : 'Not yet in Halaxy');
-
+async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
   var panel = document.getElementById('pl-link-' + cardUid);
   if (!panel) return;
+  panel.innerHTML = '<div class="pl-link-panel"><div class="cl-halaxy-lookup-searching">Loading patient details…</div></div>';
 
-  // Funder selector shown only for enquiries (clients already have a funder)
-  var funderPickerHtml = '';
-  if (isEnquiry) {
-    var funderOpts = Object.keys(FUNDER_LABELS).map(function(k) {
-      return '<option value="' + k + '">' + FUNDER_LABELS[k] + '</option>';
-    }).join('');
-    funderPickerHtml = '<select class="pl-link-input" id="pl-cs-funder-' + cardUid + '"'
-      + ' onclick="event.stopPropagation()" onchange="_updateEnqFeeDefault(\'' + cardUid + '\')"'
-      + ' style="margin-top:6px"><option value="">— select funder —</option>' + funderOpts + '</select>';
-  }
+  // Fetch Coverage to determine funder
+  var funderKey = null, funderDisplay = '';
+  try {
+    var cr = await fetch('/api/admin-enquiries?halaxy_coverage=' + encodeURIComponent(patientId));
+    var cd = await cr.json();
+    if (cd.coverage && cd.coverage.length) {
+      var cov = cd.coverage[0];
+      funderDisplay = cov.payor || cov.typeText || '';
+      funderKey = _mapCoverageToFunderKey(funderDisplay);
+    }
+  } catch (_) {}
 
-  // Fee selector — Halaxy dropdown if available, fallback to amount input
-  var fees = _halaxyFees || [];
-  var defaultRate = FUNDER_RATES[funderVal] || '';
+  // Fall back to local client funder if known
+  var local = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === patientId; });
+  if (local && !funderKey) funderKey = local.funder;
+
+  var evt         = _calEventMap[eventId] || {};
+  var funderLabel = FUNDER_LABELS[funderKey] || funderDisplay || '';
+  var fees        = _halaxyFees || [];
+
+  // Filter fees by funder keywords; fall back to full list
+  var filtered = funderKey && FUNDER_KEYWORDS[funderKey]
+    ? fees.filter(function(f) {
+        var n = (f.name || '').toLowerCase();
+        return (FUNDER_KEYWORDS[funderKey] || []).some(function(k) { return n.indexOf(k) !== -1; });
+      })
+    : fees;
+  if (!filtered.length) filtered = fees;
+
+  // Build fee selector
   var feeHtml;
-  if (fees.length > 0) {
-    var options = fees.map(function(f) {
-      var lbl      = escHtml(f.name) + ' — $' + Number(f.amount).toFixed(2);
-      var selected = defaultRate && Math.abs(f.amount - parseFloat(defaultRate)) < 1 ? ' selected' : '';
-      return '<option value="' + f.amount + '"' + selected + '>' + lbl + '</option>';
+  if (filtered.length) {
+    var defaultRate = FUNDER_RATES[funderKey] || '';
+    var opts = filtered.map(function(f) {
+      var lbl = escHtml(f.name) + ' — $' + Number(f.amount).toFixed(2);
+      var sel = defaultRate && Math.abs(f.amount - parseFloat(defaultRate)) < 1 ? ' selected' : '';
+      return '<option value="' + f.amount + '"' + sel + '>' + lbl + '</option>';
     }).join('');
     feeHtml = '<div class="pl-fee-row" style="flex-direction:column;align-items:stretch;gap:4px">'
       + '<label class="pl-fee-label">Fee item</label>'
-      + '<select class="pl-link-input" id="pl-cs-fee-' + cardUid + '" onclick="event.stopPropagation()"'
-      + ' onchange="_syncFeeInput(\'' + cardUid + '\')">'
-      + '<option value="">— select a fee —</option>' + options
-      + '</select>'
+      + '<select class="pl-link-input" id="pl-cs-fee-' + cardUid + '" onclick="event.stopPropagation()" onchange="_syncFeeInput(\'' + cardUid + '\')">'
+      + '<option value="">— select a fee —</option>' + opts + '</select>'
       + '<div style="display:flex;align-items:center;gap:5px;margin-top:3px">'
       + '<span class="pl-fee-currency">$</span>'
-      + '<input class="pl-fee-input" id="pl-cs-fee-amt-' + cardUid + '" type="number" step="0.01" min="0"'
-      + ' placeholder="or enter amount" onclick="event.stopPropagation()"></div>'
+      + '<input class="pl-fee-input" id="pl-cs-fee-amt-' + cardUid + '" type="number" step="0.01" min="0" placeholder="or enter amount" onclick="event.stopPropagation()"></div>'
       + '</div>';
   } else {
-    feeHtml = '<div class="pl-fee-row">'
-      + '<label class="pl-fee-label">Fee</label><span class="pl-fee-currency">$</span>'
-      + '<input class="pl-fee-input" id="pl-cs-fee-amt-' + cardUid + '" type="number" step="0.01" min="0"'
-      + ' value="' + escHtml(defaultRate) + '" placeholder="0.00" onclick="event.stopPropagation()">'
-      + '<span class="pl-fee-funder">' + escHtml(funderLabel) + '</span>'
+    var dr = FUNDER_RATES[funderKey] || '';
+    feeHtml = '<div class="pl-fee-row"><label class="pl-fee-label">Fee</label><span class="pl-fee-currency">$</span>'
+      + '<input class="pl-fee-input" id="pl-cs-fee-amt-' + cardUid + '" type="number" step="0.01" min="0" value="' + dr + '" placeholder="0.00" onclick="event.stopPropagation()">'
       + '</div>';
   }
 
-  // Save button passes sourceId + sourceType so we can auto-create client for enquiries
+  // If no funder resolved, show a manual picker
+  var funderPickerHtml = '';
+  if (!funderKey) {
+    var fopts = Object.keys(FUNDER_LABELS).map(function(k) {
+      return '<option value="' + k + '">' + FUNDER_LABELS[k] + '</option>';
+    }).join('');
+    funderPickerHtml = '<select class="pl-link-input" id="pl-cs-funder-' + cardUid + '" style="margin-bottom:6px"'
+      + ' onclick="event.stopPropagation()" onchange="_rebuildFeesForFunder(\'' + cardUid + '\')">'
+      + '<option value="">— select funder —</option>' + fopts + '</select>';
+  }
+
   panel.innerHTML = '<div class="pl-link-panel">'
     + '<div class="pl-link-preview">'
-    + '<div class="pl-link-preview-name">' + escHtml(displayName) + '</div>'
-    + '<div class="pl-link-preview-meta">' + escHtml(funderLabel) + ' · ' + halaxyStr + '</div>'
+    + '<div class="pl-link-preview-name">' + escHtml(patientName) + '</div>'
+    + '<div class="pl-link-preview-meta">Halaxy patient'
+    + (funderLabel ? ' · ' + escHtml(funderLabel) : '')
+    + (local ? ' · in dashboard ✓' : '') + '</div>'
     + '</div>'
     + funderPickerHtml
     + feeHtml
     + '<input class="pl-link-input" id="pl-cs-notes-' + cardUid + '" type="text"'
-    + ' value="' + escHtml(evt.title || '') + '" placeholder="Session notes…"'
-    + ' onclick="event.stopPropagation()" style="margin-top:6px">'
+    + ' value="' + escHtml(evt.title || '') + '" placeholder="Session notes…" onclick="event.stopPropagation()" style="margin-top:6px">'
     + '<div class="pl-card-actions" style="margin-top:8px">'
-    + '<button class="pl-action-btn pl-action-btn--soft"'
-    + ' onclick="event.stopPropagation();openCalSessionPanel(\'' + cardUid + '\',\'' + eventId + '\')">← Back</button>'
-    + '<button class="pl-action-btn pl-action-btn--primary"'
-    + ' onclick="event.stopPropagation();_saveCalSession(\'' + cardUid + '\',\'' + eventId + '\',\'' + sourceId + '\',\'' + sourceType + '\')">Save session →</button>'
-    + '</div>'
-    + '</div>';
-
+    + '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();openCalSessionPanel(\'' + cardUid + '\',\'' + eventId + '\')">← Back</button>'
+    + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();_saveHalaxySession(\'' + cardUid + '\',\'' + eventId + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(patientName) + '\',\'' + (funderKey || '') + '\')">Save session →</button>'
+    + '</div></div>';
   _syncFeeInput(cardUid);
 }
 
-/* Funder → fee keyword map: filter Halaxy fee names by these terms */
-var FUNDER_KEYWORDS = {
-  ndis_plan: ['ndis'],
-  ndis_self: ['ndis'],
-  medicare:  ['medicare', 'mbs', 'mhcp'],
-  qfes:      ['qfes', 'eap'],
-  dva:       ['dva', 'defence', 'veterans'],
-  private:   ['private', 'self'],
-};
-
-/** Rebuild the fee select options filtered to the chosen funder, then sync amount */
-function _updateEnqFeeDefault(cardUid) {
-  var funderSel = document.getElementById('pl-cs-funder-' + cardUid);
-  if (!funderSel || !funderSel.value) return;
-  var funderKey = funderSel.value;
-
+function _rebuildFeesForFunder(cardUid) {
+  var sel = document.getElementById('pl-cs-funder-' + cardUid);
+  if (!sel || !sel.value) return;
+  var fk   = sel.value;
+  var fees = _halaxyFees || [];
+  var filtered = (FUNDER_KEYWORDS[fk] || []).length
+    ? fees.filter(function(f) { var n = (f.name||'').toLowerCase(); return (FUNDER_KEYWORDS[fk]||[]).some(function(k){return n.indexOf(k)!==-1;}); })
+    : fees;
+  if (!filtered.length) filtered = fees;
   var feeSel = document.getElementById('pl-cs-fee-' + cardUid);
   var feeAmt = document.getElementById('pl-cs-fee-amt-' + cardUid);
-  var fees   = _halaxyFees || [];
-
-  if (feeSel && fees.length) {
-    // Filter fees to those matching funder keywords, fall back to all fees
-    var keywords = FUNDER_KEYWORDS[funderKey] || [];
-    var filtered = keywords.length
-      ? fees.filter(function(f) {
-          var n = (f.name || '').toLowerCase();
-          return keywords.some(function(k) { return n.indexOf(k) !== -1; });
-        })
-      : fees;
-    if (!filtered.length) filtered = fees; // no keyword match → show all
-
-    var defaultRate = FUNDER_RATES[funderKey] || '';
+  if (feeSel) {
+    var dr = FUNDER_RATES[fk] || '';
     feeSel.innerHTML = '<option value="">— select a fee —</option>'
-      + filtered.map(function(f) {
-          var lbl      = escHtml(f.name) + ' — $' + Number(f.amount).toFixed(2);
-          var selected = defaultRate && Math.abs(f.amount - parseFloat(defaultRate)) < 1 ? ' selected' : '';
-          return '<option value="' + f.amount + '"' + selected + '>' + lbl + '</option>';
+      + filtered.map(function(f){
+          var s = dr && Math.abs(f.amount-parseFloat(dr))<1?' selected':'';
+          return '<option value="'+f.amount+'"'+s+'>'+escHtml(f.name)+' — $'+Number(f.amount).toFixed(2)+'</option>';
         }).join('');
     _syncFeeInput(cardUid);
-  } else if (feeAmt) {
-    feeAmt.value = FUNDER_RATES[funderKey] || '';
-  }
+  } else if (feeAmt) { feeAmt.value = FUNDER_RATES[fk] || ''; }
 }
 
-/** When the fee dropdown changes, sync the manual amount field */
+/** When fee dropdown changes, sync the editable amount field */
 function _syncFeeInput(cardUid) {
   var sel = document.getElementById('pl-cs-fee-' + cardUid);
   var amt = document.getElementById('pl-cs-fee-amt-' + cardUid);
   if (sel && amt && sel.value) amt.value = sel.value;
 }
 
-async function _saveCalSession(cardUid, eventId, sourceId, sourceType) {
-  var feeEl    = document.getElementById('pl-cs-fee-amt-' + cardUid);
+async function _saveHalaxySession(cardUid, eventId, patientId, patientName, funderKey) {
+  var feeAmt   = document.getElementById('pl-cs-fee-amt-' + cardUid);
   var notesEl  = document.getElementById('pl-cs-notes-' + cardUid);
   var funderEl = document.getElementById('pl-cs-funder-' + cardUid);
   var evt      = _calEventMap[eventId] || {};
-  var amount   = feeEl   ? (parseFloat(feeEl.value)   || null) : null;
-  var notes    = notesEl ? (notesEl.value.trim() || (evt.title || '')) : (evt.title || '');
+  var fk       = funderKey || (funderEl ? funderEl.value : '');
+  var amount   = feeAmt  ? (parseFloat(feeAmt.value)   || null) : null;
+  var notes    = notesEl ? (notesEl.value.trim() || evt.title || '') : evt.title || '';
   var date     = evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10);
 
-  try {
-    var clientId = sourceId;
+  if (!fk) { toast('Please select a funder first.', 'err'); return; }
 
-    if (sourceType === 'enquiry') {
-      // Auto-create client record from enquiry
-      var funder = funderEl ? funderEl.value : '';
-      if (!funder) { toast('Please select a funder first.', 'err'); return; }
-      var enq = (_pipelineData.enquiries || []).find(function(e) { return String(e.id) === String(sourceId); });
-      var name = enq ? ([enq.first_name, enq.last_name].filter(Boolean).join(' ') || '—') : '—';
-      var newClient = await apiFetch('/api/clients', {
+  try {
+    // Find or create local client for this Halaxy patient
+    var local    = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === patientId; });
+    var clientId = local ? local.id : null;
+
+    if (!clientId) {
+      var nc = await apiFetch('/api/clients', {
         method: 'POST',
-        body: { display_name: name, funder: funder, notes: notes || null },
+        body: { display_name: patientName, funder: fk, halaxy_id: patientId },
       });
-      clientId = newClient.id;
-      // Also close the enquiry
-      await apiFetch('/api/admin-enquiries?id=' + sourceId, { method: 'PATCH', body: { status: 'closed' } }).catch(function(){});
+      clientId = nc.id;
     }
 
     await apiFetch('/api/sessions', {
@@ -1428,7 +1398,7 @@ async function _saveCalSession(cardUid, eventId, sourceId, sourceType) {
       body: { client_id: clientId, session_date: date, status: 'upcoming', amount: amount, notes: notes },
     });
     dismissCalEvent(eventId);
-    toast(sourceType === 'enquiry' ? 'Client created and session saved ✓' : 'Session saved ✓');
+    toast('Session saved ✓');
     refreshPipeline();
   } catch (err) {
     toast('Could not save: ' + err.message, 'err');
