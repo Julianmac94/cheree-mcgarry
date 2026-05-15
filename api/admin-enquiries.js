@@ -556,14 +556,22 @@ export default async function handler(req, res) {
             // Halaxy date field is "created"; fall back to "date" for standard FHIR
             const invoiceDate = (inv.created || inv.date || '').slice(0, 10) || null;
 
+            // Halaxy uses totalBalance (remaining owing) and totalPaid to indicate payment state.
+            // totalBalance=0 means fully paid even if status is still "active".
+            const totalBalance = inv.totalBalance?.value ?? null;
+            const totalPaid    = inv.totalPaid?.value    ?? null;
+            const totalAmount  = inv.totalGross?.value   ?? inv.totalNet?.value ?? null;
+
             return {
-              id:       inv.id,
-              status,                                          // draft | issued | balanced
+              id:           inv.id,
+              status,
               patientId,
-              date:     invoiceDate,
-              amount:   inv.totalGross?.value ?? inv.totalNet?.value ?? null,
-              currency: inv.totalGross?.currency || inv.totalNet?.currency || 'AUD',
-              ref:      inv.identifier?.[0]?.value || inv.id,
+              date:         invoiceDate,
+              amount:       totalAmount,
+              totalBalance,
+              totalPaid,
+              currency:     inv.totalGross?.currency || inv.totalNet?.currency || 'AUD',
+              ref:          inv.identifier?.[0]?.value || inv.id,
             };
           })
           .filter(Boolean);
@@ -576,6 +584,7 @@ export default async function handler(req, res) {
             id: p.id, name: fhirPatientLegalName(p),
           })),
           invoices,
+          _rawInvoiceSample: invoiceResources.slice(0, 1), // debug: expose raw resource to check field names
           invoiceError: invoiceBundle._fetchError || null,
           funders:      cachedFunders,
           fees:         cachedFees,
