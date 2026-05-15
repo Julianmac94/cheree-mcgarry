@@ -463,13 +463,6 @@ async function loadPipeline() {
     _halaxyFunders = _halaxyData.funders || [];
     _halaxyFeeMap  = _halaxyData.feeMap  || {};
     _halaxyFees    = (_halaxyData.fees && _halaxyData.fees.length) ? _halaxyData.fees : _halaxyFees;
-    // Debug: log invoice data + raw resource to verify field names
-    console.log('[Halaxy invoices] count:', (_halaxyData.invoices || []).length,
-      '| error:', _halaxyData.invoiceError || 'none',
-      '| sample:', (_halaxyData.invoices || []).slice(0, 3));
-    if (_halaxyData._rawInvoiceSample && _halaxyData._rawInvoiceSample[0]) {
-      console.log('[Halaxy raw invoice]', JSON.stringify(_halaxyData._rawInvoiceSample[0], null, 2));
-    }
     renderHelloSection();
     renderPipeline();
     updateHalaxyDot();

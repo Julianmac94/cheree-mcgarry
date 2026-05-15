@@ -499,7 +499,7 @@ export default async function handler(req, res) {
             _sort:   '-created',
             _count:  '200',
             _include: 'Invoice:recipient',                             // pull Patient alongside invoice
-          }).catch(e => ({ entry: [], _fetchError: e.message })),
+          }).catch(() => ({ entry: [] })),
         ]);
         // _include=Appointment:patient adds Patient resources as extra entries —
         // split by resourceType so we don't treat Patient records as Appointments.
@@ -584,8 +584,6 @@ export default async function handler(req, res) {
             id: p.id, name: fhirPatientLegalName(p),
           })),
           invoices,
-          _rawInvoiceSample: invoiceResources.slice(0, 1), // debug: expose raw resource to check field names
-          invoiceError: invoiceBundle._fetchError || null,
           funders:      cachedFunders,
           fees:         cachedFees,
           feeMap:       cachedFeeMap,
