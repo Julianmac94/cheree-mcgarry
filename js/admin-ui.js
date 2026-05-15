@@ -4,12 +4,15 @@
    escaping in the server-rendered HTML.
    ─────────────────────────────────────────────────────────────── */
 
-/* ── Halaxy form URL lookup ── */
+/* ── Halaxy intake form URLs by funder type ── */
 var HALAXY_URLS = {
-  // Single adult — covers both private pay and Medicare (MHCP)
-  new:      'https://www.halaxy.com/a/online/form/new-patient/245011/kDQfMObOfT-YECP02pycZm5BSGRoeUNxVVAzMzRCclVNTzdoZnNEZTZPdmc',
-  medicare: 'https://www.halaxy.com/a/online/form/new-patient/245011/kDQfMObOfT-YECP02pycZm5BSGRoeUNxVVAzMzRCclVNTzdoZnNEZTZPdmc',
-  ndis:     '', // pending — paste when available
+  new:       'https://www.halaxy.com/a/online/form/new-patient/245011/kDQfMObOfT-YECP02pycZm5BSGRoeUNxVVAzMzRCclVNTzdoZnNEZTZPdmc',
+  private:   'https://www.halaxy.com/a/online/form/new-patient/245011/kDQfMObOfT-YECP02pycZm5BSGRoeUNxVVAzMzRCclVNTzdoZnNEZTZPdmc',
+  medicare:  'https://www.halaxy.com/a/online/form/new-patient/245011/kDQfMObOfT-YECP02pycZm5BSGRoeUNxVVAzMzRCclVNTzdoZnNEZTZPdmc',
+  ndis_plan: '', // paste NDIS plan-managed intake URL when available
+  ndis_self: '', // paste NDIS self-managed intake URL when available
+  qfes:      '', // paste QFES EAP intake URL when available
+  dva:       '', // paste DVA intake URL when available
 };
 
 /* ── Toast notifications ── */
@@ -584,8 +587,12 @@ function renderEnquiryCardPl(e) {
       + '<div class="pl-intake-row">'
       + '<select class="pl-intake-sel" id="pl-itype-' + e.id + '" onclick="event.stopPropagation()" onchange="updatePipelineIntakeUrl(\'' + e.id + '\')">'
       + '<option value="new">New client</option>'
+      + '<option value="private">Private</option>'
       + '<option value="medicare">Medicare (MHCP)</option>'
-      + '<option value="ndis">NDIS</option>'
+      + '<option value="ndis_plan">NDIS — Plan-managed</option>'
+      + '<option value="ndis_self">NDIS — Self-managed</option>'
+      + '<option value="qfes">QFES EAP</option>'
+      + '<option value="dva">DVA / ADFHCS</option>'
       + '</select>'
       + '<input class="pl-intake-url" id="pl-iurl-' + e.id + '" type="url" placeholder="Paste Halaxy intake URL…" onclick="event.stopPropagation()">'
       + '<button class="pl-intake-send" onclick="event.stopPropagation();sendIntakePl(\'' + e.id + '\')">Send →</button>'
@@ -1171,9 +1178,13 @@ function toggleCardMenu(uid) {
 function _mapCoverageToFunderKey(str) {
   if (!str) return null;
   var s = str.toLowerCase();
-  if (s.indexOf('ndis') !== -1)                                return 'ndis_plan';
-  if (s.indexOf('medicare') !== -1 || s.indexOf('mbs') !== -1) return 'medicare';
-  if (s.indexOf('dva') !== -1 || s.indexOf('veteran') !== -1)  return 'dva';
+  // NDIS: distinguish self-managed vs plan-managed
+  if (s.indexOf('ndis') !== -1) {
+    if (s.indexOf('self') !== -1) return 'ndis_self';
+    return 'ndis_plan'; // plan manager name will be extracted separately
+  }
+  if (s.indexOf('medicare') !== -1 || s.indexOf('mbs') !== -1 || s.indexOf('mhcp') !== -1) return 'medicare';
+  if (s.indexOf('dva') !== -1 || s.indexOf('veteran') !== -1 || s.indexOf('defence') !== -1) return 'dva';
   if (s.indexOf('qfes') !== -1 || s.indexOf('eap') !== -1)     return 'qfes';
   if (s.indexOf('private') !== -1 || s.indexOf('self') !== -1) return 'private';
   return null;
@@ -1257,21 +1268,26 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
   if (!panel) return;
   panel.innerHTML = '<div class="pl-link-panel"><div class="cl-halaxy-lookup-searching">Loading patient details…</div></div>';
 
-  // Fetch Coverage to determine funder
-  var funderKey = null, funderDisplay = '';
+  // Fetch Coverage to determine funder + plan manager name
+  var funderKey = null, funderDisplay = '', planManager = '';
   try {
     var cr = await fetch('/api/admin-enquiries?halaxy_coverage=' + encodeURIComponent(patientId));
     var cd = await cr.json();
     if (cd.coverage && cd.coverage.length) {
       var cov = cd.coverage[0];
-      funderDisplay = cov.payor || cov.typeText || '';
+      // Combine payor + typeText for matching
+      funderDisplay = [cov.payor, cov.typeText].filter(Boolean).join(' ');
       funderKey = _mapCoverageToFunderKey(funderDisplay);
+      // For NDIS plan-managed, the payor IS the plan manager company name
+      if (funderKey === 'ndis_plan' && cov.payor && cov.payor.toLowerCase().indexOf('ndis') === -1) {
+        planManager = cov.payor; // e.g. "My Plan Manager", "Plan Partners" etc.
+      }
     }
   } catch (_) {}
 
   // Fall back to local client funder if known
   var local = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === patientId; });
-  if (local && !funderKey) funderKey = local.funder;
+  if (local && !funderKey) { funderKey = local.funder; planManager = planManager || local.plan_manager || ''; }
 
   var evt         = _calEventMap[eventId] || {};
   var funderLabel = FUNDER_LABELS[funderKey] || funderDisplay || '';
@@ -1321,14 +1337,23 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
       + '<option value="">— select funder —</option>' + fopts + '</select>';
   }
 
+  var pmHtml = '';
+  if (funderKey === 'ndis_plan') {
+    pmHtml = '<input class="pl-link-input" id="pl-cs-pm-' + cardUid + '" type="text"'
+      + ' value="' + escHtml(planManager) + '" placeholder="Plan manager name…"'
+      + ' onclick="event.stopPropagation()" style="margin-bottom:6px">';
+  }
+
   panel.innerHTML = '<div class="pl-link-panel">'
     + '<div class="pl-link-preview">'
     + '<div class="pl-link-preview-name">' + escHtml(patientName) + '</div>'
     + '<div class="pl-link-preview-meta">Halaxy patient'
     + (funderLabel ? ' · ' + escHtml(funderLabel) : '')
+    + (planManager ? ' · ' + escHtml(planManager) : '')
     + (local ? ' · in dashboard ✓' : '') + '</div>'
     + '</div>'
     + funderPickerHtml
+    + pmHtml
     + feeHtml
     + '<input class="pl-link-input" id="pl-cs-notes-' + cardUid + '" type="text"'
     + ' value="' + escHtml(evt.title || '') + '" placeholder="Session notes…" onclick="event.stopPropagation()" style="margin-top:6px">'
@@ -1372,8 +1397,10 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
   var feeAmt   = document.getElementById('pl-cs-fee-amt-' + cardUid);
   var notesEl  = document.getElementById('pl-cs-notes-' + cardUid);
   var funderEl = document.getElementById('pl-cs-funder-' + cardUid);
+  var pmEl     = document.getElementById('pl-cs-pm-' + cardUid);
   var evt      = _calEventMap[eventId] || {};
   var fk       = funderKey || (funderEl ? funderEl.value : '');
+  var pm       = pmEl ? pmEl.value.trim() : '';
   var amount   = feeAmt  ? (parseFloat(feeAmt.value)   || null) : null;
   var notes    = notesEl ? (notesEl.value.trim() || evt.title || '') : evt.title || '';
   var date     = evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10);
@@ -1388,9 +1415,15 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
     if (!clientId) {
       var nc = await apiFetch('/api/clients', {
         method: 'POST',
-        body: { display_name: patientName, funder: fk, halaxy_id: patientId },
+        body: { display_name: patientName, funder: fk, plan_manager: pm || null, halaxy_id: patientId },
       });
       clientId = nc.id;
+    } else if (pm && !local.plan_manager) {
+      // Back-fill plan manager if we discovered it from Halaxy and it's not stored yet
+      await apiFetch('/api/clients', {
+        method: 'PATCH',
+        body: { id: clientId, plan_manager: pm },
+      });
     }
 
     await apiFetch('/api/sessions', {
