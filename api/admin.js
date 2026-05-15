@@ -1164,9 +1164,11 @@ body {
   text-transform: uppercase; padding: 2px 7px;
   border-radius: 100px; white-space: nowrap;
 }
-.dp-badge--new    { background: rgba(190,110,68,0.12); color: ${C.terra}; }
-.dp-badge--source { background: rgba(122,148,143,0.12); color: var(--mid); }
-.dp-badge--funder { background: rgba(42,88,80,0.1); color: var(--teal); }
+.dp-badge--new         { background: rgba(190,110,68,0.12); color: ${C.terra}; }
+.dp-badge--source      { background: rgba(122,148,143,0.12); color: var(--mid); }
+.dp-badge--funder      { background: rgba(42,88,80,0.1); color: var(--teal); }
+.dp-badge--needs-log   { background: rgba(190,110,68,0.13); color: var(--terra); }
+.dp-badge--action      { background: rgba(200,160,40,0.15); color: #8a6a00; }
 .dp-badge--status-invoiced  { background: rgba(190,110,68,0.12); color: var(--terra); }
 .dp-badge--status-submitted { background: rgba(200,160,40,0.15); color: #8a6a00; }
 .dp-badge--status-lodged    { background: rgba(119,207,189,0.18); color: #1a6e5e; }
@@ -1181,6 +1183,8 @@ body {
 .dp-btn:hover { opacity: 0.82; }
 .dp-btn--primary  { background: var(--teal); color: white; }
 .dp-btn--soft     { background: rgba(42,88,80,0.1); color: var(--mid); }
+.dp-btn--ghost    { background: transparent; color: var(--soft); border: 1px solid rgba(42,88,80,0.18); }
+.dp-btn--ghost:hover { background: rgba(42,88,80,0.06); }
 .dp-btn--convert  { background: rgba(42,88,80,0.07); color: var(--teal); border: 1px solid rgba(42,88,80,0.22); }
 .dp-btn--pay      { background: rgba(42,150,100,0.12); color: #1a7a50; }
 .dp-btn--warn     { background: rgba(190,110,68,0.08); color: var(--terra); }
@@ -1326,6 +1330,50 @@ body {
   font-size: 12px; color: var(--soft); padding: 10px 2px;
   font-style: italic;
 }
+
+/* Section collapse toggle (week calendar) */
+.appt-section-toggle {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--sans); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--soft); background: none; border: none;
+  cursor: pointer; padding: 2px 0; width: 100%;
+}
+.appt-section-toggle:hover { color: var(--mid); }
+
+/* 7-day actionable appointment cards */
+.appt-7day-card {
+  background: rgba(42,88,80,0.025);
+  border: 1px solid rgba(42,88,80,0.1);
+  border-left: 3px solid ${C.tealMid};
+  border-radius: 9px; padding: 9px 12px;
+  margin-bottom: 7px;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  flex-wrap: wrap;
+}
+.appt-7day-card--personal { border-left-color: #aaa; opacity: 0.6; }
+.appt-7day-left  { flex: 1; min-width: 0; }
+.appt-7day-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.appt-7day-when  { font-size: 10px; color: var(--soft); margin-bottom: 2px; }
+.appt-7day-title { font-size: 12px; font-weight: 500; color: var(--tealDeep); }
+
+/* Billing open header */
+.billing-open-header {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.billing-open-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--soft); flex: 1;
+}
+.billing-open-count {
+  font-size: 10px; font-weight: 600; color: var(--mid);
+  background: rgba(42,88,80,0.08); padding: 2px 8px; border-radius: 100px;
+}
+.billing-open-total {
+  font-size: 12px; font-weight: 700; color: var(--tealDeep);
+}
+.bill-card--open { border-left: 3px solid rgba(190,110,68,0.4); }
 
 /* Billing cards */
 .billing-section-label {

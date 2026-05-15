@@ -610,8 +610,8 @@ function _intakeEnquiryCard(e) {
     + '<div class="dp-card-actions">'
     + (status === 'in_halaxy'
         ? '<button class="dp-btn dp-btn--primary" onclick="event.stopPropagation();openCreateSessionModal(\'' + e.id + '\')">Create Session →</button>'
-          + '<button class="dp-btn" onclick="event.stopPropagation();advanceEnquiryStatus(\'' + e.id + '\',\'closed\')" style="background:rgba(0,0,0,0.05);color:var(--soft)">Close</button>'
         : '<button class="dp-btn dp-btn--primary" onclick="event.stopPropagation();' + primaryFn + '">' + primaryLabel + '</button>')
+    + '<button class="dp-btn dp-btn--ghost" onclick="event.stopPropagation();advanceEnquiryStatus(\'' + e.id + '\',\'closed\')">Close</button>'
     + '</div>'
     + intakePanel
     + '<div id="pl-link-' + uid + '"></div>'
@@ -786,8 +786,207 @@ function renderAppointmentsPanel() {
 
   var today = new Date();
   today.setHours(0, 0, 0, 0);
+  var sevenDayEnd = new Date(today);
+  sevenDayEnd.setDate(sevenDayEnd.getDate() + 7);
 
-  // Mon–Fri only (5 columns — weekends rarely used in a psych practice)
+  var halaxyAppts = (_halaxyData && _halaxyData.appointments) || [];
+
+  /* ── Inline helpers ── */
+  function _apptPatientId(appt) {
+    var pid = null;
+    (appt.participant || []).forEach(function(p) {
+      if (p.actor && p.actor.reference && String(p.actor.reference).indexOf('Patient/') === 0) {
+        pid = String(p.actor.reference).replace('Patient/', '');
+      }
+    });
+    return pid;
+  }
+
+  function _apptBillingInfo(appt) {
+    if (!_pipelineData || !_isClinicalAppt(appt)) return null;
+    var patientId = _apptPatientId(appt);
+    if (!patientId) return null;
+    var client = (_pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(patientId); });
+    if (!client) return { patientId: patientId, client: null, session: null };
+    var apptDate = (appt.start || '').slice(0, 10);
+    var session = (client.sessions || []).find(function(s) { return s.session_date === apptDate; });
+    return { patientId: patientId, client: client, session: session };
+  }
+
+  var html = '';
+
+  /* ══════════════════════════════════════════════════
+     SECTION 1 — NEXT 7 DAYS actionable cards
+     ══════════════════════════════════════════════════ */
+  var actionItems = [];
+
+  Object.keys(_calEventMap).forEach(function(eid) {
+    if (_calDismissed.has(eid)) return;
+    var ev = _calEventMap[eid];
+    if (!ev || !ev.start) return;
+    var d = new Date(ev.start); d.setHours(0, 0, 0, 0);
+    if (d >= today && d < sevenDayEnd) {
+      actionItems.push({ type: 'cal', ev: ev, dateMs: new Date(ev.start).getTime() });
+    }
+  });
+
+  halaxyAppts.forEach(function(a) {
+    var startStr = a.start || (a.period && a.period.start);
+    if (!startStr) return;
+    var d = new Date(startStr); d.setHours(0, 0, 0, 0);
+    if (d >= today && d < sevenDayEnd) {
+      actionItems.push({ type: 'halaxy', ev: a, start: startStr, dateMs: new Date(startStr).getTime() });
+    }
+  });
+  actionItems.sort(function(a, b) { return a.dateMs - b.dateMs; });
+
+  html += '<div class="appt-section-label">Next 7 days</div>';
+  if (!actionItems.length) {
+    html += '<div class="dp-empty">No appointments in the next 7 days</div>';
+  } else {
+    actionItems.forEach(function(item) {
+      if (item.type === 'cal') {
+        var ev = item.ev;
+        var eid = String(ev.id);
+        var uid = 'cal-7d-' + eid;
+        var time = ev.allDay ? 'All day' : new Date(ev.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+        var dateLabel = new Date(ev.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+        var title = ev.title || ev.summary || 'Event';
+        html += '<div class="appt-7day-card">'
+          + '<div class="appt-7day-left">'
+          + '<div class="appt-7day-when">' + escHtml(dateLabel) + ' · ' + escHtml(time) + '</div>'
+          + '<div class="appt-7day-title">' + escHtml(title) + '</div>'
+          + '</div>'
+          + '<div class="appt-7day-right">'
+          + '<span class="dp-badge dp-badge--source">Calendar</span>'
+          + '</div>'
+          + '<div id="pl-link-' + uid + '"></div>'
+          + '</div>';
+      } else {
+        var appt = item.ev;
+        var isClinical = _isClinicalAppt(appt);
+        var label = _halaxyApptLabel(appt);
+        var time2 = new Date(item.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+        var dateLabel2 = new Date(item.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+        var patientId = _apptPatientId(appt);
+        var apptDateStr = item.start.slice(0, 10);
+        var billingBadge = '';
+        var actionBtns = '';
+
+        if (isClinical) {
+          var bi = _apptBillingInfo(appt);
+          if (bi) {
+            if (!bi.session) {
+              billingBadge = '<span class="dp-badge dp-badge--needs-log">Not logged</span>';
+              if (patientId) {
+                var apptUid = 'hx-7d-' + patientId + '-' + apptDateStr.replace(/-/g, '');
+                actionBtns = '<button class="dp-btn dp-btn--soft" style="font-size:10px;padding:4px 9px;margin-top:4px" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(label) + '\',\'' + apptDateStr + '\')">Log →</button>'
+                  + '<div id="pl-link-' + apptUid + '"></div>';
+              }
+            } else {
+              var sStatus = bi.session.status;
+              if (sStatus === 'paid') {
+                billingBadge = '<span class="dp-badge dp-badge--status-paid">Paid ✓</span>';
+              } else if (sStatus === 'invoiced' || sStatus === 'submitted' || sStatus === 'lodged') {
+                billingBadge = '<span class="dp-badge dp-badge--status-invoiced">Awaiting payment</span>';
+              } else {
+                billingBadge = '<span class="dp-badge dp-badge--action">Needs billing</span>';
+              }
+            }
+          }
+        }
+
+        html += '<div class="appt-7day-card' + (isClinical ? '' : ' appt-7day-card--personal') + '">'
+          + '<div class="appt-7day-left">'
+          + '<div class="appt-7day-when">' + escHtml(dateLabel2) + ' · ' + escHtml(time2) + '</div>'
+          + '<div class="appt-7day-title">' + escHtml(label) + '</div>'
+          + '</div>'
+          + '<div class="appt-7day-right">'
+          + '<span class="dp-badge" style="background:rgba(80,42,88,0.08);color:#7a5a8a;font-size:9px">' + (isClinical ? 'Halaxy' : 'Personal') + '</span>'
+          + billingBadge
+          + actionBtns
+          + '</div>'
+          + '</div>';
+      }
+    });
+  }
+
+  /* ══════════════════════════════════════════════════
+     SECTION 2 — NEEDS LOGGING (past unlogged)
+     Includes Cal events + past Halaxy clinical appts without a session
+     ══════════════════════════════════════════════════ */
+  var needsLogging = [];
+
+  Object.keys(_calEventMap).forEach(function(eid) {
+    if (_calDismissed.has(eid)) return;
+    var ev = _calEventMap[eid];
+    if (!ev || !ev.start) return;
+    if (new Date(ev.start).getTime() < today.getTime()) {
+      needsLogging.push({ type: 'cal', ev: ev, dateMs: new Date(ev.start).getTime() });
+    }
+  });
+
+  halaxyAppts.forEach(function(a) {
+    var startStr = a.start || (a.period && a.period.start);
+    if (!startStr) return;
+    if (!_isClinicalAppt(a)) return;
+    var apptD = new Date(startStr); apptD.setHours(0, 0, 0, 0);
+    if (apptD.getTime() >= today.getTime()) return;
+    var bi = _apptBillingInfo(a);
+    if (bi && !bi.session) {
+      needsLogging.push({ type: 'halaxy', ev: a, start: startStr, dateMs: new Date(startStr).getTime() });
+    }
+  });
+
+  needsLogging.sort(function(a, b) { return b.dateMs - a.dateMs; });
+
+  html += '<div class="appt-section-label" style="margin-top:16px">Needs logging</div>';
+  if (!needsLogging.length) {
+    html += '<div class="log-caught-up">All caught up ✓</div>';
+  } else {
+    needsLogging.forEach(function(item) {
+      if (item.type === 'cal') {
+        var ev = item.ev;
+        var eid = String(ev.id);
+        var cardUid = 'cal-log-' + eid;
+        var dateStr = new Date(ev.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+        html += '<div class="log-card">'
+          + '<div class="log-card-info">'
+          + '<div class="log-card-title">' + escHtml(ev.title || ev.summary || '') + '</div>'
+          + '<div class="log-card-date">' + escHtml(dateStr) + ' · Calendar</div>'
+          + '</div>'
+          + '<button class="dp-btn dp-btn--primary" onclick="openCalSessionPanel(\'' + cardUid + '\',\'' + eid + '\')">Log session →</button>'
+          + '<div id="pl-link-' + cardUid + '"></div>'
+          + '</div>';
+      } else {
+        var appt = item.ev;
+        var label = _halaxyApptLabel(appt);
+        var dateStr = new Date(item.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+        var patientId = _apptPatientId(appt);
+        var apptDateStr = item.start.slice(0, 10);
+        var apptUid = 'hx-log-' + (patientId || 'unk') + '-' + apptDateStr.replace(/-/g, '');
+        html += '<div class="log-card">'
+          + '<div class="log-card-info">'
+          + '<div class="log-card-title">' + escHtml(label) + '</div>'
+          + '<div class="log-card-date">' + escHtml(dateStr) + ' · Halaxy</div>'
+          + '</div>'
+          + (patientId
+              ? '<button class="dp-btn dp-btn--primary" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(label) + '\',\'' + apptDateStr + '\')">Log session →</button>'
+              : '<span class="dp-badge dp-badge--source" style="white-space:nowrap">No patient</span>')
+          + '<div id="pl-link-' + apptUid + '"></div>'
+          + '</div>';
+      }
+    });
+  }
+
+  /* ══════════════════════════════════════════════════
+     SECTION 3 — WEEK CALENDAR (collapsible)
+     ══════════════════════════════════════════════════ */
+  html += '<button class="appt-section-toggle" onclick="toggleDpCollapsible(\'week-cal-body\')" style="margin-top:16px">'
+    + '<span id="week-cal-body-arrow">▸</span> Week calendar'
+    + '</button>';
+  html += '<div class="dp-collapsible-body" id="week-cal-body">';
+
   var days = [];
   for (var di = 0; di < 5; di++) {
     var d = new Date(_currentWeekStart);
@@ -796,54 +995,36 @@ function renderAppointmentsPanel() {
   }
 
   var eventsByDay = [[], [], [], [], []];
-
-  // Google Calendar events
   Object.keys(_calEventMap).forEach(function(eid) {
     if (_calDismissed.has(eid)) return;
     var ev = _calEventMap[eid];
     if (!ev || !ev.start) return;
-    var evDate = new Date(ev.start);
-    evDate.setHours(0, 0, 0, 0);
+    var evDate = new Date(ev.start); evDate.setHours(0, 0, 0, 0);
     for (var di2 = 0; di2 < 5; di2++) {
-      if (evDate.getTime() === days[di2].getTime()) {
-        eventsByDay[di2].push({ type: 'cal', ev: ev });
-        break;
-      }
+      if (evDate.getTime() === days[di2].getTime()) { eventsByDay[di2].push({ type: 'cal', ev: ev }); break; }
     }
   });
-
-  // Halaxy appointments
-  var halaxyAppts = (_halaxyData && _halaxyData.appointments) || [];
   halaxyAppts.forEach(function(a) {
     var startStr = a.start || (a.period && a.period.start);
     if (!startStr) return;
-    var apptDate = new Date(startStr);
-    apptDate.setHours(0, 0, 0, 0);
+    var apptDate = new Date(startStr); apptDate.setHours(0, 0, 0, 0);
     for (var di3 = 0; di3 < 5; di3++) {
-      if (apptDate.getTime() === days[di3].getTime()) {
-        eventsByDay[di3].push({ type: 'halaxy', ev: a, start: startStr });
-        break;
-      }
+      if (apptDate.getTime() === days[di3].getTime()) { eventsByDay[di3].push({ type: 'halaxy', ev: a, start: startStr }); break; }
     }
   });
 
-  // Week nav header
-  var html = '<div class="week-nav">'
+  html += '<div class="week-nav">'
     + '<button class="week-nav-btn" onclick="prevWeek()">←</button>'
     + '<span class="week-nav-label">' + _fmtWeekLabel(_currentWeekStart) + '</span>'
     + '<button class="week-nav-btn" onclick="nextWeek()">→</button>'
     + '</div>';
 
-  // Week columns grid (Mon–Fri)
   html += '<div class="week-cols">';
   days.forEach(function(day, di) {
     var isToday = day.getTime() === today.getTime();
     var dayEvents = eventsByDay[di] || [];
     html += '<div class="week-day' + (isToday ? ' week-day--today' : '') + '">';
-    html += '<div class="week-day-hd">'
-      + '<span class="week-day-name">' + DAY_NAMES[day.getDay()] + '</span>'
-      + '<span class="week-day-num">' + day.getDate() + '</span>'
-      + '</div>';
+    html += '<div class="week-day-hd"><span class="week-day-name">' + DAY_NAMES[day.getDay()] + '</span><span class="week-day-num">' + day.getDate() + '</span></div>';
 
     if (!dayEvents.length) {
       html += '<div style="font-size:9px;color:rgba(122,148,143,0.3);text-align:center;padding:8px 0">—</div>';
@@ -855,11 +1036,11 @@ function renderAppointmentsPanel() {
       });
       dayEvents.forEach(function(item) {
         if (item.type === 'cal') {
-          var ev     = item.ev;
-          var eid    = String(ev.id);
-          var uid    = 'cal-' + eid;
-          var time   = ev.allDay ? 'All day' : new Date(ev.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
-          var title  = ev.title || ev.summary || 'Event';
+          var ev = item.ev;
+          var eid = String(ev.id);
+          var uid = 'cal-wk-' + eid;
+          var time = ev.allDay ? 'All day' : new Date(ev.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+          var title = ev.title || ev.summary || 'Event';
           html += '<div class="week-event" onclick="toggleWeekEvent(this)">'
             + '<div class="week-event-time">' + escHtml(time) + '</div>'
             + '<span class="week-event-source">Calendar</span>'
@@ -871,11 +1052,11 @@ function renderAppointmentsPanel() {
             + '<div id="pl-link-' + uid + '"></div>'
             + '</div>';
         } else {
-          var appt      = item.ev;
-          var time2     = new Date(item.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
-          var label     = _halaxyApptLabel(appt);
-          var apptStatus= appt.status || '';
-          var isClinical= _isClinicalAppt(appt);
+          var appt = item.ev;
+          var time2 = new Date(item.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+          var label = _halaxyApptLabel(appt);
+          var apptStatus = appt.status || '';
+          var isClinical = _isClinicalAppt(appt);
           var apptClass = 'week-event week-event--halaxy' + (isClinical ? '' : ' week-event--personal');
           html += '<div class="' + apptClass + '" onclick="toggleWeekEvent(this)">'
             + '<div class="week-event-time">' + escHtml(time2) + '</div>'
@@ -886,39 +1067,10 @@ function renderAppointmentsPanel() {
         }
       });
     }
-    html += '</div>'; // .week-day
+    html += '</div>';
   });
   html += '</div>'; // .week-cols
-
-  // Needs logging section — past Cal events not dismissed
-  var pastEvents = Object.keys(_calEventMap)
-    .filter(function(eid) {
-      if (_calDismissed.has(eid)) return false;
-      var ev = _calEventMap[eid];
-      if (!ev || !ev.start) return false;
-      return new Date(ev.start).getTime() < today.getTime();
-    })
-    .map(function(eid) { return _calEventMap[eid]; })
-    .sort(function(a, b) { return new Date(b.start) - new Date(a.start) });
-
-  html += '<div class="appt-section-label">Needs logging</div>';
-  if (!pastEvents.length) {
-    html += '<div class="log-caught-up">All caught up ✓</div>';
-  } else {
-    pastEvents.forEach(function(ev) {
-      var eid     = String(ev.id);
-      var cardUid = 'cal-log-' + eid;
-      var dateStr = new Date(ev.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-      html += '<div class="log-card">'
-        + '<div class="log-card-info">'
-        + '<div class="log-card-title">' + escHtml(ev.title || ev.summary || '') + '</div>'
-        + '<div class="log-card-date">' + escHtml(dateStr) + '</div>'
-        + '</div>'
-        + '<button class="dp-btn dp-btn--primary" onclick="openCalSessionPanel(\'' + cardUid + '\',\'' + eid + '\')">Log session →</button>'
-        + '<div id="pl-link-' + cardUid + '"></div>'
-        + '</div>';
-    });
-  }
+  html += '</div>'; // #week-cal-body
 
   body.innerHTML = html;
 }
@@ -976,21 +1128,35 @@ function renderBillingPanel() {
   var countEl = document.getElementById('billing-count');
   if (countEl) countEl.textContent = actionCount || '';
 
+  // Combine open items into one flat list sorted oldest-first (most overdue at top)
+  var openItems = needsAction.concat(awaiting);
+  openItems.sort(function(a, b) { return (a.session.session_date || '').localeCompare(b.session.session_date || ''); });
+
+  // Running total for unpaid
+  var totalUnpaid = openItems.reduce(function(sum, item) { return sum + (parseFloat(item.session.amount) || 0); }, 0);
+
   var html = '';
 
-  // Needs action
-  html += '<div class="billing-section-label">Needs action</div>';
-  if (!needsAction.length) {
-    html += '<div class="dp-empty">Nothing to action</div>';
+  // Unpaid / Open header with total
+  html += '<div class="billing-open-header">'
+    + '<span class="billing-open-label">Open invoices</span>'
+    + (openItems.length ? '<span class="billing-open-count">' + openItems.length + ' item' + (openItems.length !== 1 ? 's' : '') + '</span>' : '')
+    + (totalUnpaid ? '<span class="billing-open-total">$' + totalUnpaid.toFixed(2) + '</span>' : '')
+    + '</div>';
+
+  if (!openItems.length) {
+    html += '<div class="dp-empty">All invoices settled ✓</div>';
   } else {
-    needsAction.forEach(function(item) {
+    openItems.forEach(function(item) {
       var c  = item.client;
       var s  = item.session;
-      var dt = s.session_date ? new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
+      var dt = s.session_date ? new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
       var funderLabel = FUNDER_LABELS[c.funder] || c.funder || '';
       var amt = s.amount ? '$' + Number(s.amount).toFixed(2) : '';
+      var isAction = (s.status === 'upcoming' || s.status === 'completed');
+      var statusClass = 'dp-badge--status-' + (s.status || 'upcoming');
 
-      html += '<div class="bill-card">';
+      html += '<div class="bill-card bill-card--open">';
       html += '<div class="bill-card-top">'
         + '<span class="bill-card-name">' + escHtml(c.display_name) + '</span>'
         + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
@@ -998,37 +1164,13 @@ function renderBillingPanel() {
       html += '<div class="bill-card-meta">'
         + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
         + '<span class="dp-badge dp-badge--funder">' + escHtml(funderLabel) + '</span>'
-        + '<span class="dp-badge" style="background:rgba(122,148,143,0.12);color:var(--mid)">' + escHtml(STATUS_DISPLAY[s.status] || s.status) + '</span>'
-        + '</div>';
-      html += '<div class="dp-card-actions">' + _billingActionBtn(c, s) + '</div>';
-      html += '</div>';
-    });
-  }
-
-  // Awaiting payment
-  html += '<div class="billing-section-label">Awaiting payment</div>';
-  if (!awaiting.length) {
-    html += '<div class="dp-empty">None awaiting</div>';
-  } else {
-    awaiting.forEach(function(item) {
-      var c  = item.client;
-      var s  = item.session;
-      var dt = s.session_date ? new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
-      var funderLabel = FUNDER_LABELS[c.funder] || c.funder || '';
-      var amt = s.amount ? '$' + Number(s.amount).toFixed(2) : '';
-      var statusClass = 'dp-badge--status-' + s.status;
-
-      html += '<div class="bill-card">';
-      html += '<div class="bill-card-top">'
-        + '<span class="bill-card-name">' + escHtml(c.display_name) + '</span>'
-        + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
-        + '</div>';
-      html += '<div class="bill-card-meta">'
-        + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
         + '<span class="dp-badge ' + statusClass + '">' + escHtml(STATUS_DISPLAY[s.status] || s.status) + '</span>'
-        + '<span class="dp-badge dp-badge--funder">' + escHtml(funderLabel) + '</span>'
         + '</div>';
-      html += '<div class="dp-card-actions"><button class="dp-btn dp-btn--pay" onclick="advanceSessionPl(\'' + s.id + '\',\'paid\',\'' + c.id + '\')">Mark paid</button></div>';
+      if (isAction) {
+        html += '<div class="dp-card-actions">' + _billingActionBtn(c, s) + '</div>';
+      } else {
+        html += '<div class="dp-card-actions"><button class="dp-btn dp-btn--pay" onclick="advanceSessionPl(\'' + s.id + '\',\'paid\',\'' + c.id + '\')">Mark paid ✓</button></div>';
+      }
       html += '</div>';
     });
   }
@@ -2234,6 +2376,18 @@ function _filterFeesForFunder(fees, funderKey, funderId) {
   return fees; // no match — return full list
 }
 
+/**
+ * Directly open the session-log panel for a known Halaxy patient (no search step).
+ * Used by Halaxy "needs logging" cards where the patient ID is already known.
+ * Stores the appointment date on the panel element so _saveHalaxySession uses it.
+ */
+function openHalaxyApptLogPanel(cardUid, patientId, patientName, dateStr) {
+  var panel = document.getElementById('pl-link-' + cardUid);
+  if (!panel) return;
+  panel.dataset.apptDate = dateStr;
+  _selectHalaxyPatient(cardUid, null, patientId, patientName);
+}
+
 async function openCalSessionPanel(cardUid, eventId) {
   var panel = document.getElementById('pl-link-' + cardUid);
   if (!panel) return;
@@ -2440,7 +2594,10 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
   var pm       = pmEl ? pmEl.value.trim() : '';
   var amount   = feeAmt  ? (parseFloat(feeAmt.value)   || null) : null;
   var notes    = notesEl ? (notesEl.value.trim() || evt.title || '') : evt.title || '';
-  var date     = evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10);
+  // For Halaxy-appointment log panels, the appt date is stored on the panel element.
+  // For Google Calendar log panels, use the calendar event start date.
+  var panelEl = document.getElementById('pl-link-' + cardUid);
+  var date = (panelEl && panelEl.dataset.apptDate) || (evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10));
 
   if (!fk) { toast('Please select a funder first.', 'err'); return; }
 
