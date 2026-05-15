@@ -41,15 +41,16 @@ export default async function handler(req, res) {
     const calendar = google.calendar({ version: 'v3', auth: oauth2 });
 
     const now = new Date();
-    const sixWeeksOut = new Date(now.getTime() + 42 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixWeeksOut   = new Date(now.getTime() + 42 * 24 * 60 * 60 * 1000);
 
     const response = await calendar.events.list({
       calendarId: CALENDAR_ID,
-      timeMin: now.toISOString(),
+      timeMin: thirtyDaysAgo.toISOString(), // include past 30 days for "needs logging"
       timeMax: sixWeeksOut.toISOString(),
       singleEvents: true,
       orderBy: 'startTime',
-      maxResults: 50,
+      maxResults: 100,
     });
 
     const events = (response.data.items || []).map(e => ({

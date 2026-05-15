@@ -2160,48 +2160,59 @@ async function clearHalaxyIdPl(clientId) {
 }
 
 /* ── Google Calendar pending events ── */
+/* Confirm before redirecting to reconnect Google Calendar */
+function confirmGcalReconnect(e) {
+  var chip = document.getElementById('gcal-chip');
+  var dot  = document.getElementById('gcal-status-dot');
+  // Only redirect if disconnected/errored — when connected, just a gentle confirm
+  var isConnected = dot && dot.classList.contains('halaxy-dot--ok');
+  if (isConnected) {
+    return window.confirm('Reconnect Google Calendar? You\'ll be redirected briefly.');
+  }
+  return true; // always allow if not connected
+}
+
 async function loadCalendarPending() {
-  var banner = document.getElementById('gcal-banner');
+  var chip    = document.getElementById('gcal-chip');
+  var dot     = document.getElementById('gcal-status-dot');
+  var label   = document.getElementById('gcal-chip-label');
+  var tooltip = document.getElementById('gcal-tooltip');
+
+  function _setChip(state, text, tip) {
+    if (dot) {
+      dot.className = 'halaxy-dot '
+        + (state === 'ok'      ? 'halaxy-dot--ok'
+         : state === 'loading' ? 'halaxy-dot--loading'
+         :                       'halaxy-dot--err');
+    }
+    if (label)   label.textContent   = text;
+    if (tooltip) tooltip.innerHTML   = tip + '<br><span style="opacity:0.65;font-size:10px">Click to reconnect</span>';
+  }
+
   try {
     var r = await fetch('/api/calendar-pending');
     var d = await r.json();
 
     if (!d.connected) {
-      if (banner) {
-        banner.className     = 'gcal-banner disconnected';
-        banner.style.display = 'flex';
-        banner.innerHTML     = '<span>Calendar not connected</span>'
-          + '<a class="gcal-connect-btn" href="/api/google-auth">Connect</a>';
-      }
+      _setChip('err', 'Calendar', 'Not connected');
       _calEventsLoaded = true;
       renderAppointmentsPanel();
       return;
     }
 
-    if (banner) {
-      var count = (d.events || []).length;
-      banner.className     = 'gcal-banner connected';
-      banner.style.display = 'flex';
-      banner.innerHTML     = '<span>✓ Calendar' + (count ? ' · ' + count + ' events' : '') + '</span>'
-        + '<a class="gcal-connect-btn" href="/api/google-auth" style="background:var(--mid)">Reconnect</a>';
-    }
+    var count = (d.events || []).length;
+    _setChip('ok', 'Calendar', '✓ Connected · ' + count + ' event' + (count !== 1 ? 's' : ''));
 
-    // Store all events in lookup map (not just undismissed)
+    // Store all events in lookup map
     (d.events || []).forEach(function(e) {
       _calEventMap[String(e.id)] = e;
     });
 
     _calEventsLoaded = true;
-    // Re-render appointments panel with new calendar data
     renderAppointmentsPanel();
 
   } catch (err) {
-    if (banner) {
-      banner.className     = 'gcal-banner disconnected';
-      banner.style.display = 'flex';
-      banner.innerHTML     = '<span>Calendar error</span>'
-        + '<a class="gcal-connect-btn" href="/api/google-auth">Reconnect</a>';
-    }
+    _setChip('err', 'Calendar', 'Error: ' + err.message);
     _calEventsLoaded = true;
     renderAppointmentsPanel();
   }

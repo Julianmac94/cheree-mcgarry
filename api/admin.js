@@ -1418,7 +1418,7 @@ body {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
 
-/* Halaxy status chip */
+/* Halaxy / Google Cal status chips */
 .pl-halaxy-chip {
   display: flex; align-items: center; gap: 6px;
   padding: 5px 10px; border-radius: 100px;
@@ -1427,9 +1427,12 @@ body {
   border: 1px solid rgba(42,88,80,0.12);
   cursor: default; position: relative;
   transition: background 0.15s, color 0.15s;
+  text-decoration: none;
 }
 .pl-halaxy-chip:hover { background: rgba(42,88,80,0.12); color: var(--mid); }
 .pl-halaxy-chip:hover .pl-halaxy-tooltip { opacity: 1; pointer-events: none; transform: translateY(0); }
+/* Google Cal chip — pointer cursor since it's a reconnect link */
+.pl-gcal-chip { cursor: pointer; }
 
 /* Tooltip */
 .pl-halaxy-tooltip {
@@ -1716,6 +1719,11 @@ body {
         <span id="halaxy-chip-label">Halaxy</span>
         <div class="pl-halaxy-tooltip" id="halaxy-tooltip">Checking connection…</div>
       </div>
+      <a class="pl-halaxy-chip pl-gcal-chip" id="gcal-chip" href="/api/google-auth" onclick="return confirmGcalReconnect(event)">
+        <div id="gcal-status-dot" class="halaxy-dot halaxy-dot--loading"></div>
+        <span id="gcal-chip-label">Calendar</span>
+        <div class="pl-halaxy-tooltip" id="gcal-tooltip">Checking connection…</div>
+      </a>
     </div>
   </div>
   <!-- Three-panel dashboard -->
@@ -1739,7 +1747,6 @@ body {
     <div class="dash-panel" id="panel-appointments">
       <div class="dash-panel-hd">
         <span class="dash-panel-title">Appointments</span>
-        <div id="gcal-banner" class="gcal-banner" style="display:none"></div>
       </div>
       <div class="dash-panel-body" id="appointments-panel-body">
         <div class="pl-loading">
