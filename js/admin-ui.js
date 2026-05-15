@@ -603,10 +603,12 @@ function _intakeEnquiryCard(e) {
 
   var primaryBtn = (status === 'in_halaxy'
     ? '<button class="dp-btn dp-btn--primary" onclick="event.stopPropagation();openCreateSessionModal(\'' + e.id + '\')">Create session →</button>'
-    : '<button class="dp-btn dp-btn--primary" onclick="event.stopPropagation();' + primaryFn + '">' + primaryLabel + '</button>');
+    : primaryFn
+      ? '<button class="dp-btn dp-btn--primary" onclick="event.stopPropagation();' + primaryFn + '">' + primaryLabel + '</button>'
+      : '');
 
   return '<div class="dp-card' + (isNew ? ' dp-card--new' : '') + '" id="pl-' + uid + '">'
-    + _menuHtml(uid, menuItems)
+    + '<div class="dp-card-body">'
     // Left: name, date/badges, email
     + '<div class="dp-card-left">'
     + '<div class="dp-card-name">' + escHtml(name) + '</div>'
@@ -621,7 +623,8 @@ function _intakeEnquiryCard(e) {
     // Right: primary action + close
     + '<div class="dp-card-right">'
     + primaryBtn
-    + '<button class="dp-btn dp-btn--ghost" style="font-size:9px" onclick="event.stopPropagation();advanceEnquiryStatus(\'' + e.id + '\',\'closed\')">Close</button>'
+    + '<button class="dp-btn dp-btn--ghost" style="font-size:9px;margin-top:2px" onclick="event.stopPropagation();advanceEnquiryStatus(\'' + e.id + '\',\'closed\')">Close</button>'
+    + '</div>'
     + '</div>'
     + '</div>';
 }
@@ -914,7 +917,8 @@ function renderAppointmentsPanel() {
           + '</div>'
           + '<div class="appt-7day-right">'
           + '<span class="dp-badge dp-badge--cal">Google Cal</span>'
-          + '<button class="dp-btn dp-btn--soft" style="font-size:10px;padding:4px 9px;margin-top:4px" onclick="openCalSessionPanel(\'' + uid + '\',\'' + eid + '\')">Record →</button>'
+          + '<span class="dp-badge dp-badge--needs-log">Not invoiced</span>'
+          + '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px;margin-top:4px" onclick="openCalSessionPanel(\'' + uid + '\',\'' + eid + '\')">Create Invoice →</button>'
           + '</div>'
           + '<div id="pl-link-' + uid + '"></div>'
           + '</div>';
@@ -936,7 +940,7 @@ function renderAppointmentsPanel() {
               billingBadge = '<span class="dp-badge dp-badge--needs-log">Not recorded</span>';
               if (patientId) {
                 var apptUid = 'hx-7d-' + patientId + '-' + apptDateStr.replace(/-/g, '');
-                actionBtns = '<button class="dp-btn dp-btn--soft" style="font-size:10px;padding:4px 9px;margin-top:4px" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(label) + '\',\'' + apptDateStr + '\')">Record →</button>'
+                actionBtns = '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px;margin-top:4px" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(label) + '\',\'' + apptDateStr + '\')">Create Invoice →</button>'
                   + '<div id="pl-link-' + apptUid + '"></div>';
               }
             } else {
@@ -1035,7 +1039,7 @@ function renderAppointmentsPanel() {
           + '<div class="log-card-title">' + escHtml(ev.title || ev.summary || '') + '</div>'
           + '<div class="log-card-date">' + escHtml(dateStr) + ' · Calendar</div>'
           + '</div>'
-          + '<button class="dp-btn dp-btn--primary" onclick="openCalSessionPanel(\'' + cardUid + '\',\'' + eid + '\')">Record session →</button>'
+          + '<button class="dp-btn dp-btn--primary" onclick="openCalSessionPanel(\'' + cardUid + '\',\'' + eid + '\')">Create Invoice →</button>'
           + '<div id="pl-link-' + cardUid + '"></div>'
           + '</div>';
       } else {
@@ -1051,7 +1055,7 @@ function renderAppointmentsPanel() {
           + '<div class="log-card-date">' + escHtml(dateStr) + ' · Halaxy</div>'
           + '</div>'
           + (patientId
-              ? '<button class="dp-btn dp-btn--primary" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(label) + '\',\'' + apptDateStr + '\')">Record session →</button>'
+              ? '<button class="dp-btn dp-btn--primary" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(label) + '\',\'' + apptDateStr + '\')">Create Invoice →</button>'
               : '<span class="dp-badge dp-badge--source" style="white-space:nowrap">No patient</span>')
           + '<div id="pl-link-' + apptUid + '"></div>'
           + '</div>';
@@ -1126,7 +1130,7 @@ function renderAppointmentsPanel() {
             + '<span class="week-event-source">Calendar</span>'
             + '<div class="week-event-title">' + escHtml(title) + '</div>'
             + '<div class="week-event-actions">'
-            + '<button class="week-event-btn" onclick="event.stopPropagation();openCalSessionPanel(\'' + uid + '\',\'' + eid + '\')">Record session →</button>'
+            + '<button class="week-event-btn" onclick="event.stopPropagation();openCalSessionPanel(\'' + uid + '\',\'' + eid + '\')">Create Invoice →</button>'
             + '<button class="week-event-dismiss" onclick="event.stopPropagation();dismissCalEvent(\'' + eid + '\')">Dismiss</button>'
             + '</div>'
             + '<div id="pl-link-' + uid + '"></div>'

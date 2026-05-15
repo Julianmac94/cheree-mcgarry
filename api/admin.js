@@ -1127,15 +1127,15 @@ body {
   padding: 11px 13px;
   margin-bottom: 7px;
   position: relative;
-  display: flex; align-items: flex-start; gap: 10px;
   transition: box-shadow 0.15s, border-color 0.15s;
 }
 .dp-card:hover { box-shadow: 0 3px 14px rgba(25,46,42,0.09); border-color: rgba(42,88,80,0.2); }
 .dp-card--new { border-left: 3px solid ${C.terra}; }
 
-/* Two-column layout inside triage cards */
+/* Two-column row inside triage cards */
+.dp-card-body  { display: flex; align-items: flex-start; gap: 10px; }
 .dp-card-left  { flex: 1; min-width: 0; }
-.dp-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+.dp-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; padding-top: 1px; }
 
 .dp-card-name {
   font-size: 13px; font-weight: 500; color: var(--tealDeep);
@@ -1478,12 +1478,12 @@ body {
 /* ── Panel action button (in panel header) ── */
 .dash-panel-btn {
   font-family: var(--sans); font-size: 10px; font-weight: 600;
-  letter-spacing: 0.04em; padding: 4px 10px; border-radius: 6px;
-  background: rgba(42,88,80,0.08); color: var(--mid);
+  letter-spacing: 0.04em; padding: 5px 12px; border-radius: 6px;
+  background: var(--mint); color: var(--tealDeep);
   border: none; cursor: pointer; white-space: nowrap;
-  transition: background 0.15s;
+  transition: opacity 0.15s;
 }
-.dash-panel-btn:hover { background: rgba(42,88,80,0.14); color: var(--teal); }
+.dash-panel-btn:hover { opacity: 0.85; }
 
 /* Tooltip */
 .pl-halaxy-tooltip {

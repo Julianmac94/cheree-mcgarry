@@ -463,12 +463,13 @@ export default async function handler(req, res) {
     let halaxy = { connected: false, appointments: [], patients: [], funders: cachedFunders, fees: cachedFees, feeMap: cachedFeeMap };
     if (process.env.HALAXY_CLIENT_ID && process.env.HALAXY_CLIENT_SECRET) {
       try {
-        const now    = new Date();
+        const now           = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         const [apptBundle, patientBundle] = await Promise.all([
           halaxyGet('/Appointment', {
-            date:     `ge${now.toISOString().slice(0, 10)}`,
+            date:     `ge${thirtyDaysAgo.toISOString().slice(0, 10)}`, // past 30 days + future
             _sort:    'date',
-            _count:   '100',
+            _count:   '200',
             _include: 'Appointment:patient',
           }),
           halaxyGet('/Patient', { _count: '200' }),
