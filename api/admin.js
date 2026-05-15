@@ -1260,6 +1260,20 @@ body {
 }
 .pl-link-preview-name { font-weight: 600; color: var(--teal); font-size: 12px; margin-bottom: 2px; }
 .pl-link-preview-meta { color: var(--soft); font-size: 10px; }
+/* Fee row inside session panel */
+.pl-fee-row {
+  display: flex; align-items: center; gap: 5px; margin-top: 8px;
+}
+.pl-fee-label  { font-size: 11px; color: var(--soft); white-space: nowrap; }
+.pl-fee-currency { font-size: 13px; font-weight: 600; color: var(--mid); }
+.pl-fee-input  {
+  width: 80px; padding: 5px 7px; font-size: 13px; font-weight: 600;
+  font-family: var(--sans); border: 1px solid rgba(42,88,80,0.25);
+  border-radius: 6px; background: white; color: var(--dark);
+  text-align: right; outline: none;
+}
+.pl-fee-input:focus { border-color: var(--teal); }
+.pl-fee-funder { font-size: 10px; color: var(--soft); }
 .pl-action-btn--danger  { background: rgba(190,110,68,0.1); color: var(--terra); }
 
 /* Expanded card detail */

@@ -385,6 +385,16 @@ var FUNDER_LABELS = {
   private:   'Private',
 };
 
+/* Default session rates (AUD) — editable in the fee field */
+var FUNDER_RATES = {
+  ndis_plan: '193.99',
+  ndis_self: '193.99',
+  medicare:  '141.85',
+  qfes:      '190.00',
+  dva:       '141.85',
+  private:   '200.00',
+};
+
 var STATUS_NEXT = {
   upcoming:  { label: 'Mark complete', next: 'completed' },
   completed: { label: 'Invoice',       next: 'invoiced'  },
@@ -981,8 +991,8 @@ async function loadCalendarPending() {
         : new Date(e.start).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
       var evtJson = JSON.stringify(e).replace(/"/g, '&quot;');
       var calMenu = [
-        { label: '🔗 Link to existing client', fn: 'openLinkPanel("' + cardUid + '","cal","' + eid + '")' },
-        { label: '✕ Dismiss',                  fn: 'dismissCalEvent("' + eid + '")', warn: true },
+        { label: '+ Convert to new client', fn: 'convertPendingPl(' + evtJson + ')' },
+        { label: '✕ Dismiss',               fn: 'dismissCalEvent("' + eid + '")', warn: true },
       ];
       return '<div class="pl-card" style="border-left:3px solid var(--mint);margin-bottom:7px" id="pl-' + cardUid + '">'
         + _menuHtml(cardUid, calMenu)
@@ -990,7 +1000,7 @@ async function loadCalendarPending() {
         + '<div class="pl-card-meta">' + dateStr + '</div>'
         + (e.description ? '<div style="font-size:10px;color:var(--soft);margin-top:2px">' + escHtml(e.description) + '</div>' : '')
         + '<div class="pl-card-actions" style="margin-top:6px">'
-        + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();convertPendingPl(' + evtJson + ')">Convert to new client →</button>'
+        + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();openCalSessionPanel(\'' + cardUid + '\',\'' + eid + '\')">Log as session →</button>'
         + '</div>'
         + '<div id="pl-link-' + cardUid + '"></div>'
         + '</div>';
@@ -1147,6 +1157,117 @@ function toggleCardMenu(uid) {
   if (!wasOpen) {
     dd.classList.add('is-open');
     if (btn) btn.classList.add('is-open');
+  }
+}
+
+/* ═══════════════════════════════════════
+   LOG CALENDAR EVENT AS SESSION
+   ═══════════════════════════════════════ */
+
+function openCalSessionPanel(cardUid, eventId) {
+  var panel = document.getElementById('pl-link-' + cardUid);
+  if (!panel) return;
+  panel.innerHTML = '<div class="pl-link-panel">'
+    + '<div class="pl-link-panel-title">Which client is this for?</div>'
+    + '<input class="pl-link-input" id="pl-cs-inp-' + cardUid + '"'
+    + ' placeholder="Search by name…" autocomplete="off" onclick="event.stopPropagation()"'
+    + ' oninput="_renderCalClientResults(\'' + cardUid + '\',\'' + eventId + '\',this.value)">'
+    + '<div id="pl-cs-res-' + cardUid + '" class="pl-link-results"></div>'
+    + '<button class="pl-dd-item" style="margin-top:4px;font-size:10px;padding:5px 8px;color:var(--soft)"'
+    + ' onclick="event.stopPropagation();closeLinkPanel(\'' + cardUid + '\')">✕ Cancel</button>'
+    + '</div>';
+  _renderCalClientResults(cardUid, eventId, '');
+  setTimeout(function() {
+    var inp = document.getElementById('pl-cs-inp-' + cardUid);
+    if (inp) inp.focus();
+  }, 60);
+}
+
+function _renderCalClientResults(cardUid, eventId, query) {
+  var res = document.getElementById('pl-cs-res-' + cardUid);
+  if (!res || !_pipelineData) return;
+  var clients = (_pipelineData.clients || []).filter(function(c) { return c.active !== false; });
+  if (query) {
+    var q = query.toLowerCase();
+    clients = clients.filter(function(c) { return (c.display_name || '').toLowerCase().indexOf(q) !== -1; });
+  }
+  if (!clients.length) {
+    res.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:5px 2px">No clients found</div>';
+    return;
+  }
+  res.innerHTML = clients.slice(0, 8).map(function(c) {
+    var rate  = FUNDER_RATES[c.funder] ? '$' + FUNDER_RATES[c.funder] : '';
+    var fdr   = FUNDER_LABELS[c.funder] || c.funder || '';
+    var meta  = [fdr, rate, c.halaxy_id ? 'H✓' : ''].filter(Boolean).join(' · ');
+    return '<div class="pl-link-result" onclick="event.stopPropagation();_showCalFeeForm(\'' + cardUid + '\',\'' + eventId + '\',\'' + c.id + '\')">'
+      + '<span class="pl-link-result-name">' + escHtml(c.display_name) + '</span>'
+      + '<span class="pl-link-result-meta">' + escHtml(meta) + '</span>'
+      + '</div>';
+  }).join('');
+}
+
+function _showCalFeeForm(cardUid, eventId, clientId) {
+  if (!_pipelineData) return;
+  var client = (_pipelineData.clients || []).find(function(c) { return String(c.id) === String(clientId); });
+  if (!client) return;
+  var evt     = _calEventMap[eventId] || {};
+  var rate    = FUNDER_RATES[client.funder] || '';
+  var funder  = FUNDER_LABELS[client.funder] || client.funder || '';
+  var halaxy  = client.halaxy_id ? 'In Halaxy ✓' : 'Not yet in Halaxy';
+
+  var panel = document.getElementById('pl-link-' + cardUid);
+  if (!panel) return;
+  panel.innerHTML = '<div class="pl-link-panel">'
+    // Client preview
+    + '<div class="pl-link-preview">'
+    + '<div class="pl-link-preview-name">' + escHtml(client.display_name) + '</div>'
+    + '<div class="pl-link-preview-meta">' + escHtml(funder) + ' · ' + halaxy + '</div>'
+    + '</div>'
+    // Fee row
+    + '<div class="pl-fee-row">'
+    + '<label class="pl-fee-label">Fee</label>'
+    + '<span class="pl-fee-currency">$</span>'
+    + '<input class="pl-fee-input" id="pl-cs-fee-' + cardUid + '" type="number" step="0.01" min="0"'
+    + ' value="' + escHtml(rate) + '" placeholder="0.00" onclick="event.stopPropagation()">'
+    + '<span class="pl-fee-funder">' + escHtml(funder) + '</span>'
+    + '</div>'
+    // Notes row
+    + '<input class="pl-link-input" id="pl-cs-notes-' + cardUid + '" type="text"'
+    + ' value="' + escHtml(evt.title || '') + '" placeholder="Session notes…"'
+    + ' onclick="event.stopPropagation()" style="margin-top:6px">'
+    // Actions
+    + '<div class="pl-card-actions" style="margin-top:8px">'
+    + '<button class="pl-action-btn pl-action-btn--soft"'
+    + ' onclick="event.stopPropagation();openCalSessionPanel(\'' + cardUid + '\',\'' + eventId + '\')">← Back</button>'
+    + '<button class="pl-action-btn pl-action-btn--primary"'
+    + ' onclick="event.stopPropagation();_saveCalSession(\'' + cardUid + '\',\'' + eventId + '\',\'' + clientId + '\')">Save session →</button>'
+    + '</div>'
+    + '</div>';
+
+  // Focus fee field for quick edit
+  setTimeout(function() {
+    var fee = document.getElementById('pl-cs-fee-' + cardUid);
+    if (fee) { fee.focus(); fee.select(); }
+  }, 60);
+}
+
+async function _saveCalSession(cardUid, eventId, clientId) {
+  var feeEl   = document.getElementById('pl-cs-fee-' + cardUid);
+  var notesEl = document.getElementById('pl-cs-notes-' + cardUid);
+  var evt     = _calEventMap[eventId] || {};
+  var amount  = feeEl   ? (parseFloat(feeEl.value)   || null) : null;
+  var notes   = notesEl ? (notesEl.value.trim() || (evt.title || '')) : (evt.title || '');
+  var date    = evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10);
+  try {
+    await apiFetch('/api/sessions', {
+      method: 'POST',
+      body: { client_id: clientId, session_date: date, status: 'upcoming', amount: amount, notes: notes },
+    });
+    dismissCalEvent(eventId);
+    toast('Session saved ✓');
+    refreshPipeline();
+  } catch (err) {
+    toast('Could not save session: ' + err.message, 'err');
   }
 }
 
