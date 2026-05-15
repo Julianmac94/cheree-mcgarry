@@ -729,15 +729,16 @@ body {
   line-height: 1.65; margin: 10px 0 12px;
 }
 .ws-item {
-  display: flex; justify-content: space-between; align-items: baseline;
-  padding: 5px 0;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 7px 0;
   border-bottom: 1px solid rgba(42,88,80,0.05);
-  font-size: 12px; color: var(--mid);
-  gap: 8px;
+  font-size: 12.5px; color: var(--mid);
+  gap: 12px;
+  line-height: 1.55;
 }
 .ws-item:last-child { border-bottom: none; }
 .ws-item-label { flex: 1; }
-.ws-item-val { font-size: 11px; color: var(--soft); text-align: right; }
+.ws-item-val { font-size: 11px; color: var(--soft); text-align: right; flex-shrink: 0; max-width: 200px; line-height: 1.5; }
 .ws-link {
   font-size: 11px; color: var(--teal);
   text-decoration: none; white-space: nowrap;
@@ -855,37 +856,54 @@ body {
   <div id="website-tab">
     <div class="ws-grid">
 
-      <!-- Pages -->
+      <!-- Website pages -->
       <div class="ws-card">
         <div class="ws-card-hd" onclick="toggleWsCard(this)">
-          <span class="ws-card-title">Pages</span>
+          <span class="ws-card-title">Website pages</span>
           <span class="ws-card-tag">5 pages</span>
         </div>
         <div class="ws-card-body open">
-          <p class="ws-card-desc">The public-facing pages of the website. Each is a static HTML file — no CMS, just code.</p>
-          <div class="ws-item"><span class="ws-item-label">Home</span><span class="ws-item-val">Landing, hero, intro</span><a class="ws-link" href="/" target="_blank">View ↗</a></div>
-          <div class="ws-item"><span class="ws-item-label">Sessions</span><span class="ws-item-val">Pricing, funding, how it works</span><a class="ws-link" href="/sessions.html" target="_blank">View ↗</a></div>
-          <div class="ws-item"><span class="ws-item-label">About</span><span class="ws-item-val">Cheree's background & approach</span><a class="ws-link" href="/about.html" target="_blank">View ↗</a></div>
-          <div class="ws-item"><span class="ws-item-label">Client Info</span><span class="ws-item-val">Policies, what to expect, FAQs</span><a class="ws-link" href="/info.html" target="_blank">View ↗</a></div>
-          <div class="ws-item"><span class="ws-item-label">Request Session</span><span class="ws-item-val">Enquiry form → Supabase → this dashboard</span><a class="ws-link" href="/request-session.html" target="_blank">View ↗</a></div>
-          <div class="ws-note">To update page content, the HTML file needs to be edited in GitHub and redeployed via Vercel.</div>
+          <p class="ws-card-desc">Your website has five public pages. They don't update themselves — any content changes (wording, pricing, new info) need to be made in the code by Julian and redeployed. Think of it like updating a brochure.</p>
+          <div class="ws-item">
+            <span class="ws-item-label"><strong>Home</strong> — First impression. Intro to you and your practice, what you offer, and a call to action to book.</span>
+            <a class="ws-link" href="/" target="_blank">View ↗</a>
+          </div>
+          <div class="ws-item">
+            <span class="ws-item-label"><strong>Sessions</strong> — How sessions work, what they cost, and funding options (private, Medicare, NDIS). The most referred-to page for new clients.</span>
+            <a class="ws-link" href="/sessions.html" target="_blank">View ↗</a>
+          </div>
+          <div class="ws-item">
+            <span class="ws-item-label"><strong>About</strong> — Your background, training, approach, and what clients can expect from working with you.</span>
+            <a class="ws-link" href="/about.html" target="_blank">View ↗</a>
+          </div>
+          <div class="ws-item">
+            <span class="ws-item-label"><strong>Client Info</strong> — Practical information for existing clients: policies, cancellations, what to bring, FAQs.</span>
+            <a class="ws-link" href="/info.html" target="_blank">View ↗</a>
+          </div>
+          <div class="ws-item">
+            <span class="ws-item-label"><strong>Request a Session</strong> — The enquiry form. When someone fills this in, it goes straight to the Enquiries tab here.</span>
+            <a class="ws-link" href="/request-session.html" target="_blank">View ↗</a>
+          </div>
+          <div class="ws-note">💡 To update any page — wording, pricing, adding a new section — let Julian know what you want changed and he'll handle it. Usually done same day.</div>
         </div>
       </div>
 
-      <!-- Enquiry flow -->
+      <!-- New client journey -->
       <div class="ws-card">
         <div class="ws-card-hd" onclick="toggleWsCard(this)">
-          <span class="ws-card-title">Enquiry flow</span>
-          <span class="ws-card-tag">Automated</span>
+          <span class="ws-card-title">New client journey</span>
+          <span class="ws-card-tag">End to end</span>
         </div>
         <div class="ws-card-body open">
-          <p class="ws-card-desc">What happens when someone submits the request form.</p>
-          <div class="ws-item"><span class="ws-item-label">1. Form submitted</span><span class="ws-item-val">Saved to Supabase</span></div>
-          <div class="ws-item"><span class="ws-item-label">2. Confirmation email</span><span class="ws-item-val">Auto-sent to client via Resend</span></div>
-          <div class="ws-item"><span class="ws-item-label">3. Admin notified</span><span class="ws-item-val">Email to admin@chereemcgarry.com</span></div>
-          <div class="ws-item"><span class="ws-item-label">4. Dashboard updated</span><span class="ws-item-val">Appears here under Enquiries</span></div>
-          <div class="ws-item"><span class="ws-item-label">5. Intake sent manually</span><span class="ws-item-val">Admin sends Halaxy intake link</span></div>
-          <div class="ws-item"><span class="ws-item-label">6. Client completes intake</span><span class="ws-item-val">In Halaxy — session confirmed</span></div>
+          <p class="ws-card-desc">What happens from the moment someone fills in the form to their first session — and where you step in.</p>
+          <div class="ws-item"><span class="ws-item-label">1. Client submits request form</span><span class="ws-item-val">Automatic — no action needed</span></div>
+          <div class="ws-item"><span class="ws-item-label">2. Client gets a confirmation email</span><span class="ws-item-val">Sent automatically, BCC'd to you</span></div>
+          <div class="ws-item"><span class="ws-item-label">3. Enquiry appears here as "New"</span><span class="ws-item-val">Pulsing badge on the card</span></div>
+          <div class="ws-item"><span class="ws-item-label">4. You review &amp; update the status</span><span class="ws-item-val">Your first manual step</span></div>
+          <div class="ws-item"><span class="ws-item-label">5. Send the Halaxy intake link</span><span class="ws-item-val">Via the "Send intake" button on the card</span></div>
+          <div class="ws-item"><span class="ws-item-label">6. Client completes intake in Halaxy</span><span class="ws-item-val">Triggers appointment confirmation</span></div>
+          <div class="ws-item"><span class="ws-item-label">7. First session confirmed</span><span class="ws-item-val">Managed fully in Halaxy from here</span></div>
+          <div class="ws-note">💡 Steps 1–3 happen automatically. Your job starts at step 4 — reviewing the enquiry and deciding whether to proceed.</div>
         </div>
       </div>
 
@@ -896,62 +914,66 @@ body {
           <span class="ws-card-tag">Practice management</span>
         </div>
         <div class="ws-card-body">
-          <p class="ws-card-desc">Practice management software. Used for intake forms, appointments, invoicing, and Medicare/NDIS claiming.</p>
-          <div class="ws-item"><span class="ws-item-label">Client intake forms</span><span class="ws-item-val">Sent via admin dashboard</span></div>
-          <div class="ws-item"><span class="ws-item-label">Appointments</span><span class="ws-item-val">Scheduled & confirmed here</span></div>
-          <div class="ws-item"><span class="ws-item-label">Invoicing</span><span class="ws-item-val">Generated per session</span></div>
-          <div class="ws-item"><span class="ws-item-label">Medicare / NDIS</span><span class="ws-item-val">Rebate & billing processing</span></div>
-          <div class="ws-item"><span class="ws-item-label">Client records</span><span class="ws-item-val">Notes, history, documents</span></div>
-          <a class="ws-link" href="https://www.halaxy.com/practitioner" target="_blank" style="display:inline-block;margin-top:10px;">Open Halaxy ↗</a>
+          <p class="ws-card-desc">Halaxy is your practice management hub — the place where clients formally become clients. It handles everything after the initial enquiry: intake, appointments, notes, invoicing, and Medicare or NDIS billing. You'll use it every working day.</p>
+          <div class="ws-item"><span class="ws-item-label">Intake forms</span><span class="ws-item-val">Sent to new clients from this dashboard. They fill it in before their first session.</span></div>
+          <div class="ws-item"><span class="ws-item-label">Appointments</span><span class="ws-item-val">Schedule, confirm, and manage all sessions here. Online or in-person.</span></div>
+          <div class="ws-item"><span class="ws-item-label">Client records</span><span class="ws-item-val">Session notes, documents, contact details — all stored securely per client.</span></div>
+          <div class="ws-item"><span class="ws-item-label">Invoicing</span><span class="ws-item-val">Generate invoices per session. Halaxy handles the formatting and delivery.</span></div>
+          <div class="ws-item"><span class="ws-item-label">Medicare claiming</span><span class="ws-item-val">Clients need a Mental Health Care Plan from their GP. Rebate is processed through Halaxy.</span></div>
+          <div class="ws-item"><span class="ws-item-label">NDIS billing</span><span class="ws-item-val">Plan-managed: invoice goes to plan manager. Self-managed: invoice goes to client.</span></div>
+          <a class="ws-link" href="https://www.halaxy.com/practitioner" target="_blank" style="display:inline-block;margin-top:12px;">Open Halaxy ↗</a>
         </div>
       </div>
 
       <!-- Email -->
       <div class="ws-card">
         <div class="ws-card-hd" onclick="toggleWsCard(this)">
-          <span class="ws-card-title">Email</span>
+          <span class="ws-card-title">Automated emails</span>
           <span class="ws-card-tag">Resend</span>
         </div>
         <div class="ws-card-body">
-          <p class="ws-card-desc">Transactional emails are sent via Resend. All client-facing emails BCC admin.</p>
-          <div class="ws-item"><span class="ws-item-label">Session confirmation</span><span class="ws-item-val">Auto on form submit</span></div>
-          <div class="ws-item"><span class="ws-item-label">Intake form link</span><span class="ws-item-val">Sent manually from dashboard</span></div>
-          <div class="ws-item"><span class="ws-item-label">Admin address</span><span class="ws-item-val">admin@chereemcgarry.com</span></div>
-          <div class="ws-item"><span class="ws-item-label">Send domain</span><span class="ws-item-val">Pending DKIM setup</span></div>
-          <div class="ws-note">⚠ Currently sending from onboarding@resend.dev. Once GoDaddy DNS is transferred, set up DKIM on Resend to send from admin@chereemcgarry.com.</div>
-          <a class="ws-link" href="https://resend.com/emails" target="_blank" style="display:inline-block;margin-top:10px;">View sent emails ↗</a>
+          <p class="ws-card-desc">Two emails go out to clients automatically through the website. You're BCC'd on both so you always have a copy. They're sent via Resend — an email delivery service — using your branding.</p>
+          <div class="ws-item"><span class="ws-item-label">Enquiry confirmation</span><span class="ws-item-val">Sent the moment someone submits the request form. Lets them know you'll be in touch.</span></div>
+          <div class="ws-item"><span class="ws-item-label">Intake form</span><span class="ws-item-val">Sent manually by you from the enquiry card. Includes the Halaxy intake link and funding-specific instructions.</span></div>
+          <div class="ws-item"><span class="ws-item-label">Sent from</span><span class="ws-item-val">Currently onboarding@resend.dev — pending domain setup</span></div>
+          <div class="ws-item"><span class="ws-item-label">Reply-to / admin BCC</span><span class="ws-item-val">admin@chereemcgarry.com</span></div>
+          <div class="ws-note">⚠️ Emails currently show a Resend placeholder address as the sender. Once the GoDaddy domain transfer is done, they'll send from admin@chereemcgarry.com — a quick fix Julian can do.</div>
+          <a class="ws-link" href="https://resend.com/emails" target="_blank" style="display:inline-block;margin-top:12px;">View email history ↗</a>
         </div>
       </div>
 
-      <!-- Hosting & deploy -->
+      <!-- Making changes -->
       <div class="ws-card">
         <div class="ws-card-hd" onclick="toggleWsCard(this)">
-          <span class="ws-card-title">Hosting & deploy</span>
-          <span class="ws-card-tag">Vercel + GitHub</span>
+          <span class="ws-card-title">Making changes</span>
+          <span class="ws-card-tag">How updates work</span>
         </div>
         <div class="ws-card-body">
-          <p class="ws-card-desc">The site is hosted on Vercel. Any push to the main branch on GitHub automatically deploys to production.</p>
-          <div class="ws-item"><span class="ws-item-label">Live site</span><a class="ws-link" href="https://chereemcgarry.com" target="_blank">chereemcgarry.com ↗</a></div>
-          <div class="ws-item"><span class="ws-item-label">Code repository</span><a class="ws-link" href="https://github.com/Julianmac94/cheree-mcgarry" target="_blank">GitHub ↗</a></div>
-          <div class="ws-item"><span class="ws-item-label">Hosting dashboard</span><a class="ws-link" href="https://vercel.com/dashboard" target="_blank">Vercel ↗</a></div>
-          <div class="ws-item"><span class="ws-item-label">Deploy trigger</span><span class="ws-item-val">Push to main branch</span></div>
-          <div class="ws-note">Changes to HTML, CSS, or JS files need to be made in the code (via Julian) and pushed to GitHub to go live.</div>
+          <p class="ws-card-desc">The website doesn't have a drag-and-drop editor. It's built in code, which means changes are made by Julian and pushed live — usually the same day. Here's what requires a code change vs. what you can do yourself.</p>
+          <div class="ws-item"><span class="ws-item-label">Updating page text or pricing</span><span class="ws-item-val">Needs Julian → usually same day</span></div>
+          <div class="ws-item"><span class="ws-item-label">Adding a new page or section</span><span class="ws-item-val">Needs Julian → 1–2 days</span></div>
+          <div class="ws-item"><span class="ws-item-label">Changing your Halaxy intake URL</span><span class="ws-item-val">You do this — paste the new link in the enquiry card</span></div>
+          <div class="ws-item"><span class="ws-item-label">Managing enquiries &amp; tasks</span><span class="ws-item-val">You do this — right here in this dashboard</span></div>
+          <div class="ws-item"><span class="ws-item-label">Updating client records / notes</span><span class="ws-item-val">You do this — in Halaxy</span></div>
+          <div class="ws-note">💡 For anything website-related, message Julian with what you want changed and where. A screenshot or quote of the current text helps speed things up.</div>
         </div>
       </div>
 
-      <!-- Database -->
+      <!-- How it all connects -->
       <div class="ws-card">
         <div class="ws-card-hd" onclick="toggleWsCard(this)">
-          <span class="ws-card-title">Database</span>
-          <span class="ws-card-tag">Supabase</span>
+          <span class="ws-card-title">How it all connects</span>
+          <span class="ws-card-tag">System overview</span>
         </div>
         <div class="ws-card-body">
-          <p class="ws-card-desc">Supabase stores all enquiry data, tasks, and activity logs. It's the backend behind this admin dashboard.</p>
-          <div class="ws-item"><span class="ws-item-label">enquiries</span><span class="ws-item-val">All session requests</span></div>
-          <div class="ws-item"><span class="ws-item-label">tasks</span><span class="ws-item-val">Admin to-do items</span></div>
-          <div class="ws-item"><span class="ws-item-label">activity_log</span><span class="ws-item-val">Audit trail of actions</span></div>
-          <div class="ws-note">You shouldn't need to access Supabase directly. Everything flows through this dashboard.</div>
-          <a class="ws-link" href="https://supabase.com/dashboard" target="_blank" style="display:inline-block;margin-top:10px;">Open Supabase ↗</a>
+          <p class="ws-card-desc">Five services work together to run your website and practice. Here's what each one does and who looks after it.</p>
+          <div class="ws-item"><span class="ws-item-label">chereemcgarry.com</span><span class="ws-item-val">Your website — what clients see. Managed by Julian.</span></div>
+          <div class="ws-item"><span class="ws-item-label">Vercel</span><span class="ws-item-val">Hosts the website. Every code change goes live here automatically. Managed by Julian.</span></div>
+          <div class="ws-item"><span class="ws-item-label">GitHub</span><span class="ws-item-val">Stores all the website code. Julian pushes changes here and they deploy to Vercel. <a class="ws-link" href="https://github.com/Julianmac94/cheree-mcgarry" target="_blank">View repo ↗</a></span></div>
+          <div class="ws-item"><span class="ws-item-label">Supabase</span><span class="ws-item-val">The database behind this dashboard. Stores enquiries, tasks, and audit logs. You don't need to touch it.</span></div>
+          <div class="ws-item"><span class="ws-item-label">Resend</span><span class="ws-item-val">Sends the automated client emails. <a class="ws-link" href="https://resend.com/emails" target="_blank">Email history ↗</a></span></div>
+          <div class="ws-item"><span class="ws-item-label">Halaxy</span><span class="ws-item-val">Your practice management system — intake, appointments, invoicing, Medicare/NDIS. <a class="ws-link" href="https://www.halaxy.com/practitioner" target="_blank">Open ↗</a></span></div>
+          <div class="ws-item"><span class="ws-item-label">GoDaddy</span><span class="ws-item-val">Holds your domain name (chereemcgarry.com). DNS transfer in progress.</span></div>
         </div>
       </div>
 
