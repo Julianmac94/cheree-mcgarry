@@ -9,6 +9,22 @@ import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
 import { halaxyGet } from './_halaxy.js';
 
+/**
+ * Extract the full legal name from a FHIR Patient resource.
+ * Prefers name entries with use='official', then 'usual', then first available.
+ * Always returns given + family so the displayed name is unambiguous.
+ */
+function fhirPatientLegalName(p) {
+  const names = p.name || [];
+  const pick  = names.find(n => n.use === 'official')
+             || names.find(n => n.use === 'usual')
+             || names[0]
+             || {};
+  const given  = [...(pick.given || [])].join(' ');
+  const family = pick.family || '';
+  return [given, family].filter(Boolean).join(' ') || p.id || 'Unknown';
+}
+
 export default async function handler(req, res) {
   if (!isAuthed(req)) return res.status(401).json({ error: 'Unauthorised' });
 
@@ -119,11 +135,9 @@ export default async function handler(req, res) {
     if (!q || !process.env.HALAXY_CLIENT_ID) return res.status(200).json({ patients: [] });
     try {
       const bundle   = await halaxyGet('/Patient', { name: q, _count: '10' });
-      const patients = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(p => {
-        const n    = p.name?.[0] || {};
-        const name = [[...(n.given || [])].join(' '), n.family].filter(Boolean).join(' ') || p.id;
-        return { id: p.id, name };
-      });
+      const patients = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(p => ({
+        id: p.id, name: fhirPatientLegalName(p),
+      }));
       return res.status(200).json({ patients });
     } catch (err) {
       return res.status(200).json({ patients: [], error: err.message });
@@ -153,7 +167,9 @@ export default async function handler(req, res) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ patients: [] });
     try {
       const bundle   = await halaxyGet('/Patient', { email: halaxySearch.trim(), _count: '5' });
-      const patients = (bundle.entry || []).map(e => e.resource).filter(Boolean);
+      const patients = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(p => ({
+        id: p.id, name: fhirPatientLegalName(p),
+      }));
       return res.status(200).json({ patients });
     } catch (err) {
       return res.status(200).json({ patients: [], error: err.message });
@@ -198,7 +214,9 @@ export default async function handler(req, res) {
         halaxy = {
           connected:    true,
           appointments: (apptBundle.entry    || []).map(e => e.resource).filter(Boolean),
-          patients:     (patientBundle.entry || []).map(e => e.resource).filter(Boolean),
+          patients:     (patientBundle.entry || []).map(e => e.resource).filter(Boolean).map(p => ({
+            id: p.id, name: fhirPatientLegalName(p),
+          })),
         };
       } catch (err) {
         console.error('Halaxy API error:', err.message);

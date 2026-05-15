@@ -1256,9 +1256,8 @@ async function convertEnquiryPl(enquiryId) {
     var d = await r.json();
     var patients = d.patients || [];
     if (patients.length > 0) {
-      var p    = patients[0];
-      var n    = p.name?.[0] || {};
-      var pname = [(n.given || []).join(' '), n.family].filter(Boolean).join(' ') || 'Patient #' + p.id;
+      var p     = patients[0];
+      var pname = p.name || ('Patient #' + p.id);
       _selectModalHalaxyPatient(String(p.id), pname);
     } else {
       if (el) el.innerHTML = '<div class="cl-halaxy-lookup-notfound">⚠ No Halaxy patient found with this email yet. Search by name above, or link manually once they complete intake.</div>';
