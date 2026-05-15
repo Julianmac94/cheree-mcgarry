@@ -863,11 +863,17 @@ export default async function handler(req, res) {
   const currentUser = getSessionUser(req);
   const db = supabase();
 
-  const [{ data: enquiries }, { data: tasks }, { data: activityRaw }] = await Promise.all([
+  const [{ data: enquiries }, { data: tasks }] = await Promise.all([
     db.from('enquiries').select('*').order('created_at', { ascending: false }),
     db.from('tasks').select('*').order('created_at', { ascending: true }),
-    db.from('activity_log').select('*').order('created_at', { ascending: false }).catch(() => ({ data: [] })),
   ]);
+
+  // Non-fatal: activity_log may not exist yet on older deployments
+  let activityRaw = [];
+  try {
+    const { data } = await db.from('activity_log').select('*').order('created_at', { ascending: false });
+    activityRaw = data || [];
+  } catch (_) {}
 
   // Group activity by enquiry_id (already desc so first = latest)
   const activityByEnquiry = {};
