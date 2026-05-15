@@ -759,20 +759,34 @@ function _isClinicalAppt(a) {
 
 function _halaxyApptLabel(a) {
   var parts = [];
-  // Patient name from participant[].actor where reference starts "Patient/"
+  var patientId = null;
+
+  // Patient name: try actor.display first, then look up local client by halaxy_id
   if (a.participant) {
     for (var i = 0; i < a.participant.length; i++) {
       var actor = a.participant[i].actor || {};
-      if ((actor.reference || '').indexOf('Patient/') === 0 && actor.display) {
-        parts.push(actor.display);
+      if ((actor.reference || '').indexOf('Patient/') === 0) {
+        if (actor.display) {
+          parts.push(actor.display);
+        } else {
+          // Extract patient ID and look up in local client list
+          patientId = actor.reference.replace('Patient/', '');
+          var local = _pipelineData && (_pipelineData.clients || []).find(function(c) {
+            return String(c.halaxy_id) === String(patientId);
+          });
+          if (local && local.display_name) parts.push(local.display_name);
+        }
         break;
       }
     }
   }
+
   // Service type as secondary label
   var svc = (a.serviceType && a.serviceType[0] && (a.serviceType[0].text || (a.serviceType[0].coding && a.serviceType[0].coding[0] && a.serviceType[0].coding[0].display))) || '';
   if (svc) parts.push(svc);
-  return parts.length ? parts.join(' · ') : (a.description || a.comment || 'Appointment');
+
+  // Fall back to description, comment, or a generic label
+  return parts.length ? parts.join(' · ') : (a.description || a.comment || 'Halaxy appointment');
 }
 
 function toggleWeekEvent(el) {
