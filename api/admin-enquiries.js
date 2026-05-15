@@ -348,7 +348,6 @@ export default async function handler(req, res) {
       const now = new Date();
       const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
       const bundle = await halaxyGet('/Invoice', {
-        date:   `ge${ninetyDaysAgo.toISOString().slice(0, 10)}`,
         _sort:  '-date',
         _count: '20',
       });
@@ -495,7 +494,6 @@ export default async function handler(req, res) {
           }),
           halaxyGet('/Patient', { _count: '200' }),
           halaxyGet('/Invoice', {
-            date:   `ge${ninetyDaysAgo.toISOString().slice(0, 10)}`,
             _sort:  '-date',
             _count: '200',
           }).catch(e => ({ entry: [], _fetchError: e.message })),
