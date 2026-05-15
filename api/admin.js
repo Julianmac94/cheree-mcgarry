@@ -253,10 +253,15 @@ body {
 .topbar-link.site:hover { opacity: 1; }
 
 /* ── Layout ── */
+.layout-full {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px 0;
+}
 .layout {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 32px 24px 80px;
+  padding: 20px 24px 80px;
   display: grid;
   grid-template-columns: 1fr 320px;
   gap: 24px;
@@ -657,6 +662,94 @@ body {
 }
 .setup-toggle-btn:hover { color: var(--teal); }
 
+/* ── Main nav tabs ── */
+.main-tabs {
+  display: flex; gap: 2px;
+  background: rgba(42,88,80,0.07);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 28px;
+  width: fit-content;
+}
+.main-tab {
+  padding: 7px 18px;
+  border-radius: 8px;
+  font-size: 12.5px; font-weight: 500;
+  color: var(--soft);
+  background: transparent;
+  border: none; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.main-tab.active {
+  background: white;
+  color: var(--tealDeep);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.main-tab:hover:not(.active) { color: var(--teal); }
+
+/* ── Website tab ── */
+#website-tab { display: none; }
+.ws-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 700px) { .ws-grid { grid-template-columns: 1fr; } }
+.ws-card {
+  background: white;
+  border: 1px solid rgba(42,88,80,0.09);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.ws-card-hd {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.ws-card-hd:hover { background: rgba(42,88,80,0.02); }
+.ws-card-title {
+  font-size: 12px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--teal);
+}
+.ws-card-tag {
+  font-size: 10px; color: var(--soft);
+  background: rgba(42,88,80,0.06);
+  border-radius: 5px; padding: 2px 7px;
+}
+.ws-card-body {
+  padding: 0 16px 14px;
+  border-top: 1px solid rgba(42,88,80,0.07);
+  display: none;
+}
+.ws-card-body.open { display: block; }
+.ws-card-desc {
+  font-size: 12.5px; color: var(--mid);
+  line-height: 1.65; margin: 10px 0 12px;
+}
+.ws-item {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(42,88,80,0.05);
+  font-size: 12px; color: var(--mid);
+  gap: 8px;
+}
+.ws-item:last-child { border-bottom: none; }
+.ws-item-label { flex: 1; }
+.ws-item-val { font-size: 11px; color: var(--soft); text-align: right; }
+.ws-link {
+  font-size: 11px; color: var(--teal);
+  text-decoration: none; white-space: nowrap;
+}
+.ws-link:hover { text-decoration: underline; }
+.ws-note {
+  font-size: 11.5px; color: var(--soft);
+  background: rgba(42,88,80,0.04);
+  border-radius: 7px; padding: 8px 10px;
+  margin-top: 10px; line-height: 1.55;
+}
+
 /* ── Site reference panel ── */
 .ref-section { margin-bottom: 14px; }
 .ref-section:last-child { margin-bottom: 0; }
@@ -716,10 +809,18 @@ body {
   </div>
 </header>
 
+<!-- Main nav tabs -->
+<div class="layout-full">
+  <div class="main-tabs">
+    <button class="main-tab active" onclick="switchTab('enquiries', this)">Enquiries</button>
+    <button class="main-tab" onclick="switchTab('website', this)">Website</button>
+  </div>
+</div>
+
 <div class="layout">
 
   <!-- Left: Enquiries -->
-  <main>
+  <main id="enquiries-tab">
     <div class="sec-hd">
       <h2 class="sec-title">Client <em>enquiries</em></h2>
       ${newCount > 0 ? `<span class="sec-count">${newCount} new</span>` : ''}
@@ -749,6 +850,113 @@ body {
       }
     </div>
   </main>
+
+  <!-- Website management tab -->
+  <div id="website-tab">
+    <div class="ws-grid">
+
+      <!-- Pages -->
+      <div class="ws-card">
+        <div class="ws-card-hd" onclick="toggleWsCard(this)">
+          <span class="ws-card-title">Pages</span>
+          <span class="ws-card-tag">5 pages</span>
+        </div>
+        <div class="ws-card-body open">
+          <p class="ws-card-desc">The public-facing pages of the website. Each is a static HTML file — no CMS, just code.</p>
+          <div class="ws-item"><span class="ws-item-label">Home</span><span class="ws-item-val">Landing, hero, intro</span><a class="ws-link" href="/" target="_blank">View ↗</a></div>
+          <div class="ws-item"><span class="ws-item-label">Sessions</span><span class="ws-item-val">Pricing, funding, how it works</span><a class="ws-link" href="/sessions.html" target="_blank">View ↗</a></div>
+          <div class="ws-item"><span class="ws-item-label">About</span><span class="ws-item-val">Cheree's background & approach</span><a class="ws-link" href="/about.html" target="_blank">View ↗</a></div>
+          <div class="ws-item"><span class="ws-item-label">Client Info</span><span class="ws-item-val">Policies, what to expect, FAQs</span><a class="ws-link" href="/info.html" target="_blank">View ↗</a></div>
+          <div class="ws-item"><span class="ws-item-label">Request Session</span><span class="ws-item-val">Enquiry form → Supabase → this dashboard</span><a class="ws-link" href="/request-session.html" target="_blank">View ↗</a></div>
+          <div class="ws-note">To update page content, the HTML file needs to be edited in GitHub and redeployed via Vercel.</div>
+        </div>
+      </div>
+
+      <!-- Enquiry flow -->
+      <div class="ws-card">
+        <div class="ws-card-hd" onclick="toggleWsCard(this)">
+          <span class="ws-card-title">Enquiry flow</span>
+          <span class="ws-card-tag">Automated</span>
+        </div>
+        <div class="ws-card-body open">
+          <p class="ws-card-desc">What happens when someone submits the request form.</p>
+          <div class="ws-item"><span class="ws-item-label">1. Form submitted</span><span class="ws-item-val">Saved to Supabase</span></div>
+          <div class="ws-item"><span class="ws-item-label">2. Confirmation email</span><span class="ws-item-val">Auto-sent to client via Resend</span></div>
+          <div class="ws-item"><span class="ws-item-label">3. Admin notified</span><span class="ws-item-val">Email to admin@chereemcgarry.com</span></div>
+          <div class="ws-item"><span class="ws-item-label">4. Dashboard updated</span><span class="ws-item-val">Appears here under Enquiries</span></div>
+          <div class="ws-item"><span class="ws-item-label">5. Intake sent manually</span><span class="ws-item-val">Admin sends Halaxy intake link</span></div>
+          <div class="ws-item"><span class="ws-item-label">6. Client completes intake</span><span class="ws-item-val">In Halaxy — session confirmed</span></div>
+        </div>
+      </div>
+
+      <!-- Halaxy -->
+      <div class="ws-card">
+        <div class="ws-card-hd" onclick="toggleWsCard(this)">
+          <span class="ws-card-title">Halaxy</span>
+          <span class="ws-card-tag">Practice management</span>
+        </div>
+        <div class="ws-card-body">
+          <p class="ws-card-desc">Practice management software. Used for intake forms, appointments, invoicing, and Medicare/NDIS claiming.</p>
+          <div class="ws-item"><span class="ws-item-label">Client intake forms</span><span class="ws-item-val">Sent via admin dashboard</span></div>
+          <div class="ws-item"><span class="ws-item-label">Appointments</span><span class="ws-item-val">Scheduled & confirmed here</span></div>
+          <div class="ws-item"><span class="ws-item-label">Invoicing</span><span class="ws-item-val">Generated per session</span></div>
+          <div class="ws-item"><span class="ws-item-label">Medicare / NDIS</span><span class="ws-item-val">Rebate & billing processing</span></div>
+          <div class="ws-item"><span class="ws-item-label">Client records</span><span class="ws-item-val">Notes, history, documents</span></div>
+          <a class="ws-link" href="https://www.halaxy.com/practitioner" target="_blank" style="display:inline-block;margin-top:10px;">Open Halaxy ↗</a>
+        </div>
+      </div>
+
+      <!-- Email -->
+      <div class="ws-card">
+        <div class="ws-card-hd" onclick="toggleWsCard(this)">
+          <span class="ws-card-title">Email</span>
+          <span class="ws-card-tag">Resend</span>
+        </div>
+        <div class="ws-card-body">
+          <p class="ws-card-desc">Transactional emails are sent via Resend. All client-facing emails BCC admin.</p>
+          <div class="ws-item"><span class="ws-item-label">Session confirmation</span><span class="ws-item-val">Auto on form submit</span></div>
+          <div class="ws-item"><span class="ws-item-label">Intake form link</span><span class="ws-item-val">Sent manually from dashboard</span></div>
+          <div class="ws-item"><span class="ws-item-label">Admin address</span><span class="ws-item-val">admin@chereemcgarry.com</span></div>
+          <div class="ws-item"><span class="ws-item-label">Send domain</span><span class="ws-item-val">Pending DKIM setup</span></div>
+          <div class="ws-note">⚠ Currently sending from onboarding@resend.dev. Once GoDaddy DNS is transferred, set up DKIM on Resend to send from admin@chereemcgarry.com.</div>
+          <a class="ws-link" href="https://resend.com/emails" target="_blank" style="display:inline-block;margin-top:10px;">View sent emails ↗</a>
+        </div>
+      </div>
+
+      <!-- Hosting & deploy -->
+      <div class="ws-card">
+        <div class="ws-card-hd" onclick="toggleWsCard(this)">
+          <span class="ws-card-title">Hosting & deploy</span>
+          <span class="ws-card-tag">Vercel + GitHub</span>
+        </div>
+        <div class="ws-card-body">
+          <p class="ws-card-desc">The site is hosted on Vercel. Any push to the main branch on GitHub automatically deploys to production.</p>
+          <div class="ws-item"><span class="ws-item-label">Live site</span><a class="ws-link" href="https://chereemcgarry.com" target="_blank">chereemcgarry.com ↗</a></div>
+          <div class="ws-item"><span class="ws-item-label">Code repository</span><a class="ws-link" href="https://github.com/Julianmac94/cheree-mcgarry" target="_blank">GitHub ↗</a></div>
+          <div class="ws-item"><span class="ws-item-label">Hosting dashboard</span><a class="ws-link" href="https://vercel.com/dashboard" target="_blank">Vercel ↗</a></div>
+          <div class="ws-item"><span class="ws-item-label">Deploy trigger</span><span class="ws-item-val">Push to main branch</span></div>
+          <div class="ws-note">Changes to HTML, CSS, or JS files need to be made in the code (via Julian) and pushed to GitHub to go live.</div>
+        </div>
+      </div>
+
+      <!-- Database -->
+      <div class="ws-card">
+        <div class="ws-card-hd" onclick="toggleWsCard(this)">
+          <span class="ws-card-title">Database</span>
+          <span class="ws-card-tag">Supabase</span>
+        </div>
+        <div class="ws-card-body">
+          <p class="ws-card-desc">Supabase stores all enquiry data, tasks, and activity logs. It's the backend behind this admin dashboard.</p>
+          <div class="ws-item"><span class="ws-item-label">enquiries</span><span class="ws-item-val">All session requests</span></div>
+          <div class="ws-item"><span class="ws-item-label">tasks</span><span class="ws-item-val">Admin to-do items</span></div>
+          <div class="ws-item"><span class="ws-item-label">activity_log</span><span class="ws-item-val">Audit trail of actions</span></div>
+          <div class="ws-note">You shouldn't need to access Supabase directly. Everything flows through this dashboard.</div>
+          <a class="ws-link" href="https://supabase.com/dashboard" target="_blank" style="display:inline-block;margin-top:10px;">Open Supabase ↗</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
 
   <!-- Right: Tasks + Site reference -->
   <aside class="right-col">
@@ -839,6 +1047,18 @@ body {
 </div>
 
 <script>window.ADMIN_USER = '${currentUser?.name || ''}';</script>
+<script>
+function switchTab(tab, btn) {
+  document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('enquiries-tab').style.display = tab === 'enquiries' ? '' : 'none';
+  document.getElementById('website-tab').style.display = tab === 'website' ? '' : 'none';
+}
+function toggleWsCard(hd) {
+  const body = hd.nextElementSibling;
+  body.classList.toggle('open');
+}
+</script>
 <script src="/js/admin-ui.js"></script>
 </body>
 </html>`;
