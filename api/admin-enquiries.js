@@ -210,9 +210,10 @@ export default async function handler(req, res) {
             _count: '100',
           }),
           halaxyGet('/Patient', { _count: '200' }),
-          halaxyGet('/Organization', { _count: '100' }).catch(() => ({ entry: [] })),
+          halaxyGet('/Organization', { _count: '100' }).catch(err => { console.error('Halaxy /Organization error:', err.message); return { entry: [] }; }),
         ]);
 
+        console.log('Halaxy /Organization returned', (orgBundle.entry || []).length, 'entries');
         const funders = (orgBundle.entry || []).map(e => e.resource).filter(Boolean).map(org => {
           const typeText = org.type?.[0]?.text || org.type?.[0]?.coding?.[0]?.display || org.type?.[0]?.coding?.[0]?.code || '';
           const name     = org.name || '';
