@@ -463,6 +463,7 @@ async function loadPipeline() {
     _halaxyFunders = _halaxyData.funders || [];
     _halaxyFeeMap  = _halaxyData.feeMap  || {};
     _halaxyFees    = (_halaxyData.fees && _halaxyData.fees.length) ? _halaxyData.fees : _halaxyFees;
+    renderHelloSection();
     renderPipeline();
     updateHalaxyDot();
   } catch (err) {
@@ -508,6 +509,7 @@ function refreshPipeline() {
     _halaxyFunders = _halaxyData.funders || [];
     _halaxyFeeMap  = _halaxyData.feeMap  || {};
     _halaxyFees    = (_halaxyData.fees && _halaxyData.fees.length) ? _halaxyData.fees : _halaxyFees;
+    renderHelloSection();
     renderPipeline();
     updateHalaxyDot();
     toast('Pipeline refreshed');
@@ -1485,6 +1487,85 @@ function renderAddSessionFormPl(clientId) {
     + '<button class="cl-form-cancel" onclick="event.stopPropagation();toggleAddSessionFormPl(\'' + clientId + '\')">Cancel</button>'
     + '</div>'
     + '</div>';
+}
+
+/* ── Dashboard tab switcher ── */
+function switchDashTab(tab, btn) {
+  document.querySelectorAll('.dash-tab').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  var pipelineEl = document.getElementById('pipeline-tab');
+  var websiteEl  = document.getElementById('main-layout');
+  var helloEl    = document.getElementById('dash-hello');
+  if (tab === 'website') {
+    if (pipelineEl) pipelineEl.style.display = 'none';
+    if (websiteEl)  { websiteEl.style.display = ''; websiteEl.style.removeProperty('display'); }
+    if (helloEl)    helloEl.style.display = 'none';
+    document.getElementById('website-tab').style.display = '';
+  } else {
+    if (pipelineEl) pipelineEl.style.display = '';
+    if (websiteEl)  websiteEl.style.display  = 'none';
+    if (helloEl && document.getElementById('dash-hello-items').textContent)
+      helloEl.style.display = 'flex';
+  }
+}
+
+/* ── Hello / greeting section ── */
+function renderHelloSection() {
+  var greetEl = document.getElementById('dash-hello-greet');
+  var itemsEl = document.getElementById('dash-hello-items');
+  var helloEl = document.getElementById('dash-hello');
+  if (!greetEl || !itemsEl || !_pipelineData) return;
+
+  var hour = new Date().getHours();
+  var greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  greetEl.textContent = greeting + ', Julian.';
+
+  var enquiries = _pipelineData.enquiries || [];
+  var clients   = _pipelineData.clients   || [];
+  var items = [];
+
+  // New / unread enquiries
+  var newCount = enquiries.filter(function(e) { return (e.status || 'new') === 'new'; }).length;
+  var contactedCount = enquiries.filter(function(e) { return e.status === 'contacted'; }).length;
+  var activeEnq = newCount + contactedCount;
+  if (activeEnq > 0) items.push('<span class="hello-item hello-item--alert">' + activeEnq + ' lead' + (activeEnq !== 1 ? 's' : '') + ' to action</span>');
+
+  // Unpaid sessions
+  var unpaidCount = 0; var unpaidTotal = 0;
+  clients.forEach(function(c) {
+    (c.sessions || []).forEach(function(s) {
+      if (s.status !== 'paid') { unpaidCount++; unpaidTotal += parseFloat(s.amount) || 0; }
+    });
+  });
+  if (unpaidCount > 0) items.push('<span class="hello-item hello-item--billing">' + unpaidCount + ' unpaid · $' + unpaidTotal.toFixed(0) + '</span>');
+
+  // Today's appointments (from Halaxy)
+  var today = new Date().toISOString().slice(0, 10);
+  var todayAppts = (_halaxyData.appointments || []).filter(function(a) {
+    return (a.start || '').slice(0, 10) === today && _isClinicalAppt(a);
+  }).length;
+  if (todayAppts > 0) items.push('<span class="hello-item">' + todayAppts + ' appointment' + (todayAppts !== 1 ? 's' : '') + ' today</span>');
+
+  if (!items.length) items.push('<span class="hello-item hello-item--ok">All caught up ✓</span>');
+
+  itemsEl.innerHTML = items.join('');
+  if (helloEl) helloEl.style.display = '';
+}
+
+/* ── Add appointment (opens Google Calendar pre-filled) ── */
+function openAddAppointmentModal() {
+  var now   = new Date();
+  var start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0);
+  var end   = new Date(start.getTime() + 60 * 60 * 1000);
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function gcalDate(d) {
+    return d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate())
+      + 'T' + pad(d.getHours()) + pad(d.getMinutes()) + '00';
+  }
+  var url = 'https://calendar.google.com/calendar/r/eventedit'
+    + '?dates=' + gcalDate(start) + '/' + gcalDate(end)
+    + '&cid=c_af1c120054ecb4479786f98965dc27dbf1b52ab7ae3a58db89a11f1f9da16ede%40group.calendar.google.com';
+  window.open(url, '_blank');
 }
 
 /* ── Toggle pipeline card ── */

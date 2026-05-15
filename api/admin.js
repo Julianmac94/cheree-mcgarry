@@ -1058,7 +1058,7 @@ body {
 /* ── Pipeline three-panel dashboard ── */
 .pipeline-wrap {
   max-width: 1400px; margin: 0 auto;
-  padding: 20px 24px 80px;
+  padding: 24px 24px 80px;
 }
 .pipeline-toolbar {
   display: flex; align-items: center; justify-content: space-between;
@@ -1434,6 +1434,77 @@ body {
 /* Google Cal chip — pointer cursor since it's a reconnect link */
 .pl-gcal-chip { cursor: pointer; }
 
+/* ── Unified status bar ── */
+.dash-status-bar {
+  max-width: 1400px; margin: 0 auto;
+  padding: 0 24px;
+  height: 52px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  border-bottom: 1px solid rgba(42,88,80,0.1);
+  background: white;
+  position: sticky; top: 0; z-index: 20;
+}
+.dash-tabs {
+  display: flex; gap: 2px;
+  background: rgba(42,88,80,0.07);
+  border-radius: 8px; padding: 3px;
+}
+.dash-tab {
+  padding: 5px 16px; border-radius: 6px;
+  font-size: 12px; font-weight: 500; color: var(--soft);
+  background: transparent; border: none; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dash-tab.active {
+  background: white; color: var(--tealDeep);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.dash-tab:hover:not(.active) { color: var(--teal); }
+.dash-status-right {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.dash-icon-btn {
+  font-family: var(--sans); font-size: 11px; font-weight: 500;
+  color: var(--soft); background: none;
+  border: 1px solid rgba(42,88,80,0.15); border-radius: 6px;
+  cursor: pointer; padding: 4px 10px;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.dash-icon-btn:hover { color: var(--teal); background: rgba(42,88,80,0.06); }
+
+/* ── Hello greeting section ── */
+.dash-hello {
+  max-width: 1400px; margin: 0 auto;
+  padding: 18px 24px 0;
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+}
+.dash-hello-greet {
+  font-family: var(--serif); font-size: 18px; font-weight: 300;
+  color: var(--tealDeep); white-space: nowrap;
+}
+.dash-hello-items {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.hello-item {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 3px 10px; border-radius: 100px;
+  background: rgba(42,88,80,0.08); color: var(--mid);
+}
+.hello-item--alert   { background: rgba(190,110,68,0.12); color: var(--terra); }
+.hello-item--billing { background: rgba(200,160,40,0.13); color: #8a6a00; }
+.hello-item--ok      { background: rgba(42,150,100,0.1);  color: #1a7a50; }
+
+/* ── Panel action button (in panel header) ── */
+.dash-panel-btn {
+  font-family: var(--sans); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.04em; padding: 4px 10px; border-radius: 6px;
+  background: rgba(42,88,80,0.08); color: var(--mid);
+  border: none; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s;
+}
+.dash-panel-btn:hover { background: rgba(42,88,80,0.14); color: var(--teal); }
+
 /* Tooltip */
 .pl-halaxy-tooltip {
   position: absolute; top: calc(100% + 8px); right: 0;
@@ -1697,43 +1768,50 @@ body {
   </div>
 </header>
 
-<!-- Main nav tabs -->
-<div class="layout-full">
-  <div class="main-tabs">
-    <button class="main-tab active" onclick="switchTab('pipeline', this)">Pipeline</button>
-    <button class="main-tab" onclick="switchTab('website', this)">Website</button>
+<!-- Unified status bar -->
+<div class="dash-status-bar">
+  <div class="dash-tabs">
+    <button class="dash-tab active" onclick="switchDashTab('pipeline', this)">Pipeline</button>
+    <button class="dash-tab" onclick="switchDashTab('website', this)">Website</button>
+  </div>
+  <div class="dash-status-right">
+    <div class="pl-halaxy-chip" id="halaxy-chip">
+      <div id="halaxy-status-dot" class="halaxy-dot halaxy-dot--loading"></div>
+      <span id="halaxy-chip-label">Halaxy</span>
+      <div class="pl-halaxy-tooltip" id="halaxy-tooltip">Checking connection…</div>
+    </div>
+    <a class="pl-halaxy-chip pl-gcal-chip" id="gcal-chip" href="/api/google-auth" onclick="return confirmGcalReconnect(event)">
+      <div id="gcal-status-dot" class="halaxy-dot halaxy-dot--loading"></div>
+      <span id="gcal-chip-label">Calendar</span>
+      <div class="pl-halaxy-tooltip" id="gcal-tooltip">Checking connection…</div>
+    </a>
+    <button onclick="refreshPipeline()" id="pl-refresh-btn" class="dash-icon-btn" title="Refresh">↺</button>
+    <button onclick="syncHalaxyConfigData()" id="halaxy-sync-btn" class="dash-icon-btn" title="Sync Halaxy funders and fees">⟳ Sync</button>
   </div>
 </div>
 
 <!-- Pipeline tab — full width -->
 <div id="pipeline-tab" class="pipeline-wrap">
-  <div class="pipeline-toolbar">
-    <div style="display:flex;align-items:center;gap:12px">
-      <button onclick="refreshPipeline()" id="pl-refresh-btn" class="pl-refresh-btn">↺ Refresh</button>
-      <button onclick="openAddClient()" class="cl-add-btn">+ Add client</button>
-      <button onclick="syncHalaxyConfigData()" id="halaxy-sync-btn" class="pl-refresh-btn" title="Re-sync funders and fees from Halaxy">⟳ Sync Halaxy data</button>
-    </div>
-    <div class="pl-integrations">
-      <div class="pl-halaxy-chip" id="halaxy-chip">
-        <div id="halaxy-status-dot" class="halaxy-dot halaxy-dot--loading"></div>
-        <span id="halaxy-chip-label">Halaxy</span>
-        <div class="pl-halaxy-tooltip" id="halaxy-tooltip">Checking connection…</div>
-      </div>
-      <a class="pl-halaxy-chip pl-gcal-chip" id="gcal-chip" href="/api/google-auth" onclick="return confirmGcalReconnect(event)">
-        <div id="gcal-status-dot" class="halaxy-dot halaxy-dot--loading"></div>
-        <span id="gcal-chip-label">Calendar</span>
-        <div class="pl-halaxy-tooltip" id="gcal-tooltip">Checking connection…</div>
-      </a>
+
+  <!-- Hello greeting section (populated by JS after data loads) -->
+  <div class="dash-hello" id="dash-hello" style="display:none">
+    <div class="dash-hello-left">
+      <div class="dash-hello-greet" id="dash-hello-greet">Hello, Julian.</div>
+      <div class="dash-hello-items" id="dash-hello-items"></div>
     </div>
   </div>
+
   <!-- Three-panel dashboard -->
   <div class="dash-panels" id="pipeline-board">
 
-    <!-- 1. INTAKE panel -->
+    <!-- 1. TRIAGE panel -->
     <div class="dash-panel" id="panel-intake">
       <div class="dash-panel-hd">
-        <span class="dash-panel-title">Website Contacts</span>
-        <span class="dash-panel-count" id="intake-count" style="background:${C.terra}"></span>
+        <span class="dash-panel-title">Triage Clients</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="dash-panel-count" id="intake-count" style="background:${C.terra}"></span>
+          <button onclick="openAddClient()" class="dash-panel-btn">+ Add client</button>
+        </div>
       </div>
       <div class="dash-panel-body" id="intake-panel-body">
         <div class="pl-loading">
@@ -1747,6 +1825,7 @@ body {
     <div class="dash-panel" id="panel-appointments">
       <div class="dash-panel-hd">
         <span class="dash-panel-title">Appointments</span>
+        <button onclick="openAddAppointmentModal()" class="dash-panel-btn">+ Appointment</button>
       </div>
       <div class="dash-panel-body" id="appointments-panel-body">
         <div class="pl-loading">
@@ -2113,15 +2192,7 @@ body {
 <script src="/js/admin-ui.js"></script>
 <script>
 function switchTab(tab, btn) {
-  document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  var pipelineWrap = document.getElementById('pipeline-tab');
-  var mainLayout   = document.getElementById('main-layout');
-  var websiteTab   = document.getElementById('website-tab');
-  if (pipelineWrap) pipelineWrap.style.display = tab === 'pipeline' ? 'block' : 'none';
-  if (mainLayout)   mainLayout.style.display   = tab === 'website'  ? 'grid'  : 'none';
-  if (websiteTab)   websiteTab.style.display   = tab === 'website'  ? 'block' : 'none';
-  if (tab === 'pipeline' && !window._pipelineLoaded) loadPipeline();
+  switchDashTab(tab, btn);
 }
 
 // Boot
@@ -2132,8 +2203,8 @@ function switchTab(tab, btn) {
   if (gcal === 'error')      setTimeout(function(){ toast('Google Calendar connection failed — try again.', 'err'); }, 300);
   if (gcal === 'no_refresh') setTimeout(function(){ toast('No refresh token returned — visit /api/google-auth again to reconnect.', 'err'); }, 300);
   // Default tab: pipeline
-  var defaultBtn = document.querySelector('.main-tab');
-  if (defaultBtn) switchTab('pipeline', defaultBtn);
+  var defaultBtn = document.querySelector('.dash-tab');
+  if (defaultBtn) switchDashTab('pipeline', defaultBtn);
 })();
 </script>
 </body>
