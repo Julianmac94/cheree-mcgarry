@@ -898,24 +898,26 @@ async function _ensureFundersLoaded() {
   return _halaxyFunders;
 }
 
+var FUNDER_FALLBACK_HTML = '<option value="">Select…</option>'
+  + '<option value="ndis_plan">NDIS — Plan-managed</option>'
+  + '<option value="ndis_self">NDIS — Self-managed</option>'
+  + '<option value="medicare">Medicare</option>'
+  + '<option value="qfes">QFES EAP</option>'
+  + '<option value="dva">DVA / ADFHCS</option>'
+  + '<option value="private">Private</option>';
+
 async function _populateFunderDropdown() {
   var sel = document.getElementById('cl-funder');
   if (!sel) return;
+  // Show fallback immediately so dropdown is never stuck on "Loading…"
+  sel.innerHTML = FUNDER_FALLBACK_HTML;
+
+  // Then try to upgrade with live Halaxy data
   var funders = await _ensureFundersLoaded();
-  if (!funders.length) {
-    // Fallback to hardcoded list if Halaxy not connected
-    sel.innerHTML = '<option value="">Select…</option>'
-      + '<option value="ndis_plan">NDIS — Plan-managed</option>'
-      + '<option value="ndis_self">NDIS — Self-managed</option>'
-      + '<option value="medicare">Medicare</option>'
-      + '<option value="qfes">QFES EAP</option>'
-      + '<option value="dva">DVA / ADFHCS</option>'
-      + '<option value="private">Private</option>';
-    return;
-  }
-  // Group by billingKey for the optgroup display
-  var groups = {};
-  var groupOrder = ['medicare','ndis_plan','private','qfes','dva','other'];
+  if (!funders.length) return; // keep fallback
+
+  var groups      = {};
+  var groupOrder  = ['medicare','ndis_plan','private','qfes','dva','other'];
   var groupLabels = { medicare:'Medicare', ndis_plan:'NDIS', private:'Private', qfes:'Third-party / EAP', dva:'DVA / Defence', other:'Other' };
   funders.forEach(function(f) {
     var k = f.billingKey || 'other';
