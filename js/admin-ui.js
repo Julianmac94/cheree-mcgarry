@@ -847,6 +847,15 @@ function renderAppointmentsPanel() {
     if (inv.patientId && inv.date) invoicedSet.add(String(inv.patientId) + '|' + inv.date);
   });
 
+  // Also suppress if an internal session exists for this client's halaxy_id + date
+  var sessionedSet = new Set();
+  ((_pipelineData && _pipelineData.clients) || []).forEach(function(c) {
+    if (!c.halaxy_id) return;
+    (c.sessions || []).forEach(function(s) {
+      if (s.session_date) sessionedSet.add(String(c.halaxy_id) + '|' + s.session_date);
+    });
+  });
+
   /* ── Inline helpers ── */
   function _apptPatientId(appt) {
     var pid = null;
@@ -1021,7 +1030,7 @@ function renderAppointmentsPanel() {
     // Suppress if Halaxy already has an invoice for this patient+date (source of truth)
     var pidNR = _apptPatientId(a);
     var dtNR  = startStr.slice(0, 10);
-    if (pidNR && invoicedSet.has(String(pidNR) + '|' + dtNR)) return;
+    if (pidNR && (invoicedSet.has(String(pidNR) + '|' + dtNR) || sessionedSet.has(String(pidNR) + '|' + dtNR))) return;
     var bi = _apptBillingInfo(a);
     if (bi && !bi.session) {
       needsLogging.push({ type: 'halaxy', ev: a, start: startStr, dateMs: new Date(startStr).getTime() });
@@ -2830,7 +2839,7 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
 
     await apiFetch('/api/sessions', {
       method: 'POST',
-      body: { client_id: clientId, session_date: date, status: 'upcoming', amount: amount, notes: notes },
+      body: { client_id: clientId, session_date: date, status: 'invoiced', amount: amount, notes: notes },
     });
     dismissCalEvent(eventId);
     toast('Session saved ✓');
