@@ -463,10 +463,12 @@ async function loadPipeline() {
     _halaxyFunders = _halaxyData.funders || [];
     _halaxyFeeMap  = _halaxyData.feeMap  || {};
     _halaxyFees    = (_halaxyData.fees && _halaxyData.fees.length) ? _halaxyData.fees : _halaxyFees;
-    // Debug: log invoice data so we can verify Halaxy /Invoice response structure
+    // Debug: log invoice + raw appointment structure so we can see what fields Halaxy includes
     console.log('[Halaxy invoices] count:', (_halaxyData.invoices || []).length,
       '| error:', _halaxyData.invoiceError || 'none',
       '| sample:', (_halaxyData.invoices || []).slice(0, 3));
+    var _firstAppt = (_halaxyData.appointments || [])[0];
+    if (_firstAppt) console.log('[Halaxy appt raw]', JSON.stringify(_firstAppt, null, 2));
     renderHelloSection();
     renderPipeline();
     updateHalaxyDot();
