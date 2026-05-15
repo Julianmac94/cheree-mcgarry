@@ -348,8 +348,9 @@ export default async function handler(req, res) {
       const now = new Date();
       const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
       const bundle = await halaxyGet('/Invoice', {
-        _sort:  '-date',
-        _count: '20',
+        _sort:   '-created',
+        _count:  '20',
+        _include: 'Invoice:recipient',
       });
       return res.status(200).json({
         count:   (bundle.entry || []).length,
@@ -494,8 +495,10 @@ export default async function handler(req, res) {
           }),
           halaxyGet('/Patient', { _count: '200' }),
           halaxyGet('/Invoice', {
-            _sort:  '-date',
-            _count: '200',
+            created: `ge${ninetyDaysAgo.toISOString().slice(0, 10)}`, // Halaxy uses "created", not "date"
+            _sort:   '-created',
+            _count:  '200',
+            _include: 'Invoice:recipient',                             // pull Patient alongside invoice
           }).catch(e => ({ entry: [], _fetchError: e.message })),
         ]);
         // _include=Appointment:patient adds Patient resources as extra entries —
@@ -512,21 +515,52 @@ export default async function handler(req, res) {
           if (n) patientMap[p.id] = n;
         });
 
-        // Map Invoice resources → clean billing objects
-        const invoices = (invoiceBundle.entry || [])
-          .map(e => e.resource).filter(r => r?.resourceType === 'Invoice')
+        // Split Invoice bundle entries — _include adds Patient resources alongside Invoice resources
+        const allInvBundleResources = (invoiceBundle.entry || []).map(e => e.resource).filter(Boolean);
+        const invoiceResources = allInvBundleResources.filter(r => r?.resourceType === 'Invoice');
+        const invoicePatients  = allInvBundleResources.filter(r => r?.resourceType === 'Patient');
+
+        // Extend patientMap with any patients included in the Invoice bundle
+        invoicePatients.forEach(p => {
+          if (p.id && !patientMap[p.id]) {
+            const n = fhirPatientLegalName(p);
+            if (n) patientMap[p.id] = n;
+          }
+        });
+
+        // Map Invoice resources → clean billing objects.
+        // Halaxy uses "recipient" (not "subject") for the patient reference,
+        // and "created" (not "date") for the invoice date.
+        const invoices = invoiceResources
           .map(inv => {
             const status = inv.status;
             if (!status || status === 'cancelled') return null;
-            // Extract patient ID from "Patient/12345" subject reference
-            const subjectRef = inv.subject?.reference || '';
-            const patientId  = subjectRef.includes('/') ? subjectRef.split('/').pop() : subjectRef || null;
+
+            // recipient can be an array or a single reference — check both
+            const recipientList = Array.isArray(inv.recipient) ? inv.recipient : (inv.recipient ? [inv.recipient] : []);
+            let patientId = null;
+            for (const r of recipientList) {
+              const ref = r?.reference || '';
+              if (ref.toLowerCase().includes('patient/')) {
+                patientId = ref.split('/').pop();
+                break;
+              }
+            }
+            // Also check subject as a fallback (standard FHIR field)
+            if (!patientId) {
+              const subjectRef = inv.subject?.reference || '';
+              if (subjectRef.includes('/')) patientId = subjectRef.split('/').pop();
+            }
             if (!patientId) return null;
+
+            // Halaxy date field is "created"; fall back to "date" for standard FHIR
+            const invoiceDate = (inv.created || inv.date || '').slice(0, 10) || null;
+
             return {
               id:       inv.id,
               status,                                          // draft | issued | balanced
               patientId,
-              date:     (inv.date || '').slice(0, 10) || null,
+              date:     invoiceDate,
               amount:   inv.totalGross?.value ?? inv.totalNet?.value ?? null,
               currency: inv.totalGross?.currency || inv.totalNet?.currency || 'AUD',
               ref:      inv.identifier?.[0]?.value || inv.id,
