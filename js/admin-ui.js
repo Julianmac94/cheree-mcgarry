@@ -592,15 +592,7 @@ function _intakeEnquiryCard(e) {
   if (status === 'in_halaxy') {
     intakePanel = '<div class="pl-intake-panel" id="pl-intake-' + e.id + '">'
       + '<div class="pl-intake-row">'
-      + '<select class="pl-intake-sel" id="pl-itype-' + e.id + '" onclick="event.stopPropagation()" onchange="updatePipelineIntakeUrl(\'' + e.id + '\')">'
-      + '<option value="new">New client</option>'
-      + '<option value="private">Private</option>'
-      + '<option value="medicare">Medicare (MHCP)</option>'
-      + '<option value="ndis_plan">NDIS — Plan-managed</option>'
-      + '<option value="ndis_self">NDIS — Self-managed</option>'
-      + '<option value="qfes">QFES EAP</option>'
-      + '<option value="dva">DVA / ADFHCS</option>'
-      + '</select>'
+      + _intakeTypeSelectorHtml(e.id)
       + '<input class="pl-intake-url" id="pl-iurl-' + e.id + '" type="url" placeholder="Paste Halaxy intake URL…" onclick="event.stopPropagation()">'
       + '<button class="pl-intake-send" onclick="event.stopPropagation();sendIntakePl(\'' + e.id + '\')">Send →</button>'
       + '</div>'
@@ -1093,15 +1085,7 @@ function renderEnquiryCardPl(e) {
   if (status === 'in_halaxy') {
     intakeHtml = '<div class="pl-intake-panel" id="pl-intake-' + e.id + '">'
       + '<div class="pl-intake-row">'
-      + '<select class="pl-intake-sel" id="pl-itype-' + e.id + '" onclick="event.stopPropagation()" onchange="updatePipelineIntakeUrl(\'' + e.id + '\')">'
-      + '<option value="new">New client</option>'
-      + '<option value="private">Private</option>'
-      + '<option value="medicare">Medicare (MHCP)</option>'
-      + '<option value="ndis_plan">NDIS — Plan-managed</option>'
-      + '<option value="ndis_self">NDIS — Self-managed</option>'
-      + '<option value="qfes">QFES EAP</option>'
-      + '<option value="dva">DVA / ADFHCS</option>'
-      + '</select>'
+      + _intakeTypeSelectorHtml(e.id)
       + '<input class="pl-intake-url" id="pl-iurl-' + e.id + '" type="url" placeholder="Paste Halaxy intake URL…" onclick="event.stopPropagation()">'
       + '<button class="pl-intake-send" onclick="event.stopPropagation();sendIntakePl(\'' + e.id + '\')">Send →</button>'
       + '</div>'
@@ -1391,6 +1375,34 @@ function openAddClient() {
 function closeAddClient() {
   var modal = document.getElementById('add-client-modal');
   if (modal) modal.classList.remove('open');
+}
+
+/**
+ * Build the intake-type <select> used on intake cards (in_halaxy stage).
+ * Options are deduplicated billingKey groups derived from _halaxyFunders so
+ * no hardcoded list ever appears.  Value is the billingKey so HALAXY_URLS
+ * lookup in updatePipelineIntakeUrl() still works.
+ */
+function _intakeTypeSelectorHtml(id) {
+  var groupLabels = { medicare: 'Medicare', ndis_plan: 'NDIS', ndis_self: 'NDIS (self-managed)', private: 'Private', qfes: 'QFES / EAP', dva: 'DVA / ADFHCS', other: 'Other' };
+  var groupOrder  = ['medicare', 'ndis_plan', 'ndis_self', 'private', 'qfes', 'dva', 'other'];
+  var opts = '';
+  var seen = {};
+  var funders = _halaxyFunders || [];
+  if (funders.length) {
+    // Derive unique billingKeys that actually exist in our funder list
+    funders.forEach(function(f) { seen[f.billingKey] = true; });
+    groupOrder.forEach(function(k) {
+      if (seen[k]) opts += '<option value="' + k + '">' + escHtml(groupLabels[k] || k) + '</option>';
+    });
+  } else {
+    // Funders not yet loaded — use groupLabels set (everything except 'other')
+    groupOrder.filter(function(k) { return k !== 'other'; }).forEach(function(k) {
+      opts += '<option value="' + k + '">' + escHtml(groupLabels[k] || k) + '</option>';
+    });
+  }
+  return '<select class="pl-intake-sel" id="pl-itype-' + id + '" onclick="event.stopPropagation()" onchange="updatePipelineIntakeUrl(\'' + id + '\')">'
+    + opts + '</select>';
 }
 
 function _buildFunderDropdownHtml(funders) {
@@ -1721,9 +1733,10 @@ async function convertEnquiryPl(enquiryId) {
   // Store source enquiry id on the modal for reference
   document.getElementById('add-client-modal').dataset.enquiryId = enquiryId;
 
-  // Open modal
+  // Open modal — populate funder dropdown from cached funders
+  _populateFunderDropdown();
   document.getElementById('add-client-modal').classList.add('open');
-  document.getElementById('cl-funder').focus();
+  document.getElementById('cl-display-name').focus();
 
   // Halaxy email lookup
   if (!enq.email) {
@@ -1882,14 +1895,17 @@ async function openCalSessionPanel(cardUid, eventId) {
   var panel = document.getElementById('pl-link-' + cardUid);
   if (!panel) return;
 
-  // Preload fees cache while showing search UI
-  if (_halaxyFees === null && _halaxyData.connected) {
-    panel.innerHTML = '<div class="pl-link-panel"><div class="cl-halaxy-lookup-searching">Loading…</div></div>';
-    try {
-      var fr = await fetch('/api/admin-enquiries?halaxy_fees=1');
-      _halaxyFees = ((await fr.json()).fees) || [];
-    } catch (_) { _halaxyFees = []; }
-  } else if (_halaxyFees === null) { _halaxyFees = []; }
+  // Ensure fees are available — if not yet loaded, initialise to [] immediately so
+  // we never block the UI, then fetch in the background to populate for next time.
+  if (_halaxyFees === null) {
+    _halaxyFees = [];
+    if (_halaxyData && _halaxyData.connected) {
+      fetch('/api/admin-enquiries?halaxy_fees=1')
+        .then(function(fr) { return fr.json(); })
+        .then(function(d)  { _halaxyFees = d.fees || []; })
+        .catch(function()  {});
+    }
+  }
 
   panel.innerHTML = '<div class="pl-link-panel">'
     + '<div class="pl-link-panel-title">Search Halaxy patient</div>'
@@ -1998,15 +2014,16 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
       + '</div>';
   }
 
-  // If no funder resolved, show a manual picker
+  // If no funder resolved, show a manual picker built from loaded funders (never hardcoded)
   var funderPickerHtml = '';
   if (!funderKey) {
-    var fopts = Object.keys(FUNDER_LABELS).map(function(k) {
-      return '<option value="' + k + '">' + FUNDER_LABELS[k] + '</option>';
-    }).join('');
+    var liveFunders = _halaxyFunders || [];
+    var fopts = liveFunders.length
+      ? _buildFunderDropdownHtml(liveFunders)
+      : '<option value="">No funders loaded — sync first</option>';
     funderPickerHtml = '<select class="pl-link-input" id="pl-cs-funder-' + cardUid + '" style="margin-bottom:6px"'
       + ' onclick="event.stopPropagation()" onchange="_rebuildFeesForFunder(\'' + cardUid + '\')">'
-      + '<option value="">— select funder —</option>' + fopts + '</select>';
+      + fopts + '</select>';
   }
 
   var pmHtml = '';
@@ -2039,9 +2056,12 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
 function _rebuildFeesForFunder(cardUid) {
   var sel = document.getElementById('pl-cs-funder-' + cardUid);
   if (!sel || !sel.value) return;
-  var fk       = sel.value;
+  // sel.value is the funder ID; data-billing is the billingKey (set by _buildFunderDropdownHtml)
+  var funderId = sel.value;
+  var opt = sel.options[sel.selectedIndex];
+  var fk       = (opt && opt.dataset && opt.dataset.billing) || funderId;
   var fees     = _halaxyFees || [];
-  var filtered = _filterFeesForFunder(fees, fk);
+  var filtered = _filterFeesForFunder(fees, fk, funderId);
   var feeSel = document.getElementById('pl-cs-fee-' + cardUid);
   var feeAmt = document.getElementById('pl-cs-fee-amt-' + cardUid);
   if (feeSel) {
@@ -2068,7 +2088,12 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
   var funderEl = document.getElementById('pl-cs-funder-' + cardUid);
   var pmEl     = document.getElementById('pl-cs-pm-' + cardUid);
   var evt      = _calEventMap[eventId] || {};
-  var fk       = funderKey || (funderEl ? funderEl.value : '');
+  // If funderEl is a funder-ID select (built by _buildFunderDropdownHtml), read billingKey from data-billing
+  var fk = funderKey;
+  if (!fk && funderEl && funderEl.value) {
+    var selOpt = funderEl.options[funderEl.selectedIndex];
+    fk = (selOpt && selOpt.dataset && selOpt.dataset.billing) || funderEl.value;
+  }
   var pm       = pmEl ? pmEl.value.trim() : '';
   var amount   = feeAmt  ? (parseFloat(feeAmt.value)   || null) : null;
   var notes    = notesEl ? (notesEl.value.trim() || evt.title || '') : evt.title || '';
