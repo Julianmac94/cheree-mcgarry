@@ -210,46 +210,38 @@ body {
   min-height: 100svh;
 }
 
-/* ── Top bar ── */
-.topbar {
+/* ── Unified header ── */
+.dash-header {
   position: sticky; top: 0; z-index: 100;
   background: var(--tealDeep);
-  padding: 0 32px;
-  height: 56px;
-  display: flex; align-items: center; justify-content: space-between;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.06), 0 4px 20px rgba(0,0,0,0.3);
+  padding: 0 28px;
+  min-height: 68px;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06), 0 4px 24px rgba(0,0,0,0.32);
 }
-.topbar-brand {
-  display: flex; align-items: center; gap: 10px;
+.dash-header-left {
+  display: flex; align-items: center; gap: 14px; flex-shrink: 0; min-width: 0;
 }
-.topbar-dot {
-  width: 24px; height: 24px;
-  background: var(--teal);
-  border-radius: 50%;
+.dash-logo {
+  width: 36px; height: 36px; flex-shrink: 0;
+  filter: brightness(0) invert(1); opacity: 0.85;
 }
-.topbar-name {
-  font-size: 13px; font-weight: 500;
-  color: rgba(255,255,255,0.9); letter-spacing: 0.02em;
+.dash-header-greet {
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
 }
-.topbar-badge {
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  color: rgba(255,255,255,0.3);
-  margin-left: 10px;
-  padding: 2px 8px;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 100px;
+.dash-header-right {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
 }
-.topbar-actions {
-  display: flex; align-items: center; gap: 16px;
+.dash-header-sep {
+  width: 1px; height: 18px; background: rgba(255,255,255,0.12); margin: 0 4px;
 }
 .topbar-link {
-  font-size: 11.5px; color: rgba(255,255,255,0.45);
+  font-size: 11.5px; color: rgba(255,255,255,0.4);
   text-decoration: none; letter-spacing: 0.04em;
-  transition: color 0.2s;
+  transition: color 0.2s; white-space: nowrap;
 }
-.topbar-link:hover { color: rgba(255,255,255,0.8); }
-.topbar-link.site { color: var(--mint); opacity: 0.8; }
+.topbar-link:hover { color: rgba(255,255,255,0.85); }
+.topbar-link.site { color: var(--mint); opacity: 0.75; }
 .topbar-link.site:hover { opacity: 1; }
 
 /* ── Layout ── */
@@ -368,21 +360,21 @@ body {
   white-space: nowrap; flex-shrink: 0;
 }
 
-/* Current user chip in topbar */
+/* User avatar chip in header */
 .topbar-user {
   display: flex; align-items: center; gap: 8px;
 }
 .user-avatar {
-  width: 28px; height: 28px;
-  background: rgba(119,207,189,0.18);
-  border: 1px solid rgba(119,207,189,0.30);
+  width: 26px; height: 26px;
+  background: rgba(119,207,189,0.15);
+  border: 1px solid rgba(119,207,189,0.25);
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 9px; font-weight: 700;
   letter-spacing: 0.06em; color: ${C.mint};
 }
 .user-label {
-  font-size: 11px; color: rgba(255,255,255,0.45);
+  font-size: 11px; color: rgba(255,255,255,0.4);
   letter-spacing: 0.04em;
 }
 
@@ -1058,7 +1050,7 @@ body {
 /* ── Pipeline three-panel dashboard ── */
 .pipeline-wrap {
   max-width: 1400px; margin: 0 auto;
-  padding: 24px 24px 80px;
+  padding: 28px 24px 80px;
 }
 .pipeline-toolbar {
   display: flex; align-items: center; justify-content: space-between;
@@ -1419,81 +1411,68 @@ body {
 }
 
 /* Halaxy / Google Cal status chips */
+/* ── Chips in dark header ── */
 .pl-halaxy-chip {
   display: flex; align-items: center; gap: 6px;
   padding: 5px 10px; border-radius: 100px;
   font-family: var(--sans); font-size: 11px; font-weight: 500;
-  background: rgba(42,88,80,0.07); color: var(--soft);
-  border: 1px solid rgba(42,88,80,0.12);
+  background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.55);
+  border: 1px solid rgba(255,255,255,0.12);
   cursor: default; position: relative;
   transition: background 0.15s, color 0.15s;
   text-decoration: none;
 }
-.pl-halaxy-chip:hover { background: rgba(42,88,80,0.12); color: var(--mid); }
+.pl-halaxy-chip:hover { background: rgba(255,255,255,0.13); color: rgba(255,255,255,0.85); }
 .pl-halaxy-chip:hover .pl-halaxy-tooltip { opacity: 1; pointer-events: none; transform: translateY(0); }
-/* Google Cal chip — pointer cursor since it's a reconnect link */
 .pl-gcal-chip { cursor: pointer; }
 
-/* ── Unified status bar ── */
-.dash-status-bar {
-  max-width: 1400px; margin: 0 auto;
-  padding: 0 24px;
-  height: 52px;
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  border-bottom: 1px solid rgba(42,88,80,0.1);
-  background: white;
-  position: sticky; top: 0; z-index: 20;
-}
+/* ── Tabs (dark header variant) ── */
 .dash-tabs {
   display: flex; gap: 2px;
-  background: rgba(42,88,80,0.07);
+  background: rgba(255,255,255,0.08);
   border-radius: 8px; padding: 3px;
 }
 .dash-tab {
-  padding: 5px 16px; border-radius: 6px;
-  font-size: 12px; font-weight: 500; color: var(--soft);
+  padding: 6px 18px; border-radius: 6px;
+  font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.5);
   background: transparent; border: none; cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
 .dash-tab.active {
-  background: white; color: var(--tealDeep);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  background: rgba(255,255,255,0.15); color: white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
 }
-.dash-tab:hover:not(.active) { color: var(--teal); }
-.dash-status-right {
-  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
-}
+.dash-tab:hover:not(.active) { color: rgba(255,255,255,0.8); }
+
+/* ── Icon buttons in dark header ── */
 .dash-icon-btn {
   font-family: var(--sans); font-size: 11px; font-weight: 500;
-  color: var(--soft); background: none;
-  border: 1px solid rgba(42,88,80,0.15); border-radius: 6px;
-  cursor: pointer; padding: 4px 10px;
+  color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
+  cursor: pointer; padding: 5px 11px;
   transition: color 0.15s, background 0.15s;
   white-space: nowrap;
 }
-.dash-icon-btn:hover { color: var(--teal); background: rgba(42,88,80,0.06); }
+.dash-icon-btn:hover { color: white; background: rgba(255,255,255,0.14); }
+.dash-icon-btn--dim { opacity: 0.65; }
+.dash-icon-btn--dim:hover { opacity: 1; }
 
-/* ── Hello greeting section ── */
-.dash-hello {
-  max-width: 1400px; margin: 0 auto;
-  padding: 18px 24px 0;
-  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
-}
+/* ── Greeting + pills (inside header) ── */
 .dash-hello-greet {
-  font-family: var(--serif); font-size: 18px; font-weight: 300;
-  color: var(--tealDeep); white-space: nowrap;
+  font-family: var(--serif); font-size: 22px; font-weight: 300;
+  color: rgba(255,255,255,0.90); white-space: nowrap; line-height: 1;
 }
 .dash-hello-items {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
 .hello-item {
   font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
   padding: 3px 10px; border-radius: 100px;
-  background: rgba(42,88,80,0.08); color: var(--mid);
+  background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.65);
 }
-.hello-item--alert   { background: rgba(190,110,68,0.12); color: var(--terra); }
-.hello-item--billing { background: rgba(200,160,40,0.13); color: #8a6a00; }
-.hello-item--ok      { background: rgba(42,150,100,0.1);  color: #1a7a50; }
+.hello-item--alert   { background: rgba(190,110,68,0.35); color: #ffb48a; }
+.hello-item--billing { background: rgba(200,160,40,0.28); color: #ffd87a; }
+.hello-item--ok      { background: rgba(42,207,130,0.20); color: #7efbc1; }
 
 /* ── Panel action button (in panel header) ── */
 .dash-panel-btn {
@@ -1750,31 +1729,26 @@ body {
 </head>
 <body>
 
-<!-- Top bar -->
-<header class="topbar">
-  <div class="topbar-brand">
-    <div class="topbar-dot"></div>
-    <span class="topbar-name">Cheree McGarry</span>
-    <span class="topbar-badge">Admin</span>
-  </div>
-  <div class="topbar-actions">
-    ${currentUser ? `
-    <div class="topbar-user">
-      <div class="user-avatar">${currentUser.initials}</div>
-      <span class="user-label">${currentUser.name}</span>
-    </div>` : ''}
-    <a class="topbar-link site" href="/" target="_blank">View site →</a>
-    <a class="topbar-link" href="/admin?logout=1">Sign out</a>
-  </div>
-</header>
+<!-- Unified header -->
+<header class="dash-header">
 
-<!-- Unified status bar -->
-<div class="dash-status-bar">
+  <!-- Left: logo + greeting -->
+  <div class="dash-header-left">
+    <img src="/assets/logo.svg" class="dash-logo" alt="" width="36" height="36">
+    <div class="dash-header-greet">
+      <div class="dash-hello-greet" id="dash-hello-greet">Hello, Julian.</div>
+      <div class="dash-hello-items" id="dash-hello-items"></div>
+    </div>
+  </div>
+
+  <!-- Centre: tab switcher -->
   <div class="dash-tabs">
     <button class="dash-tab active" onclick="switchDashTab('pipeline', this)">Pipeline</button>
     <button class="dash-tab" onclick="switchDashTab('website', this)">Website</button>
   </div>
-  <div class="dash-status-right">
+
+  <!-- Right: status chips + actions + nav -->
+  <div class="dash-header-right">
     <div class="pl-halaxy-chip" id="halaxy-chip">
       <div id="halaxy-status-dot" class="halaxy-dot halaxy-dot--loading"></div>
       <span id="halaxy-chip-label">Halaxy</span>
@@ -1785,21 +1759,18 @@ body {
       <span id="gcal-chip-label">Calendar</span>
       <div class="pl-halaxy-tooltip" id="gcal-tooltip">Checking connection…</div>
     </a>
-    <button onclick="refreshPipeline()" id="pl-refresh-btn" class="dash-icon-btn" title="Refresh">↺</button>
-    <button onclick="syncHalaxyConfigData()" id="halaxy-sync-btn" class="dash-icon-btn" title="Sync Halaxy funders and fees">⟳ Sync</button>
+    <button onclick="refreshPipeline()" id="pl-refresh-btn" class="dash-icon-btn" title="Refresh data">↺ Refresh</button>
+    <button onclick="syncHalaxyConfigData()" id="halaxy-sync-btn" class="dash-icon-btn dash-icon-btn--dim" title="Re-sync Halaxy funders and fees">⟳ Sync config</button>
+    <div class="dash-header-sep"></div>
+    <a class="topbar-link site" href="/" target="_blank">View site →</a>
+    ${currentUser ? `<div class="topbar-user"><div class="user-avatar">${currentUser.initials}</div></div>` : ''}
+    <a class="topbar-link" href="/admin?logout=1">Sign out</a>
   </div>
-</div>
+
+</header>
 
 <!-- Pipeline tab — full width -->
 <div id="pipeline-tab" class="pipeline-wrap">
-
-  <!-- Hello greeting section (populated by JS after data loads) -->
-  <div class="dash-hello" id="dash-hello" style="display:none">
-    <div class="dash-hello-left">
-      <div class="dash-hello-greet" id="dash-hello-greet">Hello, Julian.</div>
-      <div class="dash-hello-items" id="dash-hello-items"></div>
-    </div>
-  </div>
 
   <!-- Three-panel dashboard -->
   <div class="dash-panels" id="pipeline-board">

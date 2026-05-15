@@ -1495,17 +1495,13 @@ function switchDashTab(tab, btn) {
   if (btn) btn.classList.add('active');
   var pipelineEl = document.getElementById('pipeline-tab');
   var websiteEl  = document.getElementById('main-layout');
-  var helloEl    = document.getElementById('dash-hello');
   if (tab === 'website') {
     if (pipelineEl) pipelineEl.style.display = 'none';
     if (websiteEl)  { websiteEl.style.display = ''; websiteEl.style.removeProperty('display'); }
-    if (helloEl)    helloEl.style.display = 'none';
     document.getElementById('website-tab').style.display = '';
   } else {
     if (pipelineEl) pipelineEl.style.display = '';
     if (websiteEl)  websiteEl.style.display  = 'none';
-    if (helloEl && document.getElementById('dash-hello-items').textContent)
-      helloEl.style.display = 'flex';
   }
 }
 
@@ -1513,7 +1509,6 @@ function switchDashTab(tab, btn) {
 function renderHelloSection() {
   var greetEl = document.getElementById('dash-hello-greet');
   var itemsEl = document.getElementById('dash-hello-items');
-  var helloEl = document.getElementById('dash-hello');
   if (!greetEl || !itemsEl || !_pipelineData) return;
 
   var hour = new Date().getHours();
@@ -1549,7 +1544,6 @@ function renderHelloSection() {
   if (!items.length) items.push('<span class="hello-item hello-item--ok">All caught up ✓</span>');
 
   itemsEl.innerHTML = items.join('');
-  if (helloEl) helloEl.style.display = '';
 }
 
 /* ── Add appointment (opens Google Calendar pre-filled) ── */
