@@ -753,8 +753,19 @@ function nextWeek() {
 /** Returns true if a Halaxy appointment has a patient participant (clinical). */
 function _isClinicalAppt(a) {
   return (a.participant || []).some(function(p) {
-    return p.actor && p.actor.reference && p.actor.reference.indexOf('Patient/') !== -1;
+    return p.actor && p.actor.reference && p.actor.reference.indexOf('/Patient/') !== -1;
   });
+}
+
+/** Extract numeric/string patient ID from a FHIR reference like
+ *  "Patient/123", "https://au-api.halaxy.com/main/Patient/123", etc. */
+function _patientIdFromRef(ref) {
+  if (!ref) return null;
+  var idx = ref.indexOf('/Patient/');
+  if (idx !== -1) return ref.slice(idx + 9); // 9 = length of '/Patient/'
+  // bare "Patient/123" form (shouldn't happen but keep as fallback)
+  if (ref.indexOf('Patient/') === 0) return ref.slice(8);
+  return null;
 }
 
 function _halaxyApptLabel(a) {
@@ -764,18 +775,18 @@ function _halaxyApptLabel(a) {
   if (a.participant) {
     for (var i = 0; i < a.participant.length; i++) {
       var actor = a.participant[i].actor || {};
-      if ((actor.reference || '').indexOf('Patient/') === 0) {
+      var pid = _patientIdFromRef(actor.reference || '');
+      if (pid) {
         var name = actor.display || '';
         if (!name) {
-          var pid = actor.reference.replace('Patient/', '');
-          // 1. Look up in Halaxy patients list (already fetched, always has names)
+          // 1. Halaxy patients list (fetched on page load — always has names)
           var hp = _halaxyData && (_halaxyData.patients || []).find(function(p) { return String(p.id) === String(pid); });
-          if (hp && hp.name) { name = hp.name; }
-          // 2. Fall back to local dashboard client
-          if (!name) {
-            var local = _pipelineData && (_pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(pid); });
-            if (local && local.display_name) name = local.display_name;
-          }
+          if (hp && hp.name) name = hp.name;
+        }
+        if (!name) {
+          // 2. Local dashboard client linked by halaxy_id
+          var local = _pipelineData && (_pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(pid); });
+          if (local && local.display_name) name = local.display_name;
         }
         if (name) parts.push(name);
         break;
@@ -816,8 +827,8 @@ function renderAppointmentsPanel() {
   function _apptPatientId(appt) {
     var pid = null;
     (appt.participant || []).forEach(function(p) {
-      if (p.actor && p.actor.reference && String(p.actor.reference).indexOf('Patient/') === 0) {
-        pid = String(p.actor.reference).replace('Patient/', '');
+      if (!pid && p.actor && p.actor.reference) {
+        pid = _patientIdFromRef(p.actor.reference);
       }
     });
     return pid;
@@ -828,10 +839,10 @@ function renderAppointmentsPanel() {
     var patientId = _apptPatientId(appt);
     if (!patientId) return null;
     var client = (_pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(patientId); });
-    if (!client) return { patientId: patientId, client: null, session: null };
+    if (!client) return { patientId: String(patientId), client: null, session: null };
     var apptDate = (appt.start || '').slice(0, 10);
     var session = (client.sessions || []).find(function(s) { return s.session_date === apptDate; });
-    return { patientId: patientId, client: client, session: session };
+    return { patientId: String(patientId), client: client, session: session };
   }
 
   var html = '';

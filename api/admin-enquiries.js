@@ -475,9 +475,10 @@ export default async function handler(req, res) {
         const now    = new Date();
         const [apptBundle, patientBundle] = await Promise.all([
           halaxyGet('/Appointment', {
-            date:   `ge${now.toISOString().slice(0, 10)}`,
-            _sort:  'date',
-            _count: '100',
+            date:     `ge${now.toISOString().slice(0, 10)}`,
+            _sort:    'date',
+            _count:   '100',
+            _include: 'Appointment:actor',
           }),
           halaxyGet('/Patient', { _count: '200' }),
         ]);
