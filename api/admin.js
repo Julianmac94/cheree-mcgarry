@@ -1073,8 +1073,8 @@ body {
 function switchTab(tab, btn) {
   document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('enquiries-tab').style.display = tab === 'enquiries' ? '' : 'none';
-  document.getElementById('website-tab').style.display = tab === 'website' ? '' : 'none';
+  document.getElementById('enquiries-tab').style.display = tab === 'enquiries' ? 'block' : 'none';
+  document.getElementById('website-tab').style.display = tab === 'website' ? 'block' : 'none';
 }
 function toggleWsCard(hd) {
   const body = hd.nextElementSibling;
