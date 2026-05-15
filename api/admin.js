@@ -1026,6 +1026,160 @@ body {
   background: none; border: none; cursor: pointer; margin-top: 12px;
   text-decoration: underline;
 }
+
+/* ── Pipeline / kanban ── */
+.pipeline-wrap {
+  max-width: 1300px; margin: 0 auto;
+  padding: 20px 24px 80px;
+}
+.pipeline-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+  margin-bottom: 20px;
+}
+.pl-refresh-btn {
+  font-family: var(--sans); font-size: 11px; color: var(--soft);
+  background: none; border: none; cursor: pointer; padding: 0;
+  letter-spacing: 0.02em;
+}
+.pl-refresh-btn:hover { color: var(--teal); }
+.pipeline {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .pipeline { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+  .pipeline { grid-template-columns: 1fr 1fr; }
+}
+.pipeline-col {
+  background: rgba(42,88,80,0.04);
+  border-radius: 12px;
+  padding: 12px 10px;
+  min-height: 120px;
+}
+.pipeline-col-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; padding: 0 2px;
+}
+.pipeline-col-title {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--soft);
+}
+.pipeline-col-count {
+  font-size: 10px; font-weight: 700;
+  color: white; background: var(--soft);
+  border-radius: 100px; padding: 1px 7px;
+  min-width: 18px; text-align: center;
+}
+#col-new      .pipeline-col-count { background: ${C.terra}; }
+#col-active   .pipeline-col-count { background: ${C.teal}; }
+#col-intake   .pipeline-col-count { background: ${C.tealMid}; }
+
+/* Pipeline cards */
+.pl-card {
+  background: white;
+  border-radius: 10px;
+  border: 1px solid rgba(42,88,80,0.09);
+  padding: 11px 12px;
+  margin-bottom: 7px;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  position: relative;
+}
+.pl-card:hover { box-shadow: 0 3px 14px rgba(25,46,42,0.1); border-color: rgba(42,88,80,0.2); }
+.pl-card--new { border-left: 3px solid ${C.terra}; }
+.pl-card--active { border-left: 3px solid ${C.teal}; }
+
+.pl-card-name {
+  font-size: 13px; font-weight: 500; color: var(--tealDeep);
+  margin-bottom: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pl-card-meta {
+  font-size: 11px; color: var(--soft);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pl-card-badges {
+  display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px;
+}
+.pl-badge {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 2px 7px;
+  border-radius: 100px;
+}
+.pl-badge--new      { background: rgba(190,110,68,0.12); color: ${C.terra}; }
+.pl-badge--source   { background: rgba(122,148,143,0.15); color: var(--mid); }
+.pl-badge--funder   { background: rgba(42,88,80,0.1); color: var(--teal); }
+.pl-badge--pending  { background: rgba(200,160,40,0.15); color: #8a6a00; }
+.pl-badge--appt     { background: rgba(119,207,189,0.2); color: #1a6e5e; }
+
+.pl-card-actions {
+  display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;
+}
+.pl-action-btn {
+  font-family: var(--sans); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.05em; padding: 4px 10px;
+  border-radius: 6px; border: none; cursor: pointer;
+  transition: opacity 0.15s; white-space: nowrap;
+}
+.pl-action-btn:hover { opacity: 0.82; }
+.pl-action-btn--primary { background: var(--teal); color: white; }
+.pl-action-btn--soft    { background: rgba(42,88,80,0.1); color: var(--mid); }
+.pl-action-btn--danger  { background: rgba(190,110,68,0.1); color: var(--terra); }
+
+/* Expanded card detail */
+.pl-card-detail {
+  display: none; margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid rgba(42,88,80,0.08);
+}
+.pl-card.expanded .pl-card-detail { display: block; }
+.pl-detail-row {
+  font-size: 11px; color: var(--mid);
+  margin-bottom: 5px; line-height: 1.5;
+}
+.pl-detail-row strong { color: var(--tealDeep); }
+.pl-detail-sessions {
+  margin-top: 8px;
+}
+.pl-session-mini {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; padding: 4px 0;
+  border-bottom: 1px solid rgba(42,88,80,0.05);
+  gap: 8px;
+}
+.pl-session-mini:last-child { border-bottom: none; }
+
+/* Halaxy status dot */
+.halaxy-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.halaxy-dot--loading  { background: var(--soft); }
+.halaxy-dot--ok       { background: #2a9a60; }
+.halaxy-dot--error    { background: var(--terra); }
+
+.pl-loading { font-size: 12px; color: var(--soft); padding: 8px 2px; }
+.pl-empty   { font-size: 11px; color: rgba(122,148,143,0.6); padding: 8px 2px; font-style: italic; }
+
+/* Intake panel inside pipeline card */
+.pl-intake-panel { margin-top: 8px; display: none; }
+.pl-intake-panel.open { display: block; }
+.pl-intake-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.pl-intake-sel, .pl-intake-url {
+  font-family: var(--sans); font-size: 11px;
+  padding: 5px 8px; border-radius: 6px;
+  border: 1px solid rgba(42,88,80,0.2); outline: none;
+  background: white; color: var(--tealDeep); flex: 1; min-width: 0;
+}
+.pl-intake-send {
+  font-family: var(--sans); font-size: 11px; font-weight: 600;
+  padding: 5px 10px; border-radius: 6px; border: none;
+  background: var(--teal); color: white; cursor: pointer; white-space: nowrap;
+}
 </style>
 </head>
 <body>
@@ -1051,77 +1205,64 @@ body {
 <!-- Main nav tabs -->
 <div class="layout-full">
   <div class="main-tabs">
-    <button class="main-tab active" onclick="switchTab('enquiries', this)">Enquiries</button>
-    <button class="main-tab" onclick="switchTab('clients', this)">Clients</button>
+    <button class="main-tab active" onclick="switchTab('pipeline', this)">Pipeline</button>
     <button class="main-tab" onclick="switchTab('website', this)">Website</button>
   </div>
 </div>
 
-<div class="layout">
-
-  <!-- Left: Enquiries -->
-  <main id="enquiries-tab">
-    <div class="sec-hd">
-      <h2 class="sec-title">Client <em>enquiries</em></h2>
-      ${newCount > 0 ? `<span class="sec-count">${newCount} new</span>` : ''}
+<!-- Pipeline tab — full width -->
+<div id="pipeline-tab" class="pipeline-wrap">
+  <div class="pipeline-toolbar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div id="halaxy-status-dot" class="halaxy-dot halaxy-dot--loading" title="Checking Halaxy connection…"></div>
+      <button onclick="refreshPipeline()" id="pl-refresh-btn" class="pl-refresh-btn">↺ Refresh</button>
+      <button onclick="openAddClient()" class="cl-add-btn">+ Add client</button>
     </div>
-
-    <!-- Stats -->
-    <div class="stats-row">
-      ${Object.entries(STATUS_LABELS).map(([k, v]) => {
-        const n = enquiries.filter(e => (e.status || 'new') === k).length;
-        return `<div class="stat-chip"><div class="stat-n">${n}</div><div class="stat-l">${v.label}</div></div>`;
-      }).join('')}
-    </div>
-
-    <!-- Filter tabs -->
-    <div class="filter-tabs">
-      <button class="ftab active" onclick="filterEnquiries('all', this)">All</button>
-      ${Object.entries(STATUS_LABELS).map(([k, v]) =>
-        `<button class="ftab" onclick="filterEnquiries('${k}', this)">${v.label}</button>`
-      ).join('')}
-    </div>
-
-    <!-- Cards -->
-    <div id="eq-list">
-      ${enquiries.length
-        ? enquiries.map(e => enquiryCard(e, activityByEnquiry[e.id] || [])).join('')
-        : '<div class="eq-empty">No enquiries yet — they\'ll appear here when someone fills out a form.</div>'
-      }
-    </div>
-  </main>
-
-  <!-- Clients & billing tracker tab -->
-  <div id="clients-tab" style="display:none">
-
-    <!-- Google Calendar status banner -->
     <div id="gcal-banner" class="gcal-banner disconnected" style="display:none"></div>
-
-    <!-- Pending intake queue -->
-    <div class="sec-hd" style="margin-bottom:12px">
-      <h2 class="sec-title">Pending <em>intake</em></h2>
-      <div style="display:flex;align-items:center;gap:10px">
-        <span class="sec-count" id="pending-count" style="display:none"></span>
-        <button onclick="refreshClientsTab()" id="refresh-btn" style="font-family:var(--sans);font-size:11px;color:var(--soft);background:none;border:none;cursor:pointer;padding:0;letter-spacing:0.02em" title="Refresh">↺ Refresh</button>
+  </div>
+  <div class="pipeline" id="pipeline-board">
+    <div class="pipeline-col" id="col-new">
+      <div class="pipeline-col-head">
+        <span class="pipeline-col-title">New</span>
+        <span class="pipeline-col-count" id="count-new"></span>
+      </div>
+      <div id="pending-events"></div>
+      <div class="pipeline-col-cards" id="cards-new">
+        <div class="pl-loading">Loading…</div>
       </div>
     </div>
-    <div id="pending-list">
-      <div class="cl-empty">Loading calendar…</div>
+    <div class="pipeline-col" id="col-contacted">
+      <div class="pipeline-col-head">
+        <span class="pipeline-col-title">Contacted</span>
+        <span class="pipeline-col-count" id="count-contacted"></span>
+      </div>
+      <div class="pipeline-col-cards" id="cards-contacted"></div>
     </div>
-
-    <!-- Active clients -->
-    <div class="clients-header" style="margin-top:32px">
-      <h2 class="sec-title">Active <em>clients</em></h2>
-      <button class="cl-add-btn" onclick="openAddClient()">+ Add client</button>
+    <div class="pipeline-col" id="col-intake">
+      <div class="pipeline-col-head">
+        <span class="pipeline-col-title">Intake</span>
+        <span class="pipeline-col-count" id="count-intake"></span>
+      </div>
+      <div class="pipeline-col-cards" id="cards-intake"></div>
     </div>
-    <div id="clients-list">
-      <div class="cl-empty">Loading…</div>
+    <div class="pipeline-col" id="col-active">
+      <div class="pipeline-col-head">
+        <span class="pipeline-col-title">Active</span>
+        <span class="pipeline-col-count" id="count-active"></span>
+      </div>
+      <div class="pipeline-col-cards" id="cards-active"></div>
     </div>
-    <button class="cl-inactive-toggle" id="inactive-toggle" onclick="toggleInactive()" style="display:none">
-      Show inactive clients
-    </button>
-
+    <div class="pipeline-col" id="col-closed">
+      <div class="pipeline-col-head">
+        <span class="pipeline-col-title">Closed</span>
+        <span class="pipeline-col-count" id="count-closed"></span>
+      </div>
+      <div class="pipeline-col-cards" id="cards-closed"></div>
+    </div>
   </div>
+</div>
+
+<div class="layout" id="main-layout" style="display:none">
 
   <!-- Website management tab -->
   <div id="website-tab">
@@ -1379,24 +1520,25 @@ body {
 function switchTab(tab, btn) {
   document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('enquiries-tab').style.display = tab === 'enquiries' ? 'block' : 'none';
-  document.getElementById('clients-tab').style.display   = tab === 'clients'    ? 'block' : 'none';
-  document.getElementById('website-tab').style.display   = tab === 'website'    ? 'block' : 'none';
-  if (tab === 'clients' && !window._clientsLoaded) loadClientsTab();
+  var pipelineWrap = document.getElementById('pipeline-tab');
+  var mainLayout   = document.getElementById('main-layout');
+  var websiteTab   = document.getElementById('website-tab');
+  if (pipelineWrap) pipelineWrap.style.display = tab === 'pipeline' ? 'block' : 'none';
+  if (mainLayout)   mainLayout.style.display   = tab === 'website'  ? 'grid'  : 'none';
+  if (websiteTab)   websiteTab.style.display   = tab === 'website'  ? 'block' : 'none';
+  if (tab === 'pipeline' && !window._pipelineLoaded) loadPipeline();
 }
 
-// Auto-open tab from URL param and show gcal connection toasts
+// Boot
 (function() {
   var params = new URLSearchParams(location.search);
-  var tab = params.get('tab');
-  var gcal = params.get('gcal');
-  if (tab) {
-    var btn = document.querySelector('.main-tab[onclick*="' + tab + '"]');
-    if (btn) switchTab(tab, btn);
-  }
-  if (gcal === 'connected') setTimeout(function(){ toast('Google Calendar connected!'); }, 300);
-  if (gcal === 'error')     setTimeout(function(){ toast('Google Calendar connection failed — try again.', 'err'); }, 300);
+  var gcal   = params.get('gcal');
+  if (gcal === 'connected')  setTimeout(function(){ toast('Google Calendar connected!'); }, 300);
+  if (gcal === 'error')      setTimeout(function(){ toast('Google Calendar connection failed — try again.', 'err'); }, 300);
   if (gcal === 'no_refresh') setTimeout(function(){ toast('No refresh token returned — visit /api/google-auth again to reconnect.', 'err'); }, 300);
+  // Default tab: pipeline
+  var defaultBtn = document.querySelector('.main-tab');
+  if (defaultBtn) switchTab('pipeline', defaultBtn);
 })();
 </script>
 <script src="/js/admin-ui.js"></script>
