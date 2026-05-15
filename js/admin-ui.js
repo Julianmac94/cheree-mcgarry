@@ -1235,8 +1235,9 @@ function renderBillingPanel() {
 
   /* ── Halaxy invoice-based view (source of truth) ──────────────── */
   if (_halaxyData && _halaxyData.connected && halaxyInvoices.length > 0) {
-    var outstanding = halaxyInvoices.filter(function(inv) { return inv.status === 'issued' || inv.status === 'draft'; });
-    var balanced    = halaxyInvoices.filter(function(inv) { return inv.status === 'balanced'; });
+    // Halaxy uses "active" for outstanding invoices (non-standard — standard FHIR uses "issued")
+    var outstanding = halaxyInvoices.filter(function(inv) { return inv.status === 'active' || inv.status === 'issued' || inv.status === 'draft'; });
+    var balanced    = halaxyInvoices.filter(function(inv) { return inv.status === 'balanced' || inv.status === 'paid'; });
 
     // Outstanding oldest first (most overdue at top), paid newest first
     outstanding.sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); });
