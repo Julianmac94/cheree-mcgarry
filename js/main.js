@@ -268,56 +268,6 @@ function closeInfoModal() {
   document.body.style.overflow = '';
 }
 
-/* ── SESSION CARDS ── */
-const jData = {
-  individual: {
-    lbl:'One-on-one', ttl:'Individual Counselling',
-    body:'<p>A dedicated hour just for you — no agenda, no judgement. Together we’ll explore what’s happening and find approaches that suit your life and your pace.</p>',
-    acts:'<button class="btn btn-solid" onclick="openModal()">Book a Session</button><button class="btn btn-outline" onclick="openModal()">Ask a Question</button>',
-    rows:[['Session Length','50 minutes'],['Format','In person (Karalee, QLD) or Online'],['Frequency','Weekly or fortnightly'],['Investment','$195 / hour · Medicare rebates may apply']]
-  },
-  couples: {
-    lbl:'Together', ttl:'Couples Counselling',
-    body:'<p>For couples who want to communicate better, navigate conflict with more care, or simply feel closer again.</p>',
-    acts:'<button class="btn btn-solid" onclick="openModal()">Book a Session</button><button class="btn btn-outline" onclick="openModal()">Ask a Question</button>',
-    rows:[['Session Length','80 minutes'],['Format','In person (Karalee, QLD) or Online'],['Frequency','Weekly or fortnightly'],['Investment','$200 / hour']]
-  },
-  wellness: {
-    lbl:'Holistic', ttl:'Wellness & Wellbeing',
-    body:'<p>Holistic sessions that bridge mind and body. Cheree weaves together mindfulness, somatic awareness, and evidence-based techniques.</p>',
-    acts:'<button class="btn btn-solid" onclick="openModal()">Book a Session</button><button class="btn btn-outline" onclick="openModal()">Ask a Question</button>',
-    rows:[['Session Length','60 minutes'],['Format','In person (Karalee, QLD)'],['Frequency','Flexible'],['Investment','$195 / hour']]
-  },
-  notsure: {
-    lbl:'Starting out', ttl:'Free 15-Minute Consultation',
-    body:'<p>Not knowing where to start is completely normal. This brief call is a no-obligation conversation to see if working with Cheree might be a good fit.</p>',
-    acts:'<button class="btn btn-solid" onclick="openModal()">Book Free Call</button>',
-    rows:[['Session Length','15 minutes'],['Format','Phone or Video'],['Investment','Complimentary']]
-  }
-};
-
-let activeCard = null;
-function selectJ(card, key) {
-  if (activeCard === card) { closeJ(); return; }
-  document.querySelectorAll('.jcard').forEach(c => c.classList.remove('sel'));
-  card.classList.add('sel'); activeCard = card;
-  const d = jData[key];
-  document.getElementById('d-lbl').textContent = d.lbl;
-  document.getElementById('d-ttl').textContent = d.ttl;
-  document.getElementById('d-body').innerHTML = d.body;
-  document.getElementById('d-acts').innerHTML = d.acts;
-  document.getElementById('d-rows').innerHTML = d.rows.map(([l,v]) =>
-    `<div class="drow"><p class="drow-l">${l}</p><p class="drow-v">${v}</p></div>`).join('');
-  const det = document.getElementById('jdetail');
-  if (det) { det.classList.add('open'); setTimeout(() => det.scrollIntoView({behavior:'smooth',block:'nearest'}), 60); }
-}
-function closeJ() {
-  document.querySelectorAll('.jcard').forEach(c => c.classList.remove('sel'));
-  const det = document.getElementById('jdetail');
-  if (det) det.classList.remove('open');
-  activeCard = null;
-}
-
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal(); closeInfoModal(); }
 });
