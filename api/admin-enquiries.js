@@ -199,28 +199,47 @@ export default async function handler(req, res) {
       activity: activityByEnquiry[e.id] || [],
     }));
 
-    let halaxy = { connected: false, appointments: [], patients: [] };
+    let halaxy = { connected: false, appointments: [], patients: [], funders: [] };
     if (process.env.HALAXY_CLIENT_ID && process.env.HALAXY_CLIENT_SECRET) {
       try {
         const now    = new Date();
-        const [apptBundle, patientBundle] = await Promise.all([
+        const [apptBundle, patientBundle, orgBundle] = await Promise.all([
           halaxyGet('/Appointment', {
             date:   `ge${now.toISOString().slice(0, 10)}`,
             _sort:  'date',
             _count: '100',
           }),
           halaxyGet('/Patient', { _count: '200' }),
+          halaxyGet('/Organization', { _count: '100' }).catch(() => ({ entry: [] })),
         ]);
+
+        const funders = (orgBundle.entry || []).map(e => e.resource).filter(Boolean).map(org => {
+          const typeText = org.type?.[0]?.text || org.type?.[0]?.coding?.[0]?.display || org.type?.[0]?.coding?.[0]?.code || '';
+          const name     = org.name || '';
+          if (!name || name === 'nil') return null;
+          const t = typeText.toLowerCase(), n = name.toLowerCase();
+          let billingKey = 'private';
+          if (t === 'medicare')                                         billingKey = 'medicare';
+          else if (t === 'ndis')                                        billingKey = 'ndis_plan';
+          else if (t.includes('bupa adf') || n.includes('bupa adf')
+                || n.includes('defence') || n.includes('dva'))         billingKey = 'dva';
+          else if (t.includes('third-party') || t.includes('third party')
+                || n.includes('qfes') || n.includes('eap'))            billingKey = 'qfes';
+          else if (t.includes('worker') || t.includes('compensation')) billingKey = 'other';
+          return { id: org.id, name, type: typeText, billingKey };
+        }).filter(Boolean);
+
         halaxy = {
           connected:    true,
           appointments: (apptBundle.entry    || []).map(e => e.resource).filter(Boolean),
           patients:     (patientBundle.entry || []).map(e => e.resource).filter(Boolean).map(p => ({
             id: p.id, name: fhirPatientLegalName(p),
           })),
+          funders,
         };
       } catch (err) {
         console.error('Halaxy API error:', err.message);
-        halaxy = { connected: false, error: err.message, appointments: [], patients: [] };
+        halaxy = { connected: false, error: err.message, appointments: [], patients: [], funders: [] };
       }
     }
 

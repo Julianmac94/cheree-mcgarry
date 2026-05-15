@@ -367,7 +367,7 @@ document.addEventListener('DOMContentLoaded', function () {
    ═══════════════════════════════════════════════════════════════ */
 
 var _pipelineData = null;
-var _halaxyData   = { connected: false, appointments: [], patients: [] };
+var _halaxyData   = { connected: false, appointments: [], patients: [], funders: [] };
 var _calEventMap    = {};    // eventId → event object
 var _calDismissed   = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
 var _halaxyFees     = null; // cached ChargeItemDefinition list
@@ -447,8 +447,9 @@ async function loadPipeline() {
     var r = await fetch('/api/admin-enquiries');
     if (!r.ok) throw new Error('HTTP ' + r.status);
     var d = await r.json();
-    _pipelineData = d;
-    _halaxyData   = d.halaxy || { connected: false, appointments: [], patients: [] };
+    _pipelineData  = d;
+    _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [] };
+    _halaxyFunders = (_halaxyData.funders && _halaxyData.funders.length) ? _halaxyData.funders : null;
     renderPipeline();
     updateHalaxyDot();
   } catch (err) {
@@ -467,8 +468,9 @@ function refreshPipeline() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.json();
   }).then(function(d) {
-    _pipelineData = d;
-    _halaxyData   = d.halaxy || { connected: false, appointments: [], patients: [] };
+    _pipelineData  = d;
+    _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [] };
+    _halaxyFunders = (_halaxyData.funders && _halaxyData.funders.length) ? _halaxyData.funders : null;
     renderPipeline();
     updateHalaxyDot();
     toast('Pipeline refreshed');
@@ -887,35 +889,8 @@ function closeAddClient() {
   var modal = document.getElementById('add-client-modal');
   if (modal) modal.classList.remove('open');
 }
-/** Load Halaxy funders and populate the modal dropdown */
-async function _ensureFundersLoaded() {
-  if (_halaxyFunders) return _halaxyFunders;
-  try {
-    var r = await fetch('/api/admin-enquiries?halaxy_funders=1');
-    var d = await r.json();
-    _halaxyFunders = d.funders || [];
-  } catch (_) { _halaxyFunders = []; }
-  return _halaxyFunders;
-}
 
-var FUNDER_FALLBACK_HTML = '<option value="">Select…</option>'
-  + '<option value="ndis_plan">NDIS — Plan-managed</option>'
-  + '<option value="ndis_self">NDIS — Self-managed</option>'
-  + '<option value="medicare">Medicare</option>'
-  + '<option value="qfes">QFES EAP</option>'
-  + '<option value="dva">DVA / ADFHCS</option>'
-  + '<option value="private">Private</option>';
-
-async function _populateFunderDropdown() {
-  var sel = document.getElementById('cl-funder');
-  if (!sel) return;
-  // Show fallback immediately so dropdown is never stuck on "Loading…"
-  sel.innerHTML = FUNDER_FALLBACK_HTML;
-
-  // Then try to upgrade with live Halaxy data
-  var funders = await _ensureFundersLoaded();
-  if (!funders.length) return; // keep fallback
-
+function _buildFunderDropdownHtml(funders) {
   var groups      = {};
   var groupOrder  = ['medicare','ndis_plan','private','qfes','dva','other'];
   var groupLabels = { medicare:'Medicare', ndis_plan:'NDIS', private:'Private', qfes:'Third-party / EAP', dva:'DVA / Defence', other:'Other' };
@@ -935,7 +910,31 @@ async function _populateFunderDropdown() {
     });
     html += '</optgroup>';
   });
-  sel.innerHTML = html;
+  return html;
+}
+
+function _populateFunderDropdown() {
+  var sel = document.getElementById('cl-funder');
+  if (!sel) return;
+  if (_halaxyFunders && _halaxyFunders.length) {
+    sel.innerHTML = _buildFunderDropdownHtml(_halaxyFunders);
+  } else {
+    // Pipeline still loading — poll every 300ms until funders arrive
+    sel.innerHTML = '<option value="">Loading funders…</option>';
+    var attempts = 0;
+    var poll = setInterval(function() {
+      attempts++;
+      if (_halaxyFunders && _halaxyFunders.length) {
+        clearInterval(poll);
+        var cur = document.getElementById('cl-funder');
+        if (cur) cur.innerHTML = _buildFunderDropdownHtml(_halaxyFunders);
+      } else if (attempts > 30) { // 9 seconds — give up
+        clearInterval(poll);
+        var cur = document.getElementById('cl-funder');
+        if (cur) cur.innerHTML = '<option value="">Funders unavailable — check Halaxy connection</option>';
+      }
+    }, 300);
+  }
 }
 
 /** Called when the funder dropdown changes (data-billing drives plan manager + fee load) */
