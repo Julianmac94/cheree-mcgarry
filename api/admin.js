@@ -1055,9 +1055,9 @@ body {
   text-decoration: underline;
 }
 
-/* ── Pipeline / kanban ── */
+/* ── Pipeline three-panel dashboard ── */
 .pipeline-wrap {
-  max-width: 1300px; margin: 0 auto;
+  max-width: 1400px; margin: 0 auto;
   padding: 20px 24px 80px;
 }
 .pipeline-toolbar {
@@ -1071,6 +1071,262 @@ body {
   letter-spacing: 0.02em;
 }
 .pl-refresh-btn:hover { color: var(--teal); }
+
+/* Three-panel grid */
+.dash-panels {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .dash-panels { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 720px) {
+  .dash-panels { grid-template-columns: 1fr; }
+}
+
+/* Each panel is a flex column */
+.dash-panel {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid rgba(42,88,80,0.09);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  min-height: 200px;
+}
+.dash-panel-hd {
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid rgba(42,88,80,0.07);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.dash-panel-title {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--soft);
+}
+.dash-panel-count {
+  font-size: 10px; font-weight: 700;
+  color: white;
+  border-radius: 100px; padding: 2px 8px;
+  min-width: 20px; text-align: center;
+}
+.dash-panel-body {
+  flex: 1; overflow-y: auto;
+  padding: 14px 14px 18px;
+  max-height: 80vh;
+}
+
+/* Intake panel sections */
+.intake-stage { margin-bottom: 20px; }
+.intake-stage:last-child { margin-bottom: 0; }
+.intake-stage-label {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--soft); margin-bottom: 8px; padding-left: 2px;
+}
+
+/* Small pipeline cards for three-panel view */
+.dp-card {
+  background: rgba(42,88,80,0.025);
+  border: 1px solid rgba(42,88,80,0.1);
+  border-radius: 10px;
+  padding: 11px 13px;
+  margin-bottom: 7px;
+  position: relative;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.dp-card:hover { box-shadow: 0 3px 14px rgba(25,46,42,0.09); border-color: rgba(42,88,80,0.2); }
+.dp-card--new { border-left: 3px solid ${C.terra}; background: rgba(190,110,68,0.025); }
+
+.dp-card-name {
+  font-size: 13px; font-weight: 500; color: var(--tealDeep);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 2px;
+  padding-right: 24px; /* room for menu btn */
+}
+.dp-card-sub {
+  font-size: 11px; color: var(--soft);
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+.dp-card-email {
+  font-size: 11px; color: var(--teal); text-decoration: none;
+}
+.dp-card-email:hover { text-decoration: underline; }
+.dp-card-actions {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  margin-top: 8px;
+}
+.dp-badge {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 2px 7px;
+  border-radius: 100px; white-space: nowrap;
+}
+.dp-badge--new    { background: rgba(190,110,68,0.12); color: ${C.terra}; }
+.dp-badge--source { background: rgba(122,148,143,0.12); color: var(--mid); }
+.dp-badge--funder { background: rgba(42,88,80,0.1); color: var(--teal); }
+.dp-badge--status-invoiced  { background: rgba(190,110,68,0.12); color: var(--terra); }
+.dp-badge--status-submitted { background: rgba(200,160,40,0.15); color: #8a6a00; }
+.dp-badge--status-lodged    { background: rgba(119,207,189,0.18); color: #1a6e5e; }
+.dp-badge--status-paid      { background: rgba(42,150,100,0.12); color: #1a7a50; }
+
+.dp-btn {
+  font-family: var(--sans); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.04em; padding: 4px 10px;
+  border-radius: 6px; border: none; cursor: pointer;
+  transition: opacity 0.15s; white-space: nowrap;
+}
+.dp-btn:hover { opacity: 0.82; }
+.dp-btn--primary  { background: var(--teal); color: white; }
+.dp-btn--soft     { background: rgba(42,88,80,0.1); color: var(--mid); }
+.dp-btn--convert  { background: rgba(42,88,80,0.07); color: var(--teal); border: 1px solid rgba(42,88,80,0.22); }
+.dp-btn--pay      { background: rgba(42,150,100,0.12); color: #1a7a50; }
+.dp-btn--warn     { background: rgba(190,110,68,0.08); color: var(--terra); }
+
+/* Closed / paid collapsible sections */
+.dp-collapsible { margin-top: 16px; }
+.dp-collapsible-toggle {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 500; color: var(--soft);
+  background: none; border: none; cursor: pointer; padding: 4px 2px;
+  width: 100%; text-align: left;
+}
+.dp-collapsible-toggle:hover { color: var(--teal); }
+.dp-collapsible-body { display: none; margin-top: 8px; }
+.dp-collapsible-body.open { display: block; }
+
+/* Week calendar */
+.week-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 12px;
+}
+.week-nav-label {
+  font-size: 12px; font-weight: 500; color: var(--mid);
+  flex: 1; text-align: center;
+}
+.week-nav-btn {
+  font-family: var(--sans); font-size: 14px; color: var(--soft);
+  background: rgba(42,88,80,0.07); border: none;
+  border-radius: 6px; cursor: pointer; padding: 3px 9px;
+  transition: all 0.15s; line-height: 1.4;
+}
+.week-nav-btn:hover { background: rgba(42,88,80,0.14); color: var(--teal); }
+
+.week-cols {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+.week-day {
+  min-width: 0; border-radius: 8px;
+  border: 1px solid rgba(42,88,80,0.08);
+  background: rgba(42,88,80,0.02);
+  padding: 6px 5px;
+}
+.week-day--today {
+  background: rgba(42,88,80,0.07);
+  border-color: rgba(42,88,80,0.2);
+}
+.week-day-hd {
+  text-align: center; margin-bottom: 5px; padding-bottom: 5px;
+  border-bottom: 1px solid rgba(42,88,80,0.08);
+}
+.week-day-name {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--soft);
+  display: block; margin-bottom: 1px;
+}
+.week-day-num {
+  font-size: 15px; font-weight: 300;
+  color: var(--tealDeep); font-family: var(--serif);
+  display: block; line-height: 1;
+}
+.week-day--today .week-day-num { color: var(--teal); font-weight: 400; }
+.week-event {
+  background: white;
+  border: 1px solid rgba(42,88,80,0.12);
+  border-left: 3px solid var(--mint);
+  border-radius: 5px;
+  padding: 5px 6px;
+  margin-bottom: 4px;
+  font-size: 10px;
+}
+.week-event-time { color: var(--soft); font-size: 9px; margin-bottom: 1px; }
+.week-event-title {
+  color: var(--tealDeep); font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.week-event-btn {
+  display: block; width: 100%;
+  font-family: var(--sans); font-size: 9px; font-weight: 600;
+  padding: 3px 5px; margin-top: 4px;
+  border-radius: 4px; border: none;
+  background: var(--teal); color: white; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.week-event-btn:hover { opacity: 0.82; }
+.week-event--halaxy { border-left-color: ${C.tealMid}; }
+
+/* Needs logging section */
+.appt-section-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--soft);
+  margin-bottom: 8px; padding-left: 2px;
+}
+.log-card {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  background: rgba(42,88,80,0.025);
+  border: 1px solid rgba(42,88,80,0.1);
+  border-left: 3px solid var(--mint);
+  border-radius: 8px; padding: 9px 11px;
+  margin-bottom: 6px;
+}
+.log-card-info { flex: 1; min-width: 0; }
+.log-card-title {
+  font-size: 12px; font-weight: 500; color: var(--tealDeep);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.log-card-date { font-size: 10px; color: var(--soft); margin-top: 2px; }
+.log-caught-up {
+  font-size: 12px; color: var(--soft); padding: 10px 2px;
+  font-style: italic;
+}
+
+/* Billing cards */
+.billing-section-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--soft);
+  margin-bottom: 8px; margin-top: 16px; padding-left: 2px;
+}
+.billing-section-label:first-child { margin-top: 0; }
+.bill-card {
+  background: rgba(42,88,80,0.025);
+  border: 1px solid rgba(42,88,80,0.1);
+  border-radius: 10px; padding: 10px 12px;
+  margin-bottom: 7px;
+}
+.bill-card-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 6px; gap: 8px;
+}
+.bill-card-name { font-size: 13px; font-weight: 500; color: var(--tealDeep); }
+.bill-card-amount { font-size: 13px; font-weight: 600; color: var(--mid); white-space: nowrap; }
+.bill-card-meta {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+.bill-card-date { font-size: 11px; color: var(--soft); }
+
+/* Empty states */
+.dp-empty {
+  font-size: 11px; color: rgba(122,148,143,0.55);
+  padding: 8px 2px; font-style: italic;
+}
 
 /* Integrations status bar (right side of toolbar) */
 .pl-integrations {
@@ -1108,42 +1364,7 @@ body {
   border: 5px solid transparent;
   border-bottom-color: var(--tealDeep);
 }
-.pipeline {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 14px;
-  align-items: start;
-}
-@media (max-width: 900px) {
-  .pipeline { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 600px) {
-  .pipeline { grid-template-columns: 1fr 1fr; }
-}
-.pipeline-col {
-  background: rgba(42,88,80,0.04);
-  border-radius: 12px;
-  padding: 12px 10px;
-  min-height: 120px;
-}
-.pipeline-col-head {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 10px; padding: 0 2px;
-}
-.pipeline-col-title {
-  font-size: 10px; font-weight: 700;
-  letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--soft);
-}
-.pipeline-col-count {
-  font-size: 10px; font-weight: 700;
-  color: white; background: var(--soft);
-  border-radius: 100px; padding: 1px 7px;
-  min-width: 18px; text-align: center;
-}
-#col-new      .pipeline-col-count { background: ${C.terra}; }
-#col-active   .pipeline-col-count { background: ${C.teal}; }
-#col-intake   .pipeline-col-count { background: ${C.tealMid}; }
+/* pipeline-col styles removed — replaced by dash-panels */
 
 /* Pipeline cards */
 .pl-card {
@@ -1410,48 +1631,52 @@ body {
         <span id="halaxy-chip-label">Halaxy</span>
         <div class="pl-halaxy-tooltip" id="halaxy-tooltip">Checking connection…</div>
       </div>
-      <div id="gcal-banner" class="gcal-banner" style="display:none"></div>
     </div>
   </div>
-  <div class="pipeline" id="pipeline-board">
-    <div class="pipeline-col" id="col-new">
-      <div class="pipeline-col-head">
-        <span class="pipeline-col-title">New</span>
-        <span class="pipeline-col-count" id="count-new"></span>
+  <!-- Three-panel dashboard -->
+  <div class="dash-panels" id="pipeline-board">
+
+    <!-- 1. INTAKE panel -->
+    <div class="dash-panel" id="panel-intake">
+      <div class="dash-panel-hd">
+        <span class="dash-panel-title">Intake</span>
+        <span class="dash-panel-count" id="intake-count" style="background:${C.terra}"></span>
       </div>
-      <div id="pending-events"></div>
-      <div class="pipeline-col-cards" id="cards-new">
-        <div class="pl-loading"><div class="pl-skeleton" style="height:64px"></div><div class="pl-skeleton" style="height:52px"></div><div class="pl-skeleton" style="height:58px"></div></div>
+      <div class="dash-panel-body" id="intake-panel-body">
+        <div class="pl-loading">
+          <div class="pl-skeleton" style="height:70px"></div>
+          <div class="pl-skeleton" style="height:60px;margin-top:7px"></div>
+        </div>
       </div>
     </div>
-    <div class="pipeline-col" id="col-contacted">
-      <div class="pipeline-col-head">
-        <span class="pipeline-col-title">Contacted</span>
-        <span class="pipeline-col-count" id="count-contacted"></span>
+
+    <!-- 2. APPOINTMENTS panel -->
+    <div class="dash-panel" id="panel-appointments">
+      <div class="dash-panel-hd">
+        <span class="dash-panel-title">Appointments</span>
+        <div id="gcal-banner" class="gcal-banner" style="display:none"></div>
       </div>
-      <div class="pipeline-col-cards" id="cards-contacted"></div>
-    </div>
-    <div class="pipeline-col" id="col-intake">
-      <div class="pipeline-col-head">
-        <span class="pipeline-col-title">Intake</span>
-        <span class="pipeline-col-count" id="count-intake"></span>
+      <div class="dash-panel-body" id="appointments-panel-body">
+        <div class="pl-loading">
+          <div class="pl-skeleton" style="height:160px"></div>
+        </div>
       </div>
-      <div class="pipeline-col-cards" id="cards-intake"></div>
     </div>
-    <div class="pipeline-col" id="col-active">
-      <div class="pipeline-col-head">
-        <span class="pipeline-col-title">Active</span>
-        <span class="pipeline-col-count" id="count-active"></span>
+
+    <!-- 3. BILLING panel -->
+    <div class="dash-panel" id="panel-billing">
+      <div class="dash-panel-hd">
+        <span class="dash-panel-title">Billing</span>
+        <span class="dash-panel-count" id="billing-count" style="background:${C.terra}"></span>
       </div>
-      <div class="pipeline-col-cards" id="cards-active"></div>
-    </div>
-    <div class="pipeline-col" id="col-closed">
-      <div class="pipeline-col-head">
-        <span class="pipeline-col-title">Closed</span>
-        <span class="pipeline-col-count" id="count-closed"></span>
+      <div class="dash-panel-body" id="billing-panel-body">
+        <div class="pl-loading">
+          <div class="pl-skeleton" style="height:60px"></div>
+          <div class="pl-skeleton" style="height:60px;margin-top:7px"></div>
+        </div>
       </div>
-      <div class="pipeline-col-cards" id="cards-closed"></div>
     </div>
+
   </div>
 </div>
 

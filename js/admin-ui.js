@@ -366,12 +366,14 @@ document.addEventListener('DOMContentLoaded', function () {
    UNIFIED PIPELINE — enquiries + clients + Halaxy
    ═══════════════════════════════════════════════════════════════ */
 
-var _pipelineData = null;
-var _halaxyData   = { connected: false, appointments: [], patients: [], funders: [] };
-var _calEventMap    = {};    // eventId → event object
-var _calDismissed   = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
-var _halaxyFees     = null; // cached ChargeItemDefinition list
-var _calSearchTimer = null; // debounce timer for Halaxy patient search
+var _pipelineData    = null;
+var _halaxyData      = { connected: false, appointments: [], patients: [], funders: [] };
+var _calEventMap     = {};    // eventId → event object
+var _calDismissed    = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
+var _halaxyFees      = null; // cached ChargeItemDefinition list
+var _calSearchTimer  = null; // debounce timer for Halaxy patient search
+var _currentWeekStart = null; // Monday of the currently-displayed week (Date object)
+var _calEventsLoaded  = false; // whether calendar load has completed
 
 /* Close any open card dropdown when clicking elsewhere */
 document.addEventListener('click', function(e) {
@@ -435,13 +437,20 @@ function plSkeletons(n) {
   return html + '</div>';
 }
 
+/** Return Monday of the week that contains `d` (Date). */
+function _weekMonday(d) {
+  var day = new Date(d);
+  var dow = day.getDay(); // 0=Sun
+  var diff = (dow === 0) ? -6 : 1 - dow; // shift to Monday
+  day.setDate(day.getDate() + diff);
+  day.setHours(0, 0, 0, 0);
+  return day;
+}
+
 async function loadPipeline() {
   window._pipelineLoaded = true;
-  // Show skeletons in all columns while loading
-  ['new','contacted','intake','active','closed'].forEach(function(col) {
-    var el = document.getElementById('cards-' + col);
-    if (el && el.querySelector('.pl-loading')) el.innerHTML = plSkeletons(col === 'new' ? 3 : 2);
-  });
+  // Initialise week view to current week
+  if (!_currentWeekStart) _currentWeekStart = _weekMonday(new Date());
   loadCalendarPending(); // non-blocking
   try {
     var r = await fetch('/api/admin-enquiries');
@@ -454,10 +463,10 @@ async function loadPipeline() {
     renderPipeline();
     updateHalaxyDot();
   } catch (err) {
-    ['new','contacted','intake','active','closed'].forEach(function(col) {
-      var el = document.getElementById('cards-' + col);
-      if (el) el.innerHTML = '<div class="pl-empty">Load failed: ' + escHtml(err.message) + '</div>';
-    });
+    var intakeBody = document.getElementById('intake-panel-body');
+    var billingBody = document.getElementById('billing-panel-body');
+    if (intakeBody) intakeBody.innerHTML = '<div class="dp-empty">Load failed: ' + escHtml(err.message) + '</div>';
+    if (billingBody) billingBody.innerHTML = '<div class="dp-empty">Load failed: ' + escHtml(err.message) + '</div>';
   }
 }
 
@@ -527,38 +536,471 @@ function updateHalaxyDot() {
 
 function renderPipeline() {
   if (!_pipelineData) return;
+  renderIntakePanel();
+  renderAppointmentsPanel();
+  renderBillingPanel();
+}
+
+/* ═══════════════════════════════════════════════════
+   INTAKE PANEL
+   ═══════════════════════════════════════════════════ */
+
+function _relativeDate(iso) {
+  if (!iso) return '';
+  var then = new Date(iso).getTime();
+  var now  = Date.now();
+  var diff = Math.round((now - then) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  if (diff < 7)  return diff + ' days ago';
+  if (diff < 30) return Math.round(diff / 7) + ' weeks ago';
+  return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+}
+
+function _intakeEnquiryCard(e) {
+  var status  = e.status || 'new';
+  var isNew   = status === 'new';
+  var name    = [e.first_name, e.last_name].filter(Boolean).join(' ') || e.display_name || '—';
+  var uid     = 'eq-' + e.id;
+
+  var primaryLabel, primaryFn;
+  if (status === 'new') {
+    primaryLabel = 'Mark contacted →';
+    primaryFn    = 'advanceEnquiryStatus(\'' + e.id + '\',\'contacted\')';
+  } else if (status === 'contacted') {
+    primaryLabel = 'Send intake →';
+    primaryFn    = 'togglePipelineIntake(\'' + e.id + '\')';
+  } else {
+    primaryLabel = 'Convert to client →';
+    primaryFn    = 'convertEnquiryPl(\'' + e.id + '\')';
+  }
+
+  var badgesHtml = '';
+  if (isNew) badgesHtml += '<span class="dp-badge dp-badge--new">New</span>';
+  if (e.source) badgesHtml += '<span class="dp-badge dp-badge--source">' + escHtml(e.source || 'Website') + '</span>';
+
+  var menuItems = [
+    { label: '✕ Close without converting', fn: 'advanceEnquiryStatus("' + e.id + '","closed")', warn: true },
+  ];
+
+  var intakePanel = '';
+  if (status === 'in_halaxy') {
+    intakePanel = '<div class="pl-intake-panel" id="pl-intake-' + e.id + '">'
+      + '<div class="pl-intake-row">'
+      + '<select class="pl-intake-sel" id="pl-itype-' + e.id + '" onclick="event.stopPropagation()" onchange="updatePipelineIntakeUrl(\'' + e.id + '\')">'
+      + '<option value="new">New client</option>'
+      + '<option value="private">Private</option>'
+      + '<option value="medicare">Medicare (MHCP)</option>'
+      + '<option value="ndis_plan">NDIS — Plan-managed</option>'
+      + '<option value="ndis_self">NDIS — Self-managed</option>'
+      + '<option value="qfes">QFES EAP</option>'
+      + '<option value="dva">DVA / ADFHCS</option>'
+      + '</select>'
+      + '<input class="pl-intake-url" id="pl-iurl-' + e.id + '" type="url" placeholder="Paste Halaxy intake URL…" onclick="event.stopPropagation()">'
+      + '<button class="pl-intake-send" onclick="event.stopPropagation();sendIntakePl(\'' + e.id + '\')">Send →</button>'
+      + '</div>'
+      + '<div id="pl-imsg-' + e.id + '" style="font-size:10px;margin-top:4px"></div>'
+      + '</div>';
+  }
+
+  return '<div class="dp-card' + (isNew ? ' dp-card--new' : '') + '" id="pl-' + uid + '">'
+    + _menuHtml(uid, menuItems)
+    + '<div class="dp-card-name">' + escHtml(name) + '</div>'
+    + '<div class="dp-card-sub">'
+    + '<span>' + _relativeDate(e.created_at) + '</span>'
+    + badgesHtml
+    + '</div>'
+    + (e.email ? '<a class="dp-card-email" href="mailto:' + escHtml(e.email) + '">' + escHtml(e.email) + '</a>' : '')
+    + '<div class="dp-card-actions">'
+    + '<button class="dp-btn dp-btn--primary" onclick="event.stopPropagation();' + primaryFn + '">' + primaryLabel + '</button>'
+    + '</div>'
+    + intakePanel
+    + '<div id="pl-link-' + uid + '"></div>'
+    + '</div>';
+}
+
+function renderIntakePanel() {
+  var body = document.getElementById('intake-panel-body');
+  if (!body || !_pipelineData) return;
+
   var enquiries = _pipelineData.enquiries || [];
-  var clients   = _pipelineData.clients   || [];
+  var newEnqs       = enquiries.filter(function(e) { return (e.status || 'new') === 'new'; });
+  var contactedEnqs = enquiries.filter(function(e) { return e.status === 'contacted'; });
+  var intakeEnqs    = enquiries.filter(function(e) { return e.status === 'in_halaxy'; });
+  var closedEnqs    = enquiries.filter(function(e) { return e.status === 'closed'; });
 
-  var cols = {
-    new:       enquiries.filter(function(e) { return (e.status || 'new') === 'new'; }),
-    contacted: enquiries.filter(function(e) { return e.status === 'contacted'; }),
-    intake:    enquiries.filter(function(e) { return e.status === 'in_halaxy'; }),
-    active:    clients.filter(function(c)   { return c.active; }),
-    closed:    clients.filter(function(c)   { return !c.active; })
-               .concat(enquiries.filter(function(e) { return e.status === 'closed'; })),
-  };
+  var activeCount = newEnqs.length + contactedEnqs.length + intakeEnqs.length;
+  var countEl = document.getElementById('intake-count');
+  if (countEl) countEl.textContent = activeCount || '';
 
-  Object.keys(cols).forEach(function(col) {
-    var items = cols[col];
-    var cards = document.getElementById('cards-' + col);
-    var count = document.getElementById('count-' + col);
-    if (count) count.textContent = items.length || '';
-    if (!cards) return;
-    if (!items.length) {
-      cards.innerHTML = '<div class="pl-empty">Empty</div>';
-      return;
-    }
-    if (col === 'active') {
-      cards.innerHTML = items.map(function(c) { return renderClientCardPl(c); }).join('');
-    } else if (col === 'closed') {
-      cards.innerHTML = items.map(function(item) {
-        return (item.active !== undefined) ? renderClientCardPl(item) : renderEnquiryCardPl(item);
-      }).join('');
-    } else {
-      cards.innerHTML = items.map(function(e) { return renderEnquiryCardPl(e); }).join('');
+  var html = '';
+
+  // New stage
+  html += '<div class="intake-stage">';
+  html += '<div class="intake-stage-label">New</div>';
+  if (newEnqs.length) {
+    html += newEnqs.map(_intakeEnquiryCard).join('');
+  } else {
+    html += '<div class="dp-empty">None</div>';
+  }
+  html += '</div>';
+
+  // Contacted stage
+  html += '<div class="intake-stage">';
+  html += '<div class="intake-stage-label">Contacted</div>';
+  if (contactedEnqs.length) {
+    html += contactedEnqs.map(_intakeEnquiryCard).join('');
+  } else {
+    html += '<div class="dp-empty">None</div>';
+  }
+  html += '</div>';
+
+  // Intake sent stage
+  html += '<div class="intake-stage">';
+  html += '<div class="intake-stage-label">Intake sent</div>';
+  if (intakeEnqs.length) {
+    html += intakeEnqs.map(_intakeEnquiryCard).join('');
+  } else {
+    html += '<div class="dp-empty">None</div>';
+  }
+  html += '</div>';
+
+  // Closed collapsible
+  html += '<div class="dp-collapsible">';
+  html += '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'closed-enqs\')">';
+  html += '<span id="closed-enqs-arrow">▸</span> Closed (' + closedEnqs.length + ')';
+  html += '</button>';
+  html += '<div class="dp-collapsible-body" id="closed-enqs">';
+  if (closedEnqs.length) {
+    html += closedEnqs.map(function(e) {
+      var name = [e.first_name, e.last_name].filter(Boolean).join(' ') || '—';
+      return '<div class="dp-card" style="opacity:0.65">'
+        + '<div class="dp-card-name">' + escHtml(name) + '</div>'
+        + '<div class="dp-card-sub">'
+        + _relativeDate(e.created_at)
+        + (e.notes ? ' · <span style="color:var(--mid)">' + escHtml(e.notes.slice(0, 60)) + '</span>' : '')
+        + '</div>'
+        + '</div>';
+    }).join('');
+  } else {
+    html += '<div class="dp-empty">No closed enquiries</div>';
+  }
+  html += '</div></div>';
+
+  body.innerHTML = html;
+}
+
+function toggleDpCollapsible(id) {
+  var body  = document.getElementById(id);
+  var arrow = document.getElementById(id + '-arrow');
+  if (!body) return;
+  var open = body.classList.toggle('open');
+  if (arrow) arrow.textContent = open ? '▾' : '▸';
+}
+
+/* ═══════════════════════════════════════════════════
+   APPOINTMENTS PANEL
+   ═══════════════════════════════════════════════════ */
+
+var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function _fmtWeekLabel(monDate) {
+  var sun = new Date(monDate);
+  sun.setDate(sun.getDate() + 6);
+  var mLabel = MONTH_NAMES[monDate.getMonth()];
+  var sLabel = MONTH_NAMES[sun.getMonth()];
+  if (mLabel === sLabel) {
+    return mLabel + ' ' + monDate.getDate() + '–' + sun.getDate() + ', ' + sun.getFullYear();
+  }
+  return mLabel + ' ' + monDate.getDate() + ' – ' + sLabel + ' ' + sun.getDate() + ', ' + sun.getFullYear();
+}
+
+function prevWeek() {
+  if (!_currentWeekStart) _currentWeekStart = _weekMonday(new Date());
+  _currentWeekStart = new Date(_currentWeekStart);
+  _currentWeekStart.setDate(_currentWeekStart.getDate() - 7);
+  renderAppointmentsPanel();
+}
+
+function nextWeek() {
+  if (!_currentWeekStart) _currentWeekStart = _weekMonday(new Date());
+  _currentWeekStart = new Date(_currentWeekStart);
+  _currentWeekStart.setDate(_currentWeekStart.getDate() + 7);
+  renderAppointmentsPanel();
+}
+
+function renderAppointmentsPanel() {
+  var body = document.getElementById('appointments-panel-body');
+  if (!body) return;
+  if (!_currentWeekStart) _currentWeekStart = _weekMonday(new Date());
+
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Build array of 7 days (Mon–Sun)
+  var days = [];
+  for (var di = 0; di < 7; di++) {
+    var d = new Date(_currentWeekStart);
+    d.setDate(d.getDate() + di);
+    days.push(d);
+  }
+
+  // Collect events per day
+  var eventsByDay = [[], [], [], [], [], [], []];
+
+  // Google Calendar events
+  Object.keys(_calEventMap).forEach(function(eid) {
+    if (_calDismissed.has(eid)) return;
+    var ev = _calEventMap[eid];
+    if (!ev || !ev.start) return;
+    var evDate = new Date(ev.start);
+    evDate.setHours(0, 0, 0, 0);
+    for (var di2 = 0; di2 < 7; di2++) {
+      if (evDate.getTime() === days[di2].getTime()) {
+        eventsByDay[di2].push({ type: 'cal', ev: ev });
+        break;
+      }
     }
   });
+
+  // Halaxy appointments
+  var halaxyAppts = (_halaxyData && _halaxyData.appointments) || [];
+  halaxyAppts.forEach(function(a) {
+    var startStr = a.start || (a.period && a.period.start);
+    if (!startStr) return;
+    var apptDate = new Date(startStr);
+    apptDate.setHours(0, 0, 0, 0);
+    for (var di3 = 0; di3 < 7; di3++) {
+      if (apptDate.getTime() === days[di3].getTime()) {
+        eventsByDay[di3].push({ type: 'halaxy', ev: a, start: startStr });
+        break;
+      }
+    }
+  });
+
+  // Week nav header
+  var html = '<div class="week-nav">'
+    + '<button class="week-nav-btn" onclick="prevWeek()">←</button>'
+    + '<span class="week-nav-label">' + _fmtWeekLabel(_currentWeekStart) + '</span>'
+    + '<button class="week-nav-btn" onclick="nextWeek()">→</button>'
+    + '</div>';
+
+  // Week columns grid
+  html += '<div class="week-cols">';
+  days.forEach(function(day, di) {
+    var isToday = day.getTime() === today.getTime();
+    var dayEvents = eventsByDay[di] || [];
+    html += '<div class="week-day' + (isToday ? ' week-day--today' : '') + '">';
+    html += '<div class="week-day-hd">'
+      + '<span class="week-day-name">' + DAY_NAMES[day.getDay()] + '</span>'
+      + '<span class="week-day-num">' + day.getDate() + '</span>'
+      + '</div>';
+
+    if (!dayEvents.length) {
+      html += '<div style="font-size:9px;color:rgba(122,148,143,0.4);text-align:center;padding:4px 0">—</div>';
+    } else {
+      dayEvents.forEach(function(item) {
+        if (item.type === 'cal') {
+          var ev = item.ev;
+          var eid = String(ev.id);
+          var cardUid = 'cal-' + eid;
+          var timeStr = ev.allDay ? 'All day' : new Date(ev.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+          html += '<div class="week-event">'
+            + '<div class="week-event-time">' + escHtml(timeStr) + '</div>'
+            + '<div class="week-event-title">' + escHtml(ev.title || ev.summary || '') + '</div>'
+            + '<button class="week-event-btn" onclick="openCalSessionPanel(\'' + cardUid + '\',\'' + eid + '\')">Log session →</button>'
+            + '<div id="pl-link-' + cardUid + '"></div>'
+            + '</div>';
+        } else {
+          // Halaxy appointment
+          var apptObj   = item.ev;
+          var startStr2 = item.start;
+          var timeStr2  = new Date(startStr2).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+          var desc2 = (apptObj.description || apptObj.comment || '');
+          html += '<div class="week-event week-event--halaxy">'
+            + '<div class="week-event-time">' + escHtml(timeStr2) + ' · Halaxy</div>'
+            + '<div class="week-event-title">' + escHtml(desc2 || 'Appointment') + '</div>'
+            + '</div>';
+        }
+      });
+    }
+    html += '</div>'; // .week-day
+  });
+  html += '</div>'; // .week-cols
+
+  // Needs logging section — past Cal events not dismissed
+  var pastEvents = Object.keys(_calEventMap)
+    .filter(function(eid) {
+      if (_calDismissed.has(eid)) return false;
+      var ev = _calEventMap[eid];
+      if (!ev || !ev.start) return false;
+      return new Date(ev.start).getTime() < today.getTime();
+    })
+    .map(function(eid) { return _calEventMap[eid]; })
+    .sort(function(a, b) { return new Date(b.start) - new Date(a.start) });
+
+  html += '<div class="appt-section-label">Needs logging</div>';
+  if (!pastEvents.length) {
+    html += '<div class="log-caught-up">All caught up ✓</div>';
+  } else {
+    pastEvents.forEach(function(ev) {
+      var eid     = String(ev.id);
+      var cardUid = 'cal-log-' + eid;
+      var dateStr = new Date(ev.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+      html += '<div class="log-card">'
+        + '<div class="log-card-info">'
+        + '<div class="log-card-title">' + escHtml(ev.title || ev.summary || '') + '</div>'
+        + '<div class="log-card-date">' + escHtml(dateStr) + '</div>'
+        + '</div>'
+        + '<button class="dp-btn dp-btn--primary" onclick="openCalSessionPanel(\'' + cardUid + '\',\'' + eid + '\')">Log session →</button>'
+        + '<div id="pl-link-' + cardUid + '"></div>'
+        + '</div>';
+    });
+  }
+
+  body.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════
+   BILLING PANEL
+   ═══════════════════════════════════════════════════ */
+
+function _billingActionBtn(client, session) {
+  var funder = client.funder;
+  if (funder === 'ndis_plan') {
+    var pm = escHtml(client.plan_manager || 'Plan manager');
+    return '<button class="dp-btn dp-btn--primary" onclick="advanceSessionPl(\'' + session.id + '\',\'invoiced\',\'' + client.id + '\')">Lodge with ' + pm + ' →</button>';
+  }
+  if (funder === 'qfes') {
+    return '<button class="dp-btn dp-btn--primary" onclick="advanceSessionPl(\'' + session.id + '\',\'invoiced\',\'' + client.id + '\')">Lodge QFES claim →</button>';
+  }
+  if (funder === 'dva') {
+    return '<button class="dp-btn dp-btn--primary" onclick="advanceSessionPl(\'' + session.id + '\',\'invoiced\',\'' + client.id + '\')">Lodge DVA claim →</button>';
+  }
+  // medicare, private, ndis_self → Halaxy
+  return '<a class="dp-btn dp-btn--primary" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener" onclick="advanceSessionPl(\'' + session.id + '\',\'invoiced\',\'' + client.id + '\')">Process in Halaxy →</a>';
+}
+
+function renderBillingPanel() {
+  var body = document.getElementById('billing-panel-body');
+  if (!body || !_pipelineData) return;
+
+  var clients  = _pipelineData.clients || [];
+
+  // Flatten all sessions paired with their client
+  var needsAction = [];
+  var awaiting    = [];
+  var paid        = [];
+
+  clients.forEach(function(client) {
+    (client.sessions || []).forEach(function(s) {
+      if (s.status === 'upcoming' || s.status === 'completed') {
+        needsAction.push({ client: client, session: s });
+      } else if (s.status === 'invoiced' || s.status === 'submitted' || s.status === 'lodged') {
+        awaiting.push({ client: client, session: s });
+      } else if (s.status === 'paid') {
+        paid.push({ client: client, session: s });
+      }
+    });
+  });
+
+  // Sort by session date desc
+  function byDateDesc(a, b) { return (b.session.session_date || '').localeCompare(a.session.session_date || ''); }
+  needsAction.sort(byDateDesc);
+  awaiting.sort(byDateDesc);
+  paid.sort(byDateDesc);
+
+  var actionCount = needsAction.length + awaiting.length;
+  var countEl = document.getElementById('billing-count');
+  if (countEl) countEl.textContent = actionCount || '';
+
+  var html = '';
+
+  // Needs action
+  html += '<div class="billing-section-label">Needs action</div>';
+  if (!needsAction.length) {
+    html += '<div class="dp-empty">Nothing to action</div>';
+  } else {
+    needsAction.forEach(function(item) {
+      var c  = item.client;
+      var s  = item.session;
+      var dt = s.session_date ? new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
+      var funderLabel = FUNDER_LABELS[c.funder] || c.funder || '';
+      var amt = s.amount ? '$' + Number(s.amount).toFixed(2) : '';
+
+      html += '<div class="bill-card">';
+      html += '<div class="bill-card-top">'
+        + '<span class="bill-card-name">' + escHtml(c.display_name) + '</span>'
+        + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
+        + '</div>';
+      html += '<div class="bill-card-meta">'
+        + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
+        + '<span class="dp-badge dp-badge--funder">' + escHtml(funderLabel) + '</span>'
+        + '<span class="dp-badge" style="background:rgba(122,148,143,0.12);color:var(--mid)">' + escHtml(STATUS_DISPLAY[s.status] || s.status) + '</span>'
+        + '</div>';
+      html += '<div class="dp-card-actions">' + _billingActionBtn(c, s) + '</div>';
+      html += '</div>';
+    });
+  }
+
+  // Awaiting payment
+  html += '<div class="billing-section-label">Awaiting payment</div>';
+  if (!awaiting.length) {
+    html += '<div class="dp-empty">None awaiting</div>';
+  } else {
+    awaiting.forEach(function(item) {
+      var c  = item.client;
+      var s  = item.session;
+      var dt = s.session_date ? new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
+      var funderLabel = FUNDER_LABELS[c.funder] || c.funder || '';
+      var amt = s.amount ? '$' + Number(s.amount).toFixed(2) : '';
+      var statusClass = 'dp-badge--status-' + s.status;
+
+      html += '<div class="bill-card">';
+      html += '<div class="bill-card-top">'
+        + '<span class="bill-card-name">' + escHtml(c.display_name) + '</span>'
+        + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
+        + '</div>';
+      html += '<div class="bill-card-meta">'
+        + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
+        + '<span class="dp-badge ' + statusClass + '">' + escHtml(STATUS_DISPLAY[s.status] || s.status) + '</span>'
+        + '<span class="dp-badge dp-badge--funder">' + escHtml(funderLabel) + '</span>'
+        + '</div>';
+      html += '<div class="dp-card-actions"><button class="dp-btn dp-btn--pay" onclick="advanceSessionPl(\'' + s.id + '\',\'paid\',\'' + c.id + '\')">Mark paid</button></div>';
+      html += '</div>';
+    });
+  }
+
+  // Paid (collapsed)
+  html += '<div class="dp-collapsible">';
+  html += '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'paid-sessions\')">';
+  html += '<span id="paid-sessions-arrow">▸</span> Paid (' + paid.length + ')';
+  html += '</button>';
+  html += '<div class="dp-collapsible-body" id="paid-sessions">';
+  if (!paid.length) {
+    html += '<div class="dp-empty">No paid sessions yet</div>';
+  } else {
+    paid.slice(0, 20).forEach(function(item) {
+      var c  = item.client;
+      var s  = item.session;
+      var dt = s.session_date ? new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
+      var amt = s.amount ? '$' + Number(s.amount).toFixed(2) : '';
+      html += '<div class="bill-card" style="opacity:0.7">';
+      html += '<div class="bill-card-top">'
+        + '<span class="bill-card-name">' + escHtml(c.display_name) + '</span>'
+        + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
+        + '</div>';
+      html += '<div class="bill-card-meta">'
+        + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
+        + '<span class="dp-badge dp-badge--status-paid">Paid</span>'
+        + '</div>';
+      html += '</div>';
+    });
+  }
+  html += '</div></div>';
+
+  body.innerHTML = html;
 }
 
 /* ── Helpers ── */
@@ -1161,65 +1603,48 @@ async function clearHalaxyIdPl(clientId) {
 /* ── Google Calendar pending events ── */
 async function loadCalendarPending() {
   var banner = document.getElementById('gcal-banner');
-  if (!banner) return;
   try {
     var r = await fetch('/api/calendar-pending');
     var d = await r.json();
 
     if (!d.connected) {
-      banner.className     = 'gcal-banner disconnected';
+      if (banner) {
+        banner.className     = 'gcal-banner disconnected';
+        banner.style.display = 'flex';
+        banner.innerHTML     = '<span>Calendar not connected</span>'
+          + '<a class="gcal-connect-btn" href="/api/google-auth">Connect</a>';
+      }
+      _calEventsLoaded = true;
+      renderAppointmentsPanel();
+      return;
+    }
+
+    if (banner) {
+      var count = (d.events || []).length;
+      banner.className     = 'gcal-banner connected';
       banner.style.display = 'flex';
-      banner.innerHTML     = '<span>Google Calendar not connected</span>'
-        + '<a class="gcal-connect-btn" href="/api/google-auth">Connect</a>';
-      return;
+      banner.innerHTML     = '<span>✓ Calendar' + (count ? ' · ' + count + ' events' : '') + '</span>'
+        + '<a class="gcal-connect-btn" href="/api/google-auth" style="background:var(--mid)">Reconnect</a>';
     }
 
-    var count = (d.events || []).length;
-    banner.className     = 'gcal-banner connected';
-    banner.style.display = 'flex';
-    banner.innerHTML     = '<span>✓ Calendar connected' + (count ? ' · ' + count + ' pending' : '') + '</span>'
-      + '<a class="gcal-connect-btn" href="/api/google-auth" style="background:var(--mid)">Reconnect</a>';
+    // Store all events in lookup map (not just undismissed)
+    (d.events || []).forEach(function(e) {
+      _calEventMap[String(e.id)] = e;
+    });
 
-    // Render pending events at top of New column
-    var pendingDiv = document.getElementById('pending-events');
-    if (!pendingDiv) return;
-    if (!d.events || !d.events.length) {
-      pendingDiv.innerHTML = '';
-      return;
-    }
-    // Filter dismissed events and store in lookup map
-    var visible = (d.events || []).filter(function(e) { return !_calDismissed.has(String(e.id)); });
-    visible.forEach(function(e) { _calEventMap[String(e.id)] = e; });
+    _calEventsLoaded = true;
+    // Re-render appointments panel with new calendar data
+    renderAppointmentsPanel();
 
-    pendingDiv.innerHTML = visible.map(function(e) {
-      var eid     = String(e.id);
-      var cardUid = 'cal-' + eid;
-      var dateStr = e.allDay
-        ? new Date(e.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
-        : new Date(e.start).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
-      var evtJson = JSON.stringify(e).replace(/"/g, '&quot;');
-      var calMenu = [
-        { label: '+ Convert to new client', fn: 'convertPendingPl(' + evtJson + ')' },
-        { label: '✕ Dismiss',               fn: 'dismissCalEvent("' + eid + '")', warn: true },
-      ];
-      return '<div class="pl-card" style="border-left:3px solid var(--mint);margin-bottom:7px" id="pl-' + cardUid + '">'
-        + _menuHtml(cardUid, calMenu)
-        + '<div class="pl-card-name">' + escHtml(e.title) + '</div>'
-        + '<div class="pl-card-meta">' + dateStr + '</div>'
-        + (e.description ? '<div style="font-size:10px;color:var(--soft);margin-top:2px">' + escHtml(e.description) + '</div>' : '')
-        + '<div class="pl-card-actions" style="margin-top:6px">'
-        + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();openCalSessionPanel(\'' + cardUid + '\',\'' + eid + '\')">Log as session →</button>'
-        + '</div>'
-        + '<div id="pl-link-' + cardUid + '"></div>'
-        + '</div>';
-    }).join('');
   } catch (err) {
     if (banner) {
       banner.className     = 'gcal-banner disconnected';
       banner.style.display = 'flex';
-      banner.innerHTML     = '<span>Calendar error: ' + escHtml(err.message) + '</span>'
+      banner.innerHTML     = '<span>Calendar error</span>'
         + '<a class="gcal-connect-btn" href="/api/google-auth">Reconnect</a>';
     }
+    _calEventsLoaded = true;
+    renderAppointmentsPanel();
   }
 }
 
@@ -1754,7 +2179,7 @@ async function confirmCalLink(eventId, cardUid, clientId) {
 function dismissCalEvent(eventId) {
   _calDismissed.add(String(eventId));
   localStorage.setItem('cal_dismissed', JSON.stringify([..._calDismissed]));
-  loadCalendarPending();
+  renderAppointmentsPanel();
 }
 
 /* ── Escape HTML helper ── */
