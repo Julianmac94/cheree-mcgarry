@@ -195,7 +195,13 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const body = req.body || {};
+    // Parse form body — Vercel may give us a raw string for application/x-www-form-urlencoded
+    let raw = req.body || {};
+    if (typeof raw === 'string') {
+      const p = new URLSearchParams(raw);
+      raw = Object.fromEntries(p.entries());
+    }
+    const body     = raw;
     const pass     = (body.pass     || '').trim();
     const remember = body.remember === '1';
 
