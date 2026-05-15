@@ -2,46 +2,80 @@
  * api/_auth.js
  * Shared auth helpers for admin routes.
  *
- * Session token = HMAC-SHA256(ADMIN_PASS, ADMIN_SECRET)
- * Fixed value — token rotates only when you change the env vars.
+ * Two named users — each has their own password env var.
+ * Cookie value: `{hmac_hex}:{userName}` — HttpOnly, Secure, SameSite=Strict.
  *
  * Env vars required:
- *   ADMIN_PASS    — the password you set
- *   ADMIN_SECRET  — any long random string (signs the cookie)
+ *   ADMIN_SECRET  — long random string (signs all tokens)
+ *   JULIAN_PASS   — Julian's passphrase
+ *   CHEREE_PASS   — Cheree's passphrase
+ *
+ * Legacy fallback: ADMIN_PASS still works and logs in as Julian,
+ * so nothing breaks before the env vars are updated on Vercel.
  */
 
 import { createHmac } from 'crypto';
 
-const COOKIE_NAME = 'ast'; // admin session token
+const COOKIE_NAME = 'ast';
 
-export function sessionToken() {
+export const USERS = [
+  { name: 'Julian', passEnv: 'JULIAN_PASS', initials: 'JM' },
+  { name: 'Cheree', passEnv: 'CHEREE_PASS', initials: 'CM' },
+];
+
+function userToken(user) {
   return createHmac('sha256', process.env.ADMIN_SECRET || 'fallback')
-    .update(process.env.ADMIN_PASS || '')
+    .update(process.env[user.passEnv] || '')
     .digest('hex');
+}
+
+function parseCookies(req) {
+  const cookies = {};
+  (req.headers['cookie'] || '').split(';').forEach(part => {
+    const eq = part.indexOf('=');
+    if (eq > 0) cookies[part.slice(0, eq).trim()] = part.slice(eq + 1).trim();
+  });
+  return cookies;
+}
+
+function cookieUser(req) {
+  const val = parseCookies(req)[COOKIE_NAME] || '';
+  const sep  = val.lastIndexOf(':');
+  if (sep < 0) return null;
+  const token = val.slice(0, sep);
+  const name  = val.slice(sep + 1);
+  const user  = USERS.find(u => u.name === name);
+  return (user && userToken(user) === token) ? user : null;
+}
+
+/** Check a submitted password and return the matching user (or null). */
+export function validateUser(pass) {
+  if (!pass) return null;
+  const user = USERS.find(u => (process.env[u.passEnv] || '') === pass);
+  if (user) return user;
+  // Legacy fallback — ADMIN_PASS logs in as Julian
+  if (process.env.ADMIN_PASS && pass === process.env.ADMIN_PASS) return USERS[0];
+  return null;
 }
 
 /** Returns true if the request carries a valid admin session cookie. */
 export function isAuthed(req) {
-  const raw = req.headers['cookie'] || '';
-  // Use indexOf('=') so cookie values containing '=' (e.g. JWTs, base64) are handled correctly.
-  const cookies = {};
-  raw.split(';').forEach(part => {
-    const eq = part.indexOf('=');
-    if (eq > 0) {
-      const key = part.slice(0, eq).trim();
-      const val = part.slice(eq + 1).trim();
-      cookies[key] = val;
-    }
-  });
-  return cookies[COOKIE_NAME] === sessionToken();
+  return !!cookieUser(req);
 }
 
-/** Sets the session cookie on the response. */
-export function setSessionCookie(res, remember = false) {
-  const maxAge = remember ? 60 * 60 * 24 * 30 : 0; // 30 days or session
-  const maxAgePart = remember ? `; Max-Age=${maxAge}` : '';
+/** Returns the session user object { name, initials } or null. */
+export function getSessionUser(req) {
+  return cookieUser(req);
+}
+
+/** Sets the session cookie encoding the user's identity. */
+export function setSessionCookie(res, userName, remember = false) {
+  const user = USERS.find(u => u.name === userName);
+  if (!user) throw new Error('Unknown user: ' + userName);
+  const cookieVal   = `${userToken(user)}:${userName}`;
+  const maxAgePart  = remember ? `; Max-Age=${60 * 60 * 24 * 30}` : '';
   res.setHeader('Set-Cookie',
-    `${COOKIE_NAME}=${sessionToken()}; Path=/; HttpOnly; Secure; SameSite=Strict${maxAgePart}`
+    `${COOKIE_NAME}=${cookieVal}; Path=/; HttpOnly; Secure; SameSite=Strict${maxAgePart}`
   );
 }
 

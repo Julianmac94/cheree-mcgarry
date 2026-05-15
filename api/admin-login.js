@@ -4,7 +4,7 @@
  * POST → validate password, set session cookie, redirect to /admin
  */
 
-import { setSessionCookie, isAuthed } from './_auth.js';
+import { setSessionCookie, isAuthed, validateUser } from './_auth.js';
 
 const C = {
   cream:    '#F3EFE6',
@@ -199,12 +199,13 @@ export default async function handler(req, res) {
     const pass     = (body.pass     || '').trim();
     const remember = body.remember === '1';
 
-    if (!pass || pass !== process.env.ADMIN_PASS) {
+    const user = validateUser(pass);
+    if (!user) {
       res.setHeader('Content-Type', 'text/html');
       return res.status(401).send(loginPage('Incorrect passphrase. Please try again.'));
     }
 
-    setSessionCookie(res, remember);
+    setSessionCookie(res, user.name, remember);
     res.writeHead(302, { Location: '/admin' });
     return res.end();
   }
