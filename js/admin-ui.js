@@ -367,6 +367,7 @@ var _pipelineData = null;
 var _halaxyData   = { connected: false, appointments: [], patients: [] };
 var _calEventMap  = {};  // eventId → event object (for link-to-client lookups)
 var _calDismissed = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
+var _halaxyFees   = null;  // cached ChargeItemDefinition list from Halaxy
 
 /* Close any open card dropdown when clicking elsewhere */
 document.addEventListener('click', function(e) {
@@ -1164,9 +1165,26 @@ function toggleCardMenu(uid) {
    LOG CALENDAR EVENT AS SESSION
    ═══════════════════════════════════════ */
 
-function openCalSessionPanel(cardUid, eventId) {
+async function openCalSessionPanel(cardUid, eventId) {
   var panel = document.getElementById('pl-link-' + cardUid);
   if (!panel) return;
+
+  // Show loading state while fees fetch
+  panel.innerHTML = '<div class="pl-link-panel"><div class="cl-halaxy-lookup-searching">Loading fees from Halaxy…</div></div>';
+
+  // Load fees once (cached after first call)
+  if (_halaxyFees === null && _halaxyData.connected) {
+    try {
+      var r = await fetch('/api/admin-enquiries?halaxy_fees=1');
+      var d = await r.json();
+      _halaxyFees = d.fees || [];
+    } catch (_) {
+      _halaxyFees = [];
+    }
+  } else if (_halaxyFees === null) {
+    _halaxyFees = [];
+  }
+
   panel.innerHTML = '<div class="pl-link-panel">'
     + '<div class="pl-link-panel-title">Which client is this for?</div>'
     + '<input class="pl-link-input" id="pl-cs-inp-' + cardUid + '"'
@@ -1210,32 +1228,59 @@ function _showCalFeeForm(cardUid, eventId, clientId) {
   if (!_pipelineData) return;
   var client = (_pipelineData.clients || []).find(function(c) { return String(c.id) === String(clientId); });
   if (!client) return;
-  var evt     = _calEventMap[eventId] || {};
-  var rate    = FUNDER_RATES[client.funder] || '';
-  var funder  = FUNDER_LABELS[client.funder] || client.funder || '';
-  var halaxy  = client.halaxy_id ? 'In Halaxy ✓' : 'Not yet in Halaxy';
+  var evt    = _calEventMap[eventId] || {};
+  var funder = FUNDER_LABELS[client.funder] || client.funder || '';
+  var halaxy = client.halaxy_id ? 'In Halaxy ✓' : 'Not yet in Halaxy';
 
   var panel = document.getElementById('pl-link-' + cardUid);
   if (!panel) return;
+
+  // Build fee selector — Halaxy list if available, fallback to manual entry
+  var feeHtml;
+  var fees = _halaxyFees || [];
+  if (fees.length > 0) {
+    // Dropdown from Halaxy ChargeItemDefinition
+    var defaultRate = FUNDER_RATES[client.funder] || '';
+    var options = fees.map(function(f) {
+      var label = escHtml(f.name) + ' — $' + Number(f.amount).toFixed(2);
+      // Pre-select closest match to funder default rate
+      var selected = defaultRate && Math.abs(f.amount - parseFloat(defaultRate)) < 1 ? ' selected' : '';
+      return '<option value="' + f.amount + '" data-id="' + escHtml(f.id) + '"' + selected + '>' + label + '</option>';
+    }).join('');
+    feeHtml = '<div class="pl-fee-row" style="flex-direction:column;align-items:stretch;gap:4px">'
+      + '<label class="pl-fee-label">Fee item</label>'
+      + '<select class="pl-link-input" id="pl-cs-fee-' + cardUid + '" onclick="event.stopPropagation()"'
+      + ' onchange="_syncFeeInput(\'' + cardUid + '\')">'
+      + '<option value="">— select a fee —</option>'
+      + options
+      + '</select>'
+      + '<div style="display:flex;align-items:center;gap:5px;margin-top:3px">'
+      + '<span class="pl-fee-currency">$</span>'
+      + '<input class="pl-fee-input" id="pl-cs-fee-amt-' + cardUid + '" type="number" step="0.01" min="0"'
+      + ' placeholder="or enter amount" onclick="event.stopPropagation()">'
+      + '</div>'
+      + '</div>';
+  } else {
+    // Fallback: plain amount input with funder default
+    var rate = FUNDER_RATES[client.funder] || '';
+    feeHtml = '<div class="pl-fee-row">'
+      + '<label class="pl-fee-label">Fee</label>'
+      + '<span class="pl-fee-currency">$</span>'
+      + '<input class="pl-fee-input" id="pl-cs-fee-amt-' + cardUid + '" type="number" step="0.01" min="0"'
+      + ' value="' + escHtml(rate) + '" placeholder="0.00" onclick="event.stopPropagation()">'
+      + '<span class="pl-fee-funder">' + escHtml(funder) + '</span>'
+      + '</div>';
+  }
+
   panel.innerHTML = '<div class="pl-link-panel">'
-    // Client preview
     + '<div class="pl-link-preview">'
     + '<div class="pl-link-preview-name">' + escHtml(client.display_name) + '</div>'
     + '<div class="pl-link-preview-meta">' + escHtml(funder) + ' · ' + halaxy + '</div>'
     + '</div>'
-    // Fee row
-    + '<div class="pl-fee-row">'
-    + '<label class="pl-fee-label">Fee</label>'
-    + '<span class="pl-fee-currency">$</span>'
-    + '<input class="pl-fee-input" id="pl-cs-fee-' + cardUid + '" type="number" step="0.01" min="0"'
-    + ' value="' + escHtml(rate) + '" placeholder="0.00" onclick="event.stopPropagation()">'
-    + '<span class="pl-fee-funder">' + escHtml(funder) + '</span>'
-    + '</div>'
-    // Notes row
+    + feeHtml
     + '<input class="pl-link-input" id="pl-cs-notes-' + cardUid + '" type="text"'
     + ' value="' + escHtml(evt.title || '') + '" placeholder="Session notes…"'
     + ' onclick="event.stopPropagation()" style="margin-top:6px">'
-    // Actions
     + '<div class="pl-card-actions" style="margin-top:8px">'
     + '<button class="pl-action-btn pl-action-btn--soft"'
     + ' onclick="event.stopPropagation();openCalSessionPanel(\'' + cardUid + '\',\'' + eventId + '\')">← Back</button>'
@@ -1244,15 +1289,19 @@ function _showCalFeeForm(cardUid, eventId, clientId) {
     + '</div>'
     + '</div>';
 
-  // Focus fee field for quick edit
-  setTimeout(function() {
-    var fee = document.getElementById('pl-cs-fee-' + cardUid);
-    if (fee) { fee.focus(); fee.select(); }
-  }, 60);
+  // If dropdown pre-selected, sync the amount field
+  _syncFeeInput(cardUid);
+}
+
+/** When the fee dropdown changes, sync the manual amount field */
+function _syncFeeInput(cardUid) {
+  var sel = document.getElementById('pl-cs-fee-' + cardUid);
+  var amt = document.getElementById('pl-cs-fee-amt-' + cardUid);
+  if (sel && amt && sel.value) amt.value = sel.value;
 }
 
 async function _saveCalSession(cardUid, eventId, clientId) {
-  var feeEl   = document.getElementById('pl-cs-fee-' + cardUid);
+  var feeEl   = document.getElementById('pl-cs-fee-amt-' + cardUid);
   var notesEl = document.getElementById('pl-cs-notes-' + cardUid);
   var evt     = _calEventMap[eventId] || {};
   var amount  = feeEl   ? (parseFloat(feeEl.value)   || null) : null;

@@ -19,6 +19,30 @@ export default async function handler(req, res) {
   const user  = getSessionUser(req);
   const actor = user?.name || 'Admin';
 
+  /* ── GET /api/admin-enquiries?halaxy_fees=1 — fetch ChargeItemDefinition list ── */
+  if (req.method === 'GET' && (req.query?.halaxy_fees || params.get('halaxy_fees'))) {
+    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ fees: [] });
+    try {
+      const bundle = await halaxyGet('/ChargeItemDefinition', { status: 'active', _count: '100' });
+      const fees   = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(r => {
+        // Extract price from propertyGroup[].priceComponent[].amount
+        let amount = null, currency = 'AUD';
+        if (r.propertyGroup) {
+          for (const pg of r.propertyGroup) {
+            for (const pc of (pg.priceComponent || [])) {
+              if (pc.amount?.value != null) { amount = pc.amount.value; currency = pc.amount.currency || 'AUD'; break; }
+            }
+            if (amount !== null) break;
+          }
+        }
+        return { id: r.id, name: r.title || r.name || r.description || 'Fee', amount, currency };
+      }).filter(f => f.amount !== null);
+      return res.status(200).json({ fees });
+    } catch (err) {
+      return res.status(200).json({ fees: [], error: err.message });
+    }
+  }
+
   /* ── GET /api/admin-enquiries?halaxy_search=<email> — find Halaxy patient by email ── */
   if (req.method === 'GET' && halaxySearch) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ patients: [] });
