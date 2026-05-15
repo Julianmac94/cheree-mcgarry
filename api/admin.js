@@ -700,33 +700,33 @@ body {
   border: 1px solid rgba(42,88,80,0.09);
   border-radius: 12px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .ws-card-hd {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 14px 16px;
-  cursor: pointer;
-  user-select: none;
+  padding: 16px 20px 14px;
 }
-.ws-card-hd:hover { background: rgba(42,88,80,0.02); }
 .ws-card-title {
-  font-size: 12px; font-weight: 600;
-  letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--teal);
 }
 .ws-card-tag {
   font-size: 10px; color: var(--soft);
   background: rgba(42,88,80,0.06);
-  border-radius: 5px; padding: 2px 7px;
+  border-radius: 5px; padding: 2px 8px;
+  font-weight: 500;
 }
 .ws-card-body {
-  padding: 0 16px 14px;
-  border-top: 1px solid rgba(42,88,80,0.07);
-  display: none;
+  padding: 0 20px 18px;
+  flex: 1;
 }
-.ws-card-body.open { display: block; }
 .ws-card-desc {
-  font-size: 12.5px; color: var(--mid);
-  line-height: 1.65; margin: 10px 0 12px;
+  font-size: 13px; color: var(--mid);
+  line-height: 1.7; margin: 0 0 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(42,88,80,0.07);
 }
 .ws-item {
   display: flex; justify-content: space-between; align-items: flex-start;
@@ -858,11 +858,11 @@ body {
 
       <!-- Website pages -->
       <div class="ws-card">
-        <div class="ws-card-hd" onclick="toggleWsCard(this)">
+        <div class="ws-card-hd">
           <span class="ws-card-title">Website pages</span>
           <span class="ws-card-tag">5 pages</span>
         </div>
-        <div class="ws-card-body open">
+        <div class="ws-card-body">
           <p class="ws-card-desc">Your website has five public pages. They don't update themselves — any content changes (wording, pricing, new info) need to be made in the code by Julian and redeployed. Think of it like updating a brochure.</p>
           <div class="ws-item">
             <span class="ws-item-label"><strong>Home</strong> — First impression. Intro to you and your practice, what you offer, and a call to action to book.</span>
@@ -890,11 +890,11 @@ body {
 
       <!-- New client journey -->
       <div class="ws-card">
-        <div class="ws-card-hd" onclick="toggleWsCard(this)">
+        <div class="ws-card-hd">
           <span class="ws-card-title">New client journey</span>
           <span class="ws-card-tag">End to end</span>
         </div>
-        <div class="ws-card-body open">
+        <div class="ws-card-body">
           <p class="ws-card-desc">What happens from the moment someone fills in the form to their first session — and where you step in.</p>
           <div class="ws-item"><span class="ws-item-label">1. Client submits request form</span><span class="ws-item-val">Automatic — no action needed</span></div>
           <div class="ws-item"><span class="ws-item-label">2. Client gets a confirmation email</span><span class="ws-item-val">Sent automatically, BCC'd to you</span></div>
@@ -909,7 +909,7 @@ body {
 
       <!-- Halaxy -->
       <div class="ws-card">
-        <div class="ws-card-hd" onclick="toggleWsCard(this)">
+        <div class="ws-card-hd">
           <span class="ws-card-title">Halaxy</span>
           <span class="ws-card-tag">Practice management</span>
         </div>
@@ -927,7 +927,7 @@ body {
 
       <!-- Email -->
       <div class="ws-card">
-        <div class="ws-card-hd" onclick="toggleWsCard(this)">
+        <div class="ws-card-hd">
           <span class="ws-card-title">Automated emails</span>
           <span class="ws-card-tag">Resend</span>
         </div>
@@ -944,7 +944,7 @@ body {
 
       <!-- Making changes -->
       <div class="ws-card">
-        <div class="ws-card-hd" onclick="toggleWsCard(this)">
+        <div class="ws-card-hd">
           <span class="ws-card-title">Making changes</span>
           <span class="ws-card-tag">How updates work</span>
         </div>
@@ -961,7 +961,7 @@ body {
 
       <!-- How it all connects -->
       <div class="ws-card">
-        <div class="ws-card-hd" onclick="toggleWsCard(this)">
+        <div class="ws-card-hd">
           <span class="ws-card-title">How it all connects</span>
           <span class="ws-card-tag">System overview</span>
         </div>
@@ -1076,10 +1076,7 @@ function switchTab(tab, btn) {
   document.getElementById('enquiries-tab').style.display = tab === 'enquiries' ? 'block' : 'none';
   document.getElementById('website-tab').style.display = tab === 'website' ? 'block' : 'none';
 }
-function toggleWsCard(hd) {
-  const body = hd.nextElementSibling;
-  body.classList.toggle('open');
-}
+
 </script>
 <script src="/js/admin-ui.js"></script>
 </body>
