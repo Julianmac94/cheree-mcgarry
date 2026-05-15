@@ -324,7 +324,7 @@ export default async function handler(req, res) {
       const now = new Date();
       // Fetch first 5 appointments with _include AND dump the raw resource so we can see every field
       const apptBundle = await halaxyGet('/Appointment', {
-        date: `ge${now.toISOString().slice(0, 10)}`, _sort: 'date', _count: '5', _include: 'Appointment:actor',
+        date: `ge${now.toISOString().slice(0, 10)}`, _sort: 'date', _count: '5', _include: 'Appointment:patient',
       });
       // Also fetch a single appointment individually to see if it has more fields
       const firstId = apptBundle.entry?.[0]?.resource?.id;
@@ -469,7 +469,7 @@ export default async function handler(req, res) {
             date:     `ge${now.toISOString().slice(0, 10)}`,
             _sort:    'date',
             _count:   '100',
-            _include: 'Appointment:actor',
+            _include: 'Appointment:patient',
           }),
           halaxyGet('/Patient', { _count: '200' }),
         ]);
