@@ -4,7 +4,7 @@
  * Fetches live data from Supabase and renders server-side.
  */
 
-import { isAuthed, clearSessionCookie } from './_auth.js';
+import { isAuthed, clearSessionCookie, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
 
 const C = {
@@ -31,8 +31,17 @@ function fmtDate(iso) {
   return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function enquiryCard(e) {
+function activityLabel(action, detail) {
+  if (action === 'status')      return `Status → ${STATUS_LABELS[detail]?.label || detail}`;
+  if (action === 'intake_sent') return `Intake sent (${detail})`;
+  if (action === 'notes')       return 'Notes updated';
+  if (action === 'halaxy')      return detail === 'linked' ? 'Halaxy linked' : 'Halaxy cleared';
+  return action;
+}
+
+function enquiryCard(e, activity = []) {
   const status  = e.status || 'new';
+  const isNew   = status === 'new';
   const name    = [e.first_name, e.last_name].filter(Boolean).join(' ') || '—';
   const safeName = name.replace(/'/g, "\\'");
   const detail  = [e.service, e.reason].filter(Boolean).join(' · ') || e.source || '—';
@@ -43,13 +52,23 @@ function enquiryCard(e) {
   const hasNote    = !!(e.notes && e.notes.trim());
   const hasHalaxy  = !!(e.halaxy_client_url && e.halaxy_client_url.trim());
 
+  const lastActivity = activity[0];
+  const activityHtml = activity.length ? `
+    <div class="eq-activity">
+      ${activity.slice(0, 3).map(a => `
+        <div class="eq-activity-row">
+          <span class="eq-act-label">${activityLabel(a.action, a.detail)}</span>
+          <span class="eq-act-meta">${a.actor} · ${fmtDate(a.created_at)}</span>
+        </div>`).join('')}
+    </div>` : '';
+
   return `
-<div class="eq-card" data-id="${e.id}" data-status="${status}">
+<div class="eq-card${isNew ? ' eq-card--new' : ''}" data-id="${e.id}" data-status="${status}">
 
   <!-- Header -->
   <div class="eq-card-top">
     <div class="eq-meta">
-      <span class="eq-name">${name}</span>
+      <span class="eq-name">${name}${isNew ? '<span class="eq-new-badge"><span class="eq-new-dot"></span>New</span>' : ''}</span>
       <span class="eq-detail">${detail}</span>
     </div>
     <div class="eq-right">
@@ -140,6 +159,7 @@ function enquiryCard(e) {
 
     </div><!-- /.eq-body-side -->
   </div><!-- /.eq-card-body -->
+  ${activityHtml}
 </div>`;
 }
 
@@ -156,7 +176,7 @@ function taskItem(t) {
 </li>`;
 }
 
-function adminPage({ enquiries = [], tasks = [] }) {
+function adminPage({ enquiries = [], tasks = [], currentUser = null, activityByEnquiry = {} }) {
   const newCount = enquiries.filter(e => (e.status || 'new') === 'new').length;
 
   return `<!DOCTYPE html>
@@ -299,8 +319,67 @@ body {
   transition: box-shadow 0.2s;
 }
 .eq-card:hover { box-shadow: 0 4px 20px rgba(25,46,42,0.08); }
-.eq-card[data-status="new"]    { border-left: 3px solid ${C.terra}; }
 .eq-card[data-status="closed"] { opacity: 0.55; }
+
+/* New request — prominent highlight */
+.eq-card--new {
+  border-left: 4px solid ${C.terra};
+  background: rgba(190,110,68,0.025);
+}
+.eq-new-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: white; background: ${C.terra};
+  border-radius: 100px; padding: 2px 8px;
+  margin-left: 8px; vertical-align: middle;
+}
+.eq-new-dot {
+  display: inline-block;
+  width: 5px; height: 5px;
+  background: white; border-radius: 50%;
+  animation: eq-pulse 1.6s ease-in-out infinite;
+}
+@keyframes eq-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* Activity feed */
+.eq-activity {
+  border-top: 1px solid rgba(42,88,80,0.07);
+  margin-top: 10px; padding-top: 8px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.eq-activity-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 8px;
+}
+.eq-act-label {
+  font-size: 11px; color: var(--mid);
+}
+.eq-act-meta {
+  font-size: 10px; color: var(--soft);
+  white-space: nowrap; flex-shrink: 0;
+}
+
+/* Current user chip in topbar */
+.topbar-user {
+  display: flex; align-items: center; gap: 8px;
+}
+.user-avatar {
+  width: 28px; height: 28px;
+  background: rgba(119,207,189,0.18);
+  border: 1px solid rgba(119,207,189,0.30);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.06em; color: ${C.mint};
+}
+.user-label {
+  font-size: 11px; color: rgba(255,255,255,0.45);
+  letter-spacing: 0.04em;
+}
 
 /* Status select — prominent filled pill */
 .eq-status-sel {
@@ -627,6 +706,11 @@ body {
     <span class="topbar-badge">Admin</span>
   </div>
   <div class="topbar-actions">
+    ${currentUser ? `
+    <div class="topbar-user">
+      <div class="user-avatar">${currentUser.initials}</div>
+      <span class="user-label">${currentUser.name}</span>
+    </div>` : ''}
     <a class="topbar-link site" href="/" target="_blank">View site →</a>
     <a class="topbar-link" href="/admin-login?logout=1">Sign out</a>
   </div>
@@ -660,7 +744,7 @@ body {
     <!-- Cards -->
     <div id="eq-list">
       ${enquiries.length
-        ? enquiries.map(enquiryCard).join('')
+        ? enquiries.map(e => enquiryCard(e, activityByEnquiry[e.id] || [])).join('')
         : '<div class="eq-empty">No enquiries yet — they\'ll appear here when someone fills out a form.</div>'
       }
     </div>
@@ -754,6 +838,7 @@ body {
   </aside>
 </div>
 
+<script>window.ADMIN_USER = '${currentUser?.name || ''}';</script>
 <script src="/js/admin-ui.js"></script>
 </body>
 </html>`;
@@ -775,17 +860,28 @@ export default async function handler(req, res) {
 
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Fetch live data
+  const currentUser = getSessionUser(req);
   const db = supabase();
-  const [{ data: enquiries }, { data: tasks }] = await Promise.all([
+
+  const [{ data: enquiries }, { data: tasks }, { data: activityRaw }] = await Promise.all([
     db.from('enquiries').select('*').order('created_at', { ascending: false }),
     db.from('tasks').select('*').order('created_at', { ascending: true }),
+    db.from('activity_log').select('*').order('created_at', { ascending: false }).catch(() => ({ data: [] })),
   ]);
+
+  // Group activity by enquiry_id (already desc so first = latest)
+  const activityByEnquiry = {};
+  (activityRaw || []).forEach(a => {
+    if (!activityByEnquiry[a.enquiry_id]) activityByEnquiry[a.enquiry_id] = [];
+    if (activityByEnquiry[a.enquiry_id].length < 3) activityByEnquiry[a.enquiry_id].push(a);
+  });
 
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('Cache-Control', 'no-store');
   return res.status(200).send(adminPage({
-    enquiries: enquiries || [],
-    tasks:     tasks     || [],
+    enquiries:         enquiries         || [],
+    tasks:             tasks             || [],
+    currentUser,
+    activityByEnquiry,
   }));
 }

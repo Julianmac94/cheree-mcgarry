@@ -6,14 +6,15 @@
  * DELETE /api/admin-tasks?id=xxx     — delete task
  */
 
-import { isAuthed } from './_auth.js';
+import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
 
 export default async function handler(req, res) {
   if (!isAuthed(req)) return res.status(401).json({ error: 'Unauthorised' });
 
-  const id = req.query?.id || (req.url && new URL(req.url, 'http://x').searchParams.get('id'));
-  const db = supabase();
+  const id    = req.query?.id || (req.url && new URL(req.url, 'http://x').searchParams.get('id'));
+  const actor = getSessionUser(req)?.name || 'Admin';
+  const db    = supabase();
 
   if (req.method === 'GET') {
     const { data, error } = await db
@@ -29,7 +30,7 @@ export default async function handler(req, res) {
     if (!title?.trim()) return res.status(400).json({ error: 'Title required' });
     const { data, error } = await db
       .from('tasks')
-      .insert({ title: title.trim(), completed: false })
+      .insert({ title: title.trim(), completed: false, created_by: actor })
       .select()
       .single();
     if (error) return res.status(500).json({ error: error.message });

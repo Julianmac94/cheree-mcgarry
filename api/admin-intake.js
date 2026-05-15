@@ -13,7 +13,7 @@
  */
 
 import { Resend } from 'resend';
-import { isAuthed } from './_auth.js';
+import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -208,6 +208,7 @@ function intakeEmailHtml({ firstName, clientType, intakeUrl }) {
 export default async function handler(req, res) {
   if (!isAuthed(req)) return res.status(401).json({ error: 'Unauthorised' });
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const actor = getSessionUser(req)?.name || 'Admin';
 
   const { enquiryId, clientType = 'new', intakeUrl = '' } = req.body || {};
 
@@ -249,6 +250,14 @@ export default async function handler(req, res) {
       .from('enquiries')
       .update({ status: 'in_halaxy', intake_sent_at: sentAt })
       .eq('id', enquiryId);
+
+    // Log activity
+    await db.from('activity_log').insert({
+      enquiry_id: enquiryId,
+      actor,
+      action: 'intake_sent',
+      detail: clientType,
+    }).catch(() => {});
 
     return res.status(200).json({ ok: true, sentAt });
   } catch (err) {
