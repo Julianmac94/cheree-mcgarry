@@ -317,6 +317,39 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── GET ?halaxy_appts_raw=1 — diagnostic: raw appointment + patient data ── */
+  if (req.method === 'GET' && params.get('halaxy_appts_raw')) {
+    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ appointments: [] });
+    try {
+      const now = new Date();
+      const [apptBundle, patientBundle] = await Promise.all([
+        halaxyGet('/Appointment', { date: `ge${now.toISOString().slice(0, 10)}`, _sort: 'date', _count: '20' }),
+        halaxyGet('/Patient', { _count: '10' }),
+      ]);
+      const appts = (apptBundle.entry || []).map(e => e.resource).filter(Boolean).map(a => ({
+        id:              a.id,
+        status:          a.status,
+        start:           a.start,
+        description:     a.description,
+        comment:         a.comment,
+        appointmentType: a.appointmentType,
+        serviceType:     a.serviceType,
+        participant:     (a.participant || []).map(p => ({
+          status:    p.status,
+          actorRef:  p.actor?.reference,
+          actorDisp: p.actor?.display,
+        })),
+      }));
+      const patients = (patientBundle.entry || []).map(e => e.resource).filter(Boolean).map(p => ({
+        id:   p.id,
+        name: (p.name || []).map(n => [n.use, [n.family, ...(n.given || [])].filter(Boolean).join(' ')].filter(Boolean).join(':')),
+      }));
+      return res.status(200).json({ apptCount: appts.length, appts, patientSample: patients });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   /* ── GET ?halaxy_funders=1 — fetch Organisation list (funders) ── */
   if (req.method === 'GET' && params.get('halaxy_funders')) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ funders: [] });
