@@ -365,6 +365,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
 var _pipelineData = null;
 var _halaxyData   = { connected: false, appointments: [], patients: [] };
+var _calEventMap  = {};  // eventId → event object (for link-to-client lookups)
+var _calDismissed = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
+
+/* Close any open card dropdown when clicking elsewhere */
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.pl-card-menu')) {
+    document.querySelectorAll('.pl-card-dropdown.is-open').forEach(function(d) { d.classList.remove('is-open'); });
+    document.querySelectorAll('.pl-card-menu-btn.is-open').forEach(function(b) { b.classList.remove('is-open'); });
+  }
+});
 
 var FUNDER_LABELS = {
   ndis_plan: 'NDIS Plan',
@@ -572,7 +582,12 @@ function renderEnquiryCardPl(e) {
       + '</div>';
   }
 
+  var menuItems = [];
+  if (status !== 'closed') menuItems.push({ label: '🔗 Link to existing client', fn: 'openLinkPanel("' + uid + '","enq","' + e.id + '")' });
+  menuItems.push({ label: '✕ Close without converting', fn: 'advanceEnquiryStatus("' + e.id + '","closed")', warn: true });
+
   return '<div class="pl-card' + (isNew ? ' pl-card--new' : '') + '" id="pl-' + uid + '" onclick="togglePipelineCard(\'' + uid + '\')">'
+    + _menuHtml(uid, menuItems)
     + '<div class="pl-card-name">' + escHtml(name) + '</div>'
     + (detail ? '<div class="pl-card-meta">' + escHtml(detail) + '</div>' : '')
     + '<div style="font-size:10px;color:var(--soft);margin-top:2px">' + plFmtDate(e.created_at) + '</div>'
@@ -582,6 +597,7 @@ function renderEnquiryCardPl(e) {
     + notesHtml
     + actionsHtml
     + intakeHtml
+    + '<div id="pl-link-' + uid + '"></div>'
     + '</div>'
     + '</div>';
 }
@@ -656,7 +672,15 @@ function renderClientCardPl(c) {
     + archiveBtn
     + '</div>';
 
+  var clientMenu = [
+    { label: '✏ Edit name',   fn: 'editClientPl("' + c.id + '")' },
+    c.active
+      ? { label: '📦 Archive client', fn: 'setClientActivePl("' + c.id + '",false)', warn: true }
+      : { label: '↩ Reactivate',     fn: 'setClientActivePl("' + c.id + '",true)' },
+  ];
+
   return '<div class="pl-card pl-card--active" id="pl-' + uid + '" onclick="togglePipelineCard(\'' + uid + '\')">'
+    + _menuHtml(uid, clientMenu)
     + '<div class="pl-card-name">' + escHtml(c.display_name) + '</div>'
     + (c.plan_manager ? '<div class="pl-card-meta">' + escHtml(c.plan_manager) + '</div>' : '')
     + '<div class="pl-card-badges">' + badges + '</div>'
@@ -945,18 +969,30 @@ async function loadCalendarPending() {
       pendingDiv.innerHTML = '';
       return;
     }
-    pendingDiv.innerHTML = d.events.map(function(e) {
+    // Filter dismissed events and store in lookup map
+    var visible = (d.events || []).filter(function(e) { return !_calDismissed.has(String(e.id)); });
+    visible.forEach(function(e) { _calEventMap[String(e.id)] = e; });
+
+    pendingDiv.innerHTML = visible.map(function(e) {
+      var eid     = String(e.id);
+      var cardUid = 'cal-' + eid;
       var dateStr = e.allDay
         ? new Date(e.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
         : new Date(e.start).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
       var evtJson = JSON.stringify(e).replace(/"/g, '&quot;');
-      return '<div class="pl-card" style="border-left:3px solid var(--mint);margin-bottom:7px">'
+      var calMenu = [
+        { label: '🔗 Link to existing client', fn: 'openLinkPanel("' + cardUid + '","cal","' + eid + '")' },
+        { label: '✕ Dismiss',                  fn: 'dismissCalEvent("' + eid + '")', warn: true },
+      ];
+      return '<div class="pl-card" style="border-left:3px solid var(--mint);margin-bottom:7px" id="pl-' + cardUid + '">'
+        + _menuHtml(cardUid, calMenu)
         + '<div class="pl-card-name">' + escHtml(e.title) + '</div>'
         + '<div class="pl-card-meta">' + dateStr + '</div>'
         + (e.description ? '<div style="font-size:10px;color:var(--soft);margin-top:2px">' + escHtml(e.description) + '</div>' : '')
         + '<div class="pl-card-actions" style="margin-top:6px">'
-        + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();convertPendingPl(' + evtJson + ')">Convert to client →</button>'
+        + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();convertPendingPl(' + evtJson + ')">Convert to new client →</button>'
         + '</div>'
+        + '<div id="pl-link-' + cardUid + '"></div>'
         + '</div>';
     }).join('');
   } catch (err) {
@@ -1074,6 +1110,171 @@ function _useHalaxyPatient(patientId, patientName) {
   document.getElementById('cl-halaxy-id').value = patientId;
   var el = document.getElementById('cl-halaxy-lookup');
   if (el) el.innerHTML = '<div class="cl-halaxy-lookup-found">✓ Linked to ' + escHtml(patientName) + ' (ID: ' + escHtml(patientId) + ')</div>';
+}
+
+/* ═══════════════════════════════════════
+   CARD HOVER MENU
+   ═══════════════════════════════════════ */
+
+/**
+ * Build the ⋯ hover-menu HTML for a card.
+ * items: [{ label, fn, warn }]
+ */
+function _menuHtml(uid, items) {
+  var ddItems = items.map(function(item) {
+    return '<button class="pl-dd-item' + (item.warn ? ' pl-dd-item--warn' : '') + '"'
+      + ' onclick="event.stopPropagation();closeCardMenus();' + item.fn + '">'
+      + item.label + '</button>';
+  }).join('');
+  return '<div class="pl-card-menu" onclick="event.stopPropagation()">'
+    + '<button class="pl-card-menu-btn" id="ddbtn-' + uid + '"'
+    + ' onclick="toggleCardMenu(\'' + uid + '\')" title="More actions">···</button>'
+    + '<div class="pl-card-dropdown" id="dd-' + uid + '">' + ddItems + '</div>'
+    + '</div>';
+}
+
+function closeCardMenus() {
+  document.querySelectorAll('.pl-card-dropdown.is-open').forEach(function(d) { d.classList.remove('is-open'); });
+  document.querySelectorAll('.pl-card-menu-btn.is-open').forEach(function(b) { b.classList.remove('is-open'); });
+}
+
+function toggleCardMenu(uid) {
+  var dd  = document.getElementById('dd-' + uid);
+  var btn = document.getElementById('ddbtn-' + uid);
+  if (!dd) return;
+  var wasOpen = dd.classList.contains('is-open');
+  closeCardMenus();
+  if (!wasOpen) {
+    dd.classList.add('is-open');
+    if (btn) btn.classList.add('is-open');
+  }
+}
+
+/* ═══════════════════════════════════════
+   LINK-TO-EXISTING-CLIENT PANEL
+   ═══════════════════════════════════════ */
+
+/**
+ * Open an inline client-search panel inside a card.
+ * mode: 'enq' (enquiry) | 'cal' (calendar event)
+ * sourceId: enquiry ID or calendar event ID
+ */
+function openLinkPanel(cardUid, mode, sourceId) {
+  // Ensure detail is visible (expand enquiry cards)
+  var detail = document.getElementById('pl-detail-' + cardUid);
+  if (detail && detail.style.display === 'none') detail.style.display = 'block';
+
+  var panel = document.getElementById('pl-link-' + cardUid);
+  if (!panel) return;
+  panel.innerHTML = '<div class="pl-link-panel">'
+    + '<div class="pl-link-panel-title">Search existing clients</div>'
+    + '<input class="pl-link-input" id="pl-link-inp-' + cardUid + '"'
+    + ' placeholder="Type a name…" autocomplete="off" onclick="event.stopPropagation()"'
+    + ' oninput="renderLinkResults(\'' + cardUid + '\',\'' + mode + '\',\'' + sourceId + '\',this.value)">'
+    + '<div class="pl-link-results" id="pl-link-res-' + cardUid + '"></div>'
+    + '<button class="pl-dd-item" style="margin-top:4px;font-size:10px;padding:5px 8px;color:var(--soft)" onclick="event.stopPropagation();closeLinkPanel(\'' + cardUid + '\')">✕ Cancel</button>'
+    + '</div>';
+  renderLinkResults(cardUid, mode, sourceId, '');
+  setTimeout(function() {
+    var inp = document.getElementById('pl-link-inp-' + cardUid);
+    if (inp) inp.focus();
+  }, 60);
+}
+
+function closeLinkPanel(cardUid) {
+  var panel = document.getElementById('pl-link-' + cardUid);
+  if (panel) panel.innerHTML = '';
+}
+
+function renderLinkResults(cardUid, mode, sourceId, query) {
+  var res = document.getElementById('pl-link-res-' + cardUid);
+  if (!res || !_pipelineData) return;
+  var clients = (_pipelineData.clients || []).filter(function(c) { return c.active !== false; });
+  if (query) {
+    var q = query.toLowerCase();
+    clients = clients.filter(function(c) { return (c.display_name || '').toLowerCase().indexOf(q) !== -1; });
+  }
+  if (!clients.length) {
+    res.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:5px 0">No clients found</div>';
+    return;
+  }
+  res.innerHTML = clients.slice(0, 8).map(function(c) {
+    var meta = FUNDER_LABELS[c.funder] || c.funder || '';
+    if (c.halaxy_id) meta += ' · H✓';
+    return '<div class="pl-link-result" onclick="event.stopPropagation();selectLinkedClient(\'' + cardUid + '\',\'' + mode + '\',\'' + sourceId + '\',\'' + c.id + '\')">'
+      + '<span class="pl-link-result-name">' + escHtml(c.display_name) + '</span>'
+      + '<span class="pl-link-result-meta">' + escHtml(meta) + '</span>'
+      + '</div>';
+  }).join('');
+}
+
+function selectLinkedClient(cardUid, mode, sourceId, clientId) {
+  if (!_pipelineData) return;
+  var client = (_pipelineData.clients || []).find(function(c) { return String(c.id) === String(clientId); });
+  if (!client) return;
+  var panel = document.getElementById('pl-link-' + cardUid);
+  if (!panel) return;
+
+  var funder   = escHtml(FUNDER_LABELS[client.funder] || client.funder || '');
+  var halaxy   = client.halaxy_id ? ' · In Halaxy ✓' : ' · Not in Halaxy';
+  var sessions = (client.sessions || []).length;
+  var sessStr  = sessions ? ' · ' + sessions + ' session' + (sessions === 1 ? '' : 's') : '';
+
+  var previewHtml = '<div class="pl-link-preview">'
+    + '<div class="pl-link-preview-name">' + escHtml(client.display_name) + '</div>'
+    + '<div class="pl-link-preview-meta">' + funder + halaxy + sessStr + '</div>'
+    + '</div>';
+
+  var confirmFn, confirmLabel;
+  if (mode === 'enq') {
+    confirmFn    = 'confirmEnqLink(\'' + sourceId + '\',\'' + clientId + '\')';
+    confirmLabel = 'Close this enquiry →';
+  } else {
+    confirmFn    = 'confirmCalLink(\'' + sourceId + '\',\'' + cardUid + '\',\'' + clientId + '\')';
+    confirmLabel = 'Link &amp; log session →';
+  }
+
+  panel.innerHTML = '<div class="pl-link-panel">'
+    + previewHtml
+    + '<div class="pl-card-actions" style="margin-top:6px">'
+    + '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();openLinkPanel(\'' + cardUid + '\',\'' + mode + '\',\'' + sourceId + '\')">← Back</button>'
+    + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();' + confirmFn + '">' + confirmLabel + '</button>'
+    + '</div>'
+    + '</div>';
+}
+
+async function confirmEnqLink(enquiryId, clientId) {
+  try {
+    await apiFetch('/api/admin-enquiries?id=' + enquiryId, { method: 'PATCH', body: { status: 'closed' } });
+    toast('Enquiry closed — matched to existing client');
+    refreshPipeline();
+  } catch (err) {
+    toast('Error: ' + err.message, 'err');
+  }
+}
+
+async function confirmCalLink(eventId, cardUid, clientId) {
+  var evt = _calEventMap[eventId];
+  if (!evt) { toast('Event data missing', 'err'); return; }
+  var sessionDate = evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10);
+  try {
+    await apiFetch('/api/sessions', {
+      method: 'POST',
+      body: { client_id: clientId, session_date: sessionDate, status: 'upcoming', notes: evt.title || '' },
+    });
+    dismissCalEvent(eventId);
+    toast('Session logged and calendar card dismissed');
+    refreshPipeline();
+  } catch (err) {
+    toast('Error: ' + err.message, 'err');
+  }
+}
+
+/* Calendar event dismiss (localStorage) */
+function dismissCalEvent(eventId) {
+  _calDismissed.add(String(eventId));
+  localStorage.setItem('cal_dismissed', JSON.stringify([..._calDismissed]));
+  loadCalendarPending();
 }
 
 /* ── Escape HTML helper ── */

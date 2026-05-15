@@ -1197,6 +1197,69 @@ body {
 .pl-action-btn--primary { background: var(--teal); color: white; }
 .pl-action-btn--soft    { background: rgba(42,88,80,0.1); color: var(--mid); }
 .pl-action-btn--convert { background: rgba(42,88,80,0.07); color: var(--teal); border: 1px solid rgba(42,88,80,0.25); font-style: italic; }
+.pl-action-btn--danger  { background: rgba(190,110,68,0.08); color: var(--terra); }
+
+/* ── Card hover menu (⋯) ── */
+.pl-card { position: relative; }
+.pl-card-menu { position: absolute; top: 6px; right: 6px; z-index: 10; }
+.pl-card-menu-btn {
+  opacity: 0; transition: opacity 0.12s;
+  background: rgba(255,255,255,0.92); border: 1px solid rgba(42,88,80,0.16);
+  border-radius: 6px; cursor: pointer; padding: 1px 8px 2px;
+  font-size: 16px; letter-spacing: 1px; color: var(--soft);
+  line-height: 1.5; font-family: var(--sans);
+}
+.pl-card:hover .pl-card-menu-btn,
+.pl-card-menu-btn.is-open { opacity: 1; background: white; }
+.pl-card-dropdown {
+  display: none; position: absolute; right: 0; top: calc(100% + 3px);
+  background: white; border: 1px solid rgba(42,88,80,0.14);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.13);
+  min-width: 180px; overflow: hidden; z-index: 300;
+}
+.pl-card-dropdown.is-open { display: block; }
+.pl-dd-item {
+  display: block; width: 100%; text-align: left;
+  padding: 9px 14px; font-size: 12px; background: none;
+  border: none; border-bottom: 1px solid rgba(42,88,80,0.06);
+  cursor: pointer; color: var(--mid); font-family: var(--sans); white-space: nowrap;
+}
+.pl-dd-item:last-child { border-bottom: none; }
+.pl-dd-item:hover { background: rgba(42,88,80,0.05); color: var(--teal); }
+.pl-dd-item--warn { color: var(--terra); }
+.pl-dd-item--warn:hover { background: rgba(190,110,68,0.06); color: var(--terra); }
+
+/* ── Link-to-client panel ── */
+.pl-link-panel {
+  margin-top: 8px; padding: 8px;
+  background: rgba(42,88,80,0.04); border: 1px solid rgba(42,88,80,0.14);
+  border-radius: 8px;
+}
+.pl-link-panel-title {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--soft); margin-bottom: 6px;
+}
+.pl-link-input {
+  width: 100%; box-sizing: border-box; padding: 6px 9px;
+  font-size: 11px; font-family: var(--sans);
+  border: 1px solid rgba(42,88,80,0.2); border-radius: 6px;
+  background: white; color: var(--dark); outline: none;
+}
+.pl-link-input:focus { border-color: var(--teal); }
+.pl-link-results { margin-top: 5px; max-height: 130px; overflow-y: auto; }
+.pl-link-result {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 7px; border-radius: 5px; cursor: pointer; font-size: 11px;
+}
+.pl-link-result:hover { background: rgba(42,88,80,0.08); }
+.pl-link-result-name { color: var(--dark); font-weight: 500; }
+.pl-link-result-meta { color: var(--soft); font-size: 10px; }
+.pl-link-preview {
+  padding: 7px 9px; background: rgba(42,88,80,0.07);
+  border-radius: 7px; margin-bottom: 6px;
+}
+.pl-link-preview-name { font-weight: 600; color: var(--teal); font-size: 12px; margin-bottom: 2px; }
+.pl-link-preview-meta { color: var(--soft); font-size: 10px; }
 .pl-action-btn--danger  { background: rgba(190,110,68,0.1); color: var(--terra); }
 
 /* Expanded card detail */
