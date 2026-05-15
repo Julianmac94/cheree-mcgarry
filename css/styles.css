@@ -286,6 +286,7 @@ body::after {
   cursor: pointer;
   transition: background 0.3s var(--ease);
   display: flex; flex-direction: column;
+  text-align: left;
 }
 .hero-card:hover {
   background: rgba(255,255,255,0.06);
