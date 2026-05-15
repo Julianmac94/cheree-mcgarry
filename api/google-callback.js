@@ -32,12 +32,11 @@ export default async function handler(req, res) {
   }
 
   try {
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/google-callback';
     const oauth2 = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}/api/google-callback`
-        : 'http://localhost:3000/api/google-callback'
+      redirectUri
     );
 
     const { tokens } = await oauth2.getToken(code);
