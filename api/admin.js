@@ -2161,7 +2161,7 @@ body {
 </div>
 
 <script>window.ADMIN_USER = '${currentUser?.name || ''}';</script>
-<script src="/js/admin-ui.js"></script>
+<script src="/js/admin-ui.js?v=${Date.now()}"></script>
 <script>
 function switchTab(tab, btn) {
   switchDashTab(tab, btn);
