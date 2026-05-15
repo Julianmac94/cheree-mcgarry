@@ -448,8 +448,9 @@ async function loadPipeline() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     var d = await r.json();
     _pipelineData  = d;
-    _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [] };
+    _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [] };
     _halaxyFunders = (_halaxyData.funders && _halaxyData.funders.length) ? _halaxyData.funders : null;
+    _halaxyFees    = (_halaxyData.fees    && _halaxyData.fees.length)    ? _halaxyData.fees    : _halaxyFees;
     renderPipeline();
     updateHalaxyDot();
   } catch (err) {
@@ -457,6 +458,27 @@ async function loadPipeline() {
       var el = document.getElementById('cards-' + col);
       if (el) el.innerHTML = '<div class="pl-empty">Load failed: ' + escHtml(err.message) + '</div>';
     });
+  }
+}
+
+async function syncHalaxyConfigData() {
+  var btn = document.getElementById('halaxy-sync-btn');
+  if (btn) { btn.textContent = '⟳ Syncing…'; btn.disabled = true; }
+  try {
+    var r = await fetch('/api/admin-enquiries?halaxy_sync=1', { method: 'POST' });
+    var d = await r.json();
+    if (d.ok) {
+      toast('Halaxy synced — ' + d.funders + ' funders, ' + d.fees + ' fees ✓');
+      _halaxyFunders = null; // clear cache so next pipeline load re-reads
+      _halaxyFees    = null;
+      refreshPipeline();
+    } else {
+      toast('Sync failed: ' + (d.error || 'unknown error'), 'err');
+    }
+  } catch (err) {
+    toast('Sync failed: ' + err.message, 'err');
+  } finally {
+    if (btn) { btn.textContent = '⟳ Sync Halaxy data'; btn.disabled = false; }
   }
 }
 
@@ -469,8 +491,9 @@ function refreshPipeline() {
     return r.json();
   }).then(function(d) {
     _pipelineData  = d;
-    _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [] };
+    _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [] };
     _halaxyFunders = (_halaxyData.funders && _halaxyData.funders.length) ? _halaxyData.funders : null;
+    _halaxyFees    = (_halaxyData.fees    && _halaxyData.fees.length)    ? _halaxyData.fees    : _halaxyFees;
     renderPipeline();
     updateHalaxyDot();
     toast('Pipeline refreshed');

@@ -1402,6 +1402,7 @@ body {
     <div style="display:flex;align-items:center;gap:12px">
       <button onclick="refreshPipeline()" id="pl-refresh-btn" class="pl-refresh-btn">↺ Refresh</button>
       <button onclick="openAddClient()" class="cl-add-btn">+ Add client</button>
+      <button onclick="syncHalaxyConfigData()" id="halaxy-sync-btn" class="pl-refresh-btn" title="Re-sync funders and fees from Halaxy">⟳ Sync Halaxy data</button>
     </div>
     <div class="pl-integrations">
       <div class="pl-halaxy-chip" id="halaxy-chip">

@@ -9,6 +9,91 @@ import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
 import { halaxyGet } from './_halaxy.js';
 
+/* ─────────────────────────────────────────────
+   Halaxy config cache helpers (non-PII data)
+   Stores funders + fees in Supabase settings table
+   so we only hit Halaxy when explicitly refreshing.
+   ───────────────────────────────────────────── */
+
+async function readCache(db, key) {
+  try {
+    const { data } = await db.from('settings').select('value, updated_at').eq('key', key).single();
+    if (!data?.value) return null;
+    return JSON.parse(data.value);
+  } catch (_) { return null; }
+}
+
+async function writeCache(db, key, value) {
+  await db.from('settings').upsert({
+    key,
+    value:      JSON.stringify(value),
+    updated_at: new Date().toISOString(),
+  });
+}
+
+function mapOrgToFunder(org) {
+  const typeText = org.type?.[0]?.text || org.type?.[0]?.coding?.[0]?.display || org.type?.[0]?.coding?.[0]?.code || '';
+  const name     = org.name || '';
+  if (!name || name === 'nil') return null;
+  const t = typeText.toLowerCase(), n = name.toLowerCase();
+  let billingKey = 'private';
+  if (t === 'medicare')                                              billingKey = 'medicare';
+  else if (t === 'ndis')                                             billingKey = 'ndis_plan';
+  else if (t.includes('bupa adf') || n.includes('bupa adf')
+        || n.includes('defence')  || n.includes('dva'))             billingKey = 'dva';
+  else if (t.includes('third-party') || t.includes('third party')
+        || n.includes('qfes')     || n.includes('eap'))             billingKey = 'qfes';
+  else if (t.includes('worker')  || t.includes('compensation'))     billingKey = 'other';
+  return { id: org.id, name, type: typeText, billingKey };
+}
+
+function mapCidToFee(r) {
+  const name = r.title || r.name || r.description || 'Fee';
+  if (/archived/i.test(name)) return null;
+  let amount = null, currency = 'AUD';
+  if (r.propertyGroup) {
+    for (const pg of r.propertyGroup) {
+      for (const pc of (pg.priceComponent || [])) {
+        if (pc.amount?.value != null) { amount = pc.amount.value; currency = pc.amount.currency || 'AUD'; break; }
+      }
+      if (amount !== null) break;
+    }
+  }
+  if (amount === null) return null;
+  let funderOrgId = '', funderName = '';
+  for (const uc of (r.useContext || [])) {
+    const ref = uc.valueReference?.reference || '';
+    if (ref.startsWith('Organization/')) { funderOrgId = ref.replace('Organization/', ''); funderName = uc.valueReference?.display || ''; break; }
+    const v = uc.valueCodeableConcept?.text || uc.valueCodeableConcept?.coding?.[0]?.display || '';
+    if (v) { funderName = v; break; }
+  }
+  if (!funderOrgId) {
+    for (const ext of (r.extension || [])) {
+      if (ext.valueReference?.reference?.startsWith('Organization/')) {
+        funderOrgId = ext.valueReference.reference.replace('Organization/', '');
+        funderName  = ext.valueReference.display || funderName;
+        break;
+      }
+    }
+  }
+  return { id: r.id, name, amount, currency, funderOrgId, funderName };
+}
+
+async function syncHalaxyConfig(db) {
+  const [orgBundle, cidBundle] = await Promise.all([
+    halaxyGet('/Organization',         { _count: '100' }).catch(e => { console.error('Org fetch:', e.message); return { entry: [] }; }),
+    halaxyGet('/ChargeItemDefinition', { status: 'active', _count: '200' }).catch(e => { console.error('CID fetch:', e.message); return { entry: [] }; }),
+  ]);
+  const funders = (orgBundle.entry || []).map(e => e.resource).filter(Boolean).map(mapOrgToFunder).filter(Boolean);
+  const fees    = (cidBundle.entry || []).map(e => e.resource).filter(Boolean).map(mapCidToFee).filter(Boolean);
+  console.log(`Halaxy sync: ${funders.length} funders, ${fees.length} fees`);
+  await Promise.all([
+    writeCache(db, 'halaxy_funders_cache', { funders, synced_at: new Date().toISOString() }),
+    writeCache(db, 'halaxy_fees_cache',    { fees,    synced_at: new Date().toISOString() }),
+  ]);
+  return { funders, fees };
+}
+
 /**
  * Extract the full legal name from a FHIR Patient resource.
  * Prefers name entries with use='official', then 'usual', then first available.
@@ -28,6 +113,18 @@ function fhirPatientLegalName(p) {
 export default async function handler(req, res) {
   if (!isAuthed(req)) return res.status(401).json({ error: 'Unauthorised' });
 
+  /* ── POST ?halaxy_sync=1 — force re-fetch funders + fees from Halaxy and cache ── */
+  if (req.method === 'POST' && (req.query?.halaxy_sync || new URL(req.url, 'http://x').searchParams.get('halaxy_sync'))) {
+    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ ok: false, error: 'Halaxy not configured' });
+    const db = supabase();
+    try {
+      const { funders, fees } = await syncHalaxyConfig(db);
+      return res.status(200).json({ ok: true, funders: funders.length, fees: fees.length });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  }
+
   const db           = supabase();
   const params       = req.url ? new URL(req.url, 'http://x').searchParams : new URLSearchParams();
   const id           = req.query?.id           || params.get('id');
@@ -35,14 +132,15 @@ export default async function handler(req, res) {
   const user  = getSessionUser(req);
   const actor = user?.name || 'Admin';
 
-  /* ── GET /api/admin-enquiries?halaxy_fees=1[&org_id=<id>] — fetch ChargeItemDefinition list ── */
+  /* ── GET /api/admin-enquiries?halaxy_fees=1 — read fees from Supabase cache ── */
   if (req.method === 'GET' && (req.query?.halaxy_fees || params.get('halaxy_fees'))) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ fees: [] });
     try {
-      const orgId    = req.query?.org_id || params.get('org_id') || null;
-      const query    = { status: 'active', _count: '200' };
-      // If an org ID is supplied, try filtering fees by that funder organisation
-      if (orgId) query['context'] = `Organization/${orgId}`;
+      // Serve from cache if available
+      const cached = await readCache(db, 'halaxy_fees_cache');
+      if (cached?.fees?.length) return res.status(200).json({ fees: cached.fees, synced_at: cached.synced_at });
+      // Cache empty — fetch live and store
+      const query  = { status: 'active', _count: '200' };
       const bundle = await halaxyGet('/ChargeItemDefinition', query);
       const fees   = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(r => {
         const name = r.title || r.name || r.description || 'Fee';
@@ -178,7 +276,10 @@ export default async function handler(req, res) {
 
   /* ── GET — pipeline data ── */
   if (req.method === 'GET') {
-    const [{ data: enquiries }, { data: clients }, { data: activityRaw }] = await Promise.all([
+    const [
+      { data: enquiries }, { data: clients }, { data: activityRaw },
+      fundersCached, feesCached,
+    ] = await Promise.all([
       db.from('enquiries').select('*').order('created_at', { ascending: false }),
       db.from('clients').select(`
         id, display_name, funder, plan_manager, halaxy_id, enquiry_id,
@@ -186,7 +287,20 @@ export default async function handler(req, res) {
         sessions (id, session_date, status, invoice_ref, amount, notes)
       `).order('display_name', { ascending: true }),
       db.from('activity_log').select('*').order('created_at', { ascending: false }).limit(200),
+      readCache(db, 'halaxy_funders_cache'),
+      readCache(db, 'halaxy_fees_cache'),
     ]);
+
+    // Auto-sync config from Halaxy if cache is empty (first run)
+    let cachedFunders = fundersCached?.funders || [];
+    let cachedFees    = feesCached?.fees       || [];
+    if (process.env.HALAXY_CLIENT_ID && (!cachedFunders.length || !cachedFees.length)) {
+      try {
+        const synced  = await syncHalaxyConfig(db);
+        cachedFunders = synced.funders;
+        cachedFees    = synced.fees;
+      } catch (e) { console.error('Auto-sync failed:', e.message); }
+    }
 
     const activityByEnquiry = {};
     (activityRaw || []).forEach(a => {
@@ -199,48 +313,32 @@ export default async function handler(req, res) {
       activity: activityByEnquiry[e.id] || [],
     }));
 
-    let halaxy = { connected: false, appointments: [], patients: [], funders: [] };
+    let halaxy = { connected: false, appointments: [], patients: [], funders: cachedFunders, fees: cachedFees };
     if (process.env.HALAXY_CLIENT_ID && process.env.HALAXY_CLIENT_SECRET) {
       try {
         const now    = new Date();
-        const [apptBundle, patientBundle, orgBundle] = await Promise.all([
+        const [apptBundle, patientBundle] = await Promise.all([
           halaxyGet('/Appointment', {
             date:   `ge${now.toISOString().slice(0, 10)}`,
             _sort:  'date',
             _count: '100',
           }),
           halaxyGet('/Patient', { _count: '200' }),
-          halaxyGet('/Organization', { _count: '100' }).catch(err => { console.error('Halaxy /Organization error:', err.message); return { entry: [] }; }),
         ]);
-
-        console.log('Halaxy /Organization returned', (orgBundle.entry || []).length, 'entries');
-        const funders = (orgBundle.entry || []).map(e => e.resource).filter(Boolean).map(org => {
-          const typeText = org.type?.[0]?.text || org.type?.[0]?.coding?.[0]?.display || org.type?.[0]?.coding?.[0]?.code || '';
-          const name     = org.name || '';
-          if (!name || name === 'nil') return null;
-          const t = typeText.toLowerCase(), n = name.toLowerCase();
-          let billingKey = 'private';
-          if (t === 'medicare')                                         billingKey = 'medicare';
-          else if (t === 'ndis')                                        billingKey = 'ndis_plan';
-          else if (t.includes('bupa adf') || n.includes('bupa adf')
-                || n.includes('defence') || n.includes('dva'))         billingKey = 'dva';
-          else if (t.includes('third-party') || t.includes('third party')
-                || n.includes('qfes') || n.includes('eap'))            billingKey = 'qfes';
-          else if (t.includes('worker') || t.includes('compensation')) billingKey = 'other';
-          return { id: org.id, name, type: typeText, billingKey };
-        }).filter(Boolean);
-
         halaxy = {
           connected:    true,
           appointments: (apptBundle.entry    || []).map(e => e.resource).filter(Boolean),
           patients:     (patientBundle.entry || []).map(e => e.resource).filter(Boolean).map(p => ({
             id: p.id, name: fhirPatientLegalName(p),
           })),
-          funders,
+          funders:      cachedFunders,
+          fees:         cachedFees,
+          funders_synced_at: fundersCached?.synced_at || null,
+          fees_synced_at:    feesCached?.synced_at    || null,
         };
       } catch (err) {
         console.error('Halaxy API error:', err.message);
-        halaxy = { connected: false, error: err.message, appointments: [], patients: [], funders: [] };
+        halaxy = { connected: false, error: err.message, appointments: [], patients: [], funders: cachedFunders, fees: cachedFees };
       }
     }
 
