@@ -4,7 +4,6 @@
  * in Supabase settings table, redirects back to admin.
  */
 
-import { isAuthed } from './_auth.js';
 import { createClient } from '@supabase/supabase-js';
 import { google } from 'googleapis';
 
@@ -14,11 +13,8 @@ const db = createClient(
 );
 
 export default async function handler(req, res) {
-  if (!isAuthed(req)) {
-    res.writeHead(302, { Location: '/admin-login' });
-    return res.end();
-  }
-
+  // No isAuthed check here — SameSite=Strict blocks the session cookie
+  // on cross-site redirects from Google. The auth code itself is the proof.
   const { code, error } = req.query || {};
 
   if (error) {
