@@ -942,40 +942,20 @@ function renderAppointmentsPanel() {
         var actionBtns = '';
 
         if (isClinical) {
-          // Check Halaxy invoices first (source of truth)
+          // Halaxy invoice is the source of truth — check it first
           var invKey7 = patientId ? (String(patientId) + '|' + apptDateStr) : null;
           var matchInv7 = invKey7 ? invoices.find(function(inv) { return (String(inv.patientId) + '|' + inv.date) === invKey7; }) : null;
           if (matchInv7) {
-            if (matchInv7.status === 'balanced') {
+            if (_invIsPaid(matchInv7)) {
               billingBadge = '<span class="dp-badge dp-badge--status-paid">Paid ✓</span>';
-            } else if (matchInv7.status === 'issued') {
-              billingBadge = '<span class="dp-badge dp-badge--status-invoiced">Invoice sent</span>';
-              actionBtns = '<a class="dp-btn dp-btn--ghost" style="font-size:10px;padding:4px 9px;margin-top:4px" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">View in Halaxy →</a>';
             } else {
-              billingBadge = '<span class="dp-badge dp-badge--action">Draft invoice</span>';
-            }
-          } else {
-            var bi = _apptBillingInfo(appt);
-            if (bi) {
-              if (!bi.session) {
-                billingBadge = '<span class="dp-badge dp-badge--needs-log">Not recorded</span>';
-                if (patientId) {
-                  var apptUid = 'hx-7d-' + patientId + '-' + apptDateStr.replace(/-/g, '');
-                  actionBtns = '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px;margin-top:4px" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(label) + '\',\'' + apptDateStr + '\')">Create Invoice →</button>'
-                    + '<div id="pl-link-' + apptUid + '"></div>';
-                }
-              } else {
-                var sStatus = bi.session.status;
-                if (sStatus === 'paid') {
-                  billingBadge = '<span class="dp-badge dp-badge--status-paid">Paid ✓</span>';
-                } else if (sStatus === 'invoiced' || sStatus === 'submitted' || sStatus === 'lodged') {
-                  billingBadge = '<span class="dp-badge dp-badge--status-invoiced">Awaiting payment</span>';
-                } else {
-                  billingBadge = '<span class="dp-badge dp-badge--action">Needs billing</span>';
-                }
-              }
+              // active / issued / draft — invoice exists but not yet settled
+              billingBadge = '<span class="dp-badge dp-badge--status-invoiced">Invoiced</span>';
+              actionBtns = '<a class="dp-btn dp-btn--ghost" style="font-size:10px;padding:4px 9px;margin-top:4px" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">View in Halaxy →</a>';
             }
           }
+          // No badge for upcoming appointments without a Halaxy invoice yet —
+          // the invoice is created after the session happens, not before.
         }
 
         var cardClass = isClinical ? 'appt-7day-card appt-7day-card--halaxy' : 'appt-7day-card appt-7day-card--personal';
@@ -1081,9 +1061,8 @@ function renderAppointmentsPanel() {
           + '<div class="log-card-date">' + escHtml(dateStr) + ' · Halaxy</div>'
           + '</div>'
           + (patientId
-              ? '<button class="dp-btn dp-btn--primary" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(label) + '\',\'' + apptDateStr + '\')">Create Invoice →</button>'
+              ? '<a class="dp-btn dp-btn--primary" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">Invoice in Halaxy →</a>'
               : '<span class="dp-badge dp-badge--source" style="white-space:nowrap">No patient</span>')
-          + '<div id="pl-link-' + apptUid + '"></div>'
           + '</div>';
       }
     });
@@ -1189,6 +1168,16 @@ function renderAppointmentsPanel() {
    BILLING PANEL
    ═══════════════════════════════════════════════════ */
 
+/**
+ * Determine if a Halaxy invoice is fully paid.
+ * Halaxy keeps status="active" on all invoices — the real indicator is
+ * totalBalance: 0 = paid, >0 = still owing. Falls back to status field.
+ */
+function _invIsPaid(inv) {
+  if (inv.totalBalance !== null && inv.totalBalance !== undefined) return inv.totalBalance === 0;
+  return inv.status === 'balanced' || inv.status === 'paid';
+}
+
 function _billingActionBtn(client, session) {
   var funder = client.funder;
   if (funder === 'ndis_plan') {
@@ -1229,13 +1218,7 @@ function renderBillingPanel() {
 
   /* ── Halaxy invoice-based view (source of truth) ──────────────── */
   if (_halaxyData && _halaxyData.connected && halaxyInvoices.length > 0) {
-    // Halaxy uses status="active" for all invoices regardless of payment.
-    // Real payment state comes from totalBalance: 0 = paid, >0 = still owing.
-    // Fall back to status field if totalBalance isn't available.
-    function _invIsPaid(inv) {
-      if (inv.totalBalance !== null && inv.totalBalance !== undefined) return inv.totalBalance === 0;
-      return inv.status === 'balanced' || inv.status === 'paid';
-    }
+    // _invIsPaid is defined at module level below renderBillingPanel
     var outstanding = halaxyInvoices.filter(function(inv) { return !_invIsPaid(inv) && inv.status !== 'cancelled' && inv.status !== 'draft'; });
     var drafts      = halaxyInvoices.filter(function(inv) { return inv.status === 'draft'; });
     var balanced    = halaxyInvoices.filter(function(inv) { return _invIsPaid(inv); });
