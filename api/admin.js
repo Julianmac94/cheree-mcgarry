@@ -803,29 +803,32 @@ body {
 }
 .cl-add-btn:hover { background: var(--mid); }
 
-/* Google Calendar banner */
+/* Google Calendar status chip (in toolbar) */
 .gcal-banner {
-  border-radius: 12px; padding: 12px 16px;
-  font-size: 12px; margin-bottom: 20px;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-radius: 100px; padding: 5px 10px;
+  font-family: var(--sans); font-size: 11px; font-weight: 500;
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid transparent;
 }
 .gcal-banner.connected {
   background: rgba(42,88,80,0.07);
-  border: 1px solid rgba(42,88,80,0.15);
+  border-color: rgba(42,88,80,0.12);
   color: var(--mid);
 }
 .gcal-banner.disconnected {
   background: rgba(190,110,68,0.07);
-  border: 1px solid rgba(190,110,68,0.18);
+  border-color: rgba(190,110,68,0.18);
   color: var(--terra);
 }
 .gcal-connect-btn {
-  font-family: var(--sans); font-size: 11px; font-weight: 600;
-  padding: 5px 12px; border-radius: 6px; border: none;
+  font-family: var(--sans); font-size: 10px; font-weight: 600;
+  padding: 3px 9px; border-radius: 100px; border: none;
   background: var(--terra); color: white;
   cursor: pointer; white-space: nowrap;
   text-decoration: none; display: inline-block;
+  transition: opacity 0.15s;
 }
+.gcal-connect-btn:hover { opacity: 0.82; }
 
 /* Pending calendar events */
 .pending-card {
@@ -1043,6 +1046,43 @@ body {
   letter-spacing: 0.02em;
 }
 .pl-refresh-btn:hover { color: var(--teal); }
+
+/* Integrations status bar (right side of toolbar) */
+.pl-integrations {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+
+/* Halaxy status chip */
+.pl-halaxy-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 100px;
+  font-family: var(--sans); font-size: 11px; font-weight: 500;
+  background: rgba(42,88,80,0.07); color: var(--soft);
+  border: 1px solid rgba(42,88,80,0.12);
+  cursor: default; position: relative;
+  transition: background 0.15s, color 0.15s;
+}
+.pl-halaxy-chip:hover { background: rgba(42,88,80,0.12); color: var(--mid); }
+.pl-halaxy-chip:hover .pl-halaxy-tooltip { opacity: 1; pointer-events: none; transform: translateY(0); }
+
+/* Tooltip */
+.pl-halaxy-tooltip {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: var(--tealDeep); color: rgba(255,255,255,0.88);
+  font-size: 11px; line-height: 1.5; font-weight: 400;
+  padding: 8px 12px; border-radius: 8px;
+  white-space: nowrap; z-index: 50;
+  opacity: 0; pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 0.15s, transform 0.15s;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+.pl-halaxy-tooltip::before {
+  content: '';
+  position: absolute; bottom: 100%; right: 16px;
+  border: 5px solid transparent;
+  border-bottom-color: var(--tealDeep);
+}
 .pipeline {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -1227,11 +1267,17 @@ body {
 <div id="pipeline-tab" class="pipeline-wrap">
   <div class="pipeline-toolbar">
     <div style="display:flex;align-items:center;gap:12px">
-      <div id="halaxy-status-dot" class="halaxy-dot halaxy-dot--loading" title="Checking Halaxy connection…"></div>
       <button onclick="refreshPipeline()" id="pl-refresh-btn" class="pl-refresh-btn">↺ Refresh</button>
       <button onclick="openAddClient()" class="cl-add-btn">+ Add client</button>
     </div>
-    <div id="gcal-banner" class="gcal-banner disconnected" style="display:none"></div>
+    <div class="pl-integrations">
+      <div class="pl-halaxy-chip" id="halaxy-chip">
+        <div id="halaxy-status-dot" class="halaxy-dot halaxy-dot--loading"></div>
+        <span id="halaxy-chip-label">Halaxy</span>
+        <div class="pl-halaxy-tooltip" id="halaxy-tooltip">Checking connection…</div>
+      </div>
+      <div id="gcal-banner" class="gcal-banner" style="display:none"></div>
+    </div>
   </div>
   <div class="pipeline" id="pipeline-board">
     <div class="pipeline-col" id="col-new">

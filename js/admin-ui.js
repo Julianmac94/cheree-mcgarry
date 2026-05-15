@@ -452,14 +452,23 @@ function refreshPipeline() {
 }
 
 function updateHalaxyDot() {
-  var dot = document.getElementById('halaxy-status-dot');
+  var dot     = document.getElementById('halaxy-status-dot');
+  var label   = document.getElementById('halaxy-chip-label');
+  var tooltip = document.getElementById('halaxy-tooltip');
   if (!dot) return;
+
   if (_halaxyData.connected) {
-    dot.className = 'halaxy-dot halaxy-dot--ok';
-    dot.title     = 'Halaxy connected — ' + (_halaxyData.appointments || []).length + ' upcoming appointments';
+    var apptCount = (_halaxyData.appointments || []).length;
+    dot.className       = 'halaxy-dot halaxy-dot--ok';
+    if (label)   label.textContent   = 'Halaxy';
+    if (tooltip) tooltip.innerHTML   = '✓ Connected<br>'
+      + apptCount + ' upcoming appointment' + (apptCount === 1 ? '' : 's') + ' loaded';
   } else {
-    dot.className = 'halaxy-dot halaxy-dot--error';
-    dot.title     = _halaxyData.error ? 'Halaxy: ' + _halaxyData.error : 'Halaxy not connected';
+    dot.className       = 'halaxy-dot halaxy-dot--error';
+    if (label)   label.textContent   = 'Halaxy';
+    if (tooltip) tooltip.innerHTML   = _halaxyData.error
+      ? '✗ Error: ' + escHtml(_halaxyData.error) + '<br><span style="opacity:0.65">Check API credentials in Vercel env vars</span>'
+      : '✗ Not connected<br><span style="opacity:0.65">Add HALAXY_CLIENT_ID + SECRET in Vercel</span>';
   }
 }
 
