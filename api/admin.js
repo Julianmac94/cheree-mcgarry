@@ -405,7 +405,7 @@ body { overflow: hidden; height: 100svh; background: #F0EDE5; }
 .q-item-bar { width: 3px; flex-shrink: 0; }
 .q-item-bar.pending  { background: #BE6E44; }
 .q-item-bar.upcoming { background: #2A5850; }
-.q-item-bar.invoiced { background: #27ae60; }
+.q-item-bar.invoiced { background: #c8a600; }
 .q-item-bar.paid     { background: #bbb; }
 .q-item-bar.new      { background: #BE6E44; }
 .q-item-bar.awaiting { background: #7A948F; }

@@ -1952,7 +1952,12 @@ function renderQueueView() {
     return s.dateStr !== todayStr && s.status === 'needs-recording'
       && s.name && s.name !== 'Halaxy appointment';
   });
-  var needsAttn = needsInvoice.concat(needsRecord);
+  // Invoiced but unpaid — invoice exists in Halaxy, still needs payment processing
+  var awaitingPayment = unified.past.filter(function(s) {
+    return s.dateStr !== todayStr && s.status === 'invoiced'
+      && s.name && s.name !== 'Halaxy appointment';
+  });
+  var needsAttn = needsInvoice.concat(needsRecord).concat(awaitingPayment);
 
   // Personal/unlinked: past sessions with no resolved client (show separately with flag)
   var unlinkedPast = unified.past.filter(function(s) {
@@ -2030,6 +2035,12 @@ function renderQueueView() {
       html += '<div class="q-sub-group">';
       html += '<div class="q-sub-title">Record needed (' + needsRecord.length + ')</div>';
       html += '<div class="q-items">' + needsRecord.map(function(s) { return _qSessionItem(s, 'pending'); }).join('') + '</div>';
+      html += '</div>';
+    }
+    if (awaitingPayment.length) {
+      html += '<div class="q-sub-group">';
+      html += '<div class="q-sub-title">Awaiting payment (' + awaitingPayment.length + ')</div>';
+      html += '<div class="q-items">' + awaitingPayment.map(function(s) { return _qSessionItem(s, 'invoiced'); }).join('') + '</div>';
       html += '</div>';
     }
     if (unlinkedPast.length) {
