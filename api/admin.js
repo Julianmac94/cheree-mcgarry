@@ -216,15 +216,22 @@ body { overflow: hidden; height: 100svh; background: #F0EDE5; }
   border-right: 1px solid rgba(255,255,255,0.06);
 }
 .sidebar-brand {
-  padding: 18px 16px 14px;
+  padding: 16px 16px 13px;
   border-bottom: 1px solid rgba(255,255,255,0.07);
   display: flex; align-items: center; gap: 10px;
 }
-.sidebar-logo { width: 26px; height: 26px; filter: brightness(0) invert(1); opacity: 0.75; }
-.sidebar-brand-name {
-  font-size: 11px; font-weight: 600;
-  color: rgba(255,255,255,0.4);
-  letter-spacing: 0.07em; text-transform: uppercase;
+.sidebar-logo { width: 22px; height: 22px; filter: brightness(0) invert(1); opacity: 0.65; flex-shrink: 0; }
+.sidebar-brand-nm {
+  font-family: var(--serif);
+  font-size: 17px; font-weight: 400;
+  color: rgba(255,255,255,0.82);
+  line-height: 1.15; display: block;
+}
+.sidebar-brand-nm em { font-style: italic; color: var(--mint); font-weight: 300; }
+.sidebar-brand-sub {
+  font-size: 9px; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(255,255,255,0.28); display: block; margin-top: 2px;
 }
 .sidebar-nav { flex: 1; padding: 10px 8px; display: flex; flex-direction: column; gap: 1px; }
 .sidebar-item {
@@ -339,15 +346,36 @@ body { overflow: hidden; height: 100svh; background: #F0EDE5; }
 .queue-view { padding: 26px 28px 60px; max-width: 820px; }
 @media (max-width: 900px) { .queue-view { padding: 18px 16px 70px; } }
 
-/* Stats row */
-.q-stats { display: flex; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
-.q-stat {
-  background: white; border-radius: 9px; padding: 13px 16px;
-  flex: 1; min-width: 110px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+/* Home header */
+.qhome-hd { margin-bottom: 22px; }
+.qhome-greeting {
+  font-family: var(--serif); font-size: 28px; font-weight: 300;
+  color: #192E2A; line-height: 1.2; margin-bottom: 8px;
 }
-.q-stat-val { font-size: 22px; font-weight: 700; color: #192E2A; line-height: 1; margin-bottom: 3px; }
+.qhome-greeting em { font-style: italic; color: var(--teal); font-weight: 300; }
+.qhome-summary {
+  font-size: 12px; color: #7A948F;
+  display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+}
+.qhome-summary-val { font-weight: 600; color: #192E2A; }
+.qhome-sep { color: rgba(0,0,0,0.2); }
+.qhome-alert {
+  background: rgba(190,110,68,0.10); color: #BE6E44;
+  font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 99px;
+}
+
+/* Stats row */
+.q-stats { display: flex; gap: 10px; margin-bottom: 26px; flex-wrap: wrap; }
+.q-stat {
+  background: white; border-radius: 9px; padding: 14px 16px;
+  flex: 1; min-width: 100px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.q-stat-val {
+  font-family: var(--serif); font-size: 30px; font-weight: 300;
+  color: #192E2A; line-height: 1; margin-bottom: 4px;
+}
 .q-stat-val.urgent { color: #BE6E44; }
-.q-stat-label { font-size: 10.5px; font-weight: 600; color: #7A948F; text-transform: uppercase; letter-spacing: 0.05em; }
+.q-stat-label { font-size: 10px; font-weight: 600; color: #7A948F; text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* Queue sections */
 .q-section { margin-bottom: 24px; }
@@ -385,6 +413,8 @@ body { overflow: hidden; height: 100svh; background: #F0EDE5; }
 .q-item-main { flex: 1; padding: 11px 13px; min-width: 0; }
 .q-item-name { font-size: 14px; font-weight: 600; color: #192E2A; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .q-item-meta { font-size: 11.5px; color: #7A948F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-item-hint { font-size: 11px; color: #BE6E44; margin-top: 2px; font-weight: 500; }
+.q-item-type { font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(122,148,143,0.8); margin-bottom: 1px; }
 .q-item-right { padding: 11px 13px 11px 0; flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
 .q-pill {
   font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 99px; letter-spacing: 0.03em;
@@ -1871,7 +1901,10 @@ body { overflow: hidden; height: 100svh; background: #F0EDE5; }
   <nav class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <img src="/assets/logo.svg" class="sidebar-logo" alt="" width="26" height="26">
-      <span class="sidebar-brand-name">Cheree</span>
+      <div>
+        <span class="sidebar-brand-nm"><em>Cheree</em> McGarry</span>
+        <span class="sidebar-brand-sub">Practice Admin</span>
+      </div>
     </div>
     <div class="sidebar-nav">
       <button class="sidebar-item active" data-view="queue" onclick="navigateTo('queue')">

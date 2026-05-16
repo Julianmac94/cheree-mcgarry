@@ -1113,6 +1113,23 @@ function _buildUnifiedSessions() {
     });
   });
 
+  /* ── 1b. Deduplicate same-time Halaxy entries ──
+   * Halaxy can return multiple records for the same slot (practitioner + room resource).
+   * Keep the named entry; if all unnamed, keep one. */
+  var apptByStartIso = {};
+  sessions.forEach(function(s) {
+    var key = s.startIso;
+    var existing = apptByStartIso[key];
+    if (!existing) {
+      apptByStartIso[key] = s;
+    } else {
+      var existingNamed = existing.name && existing.name !== 'Halaxy appointment';
+      var thisNamed = s.name && s.name !== 'Halaxy appointment';
+      if (thisNamed && !existingNamed) apptByStartIso[key] = s;
+    }
+  });
+  sessions = sessions.filter(function(s) { return apptByStartIso[s.startIso] === s; });
+
   /* ── 2. Google Calendar events ── */
   Object.keys(_calEventMap).forEach(function(eid) {
     if (_calDismissed.has(eid)) return;
@@ -1921,9 +1938,11 @@ function renderQueueView() {
   var todaySessions = unified.upcoming.filter(function(s) { return s.dateStr === todayStr; })
     .concat(unified.past.filter(function(s) { return s.dateStr === todayStr; }));
 
-  // Needs attention: past sessions not yet invoiced/paid (excluding today)
+  // Needs attention: past sessions not yet invoiced/paid (excluding today, only named clients)
   var needsAttn = unified.past.filter(function(s) {
-    return s.dateStr !== todayStr && (s.status === 'pending-invoice' || s.status === 'needs-recording');
+    return s.dateStr !== todayStr
+      && (s.status === 'pending-invoice' || s.status === 'needs-recording')
+      && s.name && s.name !== 'Halaxy appointment';
   });
 
   // New leads: enquiries not converted, status new or empty
@@ -1939,8 +1958,28 @@ function renderQueueView() {
   // Upcoming (next 14 days, not today)
   var upcoming = unified.upcoming.filter(function(s) { return s.dateStr !== todayStr; });
 
-  // Stats
+  // Home header — greeting + summary
+  var hour = now.getHours();
+  var greeting = hour < 12 ? 'Good morning' : (hour < 17 ? 'Good afternoon' : 'Good evening');
+  var allClients = (_pipelineData.clients || []);
+  var pendingInvoiceCount = unified.past.filter(function(s) { return s.status === 'pending-invoice' && s.name && s.name !== 'Halaxy appointment'; }).length;
+  var thisWeekMs = now.getTime() + 7 * 24 * 60 * 60 * 1000;
+  var upcomingWeek = unified.upcoming.filter(function(s) { return s.startMs <= thisWeekMs; });
+  var summaryParts = [];
+  if (allClients.length) summaryParts.push(allClients.length + ' active client' + (allClients.length !== 1 ? 's' : ''));
+  if (upcomingWeek.length) summaryParts.push(upcomingWeek.length + ' session' + (upcomingWeek.length !== 1 ? 's' : '') + ' this week');
+
   var html = '<div class="queue-view">';
+  html += '<div class="qhome-hd">';
+  html += '<div class="qhome-greeting">' + greeting + ', <em>Cheree</em></div>';
+  if (summaryParts.length || pendingInvoiceCount) {
+    html += '<div class="qhome-summary">' + summaryParts.join(' · ');
+    if (pendingInvoiceCount) html += (summaryParts.length ? ' · ' : '') + '<span class="qhome-alert">' + pendingInvoiceCount + ' invoice' + (pendingInvoiceCount !== 1 ? 's' : '') + ' need billing</span>';
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Stats
   html += '<div class="q-stats">';
   html += '<div class="q-stat"><div class="q-stat-val' + (todaySessions.length ? ' urgent' : '') + '">' + todaySessions.length + '</div><div class="q-stat-label">Today</div></div>';
   html += '<div class="q-stat"><div class="q-stat-val' + (needsAttn.length ? ' urgent' : '') + '">' + needsAttn.length + '</div><div class="q-stat-label">Needs Attention</div></div>';
@@ -2004,14 +2043,25 @@ function _qSessionItem(sess, barClass) {
   var metaParts = [];
   if (sess.dateLabel) metaParts.push(sess.dateLabel);
   if (sess.timeStr) metaParts.push(sess.timeStr);
-  metaParts.push(sess.source === 'halaxy' ? 'Halaxy' : 'Calendar');
+  var typeLabel = sess.source === 'halaxy' ? 'Client Session' : 'Calendar Appointment';
+  var hintMap = {
+    'pending-invoice': 'Open in Halaxy to add invoice',
+    'needs-recording': 'Session details still need to be recorded',
+    'invoiced':        'Invoice sent — awaiting payment',
+    'upcoming':        '',
+    'paid':            '',
+    'cancelled':       '',
+  };
+  var hintText = hintMap[sess.status] || '';
   var pillLabel = { 'pending-invoice': 'Pending invoice', 'needs-recording': 'Record needed', 'upcoming': 'Upcoming', 'invoiced': 'Invoiced', 'paid': 'Paid', 'cancelled': 'Cancelled' }[sess.status] || sess.status;
   var pillClass = { 'pending-invoice': 'pending', 'needs-recording': 'pending', 'upcoming': 'upcoming', 'invoiced': 'invoiced', 'paid': 'paid' }[sess.status] || 'awaiting';
   return '<div class="q-item" data-type="session" data-id="' + escHtml(sess.id) + '" onclick="openDetailPanel(\'session\',\'' + escHtml(sess.id) + '\')">'
     + '<div class="q-item-bar ' + barClass + '"></div>'
     + '<div class="q-item-main">'
+    + '<div class="q-item-type">' + typeLabel + '</div>'
     + '<div class="q-item-name">' + escHtml(sess.name || 'Halaxy appointment') + '</div>'
     + '<div class="q-item-meta">' + escHtml(metaParts.join(' · ')) + '</div>'
+    + (hintText ? '<div class="q-item-hint">' + escHtml(hintText) + '</div>' : '')
     + '</div>'
     + '<div class="q-item-right">'
     + '<span class="q-pill ' + pillClass + '">' + pillLabel + '</span>'
@@ -2028,11 +2078,15 @@ function _qEnquiryItem(enq, barClass) {
   if (enq.created_at) meta.push(_relativeDate(enq.created_at));
   var statusLabels = { new: 'New', contacted: 'Contacted', in_halaxy: 'In Halaxy' };
   var pillLabel = statusLabels[enq.status] || enq.status || 'New';
+  var hintMap = { new: 'Review intake form and make contact', contacted: 'Awaiting response from client', in_halaxy: 'Client added to Halaxy — awaiting booking' };
+  var hintText = hintMap[enq.status] || (barClass === 'new' ? 'Review intake form and make contact' : '');
   return '<div class="q-item" data-type="enquiry" data-id="' + escHtml(enq.id) + '" onclick="openDetailPanel(\'enquiry\',\'' + escHtml(enq.id) + '\')">'
     + '<div class="q-item-bar ' + barClass + '"></div>'
     + '<div class="q-item-main">'
+    + '<div class="q-item-type">New Enquiry</div>'
     + '<div class="q-item-name">' + escHtml(name) + '</div>'
     + '<div class="q-item-meta">' + escHtml(meta.join(' · ')) + '</div>'
+    + (hintText ? '<div class="q-item-hint">' + escHtml(hintText) + '</div>' : '')
     + '</div>'
     + '<div class="q-item-right">'
     + '<span class="q-pill ' + barClass + '">' + pillLabel + '</span>'
