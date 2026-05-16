@@ -229,33 +229,43 @@ function buildBookParameters(patientId, start, end, notes) {
 }
 
 /**
- * Build a FHIR Appointment resource for PATCH /Appointment/{id} — mark fulfilled.
- * Halaxy interprets serviceType coding with a ChargeItemDefinition ID as the fee,
- * triggering automatic invoice generation per practice billing settings.
+ * Build a minimal merge-patch for PATCH /Appointment/{id}.
+ * Halaxy's PATCH only honours: description, start, end, minutesDuration, comment, participant.
+ * We set comment (notes) as the only reliably patchable non-time field.
  */
 function buildRecordedAppt(apptId, patientId, start, end, feeId, feeName, feeAmount, notes) {
-  const appt = {
-    resourceType: 'Appointment',
-    status: 'fulfilled',
-    participant: [{ actor: { reference: `Patient/${patientId}` }, status: 'accepted' }],
-  };
-  if (apptId)    appt.id      = apptId;
-  if (start)     appt.start   = start;
-  if (end)       appt.end     = end;
-  if (notes)     appt.comment = notes;
-  // Attach fee via serviceType — Halaxy maps ChargeItemDefinition ID → invoice line item.
-  // The code IS the Halaxy ChargeItemDefinition FHIR resource ID.
-  if (feeId) {
-    appt.serviceType = [{
+  // Minimal patch — only send fields Halaxy actually accepts
+  const appt = { resourceType: 'Appointment' };
+  if (notes) appt.comment = notes;
+  return appt;
+}
+
+/**
+ * Build a FHIR ChargeItem resource for POST /ChargeItem.
+ * This is the correct FHIR mechanism for attaching a fee to an appointment —
+ * the ChargeItem references the patient, the appointment, and the ChargeItemDefinition fee template.
+ * Halaxy should use this to generate the invoice line item.
+ */
+function buildChargeItem(patientId, apptId, feeId, feeName, feeAmount, apptStart) {
+  const item = {
+    resourceType: 'ChargeItem',
+    status: 'billable',
+    code: {
       coding: [{
         system:  'https://au-api.halaxy.com/main/ChargeItemDefinition',
         code:    String(feeId),
         display: feeName || '',
       }],
       text: feeName || '',
-    }];
-  }
-  return appt;
+    },
+    subject: { reference: `Patient/${patientId}` },
+    quantity: { value: 1 },
+  };
+  if (apptId)    item.context            = { reference: `Appointment/${apptId}` };
+  if (apptStart) item.occurrenceDateTime = apptStart;
+  if (feeAmount) item.priceOverride      = { value: parseFloat(feeAmount), currency: 'AUD' };
+  if (feeId)     item.definitionCanonical = [`https://au-api.halaxy.com/main/ChargeItemDefinition/${feeId}`];
+  return item;
 }
 
 /**
@@ -344,22 +354,51 @@ export default async function handler(req, res) {
         console.log(`Halaxy $book: created appointment ${apptId}`);
       }
 
-      let result;
+      let patchResult = null, chargeItemResult = null, chargeItemError = null;
+
       if (action === 'record') {
-        console.log(`Halaxy PATCH: recording appointment ${apptId} with fee ${feeId} ($${feeAmount})`);
-        result = await halaxyPatch(
-          `/Appointment/${apptId}`,
-          buildRecordedAppt(apptId, patientId, apptStart || null, apptEnd || null, feeId || null, feeName || '', feeAmount, notes || null)
-        );
+        // 1. PATCH appointment notes (only reliably patchable field in Halaxy)
+        if (notes) {
+          console.log(`Halaxy PATCH: updating comment on appointment ${apptId}`);
+          patchResult = await halaxyPatch(
+            `/Appointment/${apptId}`,
+            buildRecordedAppt(apptId, patientId, apptStart || null, apptEnd || null, feeId || null, feeName || '', feeAmount, notes || null)
+          ).catch(e => { console.error('PATCH error (non-fatal):', e.message); return null; });
+        }
+
+        // 2. POST ChargeItem — FHIR mechanism to attach a fee to an appointment
+        if (feeId) {
+          console.log(`Halaxy POST ChargeItem: fee ${feeId} ($${feeAmount}) for patient ${patientId} on appt ${apptId}`);
+          try {
+            chargeItemResult = await halaxyPost(
+              '/ChargeItem',
+              buildChargeItem(patientId, apptId, feeId, feeName || '', feeAmount, apptStart || null)
+            );
+            console.log('ChargeItem created:', JSON.stringify(chargeItemResult).slice(0, 200));
+          } catch (e) {
+            chargeItemError = e.message;
+            console.error('ChargeItem POST error:', e.message);
+            // Don't throw — we'll surface the error in the response so it can be debugged
+          }
+        }
+
+        // If ChargeItem failed and we have no other write, surface a clear error
+        if (feeId && !chargeItemResult) {
+          return res.status(500).json({
+            error: `Fee could not be attached in Halaxy: ${chargeItemError || 'unknown error'}`,
+            halaxyApptId: apptId, chargeItemError,
+          });
+        }
       } else {
+        // Cancel: PATCH appointment status to cancelled
         console.log(`Halaxy PATCH: cancelling appointment ${apptId}`);
-        result = await halaxyPatch(
+        patchResult = await halaxyPatch(
           `/Appointment/${apptId}`,
           buildCancelledAppt(apptId, patientId, apptStart || null, apptEnd || null, notes || null)
         );
       }
 
-      return res.status(200).json({ ok: true, halaxyApptId: apptId, result });
+      return res.status(200).json({ ok: true, halaxyApptId: apptId, patchResult, chargeItemResult });
     } catch (err) {
       console.error('Halaxy appt action error:', err.message);
       return res.status(500).json({ error: err.message });

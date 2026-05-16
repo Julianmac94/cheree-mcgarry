@@ -370,6 +370,10 @@ var _pipelineData    = null;
 var _halaxyData      = { connected: false, appointments: [], patients: [], patientMap: {}, funders: [] };
 var _calEventMap     = {};    // eventId → event object
 var _calDismissed    = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
+// Halaxy appointments actioned (recorded or cancelled) this session — persisted in localStorage
+// so they don't bounce back into "Needs Recording" after a pipeline refresh.
+// Key format: "patientId|YYYY-MM-DD"  (same as invoicedSet / sessionedSet)
+var _halaxyActioned  = new Set(JSON.parse(localStorage.getItem('halaxy_actioned') || '[]'));
 var _halaxyFees      = null; // cached ChargeItemDefinition list
 var _calSearchTimer  = null; // debounce timer for Halaxy patient search
 var _currentWeekStart = null; // Monday of the currently-displayed week (Date object)
@@ -1032,7 +1036,7 @@ function renderAppointmentsPanel() {
     // Suppress if Halaxy already has an invoice for this patient+date (source of truth)
     var pidNR = _apptPatientId(a);
     var dtNR  = startStr.slice(0, 10);
-    if (pidNR && (invoicedSet.has(String(pidNR) + '|' + dtNR) || sessionedSet.has(String(pidNR) + '|' + dtNR))) return;
+    if (pidNR && (invoicedSet.has(String(pidNR) + '|' + dtNR) || sessionedSet.has(String(pidNR) + '|' + dtNR) || _halaxyActioned.has(String(pidNR) + '|' + dtNR))) return;
     needsLogging.push({ type: 'halaxy', ev: a, start: startStr, dateMs: new Date(startStr).getTime() });
   });
 
@@ -2877,19 +2881,22 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
       },
     });
 
+    // Mark actioned in localStorage so it won't bounce back after pipeline refresh
+    _halaxyActioned.add(patientId + '|' + apptDate);
+    localStorage.setItem('halaxy_actioned', JSON.stringify([..._halaxyActioned]));
+
     // Dismiss the card from the UI immediately
     if (eventId) {
       dismissCalEvent(eventId);
     } else {
-      // Halaxy appointment card — remove from DOM; next refresh will re-filter by status
       var cardEl = panelEl ? panelEl.closest('.log-card') : null;
       if (cardEl) cardEl.remove();
     }
 
-    toast('Session recorded in Halaxy ✓', 'ok');
+    toast('Session recorded in Halaxy ✓ — check Halaxy for the invoice', 'ok');
 
-    // Re-fetch pipeline data so the billing panel and appointment list update
-    setTimeout(function() { refreshPipeline(); }, 1500);
+    // Re-fetch pipeline data so the billing panel updates
+    setTimeout(function() { refreshPipeline(); }, 2000);
 
   } catch (err) {
     toast('Error recording session: ' + err.message, 'err');
@@ -2930,6 +2937,10 @@ async function _cancelHalaxySession(cardUid, eventId, patientId, halaxyApptId) {
       },
     });
 
+    // Mark actioned so it doesn't reappear after refresh
+    _halaxyActioned.add(patientId + '|' + apptDate);
+    localStorage.setItem('halaxy_actioned', JSON.stringify([..._halaxyActioned]));
+
     if (eventId) {
       dismissCalEvent(eventId);
     } else {
@@ -2938,7 +2949,7 @@ async function _cancelHalaxySession(cardUid, eventId, patientId, halaxyApptId) {
     }
 
     toast('Session cancelled in Halaxy ✓', 'ok');
-    setTimeout(function() { refreshPipeline(); }, 1500);
+    setTimeout(function() { refreshPipeline(); }, 2000);
 
   } catch (err) {
     toast('Error cancelling session: ' + err.message, 'err');
