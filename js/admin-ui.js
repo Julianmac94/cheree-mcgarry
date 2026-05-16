@@ -957,6 +957,13 @@ function _buildUnifiedSessions() {
     // Status determination (priority order)
     var status;
     var apptStatus = appt.status || '';
+    // Check if Halaxy has a fee/ChargeItemDefinition attached to this appointment
+    var apptHasFee = (appt.supportingInformation || []).some(function(si) {
+      var ref = (si.reference || '').toLowerCase();
+      var type = (si.type || si.display || '').toLowerCase();
+      return ref.indexOf('chargeitemdefinition') !== -1 || type.indexOf('chargeitemdefinition') !== -1;
+    });
+
     if (apptStatus === 'cancelled' || apptStatus === 'entered-in-error') {
       status = 'cancelled';
     } else if (startMs > now.getTime()) {
@@ -966,8 +973,10 @@ function _buildUnifiedSessions() {
     } else if (key && invoicedSet.has(key)) {
       var matchInv = invoices.find(function(inv) { return String(inv.patientId) === String(patientId) && inv.date === dateStr; });
       status = (matchInv && _invIsPaid(matchInv)) ? 'paid' : 'invoiced';
-    } else if (apptStatus === 'fulfilled') {
-      status = 'invoiced'; // fulfilled but no invoice yet — nudge to invoice
+    } else if (apptStatus === 'fulfilled' || apptHasFee) {
+      // fulfilled = Halaxy marked it complete; apptHasFee = fee attached via supportingInformation
+      // Either way, the session has been actioned — show as pending-invoice so the Halaxy link is visible
+      status = key && invoicedSet.has(key) ? 'invoiced' : 'pending-invoice';
     } else if (key && sessionedSet.has(key)) {
       status = 'invoiced'; // internal session record exists
     } else {
