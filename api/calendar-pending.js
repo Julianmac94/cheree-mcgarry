@@ -68,3 +68,38 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to fetch calendar events' });
   }
 }
+
+async function getOAuth2Client() {
+  const { data: setting } = await db
+    .from('settings')
+    .select('value')
+    .eq('key', 'google_refresh_token')
+    .single();
+
+  if (!setting?.value) throw new Error('Google Calendar not connected');
+
+  const oauth2 = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET
+  );
+  oauth2.setCredentials({ refresh_token: setting.value });
+  return oauth2;
+}
+
+export async function createCalendarEvent({ title, start, end, notes }) {
+  const oauth2    = await getOAuth2Client();
+  const calendar  = google.calendar({ version: 'v3', auth: oauth2 });
+  const TZ        = 'Australia/Brisbane';
+
+  const event = await calendar.events.insert({
+    calendarId: CALENDAR_ID,
+    resource: {
+      summary:     title,
+      description: notes || '',
+      start: { dateTime: start, timeZone: TZ },
+      end:   { dateTime: end,   timeZone: TZ },
+    },
+  });
+
+  return { id: event.data.id, htmlLink: event.data.htmlLink };
+}

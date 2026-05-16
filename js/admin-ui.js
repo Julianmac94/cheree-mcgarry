@@ -381,9 +381,12 @@ var _halaxyActioned  = new Set(JSON.parse(localStorage.getItem('halaxy_actioned'
 // Entries are cleaned up when a matching Halaxy invoice appears (patientId+date match).
 var _recordedSessions = JSON.parse(localStorage.getItem('halaxy_recorded_sessions') || '[]');
 var _halaxyFees      = null; // cached ChargeItemDefinition list
+var _halaxyWebUrl    = null; // Halaxy web calendar base URL (e.g. https://www.halaxy.com/a/pr/30188411)
 var _calSearchTimer  = null; // debounce timer for Halaxy patient search
 var _currentWeekStart = null; // Monday of the currently-displayed week (Date object)
 var _calEventsLoaded  = false; // whether calendar load has completed
+var _sessionViewMode  = localStorage.getItem('session_view_mode') || 'list'; // 'list' | 'card'
+var _sessionFilter    = 'all'; // active filter pill
 
 /* Close any open card dropdown when clicking elsewhere */
 document.addEventListener('click', function(e) {
@@ -409,7 +412,7 @@ var FUNDER_RATES = {
   medicare:  '141.85',
   qfes:      '190.00',
   dva:       '141.85',
-  private:   '200.00',
+  private:   '180.00',
 };
 
 var STATUS_NEXT = {
@@ -473,6 +476,7 @@ async function loadPipeline() {
     _halaxyFunders = _halaxyData.funders || [];
     _halaxyFeeMap  = _halaxyData.feeMap  || {};
     _halaxyFees    = (_halaxyData.fees && _halaxyData.fees.length) ? _halaxyData.fees : _halaxyFees;
+    if (_halaxyData.webUrl) _halaxyWebUrl = _halaxyData.webUrl;
     renderHelloSection();
     renderPipeline();
     updateHalaxyDot();
@@ -519,6 +523,7 @@ function refreshPipeline() {
     _halaxyFunders = _halaxyData.funders || [];
     _halaxyFeeMap  = _halaxyData.feeMap  || {};
     _halaxyFees    = (_halaxyData.fees && _halaxyData.fees.length) ? _halaxyData.fees : _halaxyFees;
+    if (_halaxyData.webUrl) _halaxyWebUrl = _halaxyData.webUrl;
     renderHelloSection();
     renderPipeline();
     updateHalaxyDot();
@@ -837,27 +842,24 @@ function toggleWeekEvent(el) {
   el.classList.toggle('is-expanded');
 }
 
-function renderAppointmentsPanel() {
-  var body = document.getElementById('appointments-panel-body');
-  if (!body) return;
-  if (!_currentWeekStart) _currentWeekStart = _weekMonday(new Date());
+/* ── Module-scope helper: extract patient ID from a FHIR appointment ── */
+function _apptPatientId(appt) {
+  var pid = null;
+  (appt.participant || []).forEach(function(p) {
+    if (!pid && p.actor && p.actor.reference) {
+      pid = _patientIdFromRef(p.actor.reference);
+    }
+  });
+  return pid;
+}
 
-  var today = new Date();
-  today.setHours(0, 0, 0, 0);
-  var sevenDayEnd = new Date(today);
-  sevenDayEnd.setDate(sevenDayEnd.getDate() + 7);
-
-  var halaxyAppts = (_halaxyData && _halaxyData.appointments) || [];
-
-  // Build invoiced set from Halaxy invoices so we can suppress false "Needs recording" entries
-  // and show correct status on 7-day cards. Key format: "patientId|YYYY-MM-DD"
+/* ── Build invoicedSet / sessionedSet used by unified sessions ── */
+function _buildInvoicedSets() {
   var invoices = (_halaxyData && _halaxyData.invoices) || [];
   var invoicedSet = new Set();
   invoices.forEach(function(inv) {
     if (inv.patientId && inv.date) invoicedSet.add(String(inv.patientId) + '|' + inv.date);
   });
-
-  // Also suppress if an internal session exists for this client's halaxy_id + date
   var sessionedSet = new Set();
   ((_pipelineData && _pipelineData.clients) || []).forEach(function(c) {
     if (!c.halaxy_id) return;
@@ -865,232 +867,395 @@ function renderAppointmentsPanel() {
       if (s.session_date) sessionedSet.add(String(c.halaxy_id) + '|' + s.session_date);
     });
   });
+  return { invoices: invoices, invoicedSet: invoicedSet, sessionedSet: sessionedSet };
+}
 
-  /* ── Inline helpers ── */
-  function _apptPatientId(appt) {
-    var pid = null;
-    (appt.participant || []).forEach(function(p) {
-      if (!pid && p.actor && p.actor.reference) {
-        pid = _patientIdFromRef(p.actor.reference);
-      }
-    });
-    return pid;
-  }
+/**
+ * Build the unified sessions array for the appointments panel.
+ * Returns an array of session objects sorted: upcoming ascending, past descending.
+ * Each entry: { id, source, status, dateMs, startMs, dateStr, timeStr, name, uid, appt, ev, patientId, halaxyApptId, recordedEntry }
+ */
+function _buildUnifiedSessions() {
+  var now     = new Date();
+  var today   = new Date(now); today.setHours(0, 0, 0, 0);
+  var past30  = new Date(today); past30.setDate(past30.getDate() - 30);
+  var future14 = new Date(today); future14.setDate(future14.getDate() + 14);
 
-  function _apptBillingInfo(appt) {
-    if (!_pipelineData || !_isClinicalAppt(appt)) return null;
+  var sets = _buildInvoicedSets();
+  var invoices    = sets.invoices;
+  var invoicedSet = sets.invoicedSet;
+  var sessionedSet = sets.sessionedSet;
+
+  var halaxyAppts = (_halaxyData && _halaxyData.appointments) || [];
+  var sessions = [];
+
+  // Track Halaxy appt keys represented so cal events don't duplicate them
+  // Key: patientId|YYYY-MM-DD  — but for cal events no patientId, so we track by date string only
+  var halaxyKeySet = new Set(); // patientId|date → true
+
+  /* ── 1. Halaxy appointments ── */
+  halaxyAppts.forEach(function(appt) {
+    var startStr = appt.start || (appt.period && appt.period.start);
+    if (!startStr) return;
+    if (!_isClinicalAppt(appt)) return;
+
+    var startMs = new Date(startStr).getTime();
+    var dateStr = startStr.slice(0, 10);
+    var dateD   = new Date(dateStr + 'T00:00:00');
+    if (dateD < past30 || dateD > future14) return;
+
     var patientId = _apptPatientId(appt);
-    if (!patientId) return null;
-    var client = (_pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(patientId); });
-    if (!client) return { patientId: String(patientId), client: null, session: null };
-    var apptDate = (appt.start || '').slice(0, 10);
-    var session = (client.sessions || []).find(function(s) { return s.session_date === apptDate; });
-    return { patientId: String(patientId), client: client, session: session };
+    var key = patientId ? (String(patientId) + '|' + dateStr) : null;
+    if (key) halaxyKeySet.add(key);
+
+    var label = _halaxyApptLabel(appt);
+
+    // Status determination (priority order)
+    var status;
+    var apptStatus = appt.status || '';
+    if (apptStatus === 'cancelled' || apptStatus === 'entered-in-error') {
+      status = 'cancelled';
+    } else if (startMs > now.getTime()) {
+      status = 'upcoming';
+    } else if (key && (_halaxyActioned.has(key) || _recordedSessions.some(function(s) { return String(s.patientId) === String(patientId) && s.date === dateStr; }))) {
+      status = 'pending-invoice';
+    } else if (key && invoicedSet.has(key)) {
+      var matchInv = invoices.find(function(inv) { return String(inv.patientId) === String(patientId) && inv.date === dateStr; });
+      status = (matchInv && _invIsPaid(matchInv)) ? 'paid' : 'invoiced';
+    } else if (apptStatus === 'fulfilled') {
+      status = 'invoiced'; // fulfilled but no invoice yet — nudge to invoice
+    } else if (key && sessionedSet.has(key)) {
+      status = 'invoiced'; // internal session record exists
+    } else {
+      status = 'needs-recording';
+    }
+
+    var timeStr = new Date(startStr).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+    var dateLabel = new Date(startStr).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+    var uid = 'hx-log-' + (patientId || 'unk') + '-' + dateStr.replace(/-/g, '');
+
+    sessions.push({
+      id:           uid,
+      source:       'halaxy',
+      status:       status,
+      dateMs:       dateD.getTime(),
+      startMs:      startMs,
+      dateStr:      dateStr,
+      dateLabel:    dateLabel,
+      timeStr:      timeStr,
+      name:         label,
+      patientId:    patientId ? String(patientId) : null,
+      halaxyApptId: appt.id || '',
+      startIso:     startStr,
+      appt:         appt,
+    });
+  });
+
+  /* ── 2. Google Calendar events ── */
+  Object.keys(_calEventMap).forEach(function(eid) {
+    if (_calDismissed.has(eid)) return;
+    var ev = _calEventMap[eid];
+    if (!ev || !ev.start) return;
+
+    var startMs = new Date(ev.start).getTime();
+    var dateStr = ev.start.slice(0, 10);
+    var dateD   = new Date(dateStr + 'T00:00:00');
+    if (dateD < past30 || dateD > future14) return;
+
+    // Determine status
+    var status;
+    if (startMs > now.getTime()) {
+      status = 'upcoming';
+    } else if (_recordedSessions.some(function(s) { return s.date === dateStr && s.calOnly; })) {
+      status = 'pending-invoice';
+    } else {
+      status = 'needs-recording';
+    }
+
+    var timeStr = ev.allDay ? 'All day' : new Date(ev.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+    var dateLabel = new Date(ev.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+    var uid = 'cal-log-' + String(eid);
+
+    sessions.push({
+      id:        uid,
+      source:    'cal',
+      status:    status,
+      dateMs:    dateD.getTime(),
+      startMs:   startMs,
+      dateStr:   dateStr,
+      dateLabel: dateLabel,
+      timeStr:   timeStr,
+      name:      ev.title || ev.summary || 'Calendar event',
+      patientId: null,
+      eventId:   String(eid),
+      ev:        ev,
+    });
+  });
+
+  /* ── 3. _recordedSessions with no matching Halaxy/Cal entry ── */
+  _recordedSessions.forEach(function(s) {
+    if (!s.date) return;
+    var dateD = new Date(s.date + 'T00:00:00');
+    if (dateD < past30 || dateD > future14) return;
+    // Already represented by a Halaxy appt?
+    var key = s.patientId ? (String(s.patientId) + '|' + s.date) : null;
+    if (key && halaxyKeySet.has(key)) return;
+    // Already represented by a cal event on this date (calOnly)?
+    var dateLabel = new Date(s.date + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+    var name = (s.patientId && _halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[s.patientId])
+      || (s.patientId ? ('Client #' + s.patientId) : 'Unknown client');
+    var uid = 'rec-' + (s.patientId || 'unk') + '-' + s.date.replace(/-/g, '');
+
+    sessions.push({
+      id:             uid,
+      source:         s.calOnly ? 'cal' : 'halaxy',
+      status:         'pending-invoice',
+      dateMs:         dateD.getTime(),
+      startMs:        dateD.getTime(),
+      dateStr:        s.date,
+      dateLabel:      dateLabel,
+      timeStr:        '',
+      name:           name,
+      patientId:      s.patientId ? String(s.patientId) : null,
+      halaxyApptId:   s.halaxyApptId || '',
+      recordedEntry:  s,
+    });
+  });
+
+  /* ── Sort: upcoming ascending (soonest first), past descending (most recent first) ── */
+  var upcoming = sessions.filter(function(s) { return s.startMs > now.getTime(); });
+  var past     = sessions.filter(function(s) { return s.startMs <= now.getTime(); });
+
+  upcoming.sort(function(a, b) { return a.startMs - b.startMs; });
+  past.sort(function(a, b)     { return b.startMs - a.startMs; });
+
+  return { upcoming: upcoming, past: past };
+}
+
+/* ── Set session view mode and re-render ── */
+function _setSessionView(mode) {
+  _sessionViewMode = mode;
+  localStorage.setItem('session_view_mode', mode);
+  renderAppointmentsPanel();
+}
+
+/* ── Set session filter and re-render ── */
+function _setSessionFilter(filter) {
+  _sessionFilter = filter;
+  renderAppointmentsPanel();
+}
+
+function renderAppointmentsPanel() {
+  var body = document.getElementById('appointments-panel-body');
+  if (!body) return;
+  if (!_currentWeekStart) _currentWeekStart = _weekMonday(new Date());
+
+  var now   = new Date();
+  var today = new Date(now); today.setHours(0, 0, 0, 0);
+
+  var halaxyAppts = (_halaxyData && _halaxyData.appointments) || [];
+
+  /* ── Build unified session list ── */
+  var unified = _buildUnifiedSessions();
+  var upcomingSessions = unified.upcoming;
+  var pastSessions     = unified.past;
+
+  /* ── Status badge HTML helper ── */
+  function _statusBadge(status) {
+    var map = {
+      'upcoming':         '<span class="dp-badge dp-badge--upcoming">Upcoming</span>',
+      'needs-recording':  '<span class="dp-badge dp-badge--needs-recording">Needs recording</span>',
+      'pending-invoice':  '<span class="dp-badge dp-badge--pending-inv">Pending invoice</span>',
+      'invoiced':         '<span class="dp-badge dp-badge--status-invoiced">Invoiced</span>',
+      'paid':             '<span class="dp-badge dp-badge--status-paid">Paid ✓</span>',
+      'cancelled':        '<span class="dp-badge dp-badge--source">Cancelled</span>',
+    };
+    return map[status] || '';
   }
+
+  /* ── Source badge HTML helper ── */
+  function _sourceBadge(source) {
+    if (source === 'halaxy') return '<span class="dp-badge dp-badge--halaxy">Halaxy</span>';
+    if (source === 'cal')    return '<span class="dp-badge dp-badge--cal">Calendar</span>';
+    return '';
+  }
+
+  /* ── Action button for list-view row ── */
+  function _actionBtn(sess) {
+    var status = sess.status;
+    var uid    = sess.id;
+    if (status === 'needs-recording') {
+      if (sess.source === 'halaxy' && sess.patientId) {
+        var hxName = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[sess.patientId]) || sess.name;
+        var apptStartIso = sess.startIso || (sess.dateStr + 'T09:00:00');
+        return '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px" onclick="openHalaxyApptLogPanel(\'' + uid + '\',\'' + escHtml(sess.patientId) + '\',\'' + escHtml(hxName) + '\',\'' + sess.dateStr + '\',\'' + escHtml(apptStartIso) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Record →</button>';
+      }
+      if (sess.source === 'cal' && sess.eventId) {
+        return '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px" onclick="openCalSessionPanel(\'' + uid + '\',\'' + escHtml(sess.eventId) + '\')">Link &amp; Record →</button>';
+      }
+    }
+    if (status === 'pending-invoice') {
+      var calUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
+      return '<a class="dp-btn dp-btn--ghost" style="font-size:10px;padding:4px 9px" href="' + escHtml(calUrl) + '" target="_blank" rel="noopener">Open in Halaxy →</a>';
+    }
+    if (status === 'invoiced') {
+      var invUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
+      return '<a class="dp-btn dp-btn--ghost" style="font-size:10px;padding:4px 9px" href="' + escHtml(invUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
+    }
+    return '';
+  }
+
+  /* ── Render a single list-view row ── */
+  function _sessionRow(sess) {
+    var filterMatch = (_sessionFilter === 'all' || _sessionFilter === sess.status);
+    var hiddenClass = filterMatch ? '' : ' session-row--hidden';
+    var timeDisplay = sess.timeStr ? (sess.dateLabel + ' · ' + sess.timeStr) : sess.dateLabel;
+    var actionHtml  = _actionBtn(sess);
+    var linkPanelId = 'pl-link-' + sess.id;
+
+    return '<div class="session-row session-row--' + sess.status + hiddenClass + '">'
+      + '<div class="session-row-date">' + escHtml(timeDisplay) + '</div>'
+      + '<div class="session-row-name">' + escHtml(sess.name) + '</div>'
+      + '<div class="session-row-badges">'
+      + _sourceBadge(sess.source)
+      + _statusBadge(sess.status)
+      + '</div>'
+      + (actionHtml ? '<div class="session-row-action">' + actionHtml + '</div>' : '')
+      + '</div>'
+      + '<div id="' + linkPanelId + '"></div>';
+  }
+
+  /* ── Render a single card (card-view mode, reuses existing card styles) ── */
+  function _sessionCard(sess) {
+    var filterMatch = (_sessionFilter === 'all' || _sessionFilter === sess.status);
+    if (!filterMatch) return '';
+    var status = sess.status;
+
+    if (status === 'needs-recording') {
+      if (sess.source === 'cal' && sess.eventId) {
+        var uid = sess.id;
+        var eid = sess.eventId;
+        return '<div class="log-card">'
+          + '<div class="log-card-info">'
+          + '<div class="log-card-title">' + escHtml(sess.name) + '</div>'
+          + '<div class="log-card-date">' + escHtml(sess.dateLabel) + ' · Calendar</div>'
+          + '</div>'
+          + '<button class="dp-btn dp-btn--primary" onclick="openCalSessionPanel(\'' + uid + '\',\'' + eid + '\')">Link &amp; Record →</button>'
+          + '<div id="pl-link-' + uid + '"></div>'
+          + '</div>';
+      }
+      if (sess.source === 'halaxy' && sess.patientId) {
+        var uid2 = sess.id;
+        var hxName2 = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[sess.patientId]) || sess.name;
+        var apptStartIso2 = sess.startIso || (sess.dateStr + 'T09:00:00');
+        return '<div class="log-card">'
+          + '<div class="log-card-info">'
+          + '<div class="log-card-title">' + escHtml(sess.name) + '</div>'
+          + '<div class="log-card-date">' + escHtml(sess.dateLabel) + ' · Halaxy</div>'
+          + '</div>'
+          + '<button class="dp-btn dp-btn--primary" onclick="openHalaxyApptLogPanel(\'' + uid2 + '\',\'' + escHtml(sess.patientId) + '\',\'' + escHtml(hxName2) + '\',\'' + sess.dateStr + '\',\'' + escHtml(apptStartIso2) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Record →</button>'
+          + '<div id="pl-link-' + uid2 + '"></div>'
+          + '</div>';
+      }
+    }
+
+    // Generic card for upcoming / invoiced / paid / pending-invoice
+    var timeDisplay2 = sess.timeStr ? (sess.dateLabel + ' · ' + sess.timeStr) : sess.dateLabel;
+    var actionHtml2 = _actionBtn(sess);
+    var borderColor = {
+      'upcoming':        '#4a90d9',
+      'needs-recording': '#e07b39',
+      'pending-invoice': '#6c5ce7',
+      'invoiced':        '#27ae60',
+      'paid':            '#aaa',
+      'cancelled':       '#ccc',
+    }[status] || '#ccc';
+
+    return '<div class="appt-7day-card" style="border-left-color:' + borderColor + (status === 'cancelled' ? ';opacity:0.45' : '') + '">'
+      + '<div class="appt-7day-left">'
+      + '<div class="appt-7day-when">' + escHtml(timeDisplay2) + '</div>'
+      + '<div class="appt-7day-title">' + escHtml(sess.name) + '</div>'
+      + '</div>'
+      + '<div class="appt-7day-right">'
+      + _sourceBadge(sess.source)
+      + _statusBadge(status)
+      + (actionHtml2 ? '<div style="margin-top:4px">' + actionHtml2 + '</div>' : '')
+      + '</div>'
+      + '</div>';
+  }
+
+  /* ── Filter pills ── */
+  var filterCounts = { all: upcomingSessions.length + pastSessions.length };
+  upcomingSessions.concat(pastSessions).forEach(function(s) {
+    filterCounts[s.status] = (filterCounts[s.status] || 0) + 1;
+  });
+  var filters = [
+    { key: 'all',             label: 'All' },
+    { key: 'upcoming',        label: 'Upcoming' },
+    { key: 'needs-recording', label: 'Needs recording' },
+    { key: 'pending-invoice', label: 'Pending invoice' },
+    { key: 'invoiced',        label: 'Invoiced' },
+    { key: 'paid',            label: 'Paid' },
+  ];
+  var filterBarHtml = '<div class="session-filter-bar">';
+  filters.forEach(function(f) {
+    var cnt = filterCounts[f.key] || 0;
+    if (f.key !== 'all' && !cnt) return; // hide empty filters except All
+    var isActive = _sessionFilter === f.key;
+    filterBarHtml += '<button class="session-filter-pill' + (isActive ? ' active' : '') + '" onclick="_setSessionFilter(\'' + f.key + '\')">'
+      + escHtml(f.label) + (cnt && f.key !== 'all' ? ' (' + cnt + ')' : '')
+      + '</button>';
+  });
+  filterBarHtml += '</div>';
+
+  /* ── View toggle ── */
+  var viewToggleHtml = '<div class="session-view-toggle">'
+    + '<button class="session-view-btn' + (_sessionViewMode === 'list' ? ' active' : '') + '" title="List view" onclick="_setSessionView(\'list\')">☰</button>'
+    + '<button class="session-view-btn' + (_sessionViewMode === 'card' ? ' active' : '') + '" title="Card view" onclick="_setSessionView(\'card\')">⊞</button>'
+    + '</div>';
 
   var html = '';
 
-  /* ══════════════════════════════════════════════════
-     SECTION 1 — NEXT 7 DAYS actionable cards
-     ══════════════════════════════════════════════════ */
-  var actionItems = [];
+  /* ── Header row: + New Session + view toggle ── */
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:2px">'
+    + '<button class="dp-btn dp-btn--soft" style="font-size:12px;padding:4px 10px" onclick="openNewSessionModal()">+ New Session</button>'
+    + viewToggleHtml
+    + '</div>';
 
-  Object.keys(_calEventMap).forEach(function(eid) {
-    if (_calDismissed.has(eid)) return;
-    var ev = _calEventMap[eid];
-    if (!ev || !ev.start) return;
-    var d = new Date(ev.start); d.setHours(0, 0, 0, 0);
-    if (d >= today && d < sevenDayEnd) {
-      actionItems.push({ type: 'cal', ev: ev, dateMs: new Date(ev.start).getTime() });
+  html += filterBarHtml;
+
+  /* ── Session list/cards ── */
+  if (!upcomingSessions.length && !pastSessions.length) {
+    html += '<div class="dp-empty">No sessions in the past 30 or next 14 days</div>';
+  } else if (_sessionViewMode === 'list') {
+    html += '<div class="session-list">';
+
+    if (upcomingSessions.length) {
+      upcomingSessions.forEach(function(sess) { html += _sessionRow(sess); });
     }
-  });
 
-  halaxyAppts.forEach(function(a) {
-    var startStr = a.start || (a.period && a.period.start);
-    if (!startStr) return;
-    var d = new Date(startStr); d.setHours(0, 0, 0, 0);
-    if (d >= today && d < sevenDayEnd) {
-      actionItems.push({ type: 'halaxy', ev: a, start: startStr, dateMs: new Date(startStr).getTime() });
-    }
-  });
-  actionItems.sort(function(a, b) { return a.dateMs - b.dateMs; });
-
-  // Separate named items from unnamed Halaxy blocks
-  var namedItems = actionItems.filter(function(item) {
-    if (item.type === 'cal') return true;
-    return _halaxyApptLabel(item.ev) !== 'Halaxy appointment';
-  });
-  var otherItems = actionItems.filter(function(item) {
-    if (item.type === 'cal') return false;
-    return _halaxyApptLabel(item.ev) === 'Halaxy appointment';
-  });
-
-  html += '<div class="appt-section-label">Next 7 days</div>';
-  if (!namedItems.length && !otherItems.length) {
-    html += '<div class="dp-empty">No appointments in the next 7 days</div>';
-  } else {
-    namedItems.forEach(function(item) {
-      if (item.type === 'cal') {
-        var ev = item.ev;
-        var eid = String(ev.id);
-        var uid = 'cal-7d-' + eid;
-        var time = ev.allDay ? 'All day' : new Date(ev.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
-        var dateLabel = new Date(ev.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-        var title = ev.title || ev.summary || 'Event';
-        html += '<div class="appt-7day-card appt-7day-card--cal">'
-          + '<div class="appt-7day-left">'
-          + '<div class="appt-7day-when">' + escHtml(dateLabel) + ' · ' + escHtml(time) + '</div>'
-          + '<div class="appt-7day-title">' + escHtml(title) + '</div>'
-          + '</div>'
-          + '<div class="appt-7day-right">'
-          + '<span class="dp-badge dp-badge--cal">Google Cal</span>'
-          + '<span class="dp-badge dp-badge--needs-log">Not invoiced</span>'
-          + '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px;margin-top:4px" onclick="openCalSessionPanel(\'' + uid + '\',\'' + eid + '\')">Create Invoice →</button>'
-          + '</div>'
-          + '<div id="pl-link-' + uid + '"></div>'
-          + '</div>';
-      } else {
-        var appt = item.ev;
-        var isClinical = _isClinicalAppt(appt);
-        var label = _halaxyApptLabel(appt);
-        var time2 = new Date(item.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
-        var dateLabel2 = new Date(item.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-        var patientId = _apptPatientId(appt);
-        var apptDateStr = item.start.slice(0, 10);
-        var billingBadge = '';
-        var actionBtns = '';
-
-        if (isClinical) {
-          // Halaxy invoice is the source of truth — check it first
-          var invKey7 = patientId ? (String(patientId) + '|' + apptDateStr) : null;
-          var matchInv7 = invKey7 ? invoices.find(function(inv) { return (String(inv.patientId) + '|' + inv.date) === invKey7; }) : null;
-          if (matchInv7) {
-            if (_invIsPaid(matchInv7)) {
-              billingBadge = '<span class="dp-badge dp-badge--status-paid">Paid ✓</span>';
-            } else {
-              // active / issued / draft — invoice exists but not yet settled
-              billingBadge = '<span class="dp-badge dp-badge--status-invoiced">Invoiced</span>';
-              actionBtns = '<a class="dp-btn dp-btn--ghost" style="font-size:10px;padding:4px 9px;margin-top:4px" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">View in Halaxy →</a>';
-            }
-          }
-          // No badge for upcoming appointments without a Halaxy invoice yet —
-          // the invoice is created after the session happens, not before.
-        }
-
-        var cardClass = isClinical ? 'appt-7day-card appt-7day-card--halaxy' : 'appt-7day-card appt-7day-card--personal';
-        html += '<div class="' + cardClass + '">'
-          + '<div class="appt-7day-left">'
-          + '<div class="appt-7day-when">' + escHtml(dateLabel2) + ' · ' + escHtml(time2) + '</div>'
-          + '<div class="appt-7day-title">' + escHtml(label) + '</div>'
-          + '</div>'
-          + '<div class="appt-7day-right">'
-          + '<span class="dp-badge ' + (isClinical ? 'dp-badge--halaxy' : 'dp-badge--source') + '">' + (isClinical ? 'Halaxy' : 'Personal') + '</span>'
-          + billingBadge
-          + actionBtns
-          + '</div>'
-          + '</div>';
+    if (pastSessions.length) {
+      if (upcomingSessions.length) {
+        html += '<div class="session-divider">Past sessions</div>';
       }
-    });
+      pastSessions.forEach(function(sess) { html += _sessionRow(sess); });
+    }
 
-    // Unnamed Halaxy blocks → collapsible "Other" at the bottom
-    if (otherItems.length) {
-      html += '<div class="dp-collapsible" style="margin-top:4px">'
-        + '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'appt-other\')">'
-        + '<span id="appt-other-arrow">▸</span> Other (' + otherItems.length + ')'
-        + '</button>'
-        + '<div class="dp-collapsible-body" id="appt-other">';
-      otherItems.forEach(function(item) {
-        var time3 = new Date(item.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
-        var dateLabel3 = new Date(item.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-        html += '<div class="appt-7day-card appt-7day-card--personal">'
-          + '<div class="appt-7day-left">'
-          + '<div class="appt-7day-when">' + escHtml(dateLabel3) + ' · ' + escHtml(time3) + '</div>'
-          + '<div class="appt-7day-title" style="color:var(--soft)">Halaxy block</div>'
-          + '</div>'
-          + '<div class="appt-7day-right">'
-          + '<span class="dp-badge dp-badge--source">Personal</span>'
-          + '</div>'
-          + '</div>';
-      });
-      html += '</div></div>';
+    html += '</div>';
+  } else {
+    // Card view
+    if (upcomingSessions.length) {
+      html += '<div class="appt-section-label" style="margin-top:4px">Upcoming</div>';
+      upcomingSessions.forEach(function(sess) { html += _sessionCard(sess); });
+    }
+    if (pastSessions.length) {
+      html += '<div class="appt-section-label" style="margin-top:12px">Past sessions</div>';
+      pastSessions.forEach(function(sess) { html += _sessionCard(sess); });
     }
   }
 
   /* ══════════════════════════════════════════════════
-     SECTION 2 — NEEDS LOGGING (past unlogged)
-     Includes Cal events + past Halaxy clinical appts without a session
-     ══════════════════════════════════════════════════ */
-  var needsLogging = [];
-
-  Object.keys(_calEventMap).forEach(function(eid) {
-    if (_calDismissed.has(eid)) return;
-    var ev = _calEventMap[eid];
-    if (!ev || !ev.start) return;
-    if (new Date(ev.start).getTime() < today.getTime()) {
-      needsLogging.push({ type: 'cal', ev: ev, dateMs: new Date(ev.start).getTime() });
-    }
-  });
-
-  halaxyAppts.forEach(function(a) {
-    var startStr = a.start || (a.period && a.period.start);
-    if (!startStr) return;
-    if (!_isClinicalAppt(a)) return;
-    // Already actioned in Halaxy — skip
-    if (a.status === 'fulfilled' || a.status === 'cancelled' || a.status === 'entered-in-error') return;
-    var apptD = new Date(startStr); apptD.setHours(0, 0, 0, 0);
-    if (apptD.getTime() >= today.getTime()) return;
-    // Suppress if Halaxy already has an invoice for this patient+date (source of truth)
-    var pidNR = _apptPatientId(a);
-    var dtNR  = startStr.slice(0, 10);
-    if (pidNR && (invoicedSet.has(String(pidNR) + '|' + dtNR) || sessionedSet.has(String(pidNR) + '|' + dtNR) || _halaxyActioned.has(String(pidNR) + '|' + dtNR))) return;
-    needsLogging.push({ type: 'halaxy', ev: a, start: startStr, dateMs: new Date(startStr).getTime() });
-  });
-
-  needsLogging.sort(function(a, b) { return b.dateMs - a.dateMs; });
-
-  html += '<div class="appt-section-label" style="margin-top:16px">Needs recording</div>';
-  if (!needsLogging.length) {
-    html += '<div class="log-caught-up">All caught up ✓</div>';
-  } else {
-    needsLogging.forEach(function(item) {
-      if (item.type === 'cal') {
-        var ev = item.ev;
-        var eid = String(ev.id);
-        var cardUid = 'cal-log-' + eid;
-        var dateStr = new Date(ev.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-        html += '<div class="log-card">'
-          + '<div class="log-card-info">'
-          + '<div class="log-card-title">' + escHtml(ev.title || ev.summary || '') + '</div>'
-          + '<div class="log-card-date">' + escHtml(dateStr) + ' · Calendar</div>'
-          + '</div>'
-          + '<button class="dp-btn dp-btn--primary" onclick="openCalSessionPanel(\'' + cardUid + '\',\'' + eid + '\')">Create Invoice →</button>'
-          + '<div id="pl-link-' + cardUid + '"></div>'
-          + '</div>';
-      } else {
-        var appt = item.ev;
-        var label = _halaxyApptLabel(appt);
-        var dateStr = new Date(item.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-        var patientId = _apptPatientId(appt);
-        var apptDateStr = item.start.slice(0, 10);
-        var apptHalaxyId = appt.id || '';
-        var apptUid = 'hx-log-' + (patientId || 'unk') + '-' + apptDateStr.replace(/-/g, '');
-        var hxPatientName = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId]) || label;
-        html += '<div class="log-card">'
-          + '<div class="log-card-info">'
-          + '<div class="log-card-title">' + escHtml(label) + '</div>'
-          + '<div class="log-card-date">' + escHtml(dateStr) + ' · Halaxy</div>'
-          + '</div>'
-          + (patientId
-              ? '<button class="dp-btn dp-btn--primary" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(String(patientId)) + '\',\'' + escHtml(hxPatientName) + '\',\'' + apptDateStr + '\',\'' + escHtml(item.start) + '\',\'' + escHtml(apptHalaxyId) + '\')">Record Session →</button>'
-              : '<span class="dp-badge dp-badge--source" style="white-space:nowrap">No patient</span>')
-          + (patientId ? '<div id="pl-link-' + apptUid + '"></div>' : '')
-          + '</div>';
-      }
-    });
-  }
-
-  /* ══════════════════════════════════════════════════
-     SECTION 3 — WEEK CALENDAR (collapsible)
+     WEEK CALENDAR (collapsible, collapsed by default)
      ══════════════════════════════════════════════════ */
   html += '<button class="appt-section-toggle" onclick="toggleDpCollapsible(\'week-cal-body\')" style="margin-top:16px">'
     + '<span id="week-cal-body-arrow">▸</span> Week calendar'
@@ -1212,7 +1377,22 @@ function _billingActionBtn(client, session) {
     return '<button class="dp-btn dp-btn--primary" onclick="advanceSessionPl(\'' + session.id + '\',\'invoiced\',\'' + client.id + '\')">Lodge DVA claim →</button>';
   }
   // medicare, private, ndis_self → Halaxy
-  return '<a class="dp-btn dp-btn--primary" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener" onclick="advanceSessionPl(\'' + session.id + '\',\'invoiced\',\'' + client.id + '\')">Process in Halaxy →</a>';
+  var halaxyCalUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + session.session_date) : 'https://www.halaxy.com/practitioner';
+  return '<a class="dp-btn dp-btn--primary" href="' + escHtml(halaxyCalUrl) + '" target="_blank" rel="noopener" onclick="advanceSessionPl(\'' + session.id + '\',\'invoiced\',\'' + client.id + '\')">Process in Halaxy →</a>';
+}
+
+function dismissPendingSession(idx) {
+  var s = _recordedSessions[idx];
+  if (s) {
+    // Also restore the appointment to "Needs Recording" by clearing the actioned flag
+    var key = String(s.patientId) + '|' + String(s.date);
+    _halaxyActioned.delete(key);
+    localStorage.setItem('halaxy_actioned', JSON.stringify([..._halaxyActioned]));
+  }
+  _recordedSessions.splice(idx, 1);
+  localStorage.setItem('halaxy_recorded_sessions', JSON.stringify(_recordedSessions));
+  renderBillingPanel();
+  refreshPipeline();
 }
 
 function renderBillingPanel() {
@@ -1264,42 +1444,12 @@ function renderBillingPanel() {
       localStorage.setItem('halaxy_recorded_sessions', JSON.stringify(_recordedSessions));
     }
 
-    // ── "Recorded — pending invoice" section ─────────────────────────────────
-    // Sessions recorded via the dashboard that haven't yet generated a Halaxy invoice.
-    if (_recordedSessions.length) {
-      html += '<div class="billing-open-header" style="margin-bottom:6px">'
-        + '<span class="billing-open-label" style="color:#3a4ab0">Recorded · pending invoice</span>'
-        + '<span class="billing-open-count">' + _recordedSessions.length + '</span>'
-        + '</div>';
-
-      _recordedSessions.slice().reverse().forEach(function(s) {
-        var name  = resolveName(s.patientId);
-        var dt    = s.date ? new Date(s.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
-        var amt   = s.amount ? '$' + Number(s.amount).toFixed(2) : '';
-        var fl    = FUNDER_LABELS[s.funderKey] || s.funderKey || '';
-        html += '<div class="bill-card bill-card--pending">'
-          + '<div class="bill-card-top">'
-          + '<span class="bill-card-name">' + escHtml(name) + '</span>'
-          + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
-          + '</div>'
-          + '<div class="bill-card-meta">'
-          + '<span class="bill-card-date">' + escHtml(dt) + (fl ? ' · ' + escHtml(fl) : '') + '</span>'
-          + '<span class="dp-badge dp-badge--status-pending">Create invoice in Halaxy</span>'
-          + '</div>'
-          + (s.feeName ? '<div class="bill-card-meta" style="margin-top:3px"><span class="bill-card-date" style="font-style:italic">' + escHtml(s.feeName) + '</span></div>' : '')
-          + '<div class="dp-card-actions">'
-          + '<a class="dp-btn dp-btn--primary" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">Create invoice in Halaxy →</a>'
-          + '</div>'
-          + '</div>';
-      });
-    }
-
     var totalOwing = outstanding.reduce(function(sum, inv) { return sum + (parseFloat(inv.amount) || 0); }, 0);
 
     var countEl = document.getElementById('billing-count');
-    if (countEl) countEl.textContent = (outstanding.length + _recordedSessions.length) || '';
+    if (countEl) countEl.textContent = outstanding.length || '';
 
-    html += '<div class="billing-open-header"' + (_recordedSessions.length ? ' style="margin-top:16px"' : '') + '>'
+    html += '<div class="billing-open-header">'
       + '<span class="billing-open-label">Outstanding</span>'
       + (outstanding.length ? '<span class="billing-open-count">' + outstanding.length + ' invoice' + (outstanding.length !== 1 ? 's' : '') + '</span>' : '')
       + (totalOwing ? '<span class="billing-open-total">$' + totalOwing.toFixed(2) + '</span>' : '')
@@ -1321,7 +1471,7 @@ function renderBillingPanel() {
           + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
           + '<span class="dp-badge dp-badge--status-invoiced">Awaiting payment</span>'
           + '</div>'
-          + '<div class="dp-card-actions"><a class="dp-btn dp-btn--ghost" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">View in Halaxy →</a></div>'
+          + '<div class="dp-card-actions"><a class="dp-btn dp-btn--ghost" href="' + escHtml(_halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + inv.date) : 'https://www.halaxy.com/practitioner') + '" target="_blank" rel="noopener">View in Halaxy →</a></div>'
           + '</div>';
       });
     }
@@ -1501,7 +1651,7 @@ function renderClientCardPl(c) {
     halaxySection += '<div class="pl-halaxy-linked">'
       + '<span class="pl-halaxy-linked-label">✓ Halaxy linked</span>'
       + '<span class="pl-halaxy-id-val">' + escHtml(c.halaxy_id) + '</span>'
-      + '<a href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="pl-halaxy-open">Open ↗</a>'
+      + '<a href="' + escHtml(_halaxyWebUrl || 'https://www.halaxy.com/practitioner') + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="pl-halaxy-open">Open ↗</a>'
       + '<button class="pl-halaxy-clear-btn" onclick="event.stopPropagation();clearHalaxyIdPl(\'' + c.id + '\')">Unlink</button>'
       + '</div>';
   } else {
@@ -1509,7 +1659,7 @@ function renderClientCardPl(c) {
       + '<div class="pl-halaxy-steps">To link: <strong>1)</strong> Create a Patient in Halaxy &amp; set up a professional appointment &nbsp;·&nbsp; <strong>2)</strong> Paste their Halaxy Patient ID below</div>'
       + '<div class="pl-halaxy-input-row">'
       + '<input class="pl-halaxy-input" id="pl-halaxy-inp-' + c.id + '" type="text" placeholder="Halaxy Patient ID…" onclick="event.stopPropagation()">'
-      + '<a href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="pl-action-btn pl-action-btn--soft" style="text-decoration:none;font-size:10px">Open Halaxy ↗</a>'
+      + '<a href="' + escHtml(_halaxyWebUrl || 'https://www.halaxy.com/practitioner') + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="pl-action-btn pl-action-btn--soft" style="text-decoration:none;font-size:10px">Open Halaxy ↗</a>'
       + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();saveHalaxyIdPl(\'' + c.id + '\')">Link</button>'
       + '</div>'
       + '</div>';
@@ -2815,6 +2965,12 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
     + funderPickerHtml
     + pmHtml
     + feeHtml
+    + '<select class="pl-link-input" id="pl-cs-location-' + cardUid + '" onclick="event.stopPropagation()" style="margin-top:6px">'
+    + '<option value="clinic" selected>In-clinic</option>'
+    + '<option value="telehealth">Telehealth (video)</option>'
+    + '<option value="phone">Phone</option>'
+    + '<option value="online">Online</option>'
+    + '</select>'
     + '<input class="pl-link-input" id="pl-cs-notes-' + cardUid + '" type="text"'
     + ' value="' + escHtml(evt.title || '') + '" placeholder="Session notes…" onclick="event.stopPropagation()" style="margin-top:6px">'
     + '<div class="pl-card-actions" style="margin-top:8px">'
@@ -2855,10 +3011,11 @@ function _syncFeeInput(cardUid) {
 }
 
 async function _saveHalaxySession(cardUid, eventId, patientId, patientName, funderKey, halaxyApptId) {
-  var feeSelectEl = document.getElementById('pl-cs-fee-' + cardUid);
-  var feeAmt      = document.getElementById('pl-cs-fee-amt-' + cardUid);
-  var notesEl     = document.getElementById('pl-cs-notes-' + cardUid);
-  var funderEl    = document.getElementById('pl-cs-funder-' + cardUid);
+  var feeSelectEl  = document.getElementById('pl-cs-fee-' + cardUid);
+  var feeAmt       = document.getElementById('pl-cs-fee-amt-' + cardUid);
+  var notesEl      = document.getElementById('pl-cs-notes-' + cardUid);
+  var locationEl   = document.getElementById('pl-cs-location-' + cardUid);
+  var funderEl     = document.getElementById('pl-cs-funder-' + cardUid);
   var pmEl        = document.getElementById('pl-cs-pm-' + cardUid);
   var panelEl     = document.getElementById('pl-link-' + cardUid);
   var evt         = _calEventMap[eventId] || {};
@@ -2880,12 +3037,22 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
     feeName = (selFeeOpt && selFeeOpt.dataset.feeName) || '';
     amount  = parseFloat(feeSelectEl.value) || null;
   }
-  if (feeAmt && feeAmt.value) {
+  if (feeAmt && feeAmt.value !== '') {
     var manualAmt = parseFloat(feeAmt.value);
-    if (!isNaN(manualAmt) && manualAmt > 0) amount = manualAmt;
+    if (!isNaN(manualAmt) && manualAmt >= 0) amount = manualAmt; // 0 is valid (no-charge session)
   }
 
-  if (!amount || amount <= 0) {
+  // If no fee was selected from the dropdown but we have a non-zero amount,
+  // look up the matching ChargeItemDefinition by amount so we can attach it to Halaxy
+  if (!feeId && amount > 0 && _halaxyFees && _halaxyFees.length) {
+    var matchByAmt = _halaxyFees.find(function(f) { return Math.abs(f.amount - amount) < 0.01; });
+    if (matchByAmt) {
+      feeId   = matchByAmt.id   || null;
+      feeName = feeName || matchByAmt.name || '';
+    }
+  }
+
+  if (amount === null || isNaN(amount)) {
     toast('Please select or enter a fee amount', 'err');
     return;
   }
@@ -2914,40 +3081,53 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
       }
     }
 
-    // Write session to Halaxy — PATCH existing appointment or $book + PATCH for Cal events
-    await apiFetch('/api/admin-enquiries?halaxy_appt_action=1', {
+    var locationType = locationEl ? locationEl.value : 'clinic';
+
+    // Write session to Halaxy
+    var halaxyResp = await apiFetch('/api/admin-enquiries?halaxy_appt_action=1', {
       method: 'POST',
       body: {
         action:       'record',
         patientId:    patientId,
-        halaxyApptId: hxApptId   || undefined,
-        apptStart:    apptStart  || undefined,
-        apptEnd:      apptEnd    || undefined,
-        feeId:        feeId      || undefined,
-        feeName:      feeName    || undefined,
+        halaxyApptId: hxApptId      || undefined,
+        apptStart:    apptStart     || undefined,
+        apptEnd:      apptEnd       || undefined,
+        feeId:        feeId         || undefined,
+        feeName:      feeName       || undefined,
         feeAmount:    amount,
-        notes:        notes      || undefined,
+        notes:        notes         || undefined,
+        locationType: locationType  || 'clinic',
       },
     });
+
+    // booked = Cal event just got $book'd → Halaxy auto-created invoice+note+reminder
+    // calOnly = no PractitionerRole cached yet, needs manual Halaxy entry
+    // otherwise = existing appointment PATCHed, invoice still manual
+    var booked  = halaxyResp && halaxyResp.booked;
+    var calOnly = halaxyResp && halaxyResp.calOnly;
 
     // Mark actioned so it won't bounce back into "Needs Recording" after pipeline refresh
     _halaxyActioned.add(patientId + '|' + apptDate);
     localStorage.setItem('halaxy_actioned', JSON.stringify([..._halaxyActioned]));
 
-    // Store in recorded-sessions tracker so it appears in billing as "pending invoice"
-    _recordedSessions = _recordedSessions.filter(function(s) {
-      return !(String(s.patientId) === String(patientId) && s.date === apptDate);
-    });
-    _recordedSessions.push({
-      halaxyApptId: hxApptId || null,
-      patientId:    patientId,
-      date:         apptDate,
-      amount:       amount,
-      feeName:      feeName || '',
-      funderKey:    fk     || '',
-      recordedAt:   Date.now(),
-    });
-    localStorage.setItem('halaxy_recorded_sessions', JSON.stringify(_recordedSessions));
+    // For $book success Halaxy handles the invoice — no need to track as pending
+    // For PATCH and calOnly we still track locally so the billing panel shows it
+    if (!booked) {
+      _recordedSessions = _recordedSessions.filter(function(s) {
+        return !(String(s.patientId) === String(patientId) && s.date === apptDate);
+      });
+      _recordedSessions.push({
+        halaxyApptId: hxApptId || (halaxyResp && halaxyResp.halaxyApptId) || null,
+        patientId:    patientId,
+        date:         apptDate,
+        amount:       amount,
+        feeName:      feeName || '',
+        funderKey:    fk     || '',
+        calOnly:      calOnly || false,
+        recordedAt:   Date.now(),
+      });
+      localStorage.setItem('halaxy_recorded_sessions', JSON.stringify(_recordedSessions));
+    }
 
     // Dismiss the card from the UI immediately
     if (eventId) {
@@ -2957,9 +3137,22 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
       if (cardEl) cardEl.remove();
     }
 
-    // Open Halaxy so the user can create the invoice there
-    window.open('https://www.halaxy.com/practitioner', '_blank', 'noopener');
-    toast('Session noted ✓ — create the invoice in the Halaxy tab', 'ok');
+    // Build calendar deep link for this date
+    var calDate = apptDate || new Date().toISOString().slice(0, 10);
+    var halaxyCalUrl = (_halaxyWebUrl ? _halaxyWebUrl + '/calendar?date=' + calDate : 'https://www.halaxy.com/practitioner');
+
+    if (booked) {
+      // $book created everything automatically — open calendar to verify
+      window.open(halaxyCalUrl, '_blank', 'noopener');
+      toast('Appointment + invoice created in Halaxy ✓', 'ok');
+    } else if (calOnly) {
+      window.open(halaxyCalUrl, '_blank', 'noopener');
+      toast('Session noted — sync Halaxy first to enable auto-booking', 'warn');
+    } else {
+      // Existing appointment PATCHed — user still needs to create invoice in Halaxy
+      window.open(halaxyCalUrl, '_blank', 'noopener');
+      toast('Attendance recorded ✓ — open the appointment in Halaxy to create the invoice', 'ok');
+    }
 
     // Re-fetch pipeline data so the billing panel updates
     setTimeout(function() { refreshPipeline(); }, 2500);
@@ -3148,6 +3341,190 @@ function dismissCalEvent(eventId) {
   _calDismissed.add(String(eventId));
   localStorage.setItem('cal_dismissed', JSON.stringify([..._calDismissed]));
   renderAppointmentsPanel();
+}
+
+/* ── New Session Modal ──────────────────────────────────────────────────────────────── */
+
+function openNewSessionModal() {
+  // Build client list: dashboard clients + Halaxy patients, deduplicated by name
+  var clients  = (_pipelineData && _pipelineData.clients) || [];
+  var patients = (_halaxyData   && _halaxyData.patients)  || [];
+  var fees     = _halaxyFees || [];
+
+  // Combine into a single searchable list
+  var allClients = [];
+  clients.forEach(function(c) {
+    allClients.push({ label: c.display_name, halaxyId: c.halaxy_id || '', dashId: c.id });
+  });
+  patients.forEach(function(p) {
+    // Skip if already added from dashboard clients
+    var already = allClients.some(function(c) { return String(c.halaxyId) === String(p.id); });
+    if (!already) allClients.push({ label: p.name, halaxyId: p.id, dashId: null });
+  });
+  allClients.sort(function(a, b) { return a.label.localeCompare(b.label); });
+
+  // Default date/time: next hour, rounded
+  var now = new Date();
+  now.setMinutes(0, 0, 0);
+  now.setHours(now.getHours() + 1);
+  var defaultDate = now.toISOString().slice(0, 10);
+  var defaultTime = now.toTimeString().slice(0, 5);
+
+  // Fee options
+  var feeOpts = fees.map(function(f) {
+    return '<option value="' + escHtml(String(f.id)) + '" data-amount="' + f.amount + '" data-name="' + escHtml(f.name) + '">'
+      + escHtml(f.name) + ' — $' + Number(f.amount).toFixed(2) + '</option>';
+  }).join('');
+
+  // Client options
+  var clientOpts = allClients.map(function(c) {
+    return '<option value="' + escHtml(c.label) + '" data-halaxy-id="' + escHtml(String(c.halaxyId || '')) + '">'
+      + escHtml(c.label) + (c.halaxyId ? '' : ' (no Halaxy)') + '</option>';
+  }).join('');
+
+  var modal = document.createElement('div');
+  modal.id  = 'new-session-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = '<div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.18)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
+    + '<strong style="font-size:15px">New Session</strong>'
+    + '<button onclick="closeNewSessionModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#666">&times;</button>'
+    + '</div>'
+
+    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Client</label>'
+    + '<input list="ns-client-list" id="ns-client-input" class="pl-link-input" placeholder="Search client…" style="margin-bottom:10px" oninput="_nsClientChange()">'
+    + '<datalist id="ns-client-list">' + clientOpts + '</datalist>'
+    + '<input type="hidden" id="ns-halaxy-id">'
+
+    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Date</label>'
+    + '<input type="date" id="ns-date" class="pl-link-input" value="' + defaultDate + '" style="margin-bottom:10px">'
+
+    + '<div style="display:flex;gap:8px;margin-bottom:10px">'
+    + '<div style="flex:1"><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Start time</label>'
+    + '<input type="time" id="ns-start" class="pl-link-input" value="' + defaultTime + '"></div>'
+    + '<div style="flex:1"><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Duration</label>'
+    + '<select id="ns-duration" class="pl-link-input">'
+    + '<option value="30">30 min</option><option value="45">45 min</option>'
+    + '<option value="60" selected>60 min</option><option value="90">90 min</option>'
+    + '<option value="120">2 hours</option></select></div>'
+    + '</div>'
+
+    + '<div id="ns-halaxy-fields">'
+    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Fee</label>'
+    + '<select id="ns-fee" class="pl-link-input" style="margin-bottom:10px">'
+    + '<option value="">— select a fee —</option>' + feeOpts + '</select>'
+
+    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Location</label>'
+    + '<select id="ns-location" class="pl-link-input" style="margin-bottom:10px">'
+    + '<option value="clinic" selected>In-clinic</option>'
+    + '<option value="telehealth">Telehealth (video)</option>'
+    + '<option value="phone">Phone</option>'
+    + '<option value="online">Online</option>'
+    + '</select>'
+    + '</div>'
+
+    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Notes</label>'
+    + '<input type="text" id="ns-notes" class="pl-link-input" placeholder="Session notes…" style="margin-bottom:16px">'
+
+    + '<div id="ns-error" style="color:#c0392b;font-size:12px;margin-bottom:8px;display:none"></div>'
+
+    + '<div style="display:flex;gap:8px;justify-content:flex-end">'
+    + '<button class="dp-btn" onclick="closeNewSessionModal()">Cancel</button>'
+    + '<button class="dp-btn dp-btn--primary" id="ns-submit-btn" onclick="_submitNewSession()">Create Session</button>'
+    + '</div>'
+    + '</div>';
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e) { if (e.target === modal) closeNewSessionModal(); });
+  setTimeout(function() { var el = document.getElementById('ns-client-input'); if (el) el.focus(); }, 50);
+}
+
+function _nsClientChange() {
+  var input    = document.getElementById('ns-client-input');
+  var hiddenId = document.getElementById('ns-halaxy-id');
+  var list     = document.getElementById('ns-client-list');
+  if (!input || !hiddenId || !list) return;
+
+  var val  = input.value;
+  var opts = list.querySelectorAll('option');
+  var hId  = '';
+  opts.forEach(function(o) { if (o.value === val) hId = o.dataset.halaxyId || ''; });
+  hiddenId.value = hId;
+
+  // Show/hide fee+location fields depending on whether client has Halaxy ID
+  var fields = document.getElementById('ns-halaxy-fields');
+  if (fields) fields.style.display = hId ? '' : 'none';
+}
+
+function closeNewSessionModal() {
+  var m = document.getElementById('new-session-modal');
+  if (m) m.remove();
+}
+
+async function _submitNewSession() {
+  var btn      = document.getElementById('ns-submit-btn');
+  var errEl    = document.getElementById('ns-error');
+  var client   = (document.getElementById('ns-client-input') || {}).value  || '';
+  var halaxyId = (document.getElementById('ns-halaxy-id')    || {}).value  || '';
+  var date     = (document.getElementById('ns-date')         || {}).value  || '';
+  var startT   = (document.getElementById('ns-start')        || {}).value  || '';
+  var duration = parseInt((document.getElementById('ns-duration') || {}).value || '60', 10);
+  var feeSel   = document.getElementById('ns-fee');
+  var location = (document.getElementById('ns-location')     || {}).value  || 'clinic';
+  var notes    = (document.getElementById('ns-notes')        || {}).value  || '';
+
+  errEl.style.display = 'none';
+
+  if (!client)  { errEl.textContent = 'Please select a client'; errEl.style.display = ''; return; }
+  if (!date)    { errEl.textContent = 'Please pick a date';     errEl.style.display = ''; return; }
+  if (!startT)  { errEl.textContent = 'Please set a start time'; errEl.style.display = ''; return; }
+
+  // Build ISO datetimes (assume Brisbane time +10:00)
+  var TZ_OFFSET = '+10:00';
+  var start = date + 'T' + startT + ':00' + TZ_OFFSET;
+  var endMs  = new Date(date + 'T' + startT).getTime() + duration * 60000;
+  var endD   = new Date(endMs);
+  var pad    = function(n) { return String(n).padStart(2, '0'); };
+  var end    = endD.getFullYear() + '-' + pad(endD.getMonth()+1) + '-' + pad(endD.getDate())
+             + 'T' + pad(endD.getHours()) + ':' + pad(endD.getMinutes()) + ':00' + TZ_OFFSET;
+
+  var feeId  = feeSel && feeSel.value ? feeSel.value : null;
+  var feeOpt = feeSel && feeSel.value ? feeSel.options[feeSel.selectedIndex] : null;
+  var feeName = feeOpt ? (feeOpt.dataset.name || '') : '';
+  var feeAmount = feeOpt ? parseFloat(feeOpt.dataset.amount || '0') : 0;
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+
+  try {
+    var resp = await apiFetch('/api/admin-enquiries?new_session=1', {
+      method: 'POST',
+      body: {
+        clientName:    client,
+        start,
+        end,
+        notes:         notes   || undefined,
+        halaxyPatientId: halaxyId || undefined,
+        feeId:         feeId   || undefined,
+        locationType:  location,
+      },
+    });
+
+    closeNewSessionModal();
+
+    if (resp.halaxyBooked) {
+      toast('Session created ✓ — Halaxy appointment + invoice generated automatically', 'ok');
+    } else if (halaxyId && !resp.halaxyBooked) {
+      toast('Calendar event created ✓ — Halaxy booking skipped (run a sync first)', 'ok');
+    } else {
+      toast('Session added to calendar ✓', 'ok');
+    }
+
+    setTimeout(function() { refreshPipeline(); }, 1500);
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Create Session'; }
+    errEl.textContent = err.message || 'Failed to create session';
+    errEl.style.display = '';
+  }
 }
 
 /* ── Escape HTML helper ── */

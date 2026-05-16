@@ -1169,6 +1169,49 @@ body {
 .dp-badge--status-lodged    { background: rgba(119,207,189,0.18); color: #1a6e5e; }
 .dp-badge--status-paid      { background: rgba(42,150,100,0.12); color: #1a7a50; }
 .dp-badge--status-pending   { background: rgba(80,100,200,0.10); color: #3a4ab0; }
+.dp-badge--upcoming         { background: rgba(74,144,217,0.12); color: #2563a0; }
+.dp-badge--needs-recording  { background: rgba(224,123,57,0.12); color: #a0440a; }
+.dp-badge--pending-inv      { background: rgba(108,92,231,0.12); color: #4a3ab0; }
+
+/* Unified session list */
+.session-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.session-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; background: #faf9f7;
+  border-radius: 9px; border: 1px solid rgba(0,0,0,0.06);
+  cursor: default; flex-wrap: wrap;
+}
+.session-row--upcoming        { border-left: 3px solid #4a90d9; }
+.session-row--needs-recording { border-left: 3px solid #e07b39; }
+.session-row--pending-invoice { border-left: 3px solid #6c5ce7; }
+.session-row--invoiced        { border-left: 3px solid #27ae60; }
+.session-row--paid            { border-left: 3px solid #aaa; }
+.session-row--cancelled       { opacity: 0.45; }
+.session-row--hidden          { display: none; }
+.session-row-date   { font-size: 12px; color: #555; min-width: 120px; flex-shrink: 0; }
+.session-row-name   { font-size: 13px; font-weight: 500; flex: 1; min-width: 100px; }
+.session-row-badges { display: flex; gap: 4px; flex-shrink: 0; }
+.session-row-action { margin-left: auto; flex-shrink: 0; }
+
+/* Session filter pills + view toggle */
+.session-filter-bar { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 4px; }
+.session-filter-pill {
+  font-size: 11px; padding: 3px 10px; border-radius: 20px;
+  border: 1px solid rgba(0,0,0,0.12); background: none;
+  cursor: pointer; color: #666;
+}
+.session-filter-pill.active { background: #3a3a3a; color: #fff; border-color: #3a3a3a; }
+.session-view-toggle { display: flex; gap: 4px; }
+.session-view-btn {
+  font-size: 13px; padding: 3px 8px; border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.12); background: none;
+  cursor: pointer; color: #888;
+}
+.session-view-btn.active { background: #3a3a3a; color: #fff; border-color: #3a3a3a; }
+.session-divider {
+  font-size: 10px; color: #aaa; text-transform: uppercase;
+  letter-spacing: 0.08em; padding: 6px 2px 2px;
+}
 
 .dp-btn {
   font-family: var(--sans); font-size: 10px; font-weight: 600;

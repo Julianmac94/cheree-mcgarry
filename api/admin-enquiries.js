@@ -8,6 +8,7 @@
 import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
 import { halaxyGet, halaxyPost, halaxyPatch } from './_halaxy.js';
+import { createCalendarEvent } from './calendar-pending.js';
 
 /* ─────────────────────────────────────────────
    Halaxy config cache helpers (non-PII data)
@@ -118,10 +119,21 @@ const KNOWN_FUNDERS = [
 ];
 
 async function syncHalaxyConfig(db) {
-  const [orgBundle, cidBundle] = await Promise.all([
+  const [orgBundle, cidBundle, prBundle] = await Promise.all([
     halaxyGet('/Organization',         { _count: '200' }).catch(e => { console.error('Org fetch:', e.message); return { entry: [] }; }),
     halaxyGet('/ChargeItemDefinition', { status: 'active', _count: '200' }).catch(e => { console.error('CID fetch:', e.message); return { entry: [] }; }),
+    halaxyGet('/PractitionerRole',     { _count: '10'  }).catch(e => { console.error('PR fetch:', e.message); return { entry: [] }; }),
   ]);
+
+  // Cache the first PR- prefixed PractitionerRole — used for $book calls
+  const prEntries = (prBundle.entry || []).map(e => e.resource).filter(Boolean);
+  const prRole = prEntries.find(pr => pr.id && pr.id.startsWith('PR-'));
+  if (prRole) {
+    console.log(`Halaxy sync: caching PractitionerRole ${prRole.id}`);
+    await writeCache(db, 'halaxy_practitioner_role', { id: prRole.id, synced_at: new Date().toISOString() });
+  } else {
+    console.warn('Halaxy sync: no PR- PractitionerRole found in response');
+  }
 
   // ── Funders ──────────────────────────────────────────────────────────
   const normalise = s => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -214,17 +226,60 @@ function fhirPatientLegalName(p) {
    FHIR Appointment write-back helpers
    ───────────────────────────────────────────────────────────────────────── */
 
+const HALAXY_FHIR_BASE_URL = 'https://au-api.halaxy.com/main';
+
 /**
  * Build a FHIR Parameters resource for POST /Appointment/$book.
- * Creates a new appointment in Halaxy for a patient at a given time.
+ * Docs: https://developers.halaxy.com/reference/createappointment
+ *
+ * Required: appt-resource (with PractitionerRole), patient-id, location-type
+ * Optional: charge-item-definition-id (triggers auto-invoice + note + reminder in Halaxy)
  */
-function buildBookParameters(patientId, start, end, notes) {
+function buildBookParameters(patientId, start, end, feeId, locationType, practitionerRoleId) {
+  const duration = (start && end)
+    ? Math.max(1, Math.round((new Date(end) - new Date(start)) / 60000))
+    : 60;
+
   const parameter = [
-    { name: 'patient', valueReference: { reference: `Patient/${patientId}` } },
+    {
+      name: 'appt-resource',
+      resource: {
+        resourceType:    'Appointment',
+        start:           start  || undefined,
+        end:             end    || undefined,
+        minutesDuration: duration,
+        participant: [{
+          actor: {
+            reference: `${HALAXY_FHIR_BASE_URL}/PractitionerRole/${practitionerRoleId}`,
+            type:      'PractitionerRole',
+          },
+        }],
+      },
+    },
+    {
+      name:           'patient-id',
+      valueReference: {
+        reference: `${HALAXY_FHIR_BASE_URL}/Patient/${patientId}`,
+        type:      'Patient',
+      },
+    },
+    {
+      name:      'location-type',
+      valueCode: locationType || 'clinic',
+    },
   ];
-  if (start) parameter.push({ name: 'start', valueDateTime: start });
-  if (end)   parameter.push({ name: 'end',   valueDateTime: end   });
-  if (notes) parameter.push({ name: 'comment', valueString: notes });
+
+  // Including the fee triggers Halaxy to auto-create the invoice, clinical note and reminder.
+  if (feeId) {
+    parameter.push({
+      name:           'charge-item-definition-id',
+      valueReference: {
+        reference: `${HALAXY_FHIR_BASE_URL}/ChargeItemDefinition/${feeId}`,
+        type:      'ChargeItemDefinition',
+      },
+    });
+  }
+
   return { resourceType: 'Parameters', parameter };
 }
 
@@ -309,7 +364,7 @@ export default async function handler(req, res) {
 
     const {
       action, halaxyApptId, patientId, apptStart, apptEnd,
-      feeId, feeName, feeAmount, notes,
+      feeId, feeName, feeAmount, notes, locationType,
     } = req.body || {};
 
     // Log received fields so we can confirm feeId is arriving correctly
@@ -318,7 +373,7 @@ export default async function handler(req, res) {
     if (!action || !patientId) {
       return res.status(400).json({ error: 'action and patientId are required' });
     }
-    if (action === 'record' && !feeAmount) {
+    if (action === 'record' && feeAmount == null) {
       return res.status(400).json({ error: 'feeAmount is required to record a session' });
     }
     if (action !== 'record' && action !== 'cancel') {
@@ -328,20 +383,34 @@ export default async function handler(req, res) {
     try {
       let apptId = halaxyApptId || null;
 
-      // No existing Halaxy appointment → create one via $book first (Google Cal event path)
+      // No existing Halaxy appointment (Google Cal-only event) — use $book to create one.
+      // $book with charge-item-definition-id auto-creates invoice + clinical note + reminder.
       if (!apptId) {
-        console.log(`Halaxy $book: creating appointment for patient ${patientId} at ${apptStart}`);
+        const db2 = supabase();
+        const prCache = await readCache(db2, 'halaxy_practitioner_role');
+        const practitionerRoleId = prCache?.id;
+
+        if (!practitionerRoleId) {
+          console.warn('No PractitionerRole cached — run a Halaxy sync first. Returning calOnly.');
+          return res.status(200).json({ ok: true, calOnly: true, noSync: true, halaxyApptId: null });
+        }
+
+        console.log(`Halaxy $book: patient=${patientId} start=${apptStart} pr=${practitionerRoleId} fee=${feeId || 'none'} location=${locationType || 'clinic'}`);
         const booked = await halaxyPost('/Appointment/$book',
-          buildBookParameters(patientId, apptStart || null, apptEnd || null, notes || null)
+          buildBookParameters(patientId, apptStart || null, apptEnd || null, feeId || null, locationType || 'clinic', practitionerRoleId)
         );
-        // $book may return the Appointment directly, a Bundle, or a Parameters wrapper
+
         apptId = booked.id
                || booked.entry?.[0]?.resource?.id
                || (booked.parameter || []).find(p => p.name === 'appointment')?.resource?.id;
+
         if (!apptId) {
           throw new Error('$book did not return an appointment ID. Response: ' + JSON.stringify(booked).slice(0, 300));
         }
-        console.log(`Halaxy $book: created appointment ${apptId}`);
+        console.log(`Halaxy $book: created appointment ${apptId} — invoice auto-created by Halaxy`);
+
+        // $book already created the invoice — no PATCH needed
+        return res.status(200).json({ ok: true, booked: true, halaxyApptId: apptId });
       }
 
       let patchResult = null;
@@ -367,6 +436,70 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, halaxyApptId: apptId, patchResult });
     } catch (err) {
       console.error('Halaxy appt action error:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /* ── POST ?new_session=1 — create a session from the dashboard ──────────────────────
+   * Creates a Google Calendar event and, for Halaxy clients, $books the appointment
+   * in Halaxy (which auto-creates invoice + clinical note + reminder).
+   *
+   * Body fields:
+   *   clientName    string   Display name for the calendar event title  (required)
+   *   start         ISO      Appointment start datetime                  (required)
+   *   end           ISO      Appointment end datetime                    (required)
+   *   notes         string   Event description / session notes           (optional)
+   *   halaxyPatientId string Halaxy Patient FHIR ID — triggers $book    (optional)
+   *   feeId         string   ChargeItemDefinition ID — for auto-invoice  (optional)
+   *   locationType  string   clinic|telehealth|phone|online              (optional)
+   * ─────────────────────────────────────────────────────────────────────────────── */
+  if (req.method === 'POST' && (req.query?.new_session || new URL(req.url, 'http://x').searchParams.get('new_session'))) {
+    const { clientName, start, end, notes, halaxyPatientId, feeId, locationType } = req.body || {};
+
+    if (!clientName || !start || !end) {
+      return res.status(400).json({ error: 'clientName, start and end are required' });
+    }
+
+    try {
+      // 1. Create Google Calendar event
+      const calTitle = clientName + ' — session';
+      const calEvent = await createCalendarEvent({ title: calTitle, start, end, notes: notes || '' });
+      console.log(`New session: Cal event created ${calEvent.id} for ${clientName}`);
+
+      // 2. If this is a Halaxy client, $book the appointment (auto-creates invoice)
+      let halaxyApptId = null;
+      let halaxyBooked = false;
+
+      if (halaxyPatientId) {
+        const db2 = supabase();
+        const prCache = await readCache(db2, 'halaxy_practitioner_role');
+        const practitionerRoleId = prCache?.id;
+
+        if (practitionerRoleId) {
+          console.log(`New session: $booking Halaxy appt for patient ${halaxyPatientId} fee=${feeId || 'none'}`);
+          const booked = await halaxyPost('/Appointment/$book',
+            buildBookParameters(halaxyPatientId, start, end, feeId || null, locationType || 'clinic', practitionerRoleId)
+          );
+          halaxyApptId = booked.id
+                      || booked.entry?.[0]?.resource?.id
+                      || (booked.parameter || []).find(p => p.name === 'appointment')?.resource?.id;
+          if (halaxyApptId) {
+            halaxyBooked = true;
+            console.log(`New session: Halaxy appointment ${halaxyApptId} created — invoice auto-generated`);
+          }
+        } else {
+          console.warn('New session: no PractitionerRole cached — skipping $book. Run a sync first.');
+        }
+      }
+
+      return res.status(201).json({
+        ok:           true,
+        calEventId:   calEvent.id,
+        halaxyApptId: halaxyApptId || null,
+        halaxyBooked,
+      });
+    } catch (err) {
+      console.error('New session error:', err.message);
       return res.status(500).json({ error: err.message });
     }
   }
@@ -736,6 +869,7 @@ export default async function handler(req, res) {
           feeMap:       cachedFeeMap,
           funders_synced_at: fundersCached?.synced_at || null,
           fees_synced_at:    feesCached?.synced_at    || null,
+          webUrl:       process.env.HALAXY_WEB_URL    || null,
         };
       } catch (err) {
         console.error('Halaxy API error:', err.message);
