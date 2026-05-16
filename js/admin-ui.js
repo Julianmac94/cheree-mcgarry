@@ -2365,17 +2365,62 @@ function _qEnquiryItem(enq, barClass) {
 function renderClientsView() {
   var content = document.getElementById('view-content');
   if (!content || !_pipelineData) return;
-  var allClients = (_pipelineData.clients || []);
+
+  var supabaseClients = (_pipelineData.clients || []);
   var now = new Date();
   var cutoff90 = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
   var cutoff90Str = cutoff90.toISOString().slice(0, 10);
-
-  // Determine last session date for each client
-  // Last seen: check Supabase sessions AND Halaxy invoices (by halaxy_id ↔ patientId)
-  // so clients active in Halaxy aren't buried under "Inactive" just because
-  // sessions haven't been separately recorded in this dashboard.
   var halaxyInvoices = (_halaxyData && _halaxyData.invoices) || [];
+
+  // ── Build synthetic Halaxy client list when Supabase clients table is empty ──
+  var allClients;
+  var fromHalaxy = false;
+
+  if (supabaseClients.length === 0) {
+    // Collapse invoices by patientId to build one row per patient
+    var pm = (_halaxyData && _halaxyData.patientMap) || {};
+    var byPatient = {}; // patientId → { invoices: [], lastDate: '' }
+    halaxyInvoices.forEach(function(inv) {
+      var pid = String(inv.patientId || '');
+      if (!pid || pid === 'null' || pid === 'undefined') return;
+      if (!byPatient[pid]) byPatient[pid] = { invoices: [], lastDate: '' };
+      byPatient[pid].invoices.push(inv);
+      if ((inv.date || '') > byPatient[pid].lastDate) byPatient[pid].lastDate = inv.date || '';
+    });
+
+    // Also include patients with appointments but no invoices (from patientMap)
+    Object.keys(pm).forEach(function(pid) {
+      if (!byPatient[pid]) byPatient[pid] = { invoices: [], lastDate: '' };
+    });
+
+    allClients = Object.keys(byPatient).map(function(pid) {
+      var rec = byPatient[pid];
+      var invs = rec.invoices;
+      var totalOwing = invs.reduce(function(sum, inv) { return sum + (parseFloat(inv.totalBalance) || 0); }, 0);
+      var totalPaid  = invs.reduce(function(sum, inv) { return sum + (parseFloat(inv.totalPaid)    || 0); }, 0);
+      return {
+        id: null,
+        halaxy_id: pid,
+        display_name: pm[pid] || ('Patient #' + pid),
+        sessions: [],
+        funder: null,
+        active: true,
+        _invoiceCount: invs.length,
+        _lastDate: rec.lastDate,
+        _totalOwing: totalOwing,
+        _totalPaid: totalPaid,
+      };
+    });
+
+    if (allClients.length > 0) fromHalaxy = true;
+  } else {
+    allClients = supabaseClients;
+  }
+
+  // Last seen: use pre-computed _lastDate for Halaxy synthetics,
+  // otherwise check Supabase sessions + Halaxy invoices by halaxy_id
   function lastSeen(c) {
+    if (c._lastDate) return c._lastDate;
     var dates = [];
     (c.sessions || []).forEach(function(s) { if (s.session_date) dates.push(s.session_date); });
     if (c.halaxy_id) {
@@ -2392,7 +2437,6 @@ function renderClientsView() {
   var notArchived = allClients.filter(function(c) { return c.active !== false; });
   var archived    = allClients.filter(function(c) { return c.active === false; });
 
-  // Active = last session within 90 days (or has upcoming Halaxy appointment)
   var recentClients = notArchived.filter(function(c) {
     var ls = lastSeen(c); return ls && ls >= cutoff90Str;
   });
@@ -2400,28 +2444,42 @@ function renderClientsView() {
     var ls = lastSeen(c); return !ls || ls < cutoff90Str;
   });
 
-  // Sort recent by last seen descending
   recentClients.sort(function(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); });
   otherClients.sort(function(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); });
 
   function renderClientRow(c) {
     var ls = lastSeen(c);
-    var sessions = (c.sessions || []);
-    var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).slice(0, 2).join('').toUpperCase();
+    var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
     var funderLabel = FUNDER_LABELS[c.funder] || c.funder || '';
     var funderClass = { medicare: 'medicare', ndis: 'ndis', 'WorkCover': 'workcover', private: 'private' }[c.funder] || 'default';
-    var lastDate = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No sessions';
-    var upcomingCount = sessions.filter(function(s) { return s.status === 'upcoming'; }).length;
-    var totalSessions = sessions.length;
-    return '<div class="cl-list-item" onclick="openDetailPanel(\'client\',\'' + escHtml(c.id) + '\')">'
+    var lastDate = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No activity';
+    var clickAttr = c.id ? ' onclick="openDetailPanel(\'client\',\'' + escHtml(c.id) + '\')" style="cursor:pointer"' : ' style="cursor:default"';
+
+    var metaHtml;
+    if (fromHalaxy) {
+      metaHtml = '<span>' + (c._invoiceCount || 0) + ' invoice' + ((c._invoiceCount || 0) !== 1 ? 's' : '') + '</span>';
+      if ((c._totalOwing || 0) > 0.005) {
+        metaHtml += '<span style="color:var(--s-finance)">$' + (c._totalOwing).toFixed(2) + ' owing</span>';
+      } else if ((c._totalPaid || 0) > 0) {
+        metaHtml += '<span style="color:var(--s-complete)">Paid up</span>';
+      }
+      metaHtml += '<span style="color:var(--teal-mid);font-size:10px">Halaxy</span>';
+    } else {
+      var sessions = (c.sessions || []);
+      var upcomingCount = sessions.filter(function(s) { return s.status === 'upcoming'; }).length;
+      var totalSessions = sessions.length;
+      metaHtml = '<span>' + totalSessions + ' session' + (totalSessions !== 1 ? 's' : '') + '</span>';
+      if (upcomingCount) metaHtml += '<span>' + upcomingCount + ' upcoming</span>';
+      metaHtml += c.halaxy_id
+        ? '<span style="color:var(--teal-mid)">Halaxy ✓</span>'
+        : '<span style="color:#C09A30">No Halaxy link</span>';
+    }
+
+    return '<div class="cl-list-item"' + clickAttr + '>'
       + '<div class="cl-list-avatar">' + escHtml(initials) + '</div>'
       + '<div class="cl-list-main">'
       + '<div class="cl-list-name">' + escHtml(c.display_name || '—') + '</div>'
-      + '<div class="cl-list-meta">'
-      + '<span>' + totalSessions + ' session' + (totalSessions !== 1 ? 's' : '') + '</span>'
-      + (upcomingCount ? '<span>' + upcomingCount + ' upcoming</span>' : '')
-      + (c.halaxy_id ? '<span style="color:var(--teal-mid)">Halaxy ✓</span>' : '<span style="color:#C09A30">No Halaxy link</span>')
-      + '</div>'
+      + '<div class="cl-list-meta">' + metaHtml + '</div>'
       + '</div>'
       + '<div class="cl-list-right">'
       + (funderLabel ? '<span class="cl-funder-pill ' + funderClass + '">' + escHtml(funderLabel) + '</span>' : '')
@@ -2435,6 +2493,12 @@ function renderClientsView() {
   html += '<button onclick="openAddClient()" class="dp-btn dp-btn--primary" style="font-size:12px;padding:6px 14px">+ Add Client</button>';
   html += '</div>';
 
+  if (fromHalaxy) {
+    html += '<div style="margin-bottom:16px;font-size:12px;color:#8A9A97;padding:9px 14px;background:rgba(42,88,80,0.05);border-radius:8px;border:1px solid rgba(42,88,80,0.1)">'
+      + 'Showing clients from Halaxy — no linked records in this dashboard yet. '
+      + '<a href="#" onclick="openAddClient();return false" style="color:var(--teal-mid);text-decoration:none;font-weight:500">+ Link a client</a> to attach notes and sessions.</div>';
+  }
+
   if (recentClients.length) {
     html += '<span class="cl-section-label">Active — seen last 90 days (' + recentClients.length + ')</span>';
     html += '<div class="cl-list" id="clients-panel-body">' + recentClients.map(renderClientRow).join('') + '</div>';
@@ -2445,7 +2509,7 @@ function renderClientsView() {
     html += '<div class="cl-list">' + otherClients.map(renderClientRow).join('') + '</div>';
   }
 
-  if (!notArchived.length) {
+  if (!notArchived.length && !fromHalaxy) {
     html += '<div class="cl-list"><div class="q-empty">No clients yet — click + Add Client to get started</div></div>';
   }
 
