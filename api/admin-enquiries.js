@@ -691,6 +691,26 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── GET ?halaxy_appts_raw=1 — diagnostic: dump raw past Appointment resources ── */
+  if (req.method === 'GET' && params.get('halaxy_appts_raw')) {
+    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ appointments: [] });
+    try {
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const bundle = await halaxyGet('/Appointment', {
+        date:   `ge${thirtyDaysAgo.toISOString().slice(0, 10)}`,
+        _sort:  'date',
+        _count: '50',
+      });
+      return res.status(200).json({
+        count:   (bundle.entry || []).length,
+        entries: (bundle.entry || []).map(e => e.resource),
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   /* ── GET ?halaxy_invoices_raw=1 — diagnostic: dump raw Invoice resources ── */
   if (req.method === 'GET' && params.get('halaxy_invoices_raw')) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ invoices: [] });
