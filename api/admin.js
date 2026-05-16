@@ -779,6 +779,37 @@ body {
 .cl-card-action.create { background: rgba(61,111,168,0.10); color: var(--s-upcoming); }
 .cl-card-action.create:hover { background: rgba(61,111,168,0.18); }
 
+/* Delete × button — top-right corner of card */
+.cl-card-delete {
+  position: absolute; top: 7px; right: 8px;
+  width: 20px; height: 20px; border-radius: 50%;
+  border: none; background: transparent; cursor: pointer;
+  font-size: 14px; line-height: 1; color: #C0CCCB;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.15s, color 0.15s, background 0.15s;
+  font-family: var(--sans);
+}
+.cl-card:hover .cl-card-delete { opacity: 1; }
+.cl-card-delete:hover { color: #BE6E44; background: rgba(190,110,68,0.10); opacity: 1; }
+
+/* Duplicate badge */
+.cl-card--dupe { border: 1.5px solid rgba(190,110,68,0.35); }
+.cl-card-dupe-badge {
+  position: absolute; top: 28px; right: 8px;
+  font-size: 9px; font-weight: 700; color: #BE6E44;
+  background: rgba(190,110,68,0.10); border-radius: 5px;
+  padding: 2px 5px; letter-spacing: 0.01em;
+}
+
+/* Danger button in detail modal */
+.rdp-danger-btn {
+  width: 100%; padding: 8px 12px; border-radius: 8px; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 600; font-family: var(--sans);
+  background: rgba(190,110,68,0.08); color: #BE6E44;
+  transition: background 0.15s;
+}
+.rdp-danger-btn:hover { background: rgba(190,110,68,0.16); }
+
 /* Queue filtered client header */
 .q-client-filter-hd {
   display: flex; align-items: center; gap: 12px; margin-bottom: 22px; flex-wrap: wrap;

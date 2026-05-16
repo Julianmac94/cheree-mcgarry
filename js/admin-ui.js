@@ -2062,6 +2062,19 @@ function clearQueueFilter() {
   renderQueueView();
 }
 
+/* ── Delete (hard-remove) a dashboard client record ── */
+async function deleteClient(id, name) {
+  if (!confirm('Remove "' + name + '" from the dashboard?\n\nThis only removes the record here — Halaxy is not affected.')) return;
+  try {
+    await apiFetch('/api/clients?id=' + encodeURIComponent(id), { method: 'DELETE' });
+    toast('Record removed');
+    closeDetailPanel();
+    refreshPipeline();
+  } catch (e) {
+    toast('Could not remove: ' + e.message, 'err');
+  }
+}
+
 function renderQueueView() {
   var content = document.getElementById('view-content');
   if (!content || !_pipelineData) return;
@@ -2520,6 +2533,12 @@ function renderClientsView() {
     return (lastSeen(b) || '').localeCompare(lastSeen(a) || '');
   });
 
+  // ── Detect duplicate halaxy_id across Supabase records ──
+  var _halaxyIdCounts = {};
+  supabaseClients.forEach(function(c) {
+    if (c.halaxy_id) _halaxyIdCounts[String(c.halaxy_id)] = (_halaxyIdCounts[String(c.halaxy_id)] || 0) + 1;
+  });
+
   // ── Helpers ──
   var _avatarGradients = [
     'linear-gradient(145deg,#2A5850,#4A7A70)',
@@ -2580,6 +2599,9 @@ function renderClientsView() {
       }
     }
 
+    // Duplicate detection
+    var isDupe = c.halaxy_id && (_halaxyIdCounts[String(c.halaxy_id)] || 0) > 1;
+
     // Footer actions — use data-* attrs so names with quotes don't break onclick HTML
     var queueBtn = '<button class="cl-card-action queue"'
       + ' data-cn="' + escHtml(c.display_name || '') + '"'
@@ -2597,8 +2619,18 @@ function renderClientsView() {
         + '+ Create record</button>';
     }
 
+    // Delete button — only for Supabase-owned records (c.id exists)
+    var deleteBtn = c.id
+      ? '<button class="cl-card-delete" title="Remove dashboard record"'
+        + ' data-cid="' + escHtml(c.id) + '"'
+        + ' data-cn="'  + escHtml(c.display_name || '') + '"'
+        + ' onclick="event.stopPropagation();deleteClient(this.dataset.cid,this.dataset.cn)">×</button>'
+      : '';
+
     var clickAttr = c.id ? ' onclick="openDetailPanel(\'client\',\'' + escHtml(c.id) + '\')"' : '';
-    return '<div class="cl-card"' + clickAttr + '>'
+    return '<div class="cl-card' + (isDupe ? ' cl-card--dupe' : '') + '"' + clickAttr + '>'
+      + deleteBtn
+      + (isDupe ? '<div class="cl-card-dupe-badge">⚠ Duplicate</div>' : '')
       + (funderLabel ? '<div class="cl-card-funder"><span class="cl-funder-pill ' + funderClass + '">' + escHtml(funderLabel) + '</span></div>' : '')
       + '<div class="cl-card-avatar" style="background:' + _avatarGrad(c.display_name) + '">' + escHtml(initials) + '</div>'
       + '<div class="cl-card-name" title="' + escHtml(c.display_name || '—') + '">' + escHtml(c.display_name || '—') + '</div>'
@@ -2956,6 +2988,14 @@ function _renderClientDetailPanel(cl) {
     });
     html += '</div>';
   }
+  // Danger zone — remove record
+  html += '<div class="rdp-section" style="margin-top:auto;padding-top:16px;border-top:1px solid rgba(0,0,0,0.07)">';
+  html += '<button class="rdp-danger-btn"'
+    + ' data-cid="' + escHtml(cl.id) + '"'
+    + ' data-cn="'  + escHtml(cl.display_name || '') + '"'
+    + ' onclick="deleteClient(this.dataset.cid,this.dataset.cn)">🗑 Remove dashboard record</button>';
+  html += '<div style="font-size:10px;color:#9AABA8;margin-top:4px">Does not affect Halaxy</div>';
+  html += '</div>';
   return html;
 }
 

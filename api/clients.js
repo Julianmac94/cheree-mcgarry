@@ -80,21 +80,17 @@ export default async function handler(req, res) {
     return res.status(200).json(data);
   }
 
-  // ── DELETE (deactivate) ───────────────────────────────────────────────
+  // ── DELETE — hard-delete the dashboard record (Halaxy is untouched) ──
   if (req.method === 'DELETE') {
-    const body = req.body || {};
-    const { id } = body;
+    const id = req.query?.id || req.body?.id;
     if (!id) return res.status(400).json({ error: 'id is required' });
 
-    const { data, error } = await db
-      .from('clients')
-      .update({ active: false, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
+    // Delete sessions first (cascade may handle this, but be explicit)
+    await db.from('sessions').delete().eq('client_id', id);
 
+    const { error } = await db.from('clients').delete().eq('id', id);
     if (error) return res.status(500).json({ error: error.message });
-    return res.status(200).json(data);
+    return res.status(200).json({ ok: true });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
