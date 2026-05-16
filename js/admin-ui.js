@@ -1025,16 +1025,15 @@ function renderAppointmentsPanel() {
     var startStr = a.start || (a.period && a.period.start);
     if (!startStr) return;
     if (!_isClinicalAppt(a)) return;
+    // Already actioned in Halaxy — skip
+    if (a.status === 'fulfilled' || a.status === 'cancelled' || a.status === 'entered-in-error') return;
     var apptD = new Date(startStr); apptD.setHours(0, 0, 0, 0);
     if (apptD.getTime() >= today.getTime()) return;
     // Suppress if Halaxy already has an invoice for this patient+date (source of truth)
     var pidNR = _apptPatientId(a);
     var dtNR  = startStr.slice(0, 10);
     if (pidNR && (invoicedSet.has(String(pidNR) + '|' + dtNR) || sessionedSet.has(String(pidNR) + '|' + dtNR))) return;
-    var bi = _apptBillingInfo(a);
-    if (bi && !bi.session) {
-      needsLogging.push({ type: 'halaxy', ev: a, start: startStr, dateMs: new Date(startStr).getTime() });
-    }
+    needsLogging.push({ type: 'halaxy', ev: a, start: startStr, dateMs: new Date(startStr).getTime() });
   });
 
   needsLogging.sort(function(a, b) { return b.dateMs - a.dateMs; });
@@ -1063,6 +1062,7 @@ function renderAppointmentsPanel() {
         var dateStr = new Date(item.start).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
         var patientId = _apptPatientId(appt);
         var apptDateStr = item.start.slice(0, 10);
+        var apptHalaxyId = appt.id || '';
         var apptUid = 'hx-log-' + (patientId || 'unk') + '-' + apptDateStr.replace(/-/g, '');
         var hxPatientName = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId]) || label;
         html += '<div class="log-card">'
@@ -1071,7 +1071,7 @@ function renderAppointmentsPanel() {
           + '<div class="log-card-date">' + escHtml(dateStr) + ' · Halaxy</div>'
           + '</div>'
           + (patientId
-              ? '<button class="dp-btn dp-btn--primary" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(String(patientId)) + '\',\'' + escHtml(hxPatientName) + '\',\'' + apptDateStr + '\')">Create Invoice →</button>'
+              ? '<button class="dp-btn dp-btn--primary" onclick="openHalaxyApptLogPanel(\'' + apptUid + '\',\'' + escHtml(String(patientId)) + '\',\'' + escHtml(hxPatientName) + '\',\'' + apptDateStr + '\',\'' + escHtml(item.start) + '\',\'' + escHtml(apptHalaxyId) + '\')">Record Session →</button>'
               : '<span class="dp-badge dp-badge--source" style="white-space:nowrap">No patient</span>')
           + (patientId ? '<div id="pl-link-' + apptUid + '"></div>' : '')
           + '</div>';
@@ -2583,12 +2583,21 @@ function _filterFeesForFunder(fees, funderKey, funderId) {
 /**
  * Directly open the session-log panel for a known Halaxy patient (no search step).
  * Used by Halaxy "needs logging" cards where the patient ID is already known.
- * Stores the appointment date on the panel element so _saveHalaxySession uses it.
+ * Stores the appointment metadata on the panel element so _saveHalaxySession uses it.
+ *
+ * @param {string} cardUid       - Unique card identifier for DOM lookup
+ * @param {string} patientId     - Halaxy Patient FHIR resource ID
+ * @param {string} patientName   - Display name (from patientMap)
+ * @param {string} dateStr       - YYYY-MM-DD appointment date
+ * @param {string} apptStart     - Full ISO datetime string (e.g. "2026-05-12T10:00:00+10:00")
+ * @param {string} halaxyApptId  - Halaxy Appointment FHIR resource ID (for PATCH write-back)
  */
-function openHalaxyApptLogPanel(cardUid, patientId, patientName, dateStr) {
+function openHalaxyApptLogPanel(cardUid, patientId, patientName, dateStr, apptStart, halaxyApptId) {
   var panel = document.getElementById('pl-link-' + cardUid);
   if (!panel) return;
-  panel.dataset.apptDate = dateStr;
+  panel.dataset.apptDate     = dateStr    || '';
+  panel.dataset.apptStart    = apptStart  || (dateStr ? dateStr + 'T09:00:00' : '');
+  panel.dataset.halaxyApptId = halaxyApptId || '';
   _selectHalaxyPatient(cardUid, null, patientId, patientName);
 }
 
@@ -2734,6 +2743,14 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
       + ' onclick="event.stopPropagation()" style="margin-bottom:6px">';
   }
 
+  // Read appointment metadata stored by openHalaxyApptLogPanel (or openCalSessionPanel)
+  var halaxyApptId = (panel && panel.dataset.halaxyApptId) || '';
+
+  // Show different back button depending on whether we came from search or direct-open
+  var backBtn = eventId
+    ? '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();openCalSessionPanel(\'' + cardUid + '\',\'' + eventId + '\')">← Back</button>'
+    : '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();closeLinkPanel(\'' + cardUid + '\')">✕ Close</button>';
+
   panel.innerHTML = '<div class="pl-link-panel">'
     + '<div class="pl-link-preview">'
     + '<div class="pl-link-preview-name">' + escHtml(patientName) + '</div>'
@@ -2748,8 +2765,9 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
     + '<input class="pl-link-input" id="pl-cs-notes-' + cardUid + '" type="text"'
     + ' value="' + escHtml(evt.title || '') + '" placeholder="Session notes…" onclick="event.stopPropagation()" style="margin-top:6px">'
     + '<div class="pl-card-actions" style="margin-top:8px">'
-    + '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();openCalSessionPanel(\'' + cardUid + '\',\'' + eventId + '\')">← Back</button>'
-    + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();_saveHalaxySession(\'' + cardUid + '\',\'' + eventId + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(patientName) + '\',\'' + (funderKey || '') + '\')">Open in Halaxy →</button>'
+    + backBtn
+    + '<button class="pl-action-btn pl-action-btn--danger" onclick="event.stopPropagation();_cancelHalaxySession(\'' + cardUid + '\',\'' + (eventId || '') + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(halaxyApptId) + '\')">Cancel session</button>'
+    + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();_saveHalaxySession(\'' + cardUid + '\',\'' + (eventId || '') + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(patientName) + '\',\'' + (funderKey || '') + '\',\'' + escHtml(halaxyApptId) + '\')">Record Attended →</button>'
     + '</div></div>';
   _syncFeeInput(cardUid);
 }
@@ -2783,12 +2801,13 @@ function _syncFeeInput(cardUid) {
   if (sel && amt && sel.value) amt.value = sel.value;
 }
 
-async function _saveHalaxySession(cardUid, eventId, patientId, patientName, funderKey) {
+async function _saveHalaxySession(cardUid, eventId, patientId, patientName, funderKey, halaxyApptId) {
   var feeSelectEl = document.getElementById('pl-cs-fee-' + cardUid);
   var feeAmt      = document.getElementById('pl-cs-fee-amt-' + cardUid);
   var notesEl     = document.getElementById('pl-cs-notes-' + cardUid);
   var funderEl    = document.getElementById('pl-cs-funder-' + cardUid);
   var pmEl        = document.getElementById('pl-cs-pm-' + cardUid);
+  var panelEl     = document.getElementById('pl-link-' + cardUid);
   var evt         = _calEventMap[eventId] || {};
 
   // Resolve funder key
@@ -2808,25 +2827,29 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
     feeName = (selFeeOpt && selFeeOpt.dataset.feeName) || '';
     amount  = parseFloat(feeSelectEl.value) || null;
   }
-  // Allow manual override of amount
   if (feeAmt && feeAmt.value) {
     var manualAmt = parseFloat(feeAmt.value);
     if (!isNaN(manualAmt) && manualAmt > 0) amount = manualAmt;
   }
 
-  var pm    = pmEl    ? pmEl.value.trim()    : '';
-  var notes = notesEl ? (notesEl.value.trim() || evt.title || '') : evt.title || '';
+  if (!amount || amount <= 0) {
+    toast('Please select or enter a fee amount', 'err');
+    return;
+  }
 
-  // For Halaxy-appointment log panels, the appt date is stored on the panel element.
-  // For Google Calendar log panels, use the calendar event start date.
-  var panelEl = document.getElementById('pl-link-' + cardUid);
-  var date = (panelEl && panelEl.dataset.apptDate) || (evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10));
+  var pm       = pmEl    ? pmEl.value.trim()                                     : '';
+  var notes    = notesEl ? (notesEl.value.trim() || evt.title || '')              : evt.title || '';
+  var apptDate = (panelEl && panelEl.dataset.apptDate) || (evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10));
+  var apptStart = (panelEl && panelEl.dataset.apptStart) || evt.start || (apptDate + 'T09:00:00');
+  var apptEnd   = evt.end || null;
+  var hxApptId  = halaxyApptId || (panelEl && panelEl.dataset.halaxyApptId) || null;
 
-  // Halaxy's FHIR API does not support POST /Invoice — invoices must be created
-  // in Halaxy's UI. This function syncs any non-PII CRM fields then opens Halaxy
-  // so the user can create the invoice there directly.
+  // Disable button while saving
+  var btn = panelEl && panelEl.querySelector('.pl-action-btn--primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
   try {
-    // CRM sync — only update an existing enquiry-linked client record (non-PII fields).
+    // CRM sync — non-PII fields only on existing dashboard clients
     var local = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === patientId; });
     if (local) {
       var patch = {};
@@ -2837,14 +2860,90 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
         await apiFetch('/api/clients', { method: 'PATCH', body: patch });
       }
     }
-  } catch (_) {}
 
-  // Dismiss the calendar event card so it doesn't keep showing
-  dismissCalEvent(eventId);
+    // Write session to Halaxy — PATCH existing appointment or $book + PATCH for Cal events
+    await apiFetch('/api/admin-enquiries?halaxy_appt_action=1', {
+      method: 'POST',
+      body: {
+        action:       'record',
+        patientId:    patientId,
+        halaxyApptId: hxApptId   || undefined,
+        apptStart:    apptStart  || undefined,
+        apptEnd:      apptEnd    || undefined,
+        feeId:        feeId      || undefined,
+        feeName:      feeName    || undefined,
+        feeAmount:    amount,
+        notes:        notes      || undefined,
+      },
+    });
 
-  // Open Halaxy for invoice creation
-  window.open('https://www.halaxy.com/practitioner', '_blank', 'noopener');
-  toast('Opened Halaxy — create the invoice there, then tap Refresh ↺');
+    // Dismiss the card from the UI immediately
+    if (eventId) {
+      dismissCalEvent(eventId);
+    } else {
+      // Halaxy appointment card — remove from DOM; next refresh will re-filter by status
+      var cardEl = panelEl ? panelEl.closest('.log-card') : null;
+      if (cardEl) cardEl.remove();
+    }
+
+    toast('Session recorded in Halaxy ✓', 'ok');
+
+    // Re-fetch pipeline data so the billing panel and appointment list update
+    setTimeout(function() { refreshPipeline(); }, 1500);
+
+  } catch (err) {
+    toast('Error recording session: ' + err.message, 'err');
+    if (btn) { btn.disabled = false; btn.textContent = 'Record Attended →'; }
+  }
+}
+
+/**
+ * Mark a session as cancelled in Halaxy.
+ * For Google Cal events with no Halaxy appointment, calls $book first then immediately cancels.
+ */
+async function _cancelHalaxySession(cardUid, eventId, patientId, halaxyApptId) {
+  var panelEl  = document.getElementById('pl-link-' + cardUid);
+  var notesEl  = document.getElementById('pl-cs-notes-' + cardUid);
+  var evt      = _calEventMap[eventId] || {};
+
+  var apptDate  = (panelEl && panelEl.dataset.apptDate) || (evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10));
+  var apptStart = (panelEl && panelEl.dataset.apptStart) || evt.start || (apptDate + 'T09:00:00');
+  var apptEnd   = evt.end || null;
+  var hxApptId  = halaxyApptId || (panelEl && panelEl.dataset.halaxyApptId) || null;
+  var notes     = notesEl ? (notesEl.value.trim() || 'Client cancellation') : 'Client cancellation';
+
+  if (!confirm('Mark this session as cancelled in Halaxy?')) return;
+
+  var btn = panelEl && panelEl.querySelector('.pl-action-btn--danger');
+  if (btn) { btn.disabled = true; btn.textContent = 'Cancelling…'; }
+
+  try {
+    await apiFetch('/api/admin-enquiries?halaxy_appt_action=1', {
+      method: 'POST',
+      body: {
+        action:       'cancel',
+        patientId:    patientId,
+        halaxyApptId: hxApptId   || undefined,
+        apptStart:    apptStart  || undefined,
+        apptEnd:      apptEnd    || undefined,
+        notes:        notes,
+      },
+    });
+
+    if (eventId) {
+      dismissCalEvent(eventId);
+    } else {
+      var cardEl = panelEl ? panelEl.closest('.log-card') : null;
+      if (cardEl) cardEl.remove();
+    }
+
+    toast('Session cancelled in Halaxy ✓', 'ok');
+    setTimeout(function() { refreshPipeline(); }, 1500);
+
+  } catch (err) {
+    toast('Error cancelling session: ' + err.message, 'err');
+    if (btn) { btn.disabled = false; btn.textContent = 'Cancel session'; }
+  }
 }
 
 /* ═══════════════════════════════════════

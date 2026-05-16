@@ -7,7 +7,7 @@
 
 import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
-import { halaxyGet } from './_halaxy.js';
+import { halaxyGet, halaxyPost, halaxyPatch } from './_halaxy.js';
 
 /* ─────────────────────────────────────────────
    Halaxy config cache helpers (non-PII data)
@@ -210,6 +210,70 @@ function fhirPatientLegalName(p) {
   return [given, family].filter(Boolean).join(' ') || p.id || 'Unknown';
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   FHIR Appointment write-back helpers
+   ───────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Build a FHIR Parameters resource for POST /Appointment/$book.
+ * Creates a new appointment in Halaxy for a patient at a given time.
+ */
+function buildBookParameters(patientId, start, end, notes) {
+  const parameter = [
+    { name: 'patient', valueReference: { reference: `Patient/${patientId}` } },
+  ];
+  if (start) parameter.push({ name: 'start', valueDateTime: start });
+  if (end)   parameter.push({ name: 'end',   valueDateTime: end   });
+  if (notes) parameter.push({ name: 'comment', valueString: notes });
+  return { resourceType: 'Parameters', parameter };
+}
+
+/**
+ * Build a FHIR Appointment resource for PATCH /Appointment/{id} — mark fulfilled.
+ * Halaxy interprets serviceType coding with a ChargeItemDefinition ID as the fee,
+ * triggering automatic invoice generation per practice billing settings.
+ */
+function buildRecordedAppt(apptId, patientId, start, end, feeId, feeName, feeAmount, notes) {
+  const appt = {
+    resourceType: 'Appointment',
+    status: 'fulfilled',
+    participant: [{ actor: { reference: `Patient/${patientId}` }, status: 'accepted' }],
+  };
+  if (apptId)    appt.id      = apptId;
+  if (start)     appt.start   = start;
+  if (end)       appt.end     = end;
+  if (notes)     appt.comment = notes;
+  // Attach fee via serviceType — Halaxy maps ChargeItemDefinition ID → invoice line item.
+  // The code IS the Halaxy ChargeItemDefinition FHIR resource ID.
+  if (feeId) {
+    appt.serviceType = [{
+      coding: [{
+        system:  'https://au-api.halaxy.com/main/ChargeItemDefinition',
+        code:    String(feeId),
+        display: feeName || '',
+      }],
+      text: feeName || '',
+    }];
+  }
+  return appt;
+}
+
+/**
+ * Build a FHIR Appointment resource for PATCH /Appointment/{id} — mark cancelled.
+ */
+function buildCancelledAppt(apptId, patientId, start, end, notes) {
+  const appt = {
+    resourceType: 'Appointment',
+    status: 'cancelled',
+    participant: [{ actor: { reference: `Patient/${patientId}` }, status: 'declined' }],
+    cancelationReason: { text: notes || 'Client cancellation' },
+  };
+  if (apptId) appt.id      = apptId;
+  if (start)  appt.start   = start;
+  if (end)    appt.end     = end;
+  return appt;
+}
+
 export default async function handler(req, res) {
   if (!isAuthed(req)) return res.status(401).json({ error: 'Unauthorised' });
 
@@ -222,6 +286,83 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, funders: funders.length, fees: fees.length, feeMapEntries: Object.keys(feeMap).length });
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
+    }
+  }
+
+  /* ── POST ?halaxy_appt_action=1 — record attended or cancel a session in Halaxy ──
+   *
+   * Body fields:
+   *   action        'record' | 'cancel'               (required)
+   *   patientId     Halaxy Patient FHIR ID             (required)
+   *   halaxyApptId  Halaxy Appointment FHIR ID         (optional — omit for Google Cal events)
+   *   apptStart     ISO datetime string                (optional, e.g. "2026-05-12T10:00:00")
+   *   apptEnd       ISO datetime string                (optional)
+   *   feeId         ChargeItemDefinition FHIR ID       (required for 'record')
+   *   feeName       Human-readable fee name            (optional)
+   *   feeAmount     Numeric dollar amount              (required for 'record')
+   *   notes         Session notes / cancellation note  (optional)
+   *
+   * For Google Cal events (no halaxyApptId): first calls POST /Appointment/$book to
+   * create the appointment in Halaxy, then PATCHes it with the fee / cancelled status.
+   * ─────────────────────────────────────────────────────────────────────────────────── */
+  if (req.method === 'POST' && params.get('halaxy_appt_action')) {
+    if (!process.env.HALAXY_CLIENT_ID) {
+      return res.status(400).json({ error: 'Halaxy not configured' });
+    }
+
+    const {
+      action, halaxyApptId, patientId, apptStart, apptEnd,
+      feeId, feeName, feeAmount, notes,
+    } = req.body || {};
+
+    if (!action || !patientId) {
+      return res.status(400).json({ error: 'action and patientId are required' });
+    }
+    if (action === 'record' && !feeAmount) {
+      return res.status(400).json({ error: 'feeAmount is required to record a session' });
+    }
+    if (action !== 'record' && action !== 'cancel') {
+      return res.status(400).json({ error: 'action must be "record" or "cancel"' });
+    }
+
+    try {
+      let apptId = halaxyApptId || null;
+
+      // No existing Halaxy appointment → create one via $book first (Google Cal event path)
+      if (!apptId) {
+        console.log(`Halaxy $book: creating appointment for patient ${patientId} at ${apptStart}`);
+        const booked = await halaxyPost('/Appointment/$book',
+          buildBookParameters(patientId, apptStart || null, apptEnd || null, notes || null)
+        );
+        // $book may return the Appointment directly, a Bundle, or a Parameters wrapper
+        apptId = booked.id
+               || booked.entry?.[0]?.resource?.id
+               || (booked.parameter || []).find(p => p.name === 'appointment')?.resource?.id;
+        if (!apptId) {
+          throw new Error('$book did not return an appointment ID. Response: ' + JSON.stringify(booked).slice(0, 300));
+        }
+        console.log(`Halaxy $book: created appointment ${apptId}`);
+      }
+
+      let result;
+      if (action === 'record') {
+        console.log(`Halaxy PATCH: recording appointment ${apptId} with fee ${feeId} ($${feeAmount})`);
+        result = await halaxyPatch(
+          `/Appointment/${apptId}`,
+          buildRecordedAppt(apptId, patientId, apptStart || null, apptEnd || null, feeId || null, feeName || '', feeAmount, notes || null)
+        );
+      } else {
+        console.log(`Halaxy PATCH: cancelling appointment ${apptId}`);
+        result = await halaxyPatch(
+          `/Appointment/${apptId}`,
+          buildCancelledAppt(apptId, patientId, apptStart || null, apptEnd || null, notes || null)
+        );
+      }
+
+      return res.status(200).json({ ok: true, halaxyApptId: apptId, result });
+    } catch (err) {
+      console.error('Halaxy appt action error:', err.message);
+      return res.status(500).json({ error: err.message });
     }
   }
 
