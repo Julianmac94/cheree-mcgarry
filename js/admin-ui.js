@@ -374,6 +374,12 @@ var _calDismissed    = new Set(JSON.parse(localStorage.getItem('cal_dismissed') 
 // so they don't bounce back into "Needs Recording" after a pipeline refresh.
 // Key format: "patientId|YYYY-MM-DD"  (same as invoicedSet / sessionedSet)
 var _halaxyActioned  = new Set(JSON.parse(localStorage.getItem('halaxy_actioned') || '[]'));
+
+// Sessions recorded via the dashboard, pending a Halaxy invoice.
+// Stored in localStorage so they persist across refreshes and appear in billing.
+// Each entry: { halaxyApptId, patientId, date, amount, feeName, funderKey, recordedAt }
+// Entries are cleaned up when a matching Halaxy invoice appears (patientId+date match).
+var _recordedSessions = JSON.parse(localStorage.getItem('halaxy_recorded_sessions') || '[]');
 var _halaxyFees      = null; // cached ChargeItemDefinition list
 var _calSearchTimer  = null; // debounce timer for Halaxy patient search
 var _currentWeekStart = null; // Monday of the currently-displayed week (Date object)
@@ -1245,12 +1251,53 @@ function renderBillingPanel() {
     outstanding.sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); });
     balanced.sort(function(a, b)    { return (b.date || '').localeCompare(a.date || ''); });
 
+    // Clean up recorded sessions: remove ones older than 90 days or that now have a Halaxy invoice
+    var ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    var prevCount = _recordedSessions.length;
+    _recordedSessions = _recordedSessions.filter(function(s) {
+      if (s.recordedAt < ninetyDaysAgo) return false;
+      // Halaxy now has an invoice for this patient+date — no longer pending
+      if (halaxyInvoices.some(function(inv) { return String(inv.patientId) === String(s.patientId) && inv.date === s.date; })) return false;
+      return true;
+    });
+    if (_recordedSessions.length !== prevCount) {
+      localStorage.setItem('halaxy_recorded_sessions', JSON.stringify(_recordedSessions));
+    }
+
+    // ── "Recorded — pending invoice" section ─────────────────────────────────
+    // Sessions recorded via the dashboard that haven't yet generated a Halaxy invoice.
+    if (_recordedSessions.length) {
+      html += '<div class="billing-open-header" style="margin-bottom:6px">'
+        + '<span class="billing-open-label" style="color:#3a4ab0">Recorded · pending invoice</span>'
+        + '<span class="billing-open-count">' + _recordedSessions.length + '</span>'
+        + '</div>';
+
+      _recordedSessions.slice().reverse().forEach(function(s) {
+        var name  = resolveName(s.patientId);
+        var dt    = s.date ? new Date(s.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
+        var amt   = s.amount ? '$' + Number(s.amount).toFixed(2) : '';
+        var fl    = FUNDER_LABELS[s.funderKey] || s.funderKey || '';
+        html += '<div class="bill-card bill-card--pending">'
+          + '<div class="bill-card-top">'
+          + '<span class="bill-card-name">' + escHtml(name) + '</span>'
+          + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
+          + '</div>'
+          + '<div class="bill-card-meta">'
+          + '<span class="bill-card-date">' + escHtml(dt) + (fl ? ' · ' + escHtml(fl) : '') + '</span>'
+          + '<span class="dp-badge dp-badge--status-pending">Pending invoice</span>'
+          + '</div>'
+          + (s.feeName ? '<div class="bill-card-meta" style="margin-top:3px"><span class="bill-card-date" style="font-style:italic">' + escHtml(s.feeName) + '</span></div>' : '')
+          + '<div class="dp-card-actions"><a class="dp-btn dp-btn--ghost" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">View in Halaxy →</a></div>'
+          + '</div>';
+      });
+    }
+
     var totalOwing = outstanding.reduce(function(sum, inv) { return sum + (parseFloat(inv.amount) || 0); }, 0);
 
     var countEl = document.getElementById('billing-count');
-    if (countEl) countEl.textContent = outstanding.length || '';
+    if (countEl) countEl.textContent = (outstanding.length + _recordedSessions.length) || '';
 
-    html += '<div class="billing-open-header">'
+    html += '<div class="billing-open-header"' + (_recordedSessions.length ? ' style="margin-top:16px"' : '') + '>'
       + '<span class="billing-open-label">Outstanding</span>'
       + (outstanding.length ? '<span class="billing-open-count">' + outstanding.length + ' invoice' + (outstanding.length !== 1 ? 's' : '') + '</span>' : '')
       + (totalOwing ? '<span class="billing-open-total">$' + totalOwing.toFixed(2) + '</span>' : '')
@@ -2881,9 +2928,24 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
       },
     });
 
-    // Mark actioned in localStorage so it won't bounce back after pipeline refresh
+    // Mark actioned so it won't bounce back into "Needs Recording" after pipeline refresh
     _halaxyActioned.add(patientId + '|' + apptDate);
     localStorage.setItem('halaxy_actioned', JSON.stringify([..._halaxyActioned]));
+
+    // Store in recorded-sessions tracker so it appears in billing as "pending invoice"
+    _recordedSessions = _recordedSessions.filter(function(s) {
+      return !(String(s.patientId) === String(patientId) && s.date === apptDate);
+    });
+    _recordedSessions.push({
+      halaxyApptId: hxApptId || null,
+      patientId:    patientId,
+      date:         apptDate,
+      amount:       amount,
+      feeName:      feeName || '',
+      funderKey:    fk     || '',
+      recordedAt:   Date.now(),
+    });
+    localStorage.setItem('halaxy_recorded_sessions', JSON.stringify(_recordedSessions));
 
     // Dismiss the card from the UI immediately
     if (eventId) {

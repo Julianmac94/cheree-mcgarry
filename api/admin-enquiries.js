@@ -325,6 +325,9 @@ export default async function handler(req, res) {
       feeId, feeName, feeAmount, notes,
     } = req.body || {};
 
+    // Log received fields so we can confirm feeId is arriving correctly
+    console.log('halaxy_appt_action:', JSON.stringify({ action, patientId, feeId: feeId || null, feeAmount: feeAmount || null, hasApptId: !!halaxyApptId }));
+
     if (!action || !patientId) {
       return res.status(400).json({ error: 'action and patientId are required' });
     }
@@ -366,9 +369,10 @@ export default async function handler(req, res) {
           ).catch(e => { console.error('PATCH error (non-fatal):', e.message); return null; });
         }
 
-        // 2. POST ChargeItem — FHIR mechanism to attach a fee to an appointment
-        if (feeId) {
-          console.log(`Halaxy POST ChargeItem: fee ${feeId} ($${feeAmount}) for patient ${patientId} on appt ${apptId}`);
+        // 2. POST ChargeItem — FHIR mechanism to attach a fee to an appointment.
+        // Fire even if feeId is absent (user entered amount manually); use feeName as text code.
+        if (feeAmount) {
+          console.log(`Halaxy POST ChargeItem: fee ${feeId || 'manual'} ($${feeAmount}) for patient ${patientId} on appt ${apptId}`);
           try {
             chargeItemResult = await halaxyPost(
               '/ChargeItem',
@@ -382,8 +386,8 @@ export default async function handler(req, res) {
           }
         }
 
-        // If ChargeItem failed and we have no other write, surface a clear error
-        if (feeId && !chargeItemResult) {
+        // If ChargeItem failed, surface a clear error
+        if (feeAmount && !chargeItemResult) {
           return res.status(500).json({
             error: `Fee could not be attached in Halaxy: ${chargeItemError || 'unknown error'}`,
             halaxyApptId: apptId, chargeItemError,

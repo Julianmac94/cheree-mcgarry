@@ -1168,6 +1168,7 @@ body {
 .dp-badge--status-submitted { background: rgba(200,160,40,0.15); color: #8a6a00; }
 .dp-badge--status-lodged    { background: rgba(119,207,189,0.18); color: #1a6e5e; }
 .dp-badge--status-paid      { background: rgba(42,150,100,0.12); color: #1a7a50; }
+.dp-badge--status-pending   { background: rgba(80,100,200,0.10); color: #3a4ab0; }
 
 .dp-btn {
   font-family: var(--sans); font-size: 10px; font-weight: 600;
@@ -1373,7 +1374,8 @@ body {
 .billing-open-total {
   font-size: 12px; font-weight: 700; color: var(--tealDeep);
 }
-.bill-card--open { border-left: 3px solid rgba(190,110,68,0.4); }
+.bill-card--open    { border-left: 3px solid rgba(190,110,68,0.4); }
+.bill-card--pending { border-left: 3px solid rgba(80,100,200,0.35); }
 
 /* Billing cards */
 .billing-section-label {
