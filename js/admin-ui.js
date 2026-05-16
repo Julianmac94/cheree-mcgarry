@@ -1938,11 +1938,22 @@ function renderQueueView() {
   var todaySessions = unified.upcoming.filter(function(s) { return s.dateStr === todayStr; })
     .concat(unified.past.filter(function(s) { return s.dateStr === todayStr; }));
 
-  // Needs attention: past sessions not yet invoiced/paid (excluding today, only named clients)
-  var needsAttn = unified.past.filter(function(s) {
+  // Needs attention sub-groups (named clients only)
+  var needsInvoice = unified.past.filter(function(s) {
+    return s.dateStr !== todayStr && s.status === 'pending-invoice'
+      && s.name && s.name !== 'Halaxy appointment';
+  });
+  var needsRecord = unified.past.filter(function(s) {
+    return s.dateStr !== todayStr && s.status === 'needs-recording'
+      && s.name && s.name !== 'Halaxy appointment';
+  });
+  var needsAttn = needsInvoice.concat(needsRecord);
+
+  // Personal/unlinked: past sessions with no resolved client (show separately with flag)
+  var unlinkedPast = unified.past.filter(function(s) {
     return s.dateStr !== todayStr
       && (s.status === 'pending-invoice' || s.status === 'needs-recording')
-      && s.name && s.name !== 'Halaxy appointment';
+      && (!s.name || s.name === 'Halaxy appointment');
   });
 
   // New leads: enquiries not converted, status new or empty
@@ -1982,7 +1993,7 @@ function renderQueueView() {
   // Stats
   html += '<div class="q-stats">';
   html += '<div class="q-stat"><div class="q-stat-val' + (todaySessions.length ? ' urgent' : '') + '">' + todaySessions.length + '</div><div class="q-stat-label">Today</div></div>';
-  html += '<div class="q-stat"><div class="q-stat-val' + (needsAttn.length ? ' urgent' : '') + '">' + needsAttn.length + '</div><div class="q-stat-label">Needs Attention</div></div>';
+  html += '<div class="q-stat"><div class="q-stat-val' + (needsAttn.length ? ' urgent' : '') + '">' + needsAttn.length + '</div><div class="q-stat-label">Needs Billing</div></div>';
   html += '<div class="q-stat"><div class="q-stat-val' + (newLeads.length ? ' urgent' : '') + '">' + newLeads.length + '</div><div class="q-stat-label">New Leads</div></div>';
   html += '<div class="q-stat"><div class="q-stat-val">' + upcoming.length + '</div><div class="q-stat-label">Upcoming</div></div>';
   html += '</div>';
@@ -1999,11 +2010,30 @@ function renderQueueView() {
   }
   html += '</div>';
 
-  // Needs attention
-  if (needsAttn.length) {
+  // Needs Attention — sub-grouped by type
+  if (needsAttn.length || unlinkedPast.length) {
     html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-title">Needs Attention</span><span class="q-section-count urgent">' + needsAttn.length + '</span></div>';
-    html += '<div class="q-items">' + needsAttn.map(function(s) { return _qSessionItem(s, 'pending'); }).join('') + '</div>';
+    html += '<div class="q-section-hd"><span class="q-section-title">Needs Attention</span><span class="q-section-count urgent">' + (needsAttn.length + unlinkedPast.length) + '</span></div>';
+
+    if (needsInvoice.length) {
+      html += '<div class="q-sub-group">';
+      html += '<div class="q-sub-title">Invoice needed (' + needsInvoice.length + ')</div>';
+      html += '<div class="q-items">' + needsInvoice.map(function(s) { return _qSessionItem(s, 'pending'); }).join('') + '</div>';
+      html += '</div>';
+    }
+    if (needsRecord.length) {
+      html += '<div class="q-sub-group">';
+      html += '<div class="q-sub-title">Record needed (' + needsRecord.length + ')</div>';
+      html += '<div class="q-items">' + needsRecord.map(function(s) { return _qSessionItem(s, 'pending'); }).join('') + '</div>';
+      html += '</div>';
+    }
+    if (unlinkedPast.length) {
+      html += '<div class="q-sub-group">';
+      html += '<div class="q-sub-title">Personal / unlinked (' + unlinkedPast.length + ')</div>';
+      html += '<div class="q-items">' + unlinkedPast.map(function(s) { return _qSessionItem(s, 'unlinked'); }).join('') + '</div>';
+      html += '</div>';
+    }
+
     html += '</div>';
   }
 
@@ -2043,7 +2073,9 @@ function _qSessionItem(sess, barClass) {
   var metaParts = [];
   if (sess.dateLabel) metaParts.push(sess.dateLabel);
   if (sess.timeStr) metaParts.push(sess.timeStr);
-  var typeLabel = sess.source === 'halaxy' ? 'Client Session' : 'Calendar Appointment';
+  var isUnlinked = !sess.patientId && (!sess.name || sess.name === 'Halaxy appointment');
+  var typeLabel = isUnlinked ? 'Personal / Unlinked'
+    : (sess.source === 'halaxy' ? 'Client Session' : 'Calendar Appointment');
   var hintMap = {
     'pending-invoice': 'Open in Halaxy to add invoice',
     'needs-recording': 'Session details still need to be recorded',
@@ -2052,14 +2084,14 @@ function _qSessionItem(sess, barClass) {
     'paid':            '',
     'cancelled':       '',
   };
-  var hintText = hintMap[sess.status] || '';
+  var hintText = isUnlinked ? 'No client linked — personal or admin appointment' : (hintMap[sess.status] || '');
   var pillLabel = { 'pending-invoice': 'Pending invoice', 'needs-recording': 'Record needed', 'upcoming': 'Upcoming', 'invoiced': 'Invoiced', 'paid': 'Paid', 'cancelled': 'Cancelled' }[sess.status] || sess.status;
   var pillClass = { 'pending-invoice': 'pending', 'needs-recording': 'pending', 'upcoming': 'upcoming', 'invoiced': 'invoiced', 'paid': 'paid' }[sess.status] || 'awaiting';
   return '<div class="q-item" data-type="session" data-id="' + escHtml(sess.id) + '" onclick="openDetailPanel(\'session\',\'' + escHtml(sess.id) + '\')">'
     + '<div class="q-item-bar ' + barClass + '"></div>'
     + '<div class="q-item-main">'
-    + '<div class="q-item-type">' + typeLabel + '</div>'
-    + '<div class="q-item-name">' + escHtml(sess.name || 'Halaxy appointment') + '</div>'
+    + '<div class="q-item-type' + (isUnlinked ? ' is-unlinked' : '') + '">' + typeLabel + '</div>'
+    + '<div class="q-item-name">' + escHtml(sess.name || 'Unnamed appointment') + '</div>'
     + '<div class="q-item-meta">' + escHtml(metaParts.join(' · ')) + '</div>'
     + (hintText ? '<div class="q-item-hint">' + escHtml(hintText) + '</div>' : '')
     + '</div>'
@@ -2207,6 +2239,43 @@ function _renderSessionDetailPanel(sess) {
   html += '<div class="rdp-row"><span class="rdp-row-label">Source</span><span class="rdp-row-val">' + escHtml(sess.source || '—') + '</span></div>';
   if (sess.halaxyApptId) html += '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span><span class="rdp-row-val" style="font-size:11px;color:#7A948F">' + escHtml(sess.halaxyApptId) + '</span></div>';
   html += '</div>';
+
+  // How-to instructions (collapsed)
+  var howtoSteps = {
+    'pending-invoice': [
+      'Open Halaxy using the button above',
+      'Navigate to this date in the Halaxy calendar',
+      'Click the appointment and select Add Invoice / Add Fee',
+      'Set the item, amount and funder (Medicare, private, etc.)',
+      'Save — the dashboard updates on next refresh automatically'
+    ],
+    'needs-recording': [
+      'Click "Record session" above to add session notes',
+      'Fill in presenting issues, what was covered, and outcome',
+      'Once saved, return here or open Halaxy to add the invoice',
+      'The dashboard status will update after saving'
+    ],
+    'upcoming': [
+      'No action needed before the session',
+      'Return here after the appointment to add the invoice in Halaxy',
+      'If the client cancels, update the status in Halaxy so it reflects here'
+    ],
+    'invoiced': [
+      'Invoice has been sent — awaiting payment or Medicare processing',
+      'If overdue after 2 weeks, follow up with the client directly',
+      'Once payment clears, status updates to Paid automatically'
+    ],
+  }[sess.status];
+
+  if (howtoSteps) {
+    html += '<div class="rdp-howto"><details><summary>How to action this</summary>';
+    html += '<div class="rdp-howto-steps">';
+    howtoSteps.forEach(function(step, i) {
+      html += '<div class="rdp-howto-step"><span class="rdp-howto-step-n">' + (i + 1) + '</span><span>' + escHtml(step) + '</span></div>';
+    });
+    html += '</div></details></div>';
+  }
+
   return html;
 }
 
@@ -2259,6 +2328,38 @@ function _renderEnquiryDetailPanel(enq) {
   html += '<div class="rdp-section-label">Notes</div>';
   html += '<textarea id="rdp-notes-' + enq.id + '" style="width:100%;min-height:70px;font-family:var(--sans);font-size:12.5px;padding:8px 10px;border:1px solid rgba(0,0,0,0.12);border-radius:7px;resize:vertical;outline:none" onblur="saveNotes(\'' + enq.id + '\',this.value)" placeholder="Add notes…">' + escHtml(enq.notes || '') + '</textarea>';
   html += '</div>';
+
+  // How-to instructions (collapsed)
+  var enqHowtoSteps = {
+    new: [
+      'Review the intake form details and message above',
+      'Call or email the client to introduce yourself and understand their needs',
+      'Click "Mark as contacted" once you have reached out',
+      'When ready to book, create a client record in Halaxy',
+      'Click "Mark as in Halaxy" once their first appointment is confirmed'
+    ],
+    contacted: [
+      'Follow up if no response after 48 hours',
+      'Confirm the client is ready to proceed and book',
+      'Add the client into Halaxy and create a first appointment',
+      'Click "Mark as in Halaxy" once confirmed'
+    ],
+    in_halaxy: [
+      'Confirm the first appointment is booked in Halaxy',
+      'Ensure the client has completed their intake / consent forms',
+      'After their first session they will appear in the sessions queue for billing'
+    ],
+  }[enq.status || 'new'];
+
+  if (enqHowtoSteps) {
+    html += '<div class="rdp-howto"><details><summary>How to action this</summary>';
+    html += '<div class="rdp-howto-steps">';
+    enqHowtoSteps.forEach(function(step, i) {
+      html += '<div class="rdp-howto-step"><span class="rdp-howto-step-n">' + (i + 1) + '</span><span>' + escHtml(step) + '</span></div>';
+    });
+    html += '</div></details></div>';
+  }
+
   return html;
 }
 

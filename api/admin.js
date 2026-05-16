@@ -428,6 +428,42 @@ body { overflow: hidden; height: 100svh; background: #F0EDE5; }
 .q-arrow { font-size: 12px; color: rgba(0,0,0,0.18); }
 .q-empty { padding: 16px 14px; font-size: 13px; color: #7A948F; font-style: italic; }
 
+/* Queue sub-groups (inside a section) */
+.q-sub-group { }
+.q-sub-group + .q-sub-group { margin-top: 10px; }
+.q-sub-title {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: rgba(122,148,143,0.5);
+  padding: 6px 2px 4px;
+}
+/* Unlinked/personal session flag */
+.q-item-bar.unlinked { background: #BE6E44; opacity: 0.45; }
+.q-item-type.is-unlinked { color: #BE6E44; }
+
+/* How-to instructions (collapsed) in right detail panel */
+.rdp-howto { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(0,0,0,0.07); }
+.rdp-howto details > summary {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+  color: #7A948F; cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: 6px; user-select: none; padding: 2px 0;
+}
+.rdp-howto details > summary::before { content: '▸'; font-size: 8px; margin-right: 2px; }
+.rdp-howto details[open] > summary::before { content: '▾'; }
+.rdp-howto details > summary::-webkit-details-marker { display: none; }
+.rdp-howto-steps { padding-top: 10px; }
+.rdp-howto-step {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 7px 0; border-bottom: 1px solid rgba(0,0,0,0.04);
+  font-size: 12px; color: #3D5C56; line-height: 1.45;
+}
+.rdp-howto-step:last-child { border-bottom: none; }
+.rdp-howto-step-n {
+  flex-shrink: 0; width: 18px; height: 18px; margin-top: 1px;
+  background: rgba(42,88,80,0.10); border-radius: 50%;
+  font-size: 9px; font-weight: 700; color: #2A5850;
+  display: flex; align-items: center; justify-content: center;
+}
+
 /* ── Clients view ── */
 .clients-view { padding: 26px 28px 60px; }
 @media (max-width: 900px) { .clients-view { padding: 18px 16px 70px; } }
