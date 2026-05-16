@@ -675,17 +675,86 @@ body {
 }
 
 /* ── Clients view ── */
-.clients-view { padding: 26px 28px 60px; }
-@media (max-width: 900px) { .clients-view { padding: 18px 16px 70px; } }
-.clients-view-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 10px; }
-.view-title { font-size: 18px; font-weight: 700; color: #192E2A; }
+/* ── Queue show-more ── */
+.q-show-more {
+  display: block; width: 100%; padding: 8px 14px;
+  background: none; border: none; border-top: 1px solid rgba(0,0,0,0.04);
+  font-family: var(--sans); font-size: 11.5px; font-weight: 500;
+  color: #9AABA8; cursor: pointer; text-align: left;
+  transition: color 0.13s;
+}
+.q-show-more:hover { color: var(--teal); }
+
+/* ── Clients view ── */
+.clients-view { padding: 22px 24px 80px; max-width: 860px; }
+@media (max-width: 900px) { .clients-view { padding: 14px 14px 80px; } }
+.clients-view-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+.view-title { font-size: 17px; font-weight: 700; color: #1A2F2B; font-family: var(--sans); }
 .clients-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
 @media (max-width: 640px) { .clients-grid { grid-template-columns: 1fr; } }
 
+/* Client list (new design) */
+.cl-list {
+  background: var(--surface); border: 1px solid var(--surface-border);
+  border-radius: 11px; overflow: hidden; box-shadow: var(--surface-shadow);
+}
+.cl-list-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,0.04);
+  cursor: pointer; transition: background 0.1s;
+}
+.cl-list-item:last-child { border-bottom: none; }
+.cl-list-item:hover { background: rgba(0,0,0,0.015); }
+.cl-list-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: var(--teal); color: white;
+  font-size: 12px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+.cl-list-main { flex: 1; min-width: 0; }
+.cl-list-name { font-size: 13.5px; font-weight: 600; color: #1A2F2B; margin-bottom: 2px; }
+.cl-list-meta { font-size: 11.5px; color: #9AABA8; display: flex; gap: 8px; flex-wrap: wrap; }
+.cl-list-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.cl-list-last { font-size: 11.5px; color: #9AABA8; white-space: nowrap; }
+.cl-funder-pill {
+  font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 99px;
+  letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
+}
+.cl-funder-pill.medicare   { background: rgba(42,88,80,0.10); color: var(--teal); }
+.cl-funder-pill.ndis       { background: rgba(61,111,168,0.10); color: var(--s-upcoming); }
+.cl-funder-pill.private    { background: rgba(122,112,144,0.10); color: var(--s-triage); }
+.cl-funder-pill.workcover  { background: rgba(176,136,32,0.11); color: var(--s-finance); }
+.cl-funder-pill.default    { background: rgba(0,0,0,0.06); color: #7A9090; }
+.cl-section-label {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #9AABA8; padding: 14px 2px 6px; display: block;
+}
+
 /* ── Billing view ── */
-.billing-view { padding: 26px 28px 60px; }
-@media (max-width: 900px) { .billing-view { padding: 18px 16px 70px; } }
-.billing-view-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 10px; }
+.billing-view { padding: 22px 24px 80px; max-width: 860px; }
+@media (max-width: 900px) { .billing-view { padding: 14px 14px 80px; } }
+.billing-view-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+
+/* Billing summary cards */
+.bill-summary {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px;
+}
+@media (max-width: 640px) { .bill-summary { grid-template-columns: 1fr 1fr; } }
+.bill-stat {
+  background: var(--surface); border: 1px solid var(--surface-border);
+  border-radius: 11px; padding: 16px 18px;
+  box-shadow: var(--surface-shadow);
+}
+.bill-stat-label {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+  color: #9AABA8; margin-bottom: 6px;
+}
+.bill-stat-val {
+  font-family: var(--serif); font-size: 28px; font-weight: 300; color: #1A2F2B; line-height: 1;
+}
+.bill-stat-val.owing { color: var(--s-post); }
+.bill-stat-val.zero  { color: #9AABA8; }
+.bill-stat-sub { font-size: 11px; color: #9AABA8; margin-top: 5px; }
 
 /* ── Settings view ── */
 .settings-view { padding: 26px 28px 60px; max-width: 680px; }

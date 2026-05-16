@@ -2163,7 +2163,7 @@ function renderQueueView() {
   if (todaySessions.length) html += '<span class="q-section-count">' + todaySessions.length + '</span>';
   html += '</div>';
   if (todaySessions.length) {
-    html += '<div class="q-items">' + todaySessions.map(function(s) { return _qSessionItem(s, 'today'); }).join('') + '</div>';
+    html += _qItemList(todaySessions, _qSessionItem, 'today', 'today');
   } else {
     html += '<div class="q-items"><div class="q-empty">No sessions scheduled today</div></div>';
   }
@@ -2174,15 +2174,13 @@ function renderQueueView() {
     html += '<div class="q-section">';
     html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-urgent)"></span><span class="q-section-title">Urgent</span><span class="q-section-count urgent">' + (urgentRecord.length + urgentOverdue.length) + '</span></div>';
     if (urgentRecord.length) {
-      html += '<div class="q-sub-group">';
-      html += '<div class="q-sub-title">Needs recording (' + urgentRecord.length + ')</div>';
-      html += '<div class="q-items">' + urgentRecord.map(function(s) { return _qSessionItem(s, 'urgent'); }).join('') + '</div>';
+      html += '<div class="q-sub-group"><div class="q-sub-title">Needs recording (' + urgentRecord.length + ')</div>';
+      html += _qItemList(urgentRecord, _qSessionItem, 'urgent', 'urgent-record');
       html += '</div>';
     }
     if (urgentOverdue.length) {
-      html += '<div class="q-sub-group">';
-      html += '<div class="q-sub-title">Overdue invoice (' + urgentOverdue.length + ')</div>';
-      html += '<div class="q-items">' + urgentOverdue.map(function(s) { return _qSessionItem(s, 'urgent'); }).join('') + '</div>';
+      html += '<div class="q-sub-group"><div class="q-sub-title">Overdue invoice (' + urgentOverdue.length + ')</div>';
+      html += _qItemList(urgentOverdue, _qSessionItem, 'urgent', 'urgent-overdue');
       html += '</div>';
     }
     html += '</div>';
@@ -2192,7 +2190,7 @@ function renderQueueView() {
   if (postSession.length) {
     html += '<div class="q-section">';
     html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-post)"></span><span class="q-section-title">Post Session</span><span class="q-section-count">' + postSession.length + '</span></div>';
-    html += '<div class="q-items">' + postSession.map(function(s) { return _qSessionItem(s, 'post'); }).join('') + '</div>';
+    html += _qItemList(postSession, _qSessionItem, 'post', 'post-session');
     html += '</div>';
   }
 
@@ -2200,7 +2198,7 @@ function renderQueueView() {
   if (newLeads.length) {
     html += '<div class="q-section">';
     html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-lead)"></span><span class="q-section-title">New Leads</span><span class="q-section-count urgent">' + newLeads.length + '</span></div>';
-    html += '<div class="q-items">' + newLeads.map(function(e) { return _qEnquiryItem(e, 'lead'); }).join('') + '</div>';
+    html += _qItemList(newLeads, _qEnquiryItem, 'lead', 'new-leads');
     html += '</div>';
   }
 
@@ -2208,7 +2206,7 @@ function renderQueueView() {
   if (triage.length) {
     html += '<div class="q-section">';
     html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-triage)"></span><span class="q-section-title">Triage</span><span class="q-section-count">' + triage.length + '</span></div>';
-    html += '<div class="q-items">' + triage.map(function(e) { return _qEnquiryItem(e, 'triage'); }).join('') + '</div>';
+    html += _qItemList(triage, _qEnquiryItem, 'triage', 'triage');
     html += '</div>';
   }
 
@@ -2216,7 +2214,7 @@ function renderQueueView() {
   if (upcomingSessions.length) {
     html += '<div class="q-section">';
     html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-upcoming)"></span><span class="q-section-title">Upcoming Sessions</span><span class="q-section-count">' + upcomingSessions.length + '</span></div>';
-    html += '<div class="q-items">' + upcomingSessions.map(function(s) { return _qSessionItem(s, 'upcoming'); }).join('') + '</div>';
+    html += _qItemList(upcomingSessions, _qSessionItem, 'upcoming', 'upcoming');
     html += '</div>';
   }
 
@@ -2224,7 +2222,7 @@ function renderQueueView() {
   if (finance.length) {
     html += '<div class="q-section">';
     html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-finance)"></span><span class="q-section-title">Finance</span><span class="q-section-count">' + finance.length + '</span></div>';
-    html += '<div class="q-items">' + finance.map(function(s) { return _qSessionItem(s, 'finance'); }).join('') + '</div>';
+    html += _qItemList(finance, _qSessionItem, 'finance', 'finance');
     html += '</div>';
   }
 
@@ -2232,11 +2230,11 @@ function renderQueueView() {
   if (unlinked.length) {
     html += '<div class="q-section">';
     html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-triage);opacity:0.5"></span><span class="q-section-title">Personal / Unlinked</span><span class="q-section-count">' + unlinked.length + '</span></div>';
-    html += '<div class="q-items">' + unlinked.map(function(s) { return _qSessionItem(s, 'unlinked'); }).join('') + '</div>';
+    html += _qItemList(unlinked, _qSessionItem, 'unlinked', 'unlinked');
     html += '</div>';
   }
 
-  // ── COMPLETED (collapsed) ────────────────────────────────
+  // ── COMPLETED (collapsed header, expand shows items) ─────
   if (completed.length) {
     var isExpanded = window._completedExpanded;
     html += '<div class="q-section">';
@@ -2244,7 +2242,7 @@ function renderQueueView() {
     html += '<button class="q-section-toggle" onclick="window._completedExpanded=!window._completedExpanded;renderQueueView()">' + (isExpanded ? 'Collapse' : 'Show') + '</button>';
     html += '</div>';
     if (isExpanded) {
-      html += '<div class="q-items">' + completed.map(function(s) { return _qSessionItem(s, 'complete'); }).join('') + '</div>';
+      html += _qItemList(completed, _qSessionItem, 'complete', 'completed', 8);
     }
     html += '</div>';
   }
@@ -2255,6 +2253,22 @@ function renderQueueView() {
 
   html += '</div>'; // .queue-view
   content.innerHTML = html;
+}
+
+/* Render a q-items list capped at maxVisible with a show-more button.
+ * sectionKey is used to track expand state across re-renders. */
+var _qSectionExpanded = {};
+function _qItemList(items, renderFn, barClass, sectionKey, maxVisible) {
+  maxVisible = maxVisible || 4;
+  var expanded = _qSectionExpanded[sectionKey];
+  var visible = expanded ? items : items.slice(0, maxVisible);
+  var hidden = items.length - maxVisible;
+  var html = '<div class="q-items">' + visible.map(function(item) { return renderFn(item, barClass); }).join('');
+  if (!expanded && hidden > 0) {
+    html += '<button class="q-show-more" onclick="window._qSectionExpanded[\'' + sectionKey + '\']=true;renderQueueView()">Show ' + hidden + ' more</button>';
+  }
+  html += '</div>';
+  return html;
 }
 
 function _qMetric(val, label, color, highlight) {
@@ -2352,26 +2366,89 @@ function renderClientsView() {
   var content = document.getElementById('view-content');
   if (!content || !_pipelineData) return;
   var allClients = (_pipelineData.clients || []);
-  var active = allClients.filter(function(c) { return c.active !== false; });
-  var archived = allClients.filter(function(c) { return c.active === false; });
+  var now = new Date();
+  var cutoff90 = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+  var cutoff90Str = cutoff90.toISOString().slice(0, 10);
+
+  // Determine last session date for each client
+  function lastSeen(c) {
+    var sessions = (c.sessions || []).filter(function(s) { return s.session_date; });
+    if (!sessions.length) return null;
+    return sessions.reduce(function(max, s) { return s.session_date > max ? s.session_date : max; }, '');
+  }
+
+  var notArchived = allClients.filter(function(c) { return c.active !== false; });
+  var archived    = allClients.filter(function(c) { return c.active === false; });
+
+  // Active = last session within 90 days (or has upcoming Halaxy appointment)
+  var recentClients = notArchived.filter(function(c) {
+    var ls = lastSeen(c); return ls && ls >= cutoff90Str;
+  });
+  var otherClients = notArchived.filter(function(c) {
+    var ls = lastSeen(c); return !ls || ls < cutoff90Str;
+  });
+
+  // Sort recent by last seen descending
+  recentClients.sort(function(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); });
+  otherClients.sort(function(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); });
+
+  function renderClientRow(c) {
+    var ls = lastSeen(c);
+    var sessions = (c.sessions || []);
+    var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).slice(0, 2).join('').toUpperCase();
+    var funderLabel = FUNDER_LABELS[c.funder] || c.funder || '';
+    var funderClass = { medicare: 'medicare', ndis: 'ndis', 'WorkCover': 'workcover', private: 'private' }[c.funder] || 'default';
+    var lastDate = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No sessions';
+    var upcomingCount = sessions.filter(function(s) { return s.status === 'upcoming'; }).length;
+    var totalSessions = sessions.length;
+    return '<div class="cl-list-item" onclick="openDetailPanel(\'client\',\'' + escHtml(c.id) + '\')">'
+      + '<div class="cl-list-avatar">' + escHtml(initials) + '</div>'
+      + '<div class="cl-list-main">'
+      + '<div class="cl-list-name">' + escHtml(c.display_name || '—') + '</div>'
+      + '<div class="cl-list-meta">'
+      + '<span>' + totalSessions + ' session' + (totalSessions !== 1 ? 's' : '') + '</span>'
+      + (upcomingCount ? '<span>' + upcomingCount + ' upcoming</span>' : '')
+      + (c.halaxy_id ? '<span style="color:var(--teal-mid)">Halaxy ✓</span>' : '<span style="color:#C09A30">No Halaxy link</span>')
+      + '</div>'
+      + '</div>'
+      + '<div class="cl-list-right">'
+      + (funderLabel ? '<span class="cl-funder-pill ' + funderClass + '">' + escHtml(funderLabel) + '</span>' : '')
+      + '<span class="cl-list-last">' + escHtml(lastDate) + '</span>'
+      + '</div>'
+      + '</div>';
+  }
+
   var html = '<div class="clients-view">';
-  html += '<div class="clients-view-hd"><span class="view-title">Clients (' + active.length + ')</span>';
+  html += '<div class="clients-view-hd"><span class="view-title">Clients</span>';
   html += '<button onclick="openAddClient()" class="dp-btn dp-btn--primary" style="font-size:12px;padding:6px 14px">+ Add Client</button>';
   html += '</div>';
-  if (active.length) {
-    html += '<div class="clients-grid" id="clients-panel-body">' + active.map(renderClientCardPl).join('') + '</div>';
-  } else {
-    html += '<div id="clients-panel-body"><div class="dp-empty">No clients yet — click + Add Client to get started</div></div>';
+
+  if (recentClients.length) {
+    html += '<span class="cl-section-label">Active — seen last 90 days (' + recentClients.length + ')</span>';
+    html += '<div class="cl-list" id="clients-panel-body">' + recentClients.map(renderClientRow).join('') + '</div>';
   }
+
+  if (otherClients.length) {
+    html += '<span class="cl-section-label">Inactive — not seen in 90+ days (' + otherClients.length + ')</span>';
+    html += '<div class="cl-list">' + otherClients.map(renderClientRow).join('') + '</div>';
+  }
+
+  if (!notArchived.length) {
+    html += '<div class="cl-list"><div class="q-empty">No clients yet — click + Add Client to get started</div></div>';
+  }
+
   if (archived.length) {
-    html += '<div class="dp-collapsible" style="margin-top:16px">'
-      + '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'archived-clients\')">'
-      + '<span id="archived-clients-arrow">▸</span> Archived (' + archived.length + ')'
-      + '</button>'
-      + '<div class="dp-collapsible-body" id="archived-clients">'
-      + archived.map(renderClientCardPl).join('')
-      + '</div></div>';
+    var archOpen = window._clientsArchiveOpen;
+    html += '<div style="margin-top:16px">';
+    html += '<button class="q-section-toggle" style="font-size:11px;color:#9AABA8;background:none;border:none;cursor:pointer;padding:4px 2px" onclick="window._clientsArchiveOpen=!window._clientsArchiveOpen;renderClientsView()">'
+      + (archOpen ? '▾' : '▸') + ' Archived (' + archived.length + ')'
+      + '</button>';
+    if (archOpen) {
+      html += '<div class="cl-list" style="margin-top:8px">' + archived.map(renderClientRow).join('') + '</div>';
+    }
+    html += '</div>';
   }
+
   html += '</div>';
   content.innerHTML = html;
 }
@@ -2383,8 +2460,58 @@ function renderClientsView() {
 function renderBillingView() {
   var content = document.getElementById('view-content');
   if (!content) return;
-  content.innerHTML = '<div class="billing-view"><div class="billing-view-hd"><span class="view-title">Billing</span></div><div id="billing-panel-body"><div class="pl-loading"><div class="pl-skeleton" style="height:60px"></div><div class="pl-skeleton" style="height:60px;margin-top:7px"></div></div></div></div>';
-  // Reuse existing billing render
+
+  var now = new Date();
+  var yearStr  = now.getFullYear() + '';
+  var monthStr = now.toISOString().slice(0, 7); // 'YYYY-MM'
+  var invoices = (_halaxyData && _halaxyData.invoices) || [];
+
+  // YTD: sum of totalPaid for invoices in the current calendar year
+  var ytd = invoices.reduce(function(sum, inv) {
+    if (!inv.date || !inv.date.startsWith(yearStr)) return sum;
+    return sum + (parseFloat(inv.totalPaid) || 0);
+  }, 0);
+
+  // MTD: sum of totalPaid for invoices in the current month
+  var mtd = invoices.reduce(function(sum, inv) {
+    if (!inv.date || !inv.date.startsWith(monthStr)) return sum;
+    return sum + (parseFloat(inv.totalPaid) || 0);
+  }, 0);
+
+  // Owing: sum of totalBalance for all unpaid/partial invoices
+  var owing = invoices.reduce(function(sum, inv) {
+    if (inv.status === 'cancelled' || inv.status === 'draft') return sum;
+    var bal = parseFloat(inv.totalBalance);
+    return sum + (bal > 0 ? bal : 0);
+  }, 0);
+
+  function fmt(n) { return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+  var html = '<div class="billing-view">';
+  html += '<div class="billing-view-hd"><span class="view-title">Billing</span></div>';
+
+  // Summary cards
+  html += '<div class="bill-summary">';
+  html += '<div class="bill-stat">'
+    + '<div class="bill-stat-label">Month to Date</div>'
+    + '<div class="bill-stat-val' + (mtd === 0 ? ' zero' : '') + '">' + fmt(mtd) + '</div>'
+    + '<div class="bill-stat-sub">' + now.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }) + '</div>'
+    + '</div>';
+  html += '<div class="bill-stat">'
+    + '<div class="bill-stat-label">Year to Date</div>'
+    + '<div class="bill-stat-val' + (ytd === 0 ? ' zero' : '') + '">' + fmt(ytd) + '</div>'
+    + '<div class="bill-stat-sub">' + yearStr + ' total earned</div>'
+    + '</div>';
+  html += '<div class="bill-stat">'
+    + '<div class="bill-stat-label">Owing</div>'
+    + '<div class="bill-stat-val' + (owing > 0 ? ' owing' : ' zero') + '">' + fmt(owing) + '</div>'
+    + '<div class="bill-stat-sub">across ' + invoices.filter(function(i) { return parseFloat(i.totalBalance) > 0 && i.status !== 'cancelled'; }).length + ' invoice' + (invoices.filter(function(i) { return parseFloat(i.totalBalance) > 0 && i.status !== 'cancelled'; }).length !== 1 ? 's' : '') + '</div>'
+    + '</div>';
+  html += '</div>';
+
+  html += '<div id="billing-panel-body"><div class="pl-loading"><div class="pl-skeleton" style="height:52px"></div><div class="pl-skeleton" style="height:52px;margin-top:7px"></div></div></div>';
+  html += '</div>';
+  content.innerHTML = html;
   renderBillingPanel();
 }
 
