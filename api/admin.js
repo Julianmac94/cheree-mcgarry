@@ -724,18 +724,37 @@ body {
 @media (max-width: 640px) { .cl-card-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
 .cl-card {
   background: var(--surface); border: 1px solid var(--surface-border);
-  border-radius: 16px; padding: 22px 16px 18px;
+  border-radius: 16px; padding: 0 0 16px;
   box-shadow: var(--surface-shadow);
   cursor: pointer; transition: all 0.16s;
   display: flex; flex-direction: column; align-items: center;
   text-align: center; position: relative; overflow: hidden;
 }
 .cl-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,0.11); }
+
+/* Top bar: funder pill left, dupe badge right — replaces absolute positioning */
+.cl-card-topbar {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 10px 0; min-height: 30px; box-sizing: border-box; gap: 4px;
+}
+.cl-card-topbar-left  { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.cl-card-topbar-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.cl-card-dupe-tag {
+  font-size: 9px; font-weight: 700; color: #BE6E44;
+  background: rgba(190,110,68,0.10); border-radius: 5px;
+  padding: 2px 5px; white-space: nowrap;
+}
+
+/* Avatar + text body */
+.cl-card-body {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 12px 16px 0; width: 100%; box-sizing: border-box;
+}
 .cl-card-avatar {
-  width: 56px; height: 56px; border-radius: 50%;
+  width: 54px; height: 54px; border-radius: 50%;
   color: white; font-size: 20px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
-  margin-bottom: 11px;
+  margin-bottom: 10px;
   box-shadow: 0 3px 12px rgba(0,0,0,0.18);
 }
 .cl-card-name {
@@ -743,13 +762,18 @@ body {
   margin-bottom: 3px; line-height: 1.25;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.cl-card-since { font-size: 11px; color: #9AABA8; margin-bottom: 14px; }
-.cl-card-divider { width: 100%; border-top: 1px solid rgba(0,0,0,0.05); margin-bottom: 12px; }
-.cl-card-stats { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-.cl-card-stat { font-size: 10.5px; color: #9AABA8; line-height: 1; }
-.cl-card-stat strong { display: block; font-size: 18px; font-weight: 600; color: #1A2F2B; line-height: 1.2; margin-bottom: 1px; }
-.cl-card-owing-amt { display: block; font-size: 17px; font-weight: 600; color: var(--s-finance); line-height: 1.2; margin-bottom: 1px; }
-.cl-card-funder { position: absolute; top: 11px; right: 11px; }
+.cl-card-since { font-size: 11px; color: #9AABA8; margin-bottom: 12px; }
+.cl-card-divider { width: 100%; border-top: 1px solid rgba(0,0,0,0.05); margin-bottom: 11px; }
+.cl-card-stats { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.cl-card-stat {
+  display: flex; flex-direction: column; align-items: center;
+  font-size: 10px; color: #9AABA8; line-height: 1.3;
+}
+.cl-card-stat-val { font-size: 17px; font-weight: 700; color: #1A2F2B; line-height: 1.1; }
+.cl-card-stat-val.upcoming { color: var(--s-upcoming); }
+.cl-card-stat-val.paid     { color: var(--s-complete); font-size: 14px; }
+.cl-card-stat-val.owing    { color: #BE6E44; }
+.cl-card-funder { display: inline-block; }
 
 /* Card footer — actions + source indicator */
 .cl-card-footer {
@@ -779,15 +803,15 @@ body {
 .cl-card-action.create { background: rgba(61,111,168,0.10); color: var(--s-upcoming); }
 .cl-card-action.create:hover { background: rgba(61,111,168,0.18); }
 
-/* Delete × button — top-right corner of card */
+/* Delete × button — top-left corner of card (top-right is taken by funder pill) */
 .cl-card-delete {
-  position: absolute; top: 7px; right: 8px;
+  position: absolute; top: 7px; left: 7px;
   width: 20px; height: 20px; border-radius: 50%;
   border: none; background: transparent; cursor: pointer;
   font-size: 14px; line-height: 1; color: #C0CCCB;
   display: flex; align-items: center; justify-content: center;
   opacity: 0; transition: opacity 0.15s, color 0.15s, background 0.15s;
-  font-family: var(--sans);
+  font-family: var(--sans); z-index: 2;
 }
 .cl-card:hover .cl-card-delete { opacity: 1; }
 .cl-card-delete:hover { color: #BE6E44; background: rgba(190,110,68,0.10); opacity: 1; }
@@ -795,27 +819,29 @@ body {
 /* Duplicate + unverified card states */
 .cl-card--dupe       { border: 1.5px solid rgba(190,110,68,0.35); }
 .cl-card--unverified { border: 1.5px dashed rgba(190,110,68,0.40); opacity: 0.85; }
-.cl-card-dupe-badge {
-  position: absolute; top: 28px; right: 8px;
-  font-size: 9px; font-weight: 700; color: #BE6E44;
-  background: rgba(190,110,68,0.10); border-radius: 5px;
-  padding: 2px 5px; letter-spacing: 0.01em;
-}
 
 /* Unverified Halaxy link badge */
 .cl-card-source.halaxy-unverified {
   background: rgba(190,110,68,0.10); color: #BE6E44;
 }
 
-/* Section header with count + hint */
+/* Section headers */
 .cl-section-hd {
-  display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; margin-top: 24px;
-  flex-wrap: wrap;
+  margin-top: 28px; margin-bottom: 6px;
 }
 .cl-section-hd:first-child { margin-top: 4px; }
-.cl-section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #9AABA8; }
-.cl-section-count { font-weight: 500; }
-.cl-section-hint  { font-size: 10.5px; color: #BE6E44; }
+.cl-section-hd-top {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 5px;
+}
+.cl-section-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #7A948F; }
+.cl-section-count { font-weight: 500; color: #9AABA8; }
+.cl-section-hint  { font-size: 10px; color: #BE6E44; font-weight: 600; }
+.cl-section-desc  {
+  font-size: 11.5px; color: #9AABA8; line-height: 1.5;
+  background: rgba(42,88,80,0.04); border-radius: 8px;
+  padding: 7px 11px; margin-bottom: 10px;
+}
+.cl-section-desc strong { color: #3E5C56; font-weight: 600; }
 .cl-section-toggle-wrap { display: flex; align-items: center; justify-content: space-between; }
 .cl-section-collapse-btn {
   font-size: 11px; font-weight: 600; color: #9AABA8; background: none; border: none;
