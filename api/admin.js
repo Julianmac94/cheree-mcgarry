@@ -751,6 +751,46 @@ body {
 .cl-card-owing-amt { display: block; font-size: 17px; font-weight: 600; color: var(--s-finance); line-height: 1.2; margin-bottom: 1px; }
 .cl-card-funder { position: absolute; top: 11px; right: 11px; }
 
+/* Card footer — actions + source indicator */
+.cl-card-footer {
+  width: 100%; margin-top: 12px;
+  padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.05);
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+}
+.cl-card-source {
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 99px; white-space: nowrap;
+}
+.cl-card-source.linked    { background: rgba(42,88,80,0.10); color: var(--teal); }
+.cl-card-source.web       { background: rgba(61,111,168,0.10); color: var(--s-upcoming); }
+.cl-card-source.halaxy-only { background: rgba(122,112,144,0.10); color: var(--s-triage); }
+.cl-card-source.unlinked  { background: rgba(190,110,68,0.10); color: var(--s-lead); }
+.cl-card-actions { display: flex; align-items: center; gap: 5px; }
+.cl-card-action {
+  font-size: 10.5px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+  border: none; cursor: pointer; font-family: var(--sans); text-decoration: none;
+  white-space: nowrap; transition: all 0.12s; line-height: 1.4;
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.cl-card-action.queue  { background: rgba(42,88,80,0.09); color: var(--teal); }
+.cl-card-action.queue:hover  { background: rgba(42,88,80,0.16); }
+.cl-card-action.link   { background: rgba(190,110,68,0.10); color: var(--s-lead); }
+.cl-card-action.link:hover   { background: rgba(190,110,68,0.18); }
+.cl-card-action.create { background: rgba(61,111,168,0.10); color: var(--s-upcoming); }
+.cl-card-action.create:hover { background: rgba(61,111,168,0.18); }
+
+/* Queue filtered client header */
+.q-client-filter-hd {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 22px; flex-wrap: wrap;
+}
+.q-client-filter-back {
+  background: none; border: 1px solid rgba(42,88,80,0.22); border-radius: 7px;
+  color: var(--teal-mid); font-size: 11.5px; font-weight: 600; font-family: var(--sans);
+  padding: 5px 12px; cursor: pointer; transition: all 0.12s;
+}
+.q-client-filter-back:hover { background: rgba(42,88,80,0.06); }
+.q-client-filter-name { font-size: 18px; font-weight: 700; color: #1A2F2B; }
+
 /* Client list — used for archived / inactive compact rows */
 .cl-list {
   background: var(--surface); border: 1px solid var(--surface-border);

@@ -2052,9 +2052,51 @@ function switchDashTab(tab, btn) {
    QUEUE VIEW
    ═══════════════════════════════════════════════════ */
 
+/* ── Client → Queue filter ── */
+function filterQueueForClient(name, halaxyId) {
+  window._queueClientFilter = { name: name, halaxyId: halaxyId };
+  navigateTo('queue');
+}
+function clearQueueFilter() {
+  window._queueClientFilter = null;
+  renderQueueView();
+}
+
 function renderQueueView() {
   var content = document.getElementById('view-content');
   if (!content || !_pipelineData) return;
+
+  // ── Filtered client view ──────────────────────────────────
+  if (window._queueClientFilter) {
+    var filter  = window._queueClientFilter;
+    var unified = _buildUnifiedSessions();
+    var all     = unified.upcoming.concat(unified.past);
+    var matched = all.filter(function(s) {
+      if (filter.halaxyId && s.patientId && String(s.patientId) === String(filter.halaxyId)) return true;
+      if (filter.name && s.name && s.name.trim().toLowerCase() === filter.name.trim().toLowerCase()) return true;
+      return false;
+    });
+    var cfUpcoming = matched.filter(function(s) { return s.startMs > Date.now(); }).sort(function(a,b){ return a.startMs - b.startMs; });
+    var cfPast     = matched.filter(function(s) { return s.startMs <= Date.now(); }).sort(function(a,b){ return b.startMs - a.startMs; });
+    var html = '<div class="queue-view">';
+    html += '<div class="q-client-filter-hd">'
+      + '<button class="q-client-filter-back" onclick="clearQueueFilter()">← All sessions</button>'
+      + '<span class="q-client-filter-name">' + escHtml(filter.name || 'Client') + '</span>'
+      + '</div>';
+    if (!matched.length) {
+      html += '<div class="q-items"><div class="q-empty">No sessions found for this client</div></div>';
+    } else {
+      if (cfUpcoming.length) {
+        html += _qFolder('cf-upcoming', 'Upcoming', 'var(--s-upcoming)', cfUpcoming, _qSessionItem, 'upcoming', { defaultOpen: 'always' });
+      }
+      if (cfPast.length) {
+        html += _qFolder('cf-past', 'Past Sessions', 'var(--teal)', cfPast, _qSessionItem, 'today', { defaultOpen: 'always', maxVisible: 20 });
+      }
+    }
+    html += '</div>';
+    content.innerHTML = html;
+    return;
+  }
   var now = new Date();
   var todayStr = now.toISOString().slice(0, 10);
   var enquiries = (_pipelineData && _pipelineData.enquiries) || [];
@@ -2401,60 +2443,53 @@ function renderClientsView() {
   if (!content || !_pipelineData) return;
 
   var supabaseClients = (_pipelineData.clients || []);
+  var allEnquiries    = (_pipelineData.enquiries || []);
   var now = new Date();
-  var cutoff90 = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+  var cutoff90    = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
   var cutoff90Str = cutoff90.toISOString().slice(0, 10);
   var halaxyInvoices = (_halaxyData && _halaxyData.invoices) || [];
+  var pm = (_halaxyData && _halaxyData.patientMap) || {};
 
-  // ── Build synthetic Halaxy client list when Supabase clients table is empty ──
-  var allClients;
-  var fromHalaxy = false;
+  // ── Build Halaxy-only patients (those NOT linked to any Supabase client) ──
+  var linkedHalaxyIds = new Set(
+    supabaseClients.map(function(c) { return String(c.halaxy_id || ''); }).filter(Boolean)
+  );
 
-  if (supabaseClients.length === 0) {
-    // Collapse invoices by patientId to build one row per patient
-    var pm = (_halaxyData && _halaxyData.patientMap) || {};
-    var byPatient = {}; // patientId → { invoices: [], lastDate: '' }
-    halaxyInvoices.forEach(function(inv) {
-      var pid = String(inv.patientId || '');
-      if (!pid || pid === 'null' || pid === 'undefined') return;
-      if (!byPatient[pid]) byPatient[pid] = { invoices: [], lastDate: '' };
-      byPatient[pid].invoices.push(inv);
-      if ((inv.date || '') > byPatient[pid].lastDate) byPatient[pid].lastDate = inv.date || '';
-    });
+  var byPatient = {};
+  halaxyInvoices.forEach(function(inv) {
+    var pid = String(inv.patientId || '');
+    if (!pid || pid === 'null' || pid === 'undefined') return;
+    if (linkedHalaxyIds.has(pid)) return; // already linked
+    if (!byPatient[pid]) byPatient[pid] = { invoices: [], lastDate: '' };
+    byPatient[pid].invoices.push(inv);
+    if ((inv.date || '') > byPatient[pid].lastDate) byPatient[pid].lastDate = inv.date || '';
+  });
+  // Include Halaxy patients with appointments but no invoices
+  Object.keys(pm).forEach(function(pid) {
+    if (!linkedHalaxyIds.has(pid) && !byPatient[pid]) byPatient[pid] = { invoices: [], lastDate: '' };
+  });
 
-    // Also include patients with appointments but no invoices (from patientMap)
-    Object.keys(pm).forEach(function(pid) {
-      if (!byPatient[pid]) byPatient[pid] = { invoices: [], lastDate: '' };
-    });
+  var halaxyOnlyClients = Object.keys(byPatient).map(function(pid) {
+    var rec = byPatient[pid];
+    var invs = rec.invoices;
+    return {
+      id: null, halaxy_id: pid,
+      display_name: pm[pid] || ('Patient #' + pid),
+      sessions: [], funder: null, active: true,
+      _isHalaxyOnly: true,
+      _invoiceCount: invs.length,
+      _lastDate: rec.lastDate,
+      _totalOwing: invs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0),
+      _totalPaid:  invs.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0),
+    };
+  });
 
-    allClients = Object.keys(byPatient).map(function(pid) {
-      var rec = byPatient[pid];
-      var invs = rec.invoices;
-      var totalOwing = invs.reduce(function(sum, inv) { return sum + (parseFloat(inv.totalBalance) || 0); }, 0);
-      var totalPaid  = invs.reduce(function(sum, inv) { return sum + (parseFloat(inv.totalPaid)    || 0); }, 0);
-      return {
-        id: null,
-        halaxy_id: pid,
-        display_name: pm[pid] || ('Patient #' + pid),
-        sessions: [],
-        funder: null,
-        active: true,
-        _invoiceCount: invs.length,
-        _lastDate: rec.lastDate,
-        _totalOwing: totalOwing,
-        _totalPaid: totalPaid,
-      };
-    });
+  // ── All clients = Supabase clients + Halaxy-only ──
+  var allClients = supabaseClients.concat(halaxyOnlyClients);
 
-    if (allClients.length > 0) fromHalaxy = true;
-  } else {
-    allClients = supabaseClients;
-  }
-
-  // Last seen: use pre-computed _lastDate for Halaxy synthetics,
-  // otherwise check Supabase sessions + Halaxy invoices by halaxy_id
+  // ── Helper: last active date ──
   function lastSeen(c) {
-    if (c._lastDate) return c._lastDate;
+    if (c._lastDate) return c._lastDate; // Halaxy-only
     var dates = [];
     (c.sessions || []).forEach(function(s) { if (s.session_date) dates.push(s.session_date); });
     if (c.halaxy_id) {
@@ -2479,9 +2514,13 @@ function renderClientsView() {
   });
 
   recentClients.sort(function(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); });
-  otherClients.sort(function(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); });
+  otherClients.sort(function(a, b) {
+    // Supabase clients first, then Halaxy-only
+    if (a._isHalaxyOnly !== b._isHalaxyOnly) return a._isHalaxyOnly ? 1 : -1;
+    return (lastSeen(b) || '').localeCompare(lastSeen(a) || '');
+  });
 
-  // Deterministic avatar gradient based on first initial
+  // ── Helpers ──
   var _avatarGradients = [
     'linear-gradient(145deg,#2A5850,#4A7A70)',
     'linear-gradient(145deg,#3D6FA8,#5888C0)',
@@ -2495,19 +2534,32 @@ function renderClientsView() {
     return _avatarGradients[code % _avatarGradients.length];
   }
 
-  // ── Player card renderer (active clients) ───────────────
+  // Source label for a Supabase client (web enquiry / direct / linked)
+  function _clientSource(c) {
+    if (c._isHalaxyOnly) return { label: 'Halaxy', cls: 'halaxy-only' };
+    if (c.halaxy_id)     return { label: 'Halaxy ✓', cls: 'linked' };
+    if (c.enquiry_id) {
+      var enq = allEnquiries.find(function(e) { return String(e.id) === String(c.enquiry_id); });
+      if (enq && enq.source === 'website') return { label: 'Web contact', cls: 'web' };
+      return { label: 'Enquiry', cls: 'web' };
+    }
+    return { label: 'Not in Halaxy', cls: 'unlinked' };
+  }
+
+  // ── Player card (active + inactive grids) ──
   function renderClientCard(c) {
     var ls = lastSeen(c);
     var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
     var funderLabel = FUNDER_LABELS[c.funder] || c.funder || '';
     var funderClass = { medicare: 'medicare', ndis: 'ndis', 'WorkCover': 'workcover', private: 'private' }[c.funder] || 'default';
-    var lastDate = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : 'No activity';
-    var clickAttr = c.id ? ' onclick="openDetailPanel(\'client\',\'' + escHtml(c.id) + '\')"' : '';
+    var lastDate    = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : 'No activity';
+    var src = _clientSource(c);
 
+    // Stats row
     var statsHtml;
-    if (fromHalaxy) {
+    if (c._isHalaxyOnly) {
       var invCount = c._invoiceCount || 0;
-      var owing = c._totalOwing || 0;
+      var owing    = c._totalOwing   || 0;
       statsHtml = '<div class="cl-card-stat"><strong>' + invCount + '</strong>' + (invCount !== 1 ? 'invoices' : 'invoice') + '</div>';
       if (owing > 0.005) {
         statsHtml += '<div class="cl-card-stat"><span class="cl-card-owing-amt">$' + Math.round(owing) + '</span>owing</div>';
@@ -2515,14 +2567,29 @@ function renderClientsView() {
         statsHtml += '<div class="cl-card-stat"><strong style="color:var(--s-complete)">✓</strong>Paid up</div>';
       }
     } else {
-      var sessions = (c.sessions || []);
+      var sessions      = (c.sessions || []);
       var upcomingCount = sessions.filter(function(s) { return s.status === 'upcoming'; }).length;
+      var invs          = halaxyInvoices.filter(function(i) { return c.halaxy_id && String(i.patientId) === String(c.halaxy_id); });
+      var totalOwing    = invs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
       statsHtml = '<div class="cl-card-stat"><strong>' + sessions.length + '</strong>sessions</div>';
       if (upcomingCount) {
         statsHtml += '<div class="cl-card-stat"><strong style="color:var(--s-upcoming)">' + upcomingCount + '</strong>upcoming</div>';
       }
+      if (totalOwing > 0.005) {
+        statsHtml += '<div class="cl-card-stat"><span class="cl-card-owing-amt">$' + Math.round(totalOwing) + '</span>owing</div>';
+      }
     }
 
+    // Footer actions
+    var queueBtn = '<button class="cl-card-action queue" onclick="event.stopPropagation();filterQueueForClient(' + JSON.stringify(c.display_name || '') + ',' + JSON.stringify(c.halaxy_id || '') + ')">↗ Queue</button>';
+    var actionBtn = '';
+    if (!c.halaxy_id && c.id) {
+      actionBtn = '<button class="cl-card-action link" onclick="event.stopPropagation();openHalaxyLinkPicker(\'' + escHtml(c.id) + '\')">🔗 Link to Halaxy</button>';
+    } else if (c._isHalaxyOnly) {
+      actionBtn = '<button class="cl-card-action create" onclick="event.stopPropagation();openAddClient(\'' + escHtml(c.halaxy_id) + '\')">+ Create record</button>';
+    }
+
+    var clickAttr = c.id ? ' onclick="openDetailPanel(\'client\',\'' + escHtml(c.id) + '\')"' : '';
     return '<div class="cl-card"' + clickAttr + '>'
       + (funderLabel ? '<div class="cl-card-funder"><span class="cl-funder-pill ' + funderClass + '">' + escHtml(funderLabel) + '</span></div>' : '')
       + '<div class="cl-card-avatar" style="background:' + _avatarGrad(c.display_name) + '">' + escHtml(initials) + '</div>'
@@ -2530,48 +2597,34 @@ function renderClientsView() {
       + '<div class="cl-card-since">Last seen ' + escHtml(lastDate) + '</div>'
       + '<div class="cl-card-divider"></div>'
       + '<div class="cl-card-stats">' + statsHtml + '</div>'
+      + '<div class="cl-card-footer">'
+      + '<span class="cl-card-source ' + src.cls + '">' + escHtml(src.label) + '</span>'
+      + '<div class="cl-card-actions">' + actionBtn + queueBtn + '</div>'
+      + '</div>'
       + '</div>';
   }
 
-  // ── Compact list row renderer (inactive / archived) ─────
+  // ── Compact row (archived) ──
   function renderClientRow(c) {
-    var ls = lastSeen(c);
+    var ls       = lastSeen(c);
     var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
-    var funderLabel = FUNDER_LABELS[c.funder] || c.funder || '';
-    var funderClass = { medicare: 'medicare', ndis: 'ndis', 'WorkCover': 'workcover', private: 'private' }[c.funder] || 'default';
     var lastDate = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No activity';
-
-    var metaParts = [];
-    if (fromHalaxy) {
-      metaParts.push((c._invoiceCount || 0) + ' invoices');
-      if ((c._totalOwing || 0) > 0.005) metaParts.push('$' + Math.round(c._totalOwing) + ' owing');
-    } else {
-      metaParts.push((c.sessions || []).length + ' sessions');
-    }
-
+    var src      = _clientSource(c);
     return '<div class="cl-list-item">'
       + '<div class="cl-list-avatar" style="background:' + _avatarGrad(c.display_name) + '">' + escHtml(initials) + '</div>'
       + '<div class="cl-list-main">'
       + '<div class="cl-list-name">' + escHtml(c.display_name || '—') + '</div>'
-      + '<div class="cl-list-meta"><span>' + metaParts.join(' · ') + '</span></div>'
+      + '<div class="cl-list-meta"><span class="cl-card-source ' + src.cls + '" style="font-size:9px">' + escHtml(src.label) + '</span></div>'
       + '</div>'
-      + '<div class="cl-list-right">'
-      + (funderLabel ? '<span class="cl-funder-pill ' + funderClass + '">' + escHtml(funderLabel) + '</span>' : '')
       + '<span class="cl-list-last">' + escHtml(lastDate) + '</span>'
-      + '</div>'
       + '</div>';
   }
 
+  // ── Build HTML ──
   var html = '<div class="clients-view">';
   html += '<div class="clients-view-hd"><span class="view-title">Clients</span>';
   html += '<button onclick="openAddClient()" class="dp-btn dp-btn--primary" style="font-size:12px;padding:6px 14px">+ Add Client</button>';
   html += '</div>';
-
-  if (fromHalaxy) {
-    html += '<div style="margin-bottom:18px;font-size:12px;color:#8A9A97;padding:10px 14px;background:rgba(42,88,80,0.05);border-radius:10px;border:1px solid rgba(42,88,80,0.1)">'
-      + 'Showing clients from Halaxy — no linked records in this dashboard yet. '
-      + '<a href="#" onclick="openAddClient();return false" style="color:var(--teal-mid);text-decoration:none;font-weight:500">+ Link a client</a> to attach notes and sessions.</div>';
-  }
 
   if (recentClients.length) {
     html += '<span class="cl-section-label">Active — last 90 days (' + recentClients.length + ')</span>';
@@ -2583,7 +2636,7 @@ function renderClientsView() {
     html += '<div class="cl-card-grid">' + otherClients.map(renderClientCard).join('') + '</div>';
   }
 
-  if (!notArchived.length && !fromHalaxy) {
+  if (!notArchived.length) {
     html += '<div class="cl-list"><div class="q-empty">No clients yet — click + Add Client to get started</div></div>';
   }
 
@@ -3315,6 +3368,12 @@ async function saveCreateSession() {
 }
 
 /* ── Add client modal ── */
+/* Open the add-client modal pre-filled to link an existing Halaxy patient */
+function openHalaxyLinkPicker(clientId) {
+  // Open the detail panel for this client — it has Halaxy link functionality
+  openDetailPanel('client', clientId);
+}
+
 function openAddClient() {
   // Reset fields
   var ids = ['cl-display-name','cl-plan-manager','cl-halaxy-search','cl-halaxy-id','cl-notes',
