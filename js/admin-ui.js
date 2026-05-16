@@ -2498,7 +2498,18 @@ function renderClientsView() {
   });
 
   // ── All clients = Supabase clients + Halaxy-only ──
-  var allClients = supabaseClients.concat(halaxyOnlyClients);
+  // ── Verified Halaxy patient IDs (from full patient list + patientMap) ──
+  var _halaxyPatientIds = new Set();
+  ((_halaxyData && _halaxyData.patients) || []).forEach(function(p) { if (p.id) _halaxyPatientIds.add(String(p.id)); });
+  if (_halaxyData && _halaxyData.patientMap) {
+    Object.keys(_halaxyData.patientMap).forEach(function(k) { _halaxyPatientIds.add(k); });
+  }
+
+  // ── Detect duplicate halaxy_id across Supabase records ──
+  var _halaxyIdCounts = {};
+  supabaseClients.forEach(function(c) {
+    if (c.halaxy_id) _halaxyIdCounts[String(c.halaxy_id)] = (_halaxyIdCounts[String(c.halaxy_id)] || 0) + 1;
+  });
 
   // ── Helper: last active date ──
   function lastSeen(c) {
@@ -2507,37 +2518,37 @@ function renderClientsView() {
     (c.sessions || []).forEach(function(s) { if (s.session_date) dates.push(s.session_date); });
     if (c.halaxy_id) {
       halaxyInvoices.forEach(function(inv) {
-        if (inv.patientId && String(inv.patientId) === String(c.halaxy_id) && inv.date) {
-          dates.push(inv.date);
-        }
+        if (inv.patientId && String(inv.patientId) === String(c.halaxy_id) && inv.date) dates.push(inv.date);
       });
     }
     if (!dates.length) return null;
     return dates.reduce(function(max, d) { return d > max ? d : max; }, '');
   }
 
-  var notArchived = allClients.filter(function(c) { return c.active !== false; });
-  var archived    = allClients.filter(function(c) { return c.active === false; });
+  // ── Source badge ──
+  function _clientSource(c) {
+    if (c._isHalaxyOnly) return { label: 'Halaxy', cls: 'halaxy-only' };
+    if (c.halaxy_id) {
+      var verified = _halaxyPatientIds.has(String(c.halaxy_id));
+      return verified ? { label: 'Halaxy ✓', cls: 'linked' } : { label: 'Halaxy ?', cls: 'halaxy-unverified' };
+    }
+    if (c.enquiry_id) {
+      var enq = allEnquiries.find(function(e) { return String(e.id) === String(c.enquiry_id); });
+      if (enq && enq.source === 'website') return { label: 'Web contact', cls: 'web' };
+      return { label: 'Enquiry', cls: 'web' };
+    }
+    return { label: 'Dashboard only', cls: 'unlinked' };
+  }
 
-  var recentClients = notArchived.filter(function(c) {
-    var ls = lastSeen(c); return ls && ls >= cutoff90Str;
-  });
-  var otherClients = notArchived.filter(function(c) {
-    var ls = lastSeen(c); return !ls || ls < cutoff90Str;
-  });
-
-  recentClients.sort(function(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); });
-  otherClients.sort(function(a, b) {
-    // Supabase clients first, then Halaxy-only
-    if (a._isHalaxyOnly !== b._isHalaxyOnly) return a._isHalaxyOnly ? 1 : -1;
-    return (lastSeen(b) || '').localeCompare(lastSeen(a) || '');
-  });
-
-  // ── Detect duplicate halaxy_id across Supabase records ──
-  var _halaxyIdCounts = {};
-  supabaseClients.forEach(function(c) {
-    if (c.halaxy_id) _halaxyIdCounts[String(c.halaxy_id)] = (_halaxyIdCounts[String(c.halaxy_id)] || 0) + 1;
-  });
+  // ── Split into three display groups ──
+  // Group A: Supabase clients with a halaxy_id (verified OR unverified link)
+  // Group B: Supabase clients with NO halaxy_id (dashboard-only)
+  // Group C: Halaxy-only patients (no Supabase record)
+  function _byDate(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); }
+  var archived     = supabaseClients.filter(function(c) { return c.active === false; });
+  var groupA       = supabaseClients.filter(function(c) { return c.active !== false && c.halaxy_id; }).sort(_byDate);
+  var groupB       = supabaseClients.filter(function(c) { return c.active !== false && !c.halaxy_id; }).sort(_byDate);
+  var groupC       = halaxyOnlyClients.sort(_byDate);
 
   // ── Helpers ──
   var _avatarGradients = [
@@ -2553,19 +2564,7 @@ function renderClientsView() {
     return _avatarGradients[code % _avatarGradients.length];
   }
 
-  // Source label for a Supabase client (web enquiry / direct / linked)
-  function _clientSource(c) {
-    if (c._isHalaxyOnly) return { label: 'Halaxy', cls: 'halaxy-only' };
-    if (c.halaxy_id)     return { label: 'Halaxy ✓', cls: 'linked' };
-    if (c.enquiry_id) {
-      var enq = allEnquiries.find(function(e) { return String(e.id) === String(c.enquiry_id); });
-      if (enq && enq.source === 'website') return { label: 'Web contact', cls: 'web' };
-      return { label: 'Enquiry', cls: 'web' };
-    }
-    return { label: 'Not in Halaxy', cls: 'unlinked' };
-  }
-
-  // ── Player card (active + inactive grids) ──
+  // ── Player card ──
   function renderClientCard(c) {
     var ls = lastSeen(c);
     var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
@@ -2573,36 +2572,36 @@ function renderClientsView() {
     var funderClass = { medicare: 'medicare', ndis: 'ndis', 'WorkCover': 'workcover', private: 'private' }[c.funder] || 'default';
     var lastDate    = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : 'No activity';
     var src = _clientSource(c);
+    var isDupe = c.halaxy_id && (_halaxyIdCounts[String(c.halaxy_id)] || 0) > 1;
 
-    // Stats row
+    // Stats — use Halaxy invoices as source of truth for linked clients
     var statsHtml;
-    if (c._isHalaxyOnly) {
-      var invCount = c._invoiceCount || 0;
-      var owing    = c._totalOwing   || 0;
+    var invs = c.halaxy_id
+      ? halaxyInvoices.filter(function(i) { return String(i.patientId) === String(c.halaxy_id); })
+      : [];
+    var invCount   = c._invoiceCount || invs.length;
+    var totalOwing = c._totalOwing != null ? c._totalOwing : invs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
+    var totalPaid  = c._totalPaid  != null ? c._totalPaid  : invs.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
+
+    if (invCount > 0 || c._isHalaxyOnly) {
+      // Show Halaxy billing stats
       statsHtml = '<div class="cl-card-stat"><strong>' + invCount + '</strong>' + (invCount !== 1 ? 'invoices' : 'invoice') + '</div>';
-      if (owing > 0.005) {
-        statsHtml += '<div class="cl-card-stat"><span class="cl-card-owing-amt">$' + Math.round(owing) + '</span>owing</div>';
-      } else {
+      if (totalOwing > 0.005) {
+        statsHtml += '<div class="cl-card-stat"><span class="cl-card-owing-amt">$' + Math.round(totalOwing) + '</span>owing</div>';
+      } else if (totalPaid > 0) {
         statsHtml += '<div class="cl-card-stat"><strong style="color:var(--s-complete)">✓</strong>Paid up</div>';
       }
     } else {
-      var sessions      = (c.sessions || []);
-      var upcomingCount = sessions.filter(function(s) { return s.status === 'upcoming'; }).length;
-      var invs          = halaxyInvoices.filter(function(i) { return c.halaxy_id && String(i.patientId) === String(c.halaxy_id); });
-      var totalOwing    = invs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
-      statsHtml = '<div class="cl-card-stat"><strong>' + sessions.length + '</strong>sessions</div>';
+      // No Halaxy invoices — fall back to Supabase sessions
+      var dbSessions    = (c.sessions || []);
+      var upcomingCount = dbSessions.filter(function(s) { return s.status === 'upcoming'; }).length;
+      statsHtml = '<div class="cl-card-stat"><strong>' + dbSessions.length + '</strong>sessions</div>';
       if (upcomingCount) {
         statsHtml += '<div class="cl-card-stat"><strong style="color:var(--s-upcoming)">' + upcomingCount + '</strong>upcoming</div>';
       }
-      if (totalOwing > 0.005) {
-        statsHtml += '<div class="cl-card-stat"><span class="cl-card-owing-amt">$' + Math.round(totalOwing) + '</span>owing</div>';
-      }
     }
 
-    // Duplicate detection
-    var isDupe = c.halaxy_id && (_halaxyIdCounts[String(c.halaxy_id)] || 0) > 1;
-
-    // Footer actions — use data-* attrs so names with quotes don't break onclick HTML
+    // Footer action buttons
     var queueBtn = '<button class="cl-card-action queue"'
       + ' data-cn="' + escHtml(c.display_name || '') + '"'
       + ' data-hid="' + escHtml(String(c.halaxy_id || '')) + '"'
@@ -2619,7 +2618,7 @@ function renderClientsView() {
         + '+ Create record</button>';
     }
 
-    // Delete button — only for Supabase-owned records (c.id exists)
+    // Delete × button (Supabase-owned records only)
     var deleteBtn = c.id
       ? '<button class="cl-card-delete" title="Remove dashboard record"'
         + ' data-cid="' + escHtml(c.id) + '"'
@@ -2628,7 +2627,7 @@ function renderClientsView() {
       : '';
 
     var clickAttr = c.id ? ' onclick="openDetailPanel(\'client\',\'' + escHtml(c.id) + '\')"' : '';
-    return '<div class="cl-card' + (isDupe ? ' cl-card--dupe' : '') + '"' + clickAttr + '>'
+    return '<div class="cl-card' + (isDupe ? ' cl-card--dupe' : '') + (src.cls === 'halaxy-unverified' ? ' cl-card--unverified' : '') + '"' + clickAttr + '>'
       + deleteBtn
       + (isDupe ? '<div class="cl-card-dupe-badge">⚠ Duplicate</div>' : '')
       + (funderLabel ? '<div class="cl-card-funder"><span class="cl-funder-pill ' + funderClass + '">' + escHtml(funderLabel) + '</span></div>' : '')
@@ -2661,28 +2660,55 @@ function renderClientsView() {
   }
 
   // ── Build HTML ──
+  function _sectionLabel(text, count, hint) {
+    return '<div class="cl-section-hd">'
+      + '<span class="cl-section-label">' + text + (count != null ? ' <span class="cl-section-count">(' + count + ')</span>' : '') + '</span>'
+      + (hint ? '<span class="cl-section-hint">' + hint + '</span>' : '')
+      + '</div>';
+  }
+  function _cardGrid(arr) {
+    return '<div class="cl-card-grid">' + arr.map(renderClientCard).join('') + '</div>';
+  }
+
   var html = '<div class="clients-view">';
   html += '<div class="clients-view-hd"><span class="view-title">Clients</span>';
   html += '<button onclick="openAddClient()" class="dp-btn dp-btn--primary" style="font-size:12px;padding:6px 14px">+ Add Client</button>';
   html += '</div>';
 
-  if (recentClients.length) {
-    html += '<span class="cl-section-label">Active — last 90 days (' + recentClients.length + ')</span>';
-    html += '<div class="cl-card-grid" id="clients-panel-body">' + recentClients.map(renderClientCard).join('') + '</div>';
+  // ── Group A: Halaxy-linked clients ──────────────────────────────────
+  if (groupA.length) {
+    var unverifiedCount = groupA.filter(function(c) { return !_halaxyPatientIds.has(String(c.halaxy_id)); }).length;
+    var hintA = unverifiedCount > 0 ? unverifiedCount + ' with unverified link — hover card and × to remove' : '';
+    html += _sectionLabel('Halaxy clients', groupA.length, hintA);
+    html += _cardGrid(groupA);
   }
 
-  if (otherClients.length) {
-    html += '<span class="cl-section-label" style="margin-top:20px">Inactive — 90+ days (' + otherClients.length + ')</span>';
-    html += '<div class="cl-card-grid">' + otherClients.map(renderClientCard).join('') + '</div>';
+  // ── Group B: Dashboard-only clients (no Halaxy link) ──────────────
+  if (groupB.length) {
+    html += _sectionLabel('Dashboard only', groupB.length, 'Not yet in Halaxy — use 🔗 Link to connect');
+    html += _cardGrid(groupB);
   }
 
-  if (!notArchived.length) {
-    html += '<div class="cl-list"><div class="q-empty">No clients yet — click + Add Client to get started</div></div>';
+  // ── Group C: Halaxy patients with no dashboard record ──────────────
+  if (groupC.length) {
+    var gcOpen = window._groupCOpen !== false; // default open
+    html += '<div class="cl-section-toggle-wrap" style="margin-top:24px">';
+    html += _sectionLabel('Halaxy patients — no dashboard record', groupC.length,
+      gcOpen ? 'Click + Create record to add them' : '');
+    html += '<button class="cl-section-collapse-btn" onclick="window._groupCOpen=!' + gcOpen + ';renderClientsView()">'
+      + (gcOpen ? '▾ Hide' : '▸ Show') + '</button>';
+    html += '</div>';
+    if (gcOpen) html += _cardGrid(groupC);
   }
 
+  if (!groupA.length && !groupB.length && !groupC.length) {
+    html += '<div class="q-empty">No clients yet — click + Add Client to get started</div>';
+  }
+
+  // ── Archived ─────────────────────────────────────────────────────────
   if (archived.length) {
     var archOpen = window._clientsArchiveOpen;
-    html += '<div style="margin-top:20px">';
+    html += '<div style="margin-top:24px">';
     html += '<button class="q-section-toggle" style="font-size:11px;color:#9AABA8;background:none;border:none;cursor:pointer;padding:4px 2px" onclick="window._clientsArchiveOpen=!window._clientsArchiveOpen;renderClientsView()">'
       + (archOpen ? '▾' : '▸') + ' Archived (' + archived.length + ')'
       + '</button>';
@@ -2960,36 +2986,102 @@ function _renderEnquiryDetailPanel(enq) {
 }
 
 function _renderClientDetailPanel(cl) {
-  var sessions = (cl.sessions || []).slice().sort(function(a, b) { return b.session_date.localeCompare(a.session_date); });
+  var dbSessions  = (cl.sessions || []).slice().sort(function(a, b) { return b.session_date.localeCompare(a.session_date); });
   var funderLabel = FUNDER_LABELS[cl.funder] || cl.funder || '—';
+
+  // ── Pull Halaxy data for this client ──
+  var hid = cl.halaxy_id ? String(cl.halaxy_id) : null;
+  var halaxyVerified = false;
+  var halaxyInvs     = [];
+
+  if (hid && _halaxyData) {
+    // Verify: patient appears in full patient list or appointment patientMap
+    var allPts = _halaxyData.patients || [];
+    halaxyVerified = allPts.some(function(p) { return String(p.id) === hid; });
+    if (!halaxyVerified && _halaxyData.patientMap && _halaxyData.patientMap[hid]) halaxyVerified = true;
+
+    halaxyInvs = (_halaxyData.invoices || [])
+      .filter(function(i) { return String(i.patientId) === hid; })
+      .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+  }
+
   var html = '';
   html += '<div class="rdp-client">' + escHtml(cl.display_name || '—') + '</div>';
-  html += '<div class="rdp-date">' + escHtml(funderLabel) + (cl.halaxy_id ? ' · Halaxy' : '') + '</div>';
-  // Action zone
-  html += '<div class="rdp-action-zone">';
-  if (cl.halaxy_id && _halaxyWebUrl) {
-    html += '<a class="rdp-primary-btn" href="' + escHtml(_halaxyWebUrl + '/clients') + '" target="_blank" rel="noopener">View in Halaxy →</a>';
+  html += '<div class="rdp-date">' + escHtml(funderLabel)
+    + (hid ? (' · Halaxy' + (halaxyVerified ? ' ✓' : ' ⚠')) : '')
+    + '</div>';
+
+  // Unverified link warning
+  if (hid && !halaxyVerified) {
+    html += '<div class="rdp-warn-box">'
+      + '⚠ Halaxy ID <strong>' + escHtml(hid) + '</strong> was not found in the current patient list. '
+      + 'This may be a stale test record — remove it below.'
+      + '</div>';
   }
-  html += '<button class="rdp-ghost-btn" onclick="openNewSessionModal()" style="margin-top:6px">+ New session</button>';
+
+  // Actions
+  html += '<div class="rdp-action-zone">';
+  if (hid && _halaxyWebUrl) {
+    html += '<a class="rdp-primary-btn" href="' + escHtml(_halaxyWebUrl + '/clients') + '" target="_blank" rel="noopener">Open in Halaxy →</a>';
+  }
+  html += '<button class="rdp-ghost-btn" onclick="openNewSessionModal()" style="margin-top:6px">+ Log session</button>';
   html += '</div>';
-  // Details
+
+  // Client details
   html += '<div class="rdp-section">';
-  html += '<div class="rdp-section-label">Client Details</div>';
+  html += '<div class="rdp-section-label">Details</div>';
   if (cl.plan_manager) html += '<div class="rdp-row"><span class="rdp-row-label">Plan manager</span><span class="rdp-row-val">' + escHtml(cl.plan_manager) + '</span></div>';
-  if (cl.notes) html += '<div class="rdp-row"><span class="rdp-row-label">Notes</span><span class="rdp-row-val">' + escHtml(cl.notes) + '</span></div>';
-  if (cl.halaxy_id) html += '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span><span class="rdp-row-val" style="font-size:11px;color:#7A948F">' + escHtml(String(cl.halaxy_id)) + '</span></div>';
+  if (cl.notes)        html += '<div class="rdp-row"><span class="rdp-row-label">Notes</span><span class="rdp-row-val">' + escHtml(cl.notes) + '</span></div>';
+  if (hid)             html += '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span><span class="rdp-row-val" style="font-size:11px;color:#7A948F">' + escHtml(hid) + '</span></div>';
   html += '</div>';
-  // Sessions
-  if (sessions.length) {
+
+  // ── Halaxy billing history ──────────────────────────────────────────
+  if (halaxyInvs.length) {
+    var totalPaid  = halaxyInvs.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
+    var totalOwing = halaxyInvs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
     html += '<div class="rdp-section">';
-    html += '<div class="rdp-section-label">Sessions (' + sessions.length + ')</div>';
-    sessions.slice(0, 10).forEach(function(s) {
-      html += '<div class="rdp-row"><span class="rdp-row-label">' + escHtml(s.session_date || '') + '</span><span class="rdp-row-val">' + escHtml(s.status || '') + (s.amount ? ' · $' + s.amount : '') + '</span></div>';
+    html += '<div class="rdp-section-label">Halaxy billing — ' + halaxyInvs.length + ' invoice' + (halaxyInvs.length !== 1 ? 's' : '');
+    if (totalPaid > 0)   html += ' · <span style="color:var(--s-complete)">$' + totalPaid.toFixed(0) + ' paid</span>';
+    if (totalOwing > 0.005) html += ' · <span style="color:#BE6E44">$' + totalOwing.toFixed(0) + ' owing</span>';
+    html += '</div>';
+    halaxyInvs.slice(0, 15).forEach(function(inv) {
+      var owing = parseFloat(inv.totalBalance) || 0;
+      var paid  = owing < 0.01;
+      html += '<div class="rdp-row">'
+        + '<span class="rdp-row-label">' + escHtml(inv.date || '—') + '</span>'
+        + '<span class="rdp-row-val">'
+        + (inv.amount != null ? '$' + parseFloat(inv.amount).toFixed(0) : '—')
+        + (paid
+            ? ' <span style="color:var(--s-complete);font-size:10px">✓</span>'
+            : (owing > 0 ? ' <span style="color:#BE6E44;font-size:10px">$' + owing.toFixed(0) + ' owing</span>' : ''))
+        + '</span></div>';
+    });
+    html += '</div>';
+  } else if (hid && halaxyVerified) {
+    // Client IS in Halaxy but no invoices in the 90-day window
+    html += '<div class="rdp-section"><div class="rdp-section-label">Halaxy billing</div>';
+    html += '<div style="color:#9AABA8;font-size:12px;padding:4px 0">No invoices in the last 90 days</div>';
+    html += '</div>';
+  }
+
+  // ── Dashboard sessions (manually logged) ────────────────────────────
+  if (dbSessions.length) {
+    html += '<div class="rdp-section">';
+    html += '<div class="rdp-section-label">Logged sessions (' + dbSessions.length + ')</div>';
+    dbSessions.slice(0, 10).forEach(function(s) {
+      html += '<div class="rdp-row"><span class="rdp-row-label">' + escHtml(s.session_date || '') + '</span>'
+        + '<span class="rdp-row-val">' + escHtml(s.status || '') + (s.amount ? ' · $' + s.amount : '') + '</span></div>';
     });
     html += '</div>';
   }
-  // Danger zone — remove record
-  html += '<div class="rdp-section" style="margin-top:auto;padding-top:16px;border-top:1px solid rgba(0,0,0,0.07)">';
+
+  // If truly nothing
+  if (!halaxyInvs.length && !dbSessions.length && !(hid && halaxyVerified)) {
+    html += '<div class="rdp-section"><div style="color:#9AABA8;font-size:12px;padding:4px 0">No billing history or logged sessions yet.</div></div>';
+  }
+
+  // Danger zone
+  html += '<div class="rdp-danger-zone">';
   html += '<button class="rdp-danger-btn"'
     + ' data-cid="' + escHtml(cl.id) + '"'
     + ' data-cn="'  + escHtml(cl.display_name || '') + '"'

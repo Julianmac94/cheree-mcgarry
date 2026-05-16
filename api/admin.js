@@ -792,8 +792,9 @@ body {
 .cl-card:hover .cl-card-delete { opacity: 1; }
 .cl-card-delete:hover { color: #BE6E44; background: rgba(190,110,68,0.10); opacity: 1; }
 
-/* Duplicate badge */
-.cl-card--dupe { border: 1.5px solid rgba(190,110,68,0.35); }
+/* Duplicate + unverified card states */
+.cl-card--dupe       { border: 1.5px solid rgba(190,110,68,0.35); }
+.cl-card--unverified { border: 1.5px dashed rgba(190,110,68,0.40); opacity: 0.85; }
 .cl-card-dupe-badge {
   position: absolute; top: 28px; right: 8px;
   font-size: 9px; font-weight: 700; color: #BE6E44;
@@ -801,14 +802,42 @@ body {
   padding: 2px 5px; letter-spacing: 0.01em;
 }
 
-/* Danger button in detail modal */
+/* Unverified Halaxy link badge */
+.cl-card-source.halaxy-unverified {
+  background: rgba(190,110,68,0.10); color: #BE6E44;
+}
+
+/* Section header with count + hint */
+.cl-section-hd {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; margin-top: 24px;
+  flex-wrap: wrap;
+}
+.cl-section-hd:first-child { margin-top: 4px; }
+.cl-section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #9AABA8; }
+.cl-section-count { font-weight: 500; }
+.cl-section-hint  { font-size: 10.5px; color: #BE6E44; }
+.cl-section-toggle-wrap { display: flex; align-items: center; justify-content: space-between; }
+.cl-section-collapse-btn {
+  font-size: 11px; font-weight: 600; color: #9AABA8; background: none; border: none;
+  cursor: pointer; padding: 2px 6px; font-family: var(--sans);
+}
+.cl-section-collapse-btn:hover { color: var(--teal); }
+
+/* Danger zone + warning box in detail modal */
+.rdp-danger-zone {
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.07);
+}
 .rdp-danger-btn {
   width: 100%; padding: 8px 12px; border-radius: 8px; border: none; cursor: pointer;
   font-size: 12px; font-weight: 600; font-family: var(--sans);
-  background: rgba(190,110,68,0.08); color: #BE6E44;
-  transition: background 0.15s;
+  background: rgba(190,110,68,0.08); color: #BE6E44; transition: background 0.15s;
 }
 .rdp-danger-btn:hover { background: rgba(190,110,68,0.16); }
+.rdp-warn-box {
+  background: rgba(190,110,68,0.08); border: 1px solid rgba(190,110,68,0.22);
+  border-radius: 9px; padding: 10px 13px; margin: 8px 0;
+  font-size: 11.5px; color: #BE6E44; line-height: 1.5;
+}
 
 /* Queue filtered client header */
 .q-client-filter-hd {
@@ -853,10 +882,7 @@ body {
 .cl-funder-pill.private    { background: rgba(122,112,144,0.10); color: var(--s-triage); }
 .cl-funder-pill.workcover  { background: rgba(176,136,32,0.11); color: var(--s-finance); }
 .cl-funder-pill.default    { background: rgba(0,0,0,0.06); color: #7A9090; }
-.cl-section-label {
-  font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-  color: #9AABA8; padding: 14px 2px 6px; display: block;
-}
+/* .cl-section-label is defined inside .cl-section-hd above */
 
 /* ── Billing view ── */
 .billing-view { padding: 22px 24px 80px; max-width: 860px; }
