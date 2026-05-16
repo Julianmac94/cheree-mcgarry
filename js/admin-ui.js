@@ -1284,10 +1284,12 @@ function renderBillingPanel() {
           + '</div>'
           + '<div class="bill-card-meta">'
           + '<span class="bill-card-date">' + escHtml(dt) + (fl ? ' · ' + escHtml(fl) : '') + '</span>'
-          + '<span class="dp-badge dp-badge--status-pending">Pending invoice</span>'
+          + '<span class="dp-badge dp-badge--status-pending">Create invoice in Halaxy</span>'
           + '</div>'
           + (s.feeName ? '<div class="bill-card-meta" style="margin-top:3px"><span class="bill-card-date" style="font-style:italic">' + escHtml(s.feeName) + '</span></div>' : '')
-          + '<div class="dp-card-actions"><a class="dp-btn dp-btn--ghost" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">View in Halaxy →</a></div>'
+          + '<div class="dp-card-actions">'
+          + '<a class="dp-btn dp-btn--primary" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">Create invoice in Halaxy →</a>'
+          + '</div>'
           + '</div>';
       });
     }
@@ -2955,10 +2957,12 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
       if (cardEl) cardEl.remove();
     }
 
-    toast('Session recorded in Halaxy ✓ — check Halaxy for the invoice', 'ok');
+    // Open Halaxy so the user can create the invoice there
+    window.open('https://www.halaxy.com/practitioner', '_blank', 'noopener');
+    toast('Session noted ✓ — create the invoice in the Halaxy tab', 'ok');
 
     // Re-fetch pipeline data so the billing panel updates
-    setTimeout(function() { refreshPipeline(); }, 2000);
+    setTimeout(function() { refreshPipeline(); }, 2500);
 
   } catch (err) {
     toast('Error recording session: ' + err.message, 'err');
