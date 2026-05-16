@@ -7,7 +7,7 @@
 
 import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
-import { halaxyGet } from './_halaxy.js';
+import { halaxyGet, halaxyPost } from './_halaxy.js';
 
 /* ─────────────────────────────────────────────
    Halaxy config cache helpers (non-PII data)
@@ -222,6 +222,48 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, funders: funders.length, fees: fees.length, feeMapEntries: Object.keys(feeMap).length });
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
+    }
+  }
+
+  /* ── POST ?halaxy_invoice=1 — create an Invoice in Halaxy ── */
+  if (req.method === 'POST' && (req.query?.halaxy_invoice || new URL(req.url, 'http://x').searchParams.get('halaxy_invoice'))) {
+    if (!process.env.HALAXY_CLIENT_ID) return res.status(400).json({ error: 'Halaxy not configured' });
+    const { patientId, date, amount, feeId, feeName, notes } = req.body || {};
+    if (!patientId || !date || amount == null) {
+      return res.status(400).json({ error: 'patientId, date and amount are required' });
+    }
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0) return res.status(400).json({ error: 'amount must be a positive number' });
+
+    const lineItem = {
+      sequence: 1,
+      priceComponent: [{ type: 'base', amount: { value: amountNum, currency: 'AUD' } }],
+    };
+    if (feeId) {
+      lineItem.chargeItemReference = { reference: `ChargeItemDefinition/${feeId}` };
+    } else {
+      lineItem.chargeItemCodeableConcept = { text: feeName || notes || 'Psychology session' };
+    }
+
+    const invoiceResource = {
+      resourceType: 'Invoice',
+      status:       'active',
+      subject:      { reference: `Patient/${patientId}` },
+      recipient:    [{ reference: `Patient/${patientId}` }],
+      created:      date,
+      lineItem:     [lineItem],
+      totalNet:     { value: amountNum, currency: 'AUD' },
+      totalGross:   { value: amountNum, currency: 'AUD' },
+    };
+    if (notes) invoiceResource.note = [{ text: notes }];
+
+    try {
+      const created = await halaxyPost('/Invoice', invoiceResource);
+      console.log('Halaxy Invoice created:', created.id, 'patient', patientId, 'date', date, 'amount', amountNum);
+      return res.status(201).json({ id: created.id, status: created.status, date: created.created || date, amount: amountNum });
+    } catch (err) {
+      console.error('Halaxy Invoice creation failed:', err.message);
+      return res.status(502).json({ error: err.message });
     }
   }
 

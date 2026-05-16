@@ -2929,7 +2929,7 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
     }
 
     // 2. Create the invoice in Halaxy — source of truth for all billing
-    var inv = await apiFetch('/api/halaxy-invoice', {
+    var inv = await apiFetch('/api/admin-enquiries?halaxy_invoice=1', {
       method: 'POST',
       body: {
         patientId: patientId,
