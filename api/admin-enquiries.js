@@ -229,14 +229,25 @@ function buildBookParameters(patientId, start, end, notes) {
 }
 
 /**
- * Build a minimal merge-patch for PATCH /Appointment/{id}.
- * Halaxy's PATCH only honours: description, start, end, minutesDuration, comment, participant.
- * We set comment (notes) as the only reliably patchable non-time field.
+ * Build a merge-patch for PATCH /Appointment/{id} — record a session with a fee.
+ *
+ * Halaxy exposes `supportingInformation` on the PATCH schema with type=ChargeItemDefinition,
+ * which is the correct mechanism for attaching a fee to an appointment so Halaxy generates
+ * the invoice automatically.  The comment field carries session notes.
  */
 function buildRecordedAppt(apptId, patientId, start, end, feeId, feeName, feeAmount, notes) {
-  // Minimal patch — only send fields Halaxy actually accepts
   const appt = { resourceType: 'Appointment' };
   if (notes) appt.comment = notes;
+
+  // Attach the fee via supportingInformation → ChargeItemDefinition reference.
+  // Halaxy uses this to determine the billing rate and trigger invoice generation.
+  if (feeId) {
+    appt.supportingInformation = [{
+      reference: `ChargeItemDefinition/${feeId}`,
+      type:      'ChargeItemDefinition',
+    }];
+  }
+
   return appt;
 }
 
@@ -336,14 +347,14 @@ export default async function handler(req, res) {
       let patchResult = null;
 
       if (action === 'record') {
-        // PATCH appointment comment (only reliably patchable field in Halaxy).
-        // Halaxy FHIR API is read-only for billing — invoices must be created in the Halaxy UI.
-        // The dashboard tracks pending sessions locally; this PATCH just notes the session detail.
-        console.log(`Halaxy PATCH: noting session on appointment ${apptId} (fee $${feeAmount} must be added in Halaxy UI)`);
+        // PATCH appointment with fee via supportingInformation → ChargeItemDefinition.
+        // This is the Halaxy-documented mechanism for attaching a billing rate to an appointment.
+        console.log(`Halaxy PATCH: recording appointment ${apptId} with fee ${feeId || 'manual'} ($${feeAmount})`);
         patchResult = await halaxyPatch(
           `/Appointment/${apptId}`,
           buildRecordedAppt(apptId, patientId, apptStart || null, apptEnd || null, feeId || null, feeName || '', feeAmount, notes || null)
-        ).catch(e => { console.error('PATCH comment (non-fatal):', e.message); return null; });
+        );
+        console.log('PATCH result:', JSON.stringify(patchResult).slice(0, 300));
       } else {
         // Cancel: PATCH appointment status to cancelled
         console.log(`Halaxy PATCH: cancelling appointment ${apptId}`);
