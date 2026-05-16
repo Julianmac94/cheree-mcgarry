@@ -1227,13 +1227,84 @@ function renderBillingPanel() {
 
   var html = '';
 
-  /* ── Build a lookup map: "halaxy_patient_id|date" → invoice (for status enrichment) ── */
-  var halaxyInvMap = {};
-  halaxyInvoices.forEach(function(inv) {
-    if (inv.patientId && inv.date) halaxyInvMap[String(inv.patientId) + '|' + inv.date] = inv;
-  });
+  /* ══════════════════════════════════════════════════════════════════════
+     PRIMARY VIEW — Halaxy invoices (source of truth for all billing).
+     Halaxy holds PII and clinical records; the dashboard reads from it.
+     ══════════════════════════════════════════════════════════════════════ */
+  if (_halaxyData && _halaxyData.connected) {
+    var outstanding = halaxyInvoices.filter(function(inv) {
+      return !_invIsPaid(inv) && inv.status !== 'cancelled' && inv.status !== 'draft';
+    });
+    var balanced = halaxyInvoices.filter(function(inv) { return _invIsPaid(inv); });
 
-  /* ── Sessions-based view (source of truth) ── */
+    // Oldest outstanding first (most overdue at top), newest paid first
+    outstanding.sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); });
+    balanced.sort(function(a, b)    { return (b.date || '').localeCompare(a.date || ''); });
+
+    var totalOwing = outstanding.reduce(function(sum, inv) { return sum + (parseFloat(inv.amount) || 0); }, 0);
+
+    var countEl = document.getElementById('billing-count');
+    if (countEl) countEl.textContent = outstanding.length || '';
+
+    html += '<div class="billing-open-header">'
+      + '<span class="billing-open-label">Outstanding</span>'
+      + (outstanding.length ? '<span class="billing-open-count">' + outstanding.length + ' invoice' + (outstanding.length !== 1 ? 's' : '') + '</span>' : '')
+      + (totalOwing ? '<span class="billing-open-total">$' + totalOwing.toFixed(2) + '</span>' : '')
+      + '</div>';
+
+    if (!outstanding.length) {
+      html += '<div class="dp-empty">No outstanding invoices ✓</div>';
+    } else {
+      outstanding.forEach(function(inv) {
+        var name = resolveName(inv.patientId);
+        var dt   = inv.date ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
+        var amt  = inv.amount ? '$' + Number(inv.amount).toFixed(2) : '';
+        html += '<div class="bill-card bill-card--open">'
+          + '<div class="bill-card-top">'
+          + '<span class="bill-card-name">' + escHtml(name) + '</span>'
+          + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
+          + '</div>'
+          + '<div class="bill-card-meta">'
+          + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
+          + '<span class="dp-badge dp-badge--status-invoiced">Awaiting payment</span>'
+          + '</div>'
+          + '<div class="dp-card-actions"><a class="dp-btn dp-btn--ghost" href="https://www.halaxy.com/practitioner" target="_blank" rel="noopener">View in Halaxy →</a></div>'
+          + '</div>';
+      });
+    }
+
+    html += '<div class="dp-collapsible">'
+      + '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'paid-sessions\')">'
+      + '<span id="paid-sessions-arrow">▸</span> Paid (' + balanced.length + ')'
+      + '</button>'
+      + '<div class="dp-collapsible-body" id="paid-sessions">';
+
+    if (!balanced.length) {
+      html += '<div class="dp-empty">No paid invoices yet</div>';
+    } else {
+      balanced.slice(0, 40).forEach(function(inv) {
+        var name = resolveName(inv.patientId);
+        var dt   = inv.date ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
+        var amt  = inv.amount ? '$' + Number(inv.amount).toFixed(2) : '';
+        html += '<div class="bill-card" style="opacity:0.7">'
+          + '<div class="bill-card-top">'
+          + '<span class="bill-card-name">' + escHtml(name) + '</span>'
+          + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
+          + '</div>'
+          + '<div class="bill-card-meta">'
+          + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
+          + '<span class="dp-badge dp-badge--status-paid">Paid ✓</span>'
+          + '</div>'
+          + '</div>';
+      });
+    }
+
+    html += '</div></div>';
+    body.innerHTML = html;
+    return;
+  }
+
+  /* ── Fallback: Supabase sessions (Halaxy not connected) ── */
   if (!_pipelineData) return;
   var needsAction = [];
   var awaiting    = [];
@@ -2711,7 +2782,7 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
     var opts = filtered.map(function(f) {
       var lbl = escHtml(f.name) + ' — $' + Number(f.amount).toFixed(2);
       var sel = defaultRate && Math.abs(f.amount - parseFloat(defaultRate)) < 1 ? ' selected' : '';
-      return '<option value="' + f.amount + '"' + sel + '>' + lbl + '</option>';
+      return '<option value="' + f.amount + '" data-fee-id="' + escHtml(String(f.id || '')) + '" data-fee-name="' + escHtml(f.name) + '"' + sel + '>' + lbl + '</option>';
     }).join('');
     feeHtml = '<div class="pl-fee-row" style="flex-direction:column;align-items:stretch;gap:4px">'
       + '<label class="pl-fee-label">Fee item</label>'
@@ -2797,29 +2868,50 @@ function _syncFeeInput(cardUid) {
 }
 
 async function _saveHalaxySession(cardUid, eventId, patientId, patientName, funderKey) {
-  var feeAmt   = document.getElementById('pl-cs-fee-amt-' + cardUid);
-  var notesEl  = document.getElementById('pl-cs-notes-' + cardUid);
-  var funderEl = document.getElementById('pl-cs-funder-' + cardUid);
-  var pmEl     = document.getElementById('pl-cs-pm-' + cardUid);
-  var evt      = _calEventMap[eventId] || {};
-  // If funderEl is a funder-ID select (built by _buildFunderDropdownHtml), read billingKey from data-billing
+  var feeSelectEl = document.getElementById('pl-cs-fee-' + cardUid);
+  var feeAmt      = document.getElementById('pl-cs-fee-amt-' + cardUid);
+  var notesEl     = document.getElementById('pl-cs-notes-' + cardUid);
+  var funderEl    = document.getElementById('pl-cs-funder-' + cardUid);
+  var pmEl        = document.getElementById('pl-cs-pm-' + cardUid);
+  var evt         = _calEventMap[eventId] || {};
+
+  // Resolve funder key
   var fk = funderKey;
   if (!fk && funderEl && funderEl.value) {
     var selOpt = funderEl.options[funderEl.selectedIndex];
     fk = (selOpt && selOpt.dataset && selOpt.dataset.billing) || funderEl.value;
   }
-  var pm       = pmEl ? pmEl.value.trim() : '';
-  var amount   = feeAmt  ? (parseFloat(feeAmt.value)   || null) : null;
-  var notes    = notesEl ? (notesEl.value.trim() || evt.title || '') : evt.title || '';
+
+  // Resolve fee: prefer the dropdown selection, fall back to manual amount input
+  var feeId   = null;
+  var feeName = '';
+  var amount  = null;
+  if (feeSelectEl && feeSelectEl.value) {
+    var selFeeOpt = feeSelectEl.options[feeSelectEl.selectedIndex];
+    feeId   = (selFeeOpt && selFeeOpt.dataset.feeId) || null;
+    feeName = (selFeeOpt && selFeeOpt.dataset.feeName) || '';
+    amount  = parseFloat(feeSelectEl.value) || null;
+  }
+  // Allow manual override of amount
+  if (feeAmt && feeAmt.value) {
+    var manualAmt = parseFloat(feeAmt.value);
+    if (!isNaN(manualAmt) && manualAmt > 0) amount = manualAmt;
+  }
+
+  var pm    = pmEl    ? pmEl.value.trim()    : '';
+  var notes = notesEl ? (notesEl.value.trim() || evt.title || '') : evt.title || '';
+
   // For Halaxy-appointment log panels, the appt date is stored on the panel element.
   // For Google Calendar log panels, use the calendar event start date.
   var panelEl = document.getElementById('pl-link-' + cardUid);
   var date = (panelEl && panelEl.dataset.apptDate) || (evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10));
 
-  if (!fk) { toast('Please select a funder first.', 'err'); return; }
+  if (!fk)     { toast('Please select a funder first.', 'err'); return; }
+  if (!amount) { toast('Please enter or select a fee amount.', 'err'); return; }
 
   try {
-    // Find or create local client for this Halaxy patient
+    // 1. Ensure client CRM record exists in Supabase (for enquiry/dashboard linking only)
+    //    Clinical/billing data lives in Halaxy — not in Supabase sessions.
     var local    = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === patientId; });
     var clientId = local ? local.id : null;
 
@@ -2830,22 +2922,30 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
       });
       clientId = nc.id;
     } else if (pm && !local.plan_manager) {
-      // Back-fill plan manager if we discovered it from Halaxy and it's not stored yet
       await apiFetch('/api/clients', {
         method: 'PATCH',
         body: { id: clientId, plan_manager: pm },
       });
     }
 
-    await apiFetch('/api/sessions', {
+    // 2. Create the invoice in Halaxy — source of truth for all billing
+    var inv = await apiFetch('/api/halaxy-invoice', {
       method: 'POST',
-      body: { client_id: clientId, session_date: date, status: 'invoiced', amount: amount, notes: notes },
+      body: {
+        patientId: patientId,
+        date:      date,
+        amount:    amount,
+        feeId:     feeId   || null,
+        feeName:   feeName || notes || 'Psychology session',
+        notes:     notes   || null,
+      },
     });
+
     dismissCalEvent(eventId);
-    toast('Session saved ✓');
+    toast('Invoice created in Halaxy ✓ (#' + (inv.id || '—') + ')');
     refreshPipeline();
   } catch (err) {
-    toast('Could not save: ' + err.message, 'err');
+    toast('Could not create invoice: ' + err.message, 'err');
   }
 }
 

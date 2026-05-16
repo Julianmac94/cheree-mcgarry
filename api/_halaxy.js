@@ -102,3 +102,54 @@ export async function halaxyGet(path, params = {}) {
 
   return resp.json();
 }
+
+/**
+ * Make an authenticated POST request to the Halaxy FHIR API.
+ * body should be a plain JS object — serialised as application/fhir+json.
+ * Returns parsed JSON or throws (includes full Halaxy error body in message).
+ */
+export async function halaxyPost(path, body) {
+  const token = await getHalaxyToken();
+
+  const resp = await fetchTimeout(HALAXY_FHIR_BASE + path, {
+    method:  'POST',
+    headers: {
+      Authorization:  `Bearer ${token}`,
+      'Content-Type': 'application/fhir+json',
+      Accept:         'application/fhir+json',
+    },
+    body: JSON.stringify(body),
+  }, 10_000); // slightly longer timeout for writes
+
+  const text = await resp.text();
+  if (!resp.ok) {
+    throw new Error(`Halaxy POST error ${resp.status} on ${path}: ${text}`);
+  }
+
+  try { return JSON.parse(text); } catch (_) { return { raw: text }; }
+}
+
+/**
+ * Make an authenticated PATCH request to the Halaxy FHIR API.
+ * Used for partial updates (e.g. marking an appointment as fulfilled).
+ */
+export async function halaxyPatch(path, body) {
+  const token = await getHalaxyToken();
+
+  const resp = await fetchTimeout(HALAXY_FHIR_BASE + path, {
+    method:  'PATCH',
+    headers: {
+      Authorization:  `Bearer ${token}`,
+      'Content-Type': 'application/fhir+json',
+      Accept:         'application/fhir+json',
+    },
+    body: JSON.stringify(body),
+  }, 10_000);
+
+  const text = await resp.text();
+  if (!resp.ok) {
+    throw new Error(`Halaxy PATCH error ${resp.status} on ${path}: ${text}`);
+  }
+
+  try { return JSON.parse(text); } catch (_) { return { raw: text }; }
+}
