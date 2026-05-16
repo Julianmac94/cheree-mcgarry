@@ -1016,6 +1016,26 @@ body {
   background: white; color: var(--soft); cursor: pointer;
 }
 .cl-empty { color: var(--soft); font-size: 13px; padding: 20px 0; }
+/* Add Client modal — mode toggle */
+.cl-mode-toggle {
+  display: flex; gap: 0; margin-bottom: 18px;
+  border: 1px solid rgba(42,88,80,0.18); border-radius: 9px; overflow: hidden;
+}
+.cl-mode-btn {
+  flex: 1; padding: 8px 12px; font-family: var(--sans); font-size: 12px; font-weight: 500;
+  border: none; background: transparent; color: var(--soft); cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.cl-mode-btn--active { background: var(--teal); color: white; }
+.cl-mode-btn:not(.cl-mode-btn--active):hover { background: rgba(42,88,80,0.06); }
+/* Link-to-client button on enquiry cards */
+.enq-link-btn {
+  font-family: var(--sans); font-size: 10px; font-weight: 500;
+  padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(42,88,80,0.22);
+  background: transparent; color: var(--soft); cursor: pointer;
+  margin-top: 4px; display: inline-block;
+}
+.enq-link-btn:hover { background: rgba(42,88,80,0.06); color: var(--teal); }
 /* Halaxy lookup result inside Add Client modal */
 .cl-halaxy-lookup-searching {
   font-size: 11px; color: var(--soft);
@@ -2097,52 +2117,101 @@ body {
 <div class="cl-modal-ov" id="add-client-modal" onclick="if(event.target===this)closeAddClient()">
   <div class="cl-modal">
     <h2 class="cl-modal-title">Add <em>client</em></h2>
-    <div class="cl-modal-field">
-      <label for="cl-display-name">Name / alias</label>
-      <input class="cl-modal-input" id="cl-display-name" type="text" placeholder="e.g. Sarah J.">
+
+    <!-- Mode toggle -->
+    <div class="cl-mode-toggle">
+      <button class="cl-mode-btn cl-mode-btn--active" id="cl-mode-search-btn" onclick="setClientModalMode('search')">Find in Halaxy</button>
+      <button class="cl-mode-btn" id="cl-mode-new-btn" onclick="setClientModalMode('new')">New patient</button>
     </div>
-    <div class="cl-modal-field">
-      <label for="cl-funder">Funder</label>
-      <select class="cl-modal-select" id="cl-funder" onchange="onModalFunderChange(this)">
-        <option value="">Loading…</option>
-      </select>
-    </div>
-    <div class="cl-modal-field" id="plan-manager-field" style="display:none">
-      <label for="cl-plan-manager">Plan manager name</label>
-      <input class="cl-modal-input" id="cl-plan-manager" type="text" placeholder="e.g. ABC Plan Management">
-    </div>
-    <div class="cl-modal-field">
-      <label>Halaxy patient <span style="font-weight:400;color:var(--soft)">(optional)</span></label>
-      <input class="cl-modal-input" id="cl-halaxy-search" type="text" placeholder="Search by name…"
-        autocomplete="off" oninput="_debounceModalHalaxySearch(this.value)">
-      <input type="hidden" id="cl-halaxy-id">
-      <div id="cl-halaxy-lookup" style="margin-top:6px"></div>
-    </div>
-    <div class="cl-modal-field">
-      <label for="cl-notes">Notes (optional)</label>
-      <input class="cl-modal-input" id="cl-notes" type="text" placeholder="Any useful context…">
-    </div>
-    <div style="border-top:1px solid rgba(0,0,0,0.08);margin-top:14px;padding-top:14px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--soft);margin-bottom:10px;text-transform:uppercase">Log session (optional)</div>
+
+    <!-- ── FIND MODE: search existing Halaxy patients ── -->
+    <div id="cl-find-mode">
       <div class="cl-modal-field">
-        <label for="cl-session-date">Date / time</label>
-        <input class="cl-modal-input" id="cl-session-date" type="datetime-local">
+        <label>Search Halaxy by name</label>
+        <input class="cl-modal-input" id="cl-halaxy-search" type="text" placeholder="Start typing a name…"
+          autocomplete="off" oninput="_debounceModalHalaxySearch(this.value)">
+        <input type="hidden" id="cl-halaxy-id">
+        <div id="cl-halaxy-lookup" style="margin-top:6px"></div>
       </div>
-      <div class="cl-modal-field" id="cl-session-fee-row" style="display:none">
-        <label>Fee</label>
-        <select class="cl-modal-select" id="cl-session-fee" onchange="_syncModalFeeAmt()">
-          <option value="">— select fee —</option>
-        </select>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:5px">
-          <span style="color:var(--soft);font-size:13px">$</span>
-          <input class="cl-modal-input" id="cl-session-fee-amt" type="number" step="0.01" min="0"
-            placeholder="or enter amount" style="margin:0">
+      <!-- Shown after a patient is selected -->
+      <div id="cl-find-selected" style="display:none">
+        <div class="cl-modal-field">
+          <label for="cl-display-name">Dashboard alias <span style="font-weight:400;color:var(--soft)">(e.g. Sarah J.)</span></label>
+          <input class="cl-modal-input" id="cl-display-name" type="text" placeholder="e.g. Sarah J.">
+        </div>
+        <div class="cl-modal-field">
+          <label for="cl-funder">Funder</label>
+          <select class="cl-modal-select" id="cl-funder" onchange="onModalFunderChange(this)">
+            <option value="">Loading…</option>
+          </select>
+        </div>
+        <div class="cl-modal-field" id="plan-manager-field" style="display:none">
+          <label for="cl-plan-manager">Plan manager name</label>
+          <input class="cl-modal-input" id="cl-plan-manager" type="text" placeholder="e.g. ABC Plan Management">
+        </div>
+        <div class="cl-modal-field">
+          <label for="cl-notes">Notes (optional)</label>
+          <input class="cl-modal-input" id="cl-notes" type="text" placeholder="Any useful context…">
         </div>
       </div>
     </div>
+
+    <!-- ── NEW MODE: create patient in Halaxy ── -->
+    <div id="cl-new-mode" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="cl-modal-field">
+          <label for="cl-first-name">First name <span style="color:var(--terra)">*</span></label>
+          <input class="cl-modal-input" id="cl-first-name" type="text" placeholder="e.g. Sarah">
+        </div>
+        <div class="cl-modal-field">
+          <label for="cl-last-name">Last name <span style="color:var(--terra)">*</span></label>
+          <input class="cl-modal-input" id="cl-last-name" type="text" placeholder="e.g. Jones">
+        </div>
+      </div>
+      <div class="cl-modal-field">
+        <label for="cl-new-phone">Phone (optional)</label>
+        <input class="cl-modal-input" id="cl-new-phone" type="tel" placeholder="04xx xxx xxx">
+      </div>
+      <div class="cl-modal-field">
+        <label for="cl-new-email">Email (optional)</label>
+        <input class="cl-modal-input" id="cl-new-email" type="email" placeholder="sarah@example.com">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="cl-modal-field">
+          <label for="cl-new-dob">Date of birth (optional)</label>
+          <input class="cl-modal-input" id="cl-new-dob" type="date">
+        </div>
+        <div class="cl-modal-field">
+          <label for="cl-new-gender">Gender (optional)</label>
+          <select class="cl-modal-select" id="cl-new-gender">
+            <option value="">— select —</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="other">Other</option>
+            <option value="unknown">Prefer not to say</option>
+          </select>
+        </div>
+      </div>
+      <div class="cl-modal-field">
+        <label for="cl-new-funder">Funder</label>
+        <select class="cl-modal-select" id="cl-new-funder" onchange="onModalFunderChange(this, 'new')">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+      <div class="cl-modal-field" id="plan-manager-field-new" style="display:none">
+        <label for="cl-new-plan-manager">Plan manager name</label>
+        <input class="cl-modal-input" id="cl-new-plan-manager" type="text" placeholder="e.g. ABC Plan Management">
+      </div>
+      <div class="cl-modal-field">
+        <label for="cl-new-notes">Notes (optional)</label>
+        <input class="cl-modal-input" id="cl-new-notes" type="text" placeholder="Any useful context…">
+      </div>
+    </div>
+
+    <div id="cl-modal-error" style="display:none;color:var(--terra);font-size:12px;margin-top:8px"></div>
     <div class="cl-modal-actions">
       <button class="cl-modal-cancel" onclick="closeAddClient()">Cancel</button>
-      <button class="cl-modal-save" onclick="saveNewClient()">Add client</button>
+      <button class="cl-modal-save" id="cl-modal-save-btn" onclick="saveNewClient()">Add client</button>
     </div>
   </div>
 </div>

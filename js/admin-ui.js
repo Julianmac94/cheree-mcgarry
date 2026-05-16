@@ -622,6 +622,11 @@ function _intakeEnquiryCard(e) {
       ? '<button class="dp-btn dp-btn--primary" onclick="event.stopPropagation();' + primaryFn + '">' + primaryLabel + '</button>'
       : '');
 
+  // "Already a client?" merge button — on all active enquiries
+  var linkBtn = status !== 'closed' && status !== 'converted'
+    ? '<button class="enq-link-btn" onclick="event.stopPropagation();openLinkEnquiryModal(\'' + e.id + '\',\'' + escHtml(name) + '\')">Already a client →</button>'
+    : '';
+
   return '<div class="dp-card' + (isNew ? ' dp-card--new' : '') + '" id="pl-' + uid + '">'
     + '<div class="dp-card-body">'
     // Left: name, date/badges, email
@@ -632,6 +637,7 @@ function _intakeEnquiryCard(e) {
     + badgesHtml
     + '</div>'
     + (e.email ? '<a class="dp-card-email" href="mailto:' + escHtml(e.email) + '">' + escHtml(e.email) + '</a>' : '')
+    + linkBtn
     + intakePanel
     + '<div id="pl-link-' + uid + '"></div>'
     + '</div>'
@@ -2190,21 +2196,44 @@ async function saveCreateSession() {
 
 /* ── Add client modal ── */
 function openAddClient() {
-  document.getElementById('cl-display-name').value    = '';
-  document.getElementById('cl-plan-manager').value    = '';
-  document.getElementById('cl-halaxy-search').value   = '';
-  document.getElementById('cl-halaxy-id').value       = '';
-  document.getElementById('cl-notes').value           = '';
-  document.getElementById('cl-session-date').value    = '';
-  document.getElementById('cl-session-fee-amt').value = '';
-  togglePlanManager('');
+  // Reset fields
+  var ids = ['cl-display-name','cl-plan-manager','cl-halaxy-search','cl-halaxy-id','cl-notes',
+             'cl-first-name','cl-last-name','cl-new-phone','cl-new-email','cl-new-dob','cl-new-notes','cl-new-plan-manager'];
+  ids.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  var newGender = document.getElementById('cl-new-gender'); if (newGender) newGender.value = '';
   _hideHalaxyLookup();
-  var feeRow = document.getElementById('cl-session-fee-row');
-  if (feeRow) feeRow.style.display = 'none';
+  var errEl = document.getElementById('cl-modal-error'); if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  // Show find-selected section hidden initially
+  var findSel = document.getElementById('cl-find-selected'); if (findSel) findSel.style.display = 'none';
   delete document.getElementById('add-client-modal').dataset.enquiryId;
-  _populateFunderDropdown(); // async — fills dropdown from Halaxy
+  setClientModalMode('search'); // always start in search mode
+  _populateFunderDropdown();
   document.getElementById('add-client-modal').classList.add('open');
-  document.getElementById('cl-display-name').focus();
+  setTimeout(function() { var s = document.getElementById('cl-halaxy-search'); if (s) s.focus(); }, 80);
+}
+
+function setClientModalMode(mode) {
+  var findEl = document.getElementById('cl-find-mode');
+  var newEl  = document.getElementById('cl-new-mode');
+  var searchBtn = document.getElementById('cl-mode-search-btn');
+  var newBtn    = document.getElementById('cl-mode-new-btn');
+  var saveBtn   = document.getElementById('cl-modal-save-btn');
+  if (mode === 'new') {
+    if (findEl) findEl.style.display = 'none';
+    if (newEl)  newEl.style.display  = '';
+    if (searchBtn) { searchBtn.classList.remove('cl-mode-btn--active'); }
+    if (newBtn)    { newBtn.classList.add('cl-mode-btn--active'); }
+    if (saveBtn)   saveBtn.textContent = 'Create in Halaxy →';
+    setTimeout(function() { var f = document.getElementById('cl-first-name'); if (f) f.focus(); }, 80);
+  } else {
+    if (findEl) findEl.style.display = '';
+    if (newEl)  newEl.style.display  = 'none';
+    if (searchBtn) { searchBtn.classList.add('cl-mode-btn--active'); }
+    if (newBtn)    { newBtn.classList.remove('cl-mode-btn--active'); }
+    if (saveBtn)   saveBtn.textContent = 'Add client';
+    setTimeout(function() { var s = document.getElementById('cl-halaxy-search'); if (s) s.focus(); }, 80);
+  }
+  document.getElementById('add-client-modal').dataset.mode = mode;
 }
 function closeAddClient() {
   var modal = document.getElementById('add-client-modal');
@@ -2263,46 +2292,41 @@ function _buildFunderDropdownHtml(funders) {
 }
 
 function _populateFunderDropdown() {
-  var sel = document.getElementById('cl-funder');
-  if (!sel) return;
-  // _halaxyFunders is null only before the first pipeline response arrives
+  var noFundersMsg = '<option value="">No funders loaded — click \'⟳ Sync Halaxy data\' to load</option>';
+  var loadingMsg   = '<option value="">Loading funders…</option>';
+
+  function _setDropdowns(html) {
+    ['cl-funder', 'cl-new-funder'].forEach(function(id) {
+      var sel = document.getElementById(id);
+      if (sel) sel.innerHTML = html;
+    });
+  }
+
   if (_halaxyFunders === null) {
-    // Pipeline still loading — poll every 300ms until funders arrive (or pipeline confirms empty)
-    sel.innerHTML = '<option value="">Loading funders…</option>';
+    _setDropdowns(loadingMsg);
     var attempts = 0;
     var poll = setInterval(function() {
       attempts++;
       if (_halaxyFunders !== null) {
         clearInterval(poll);
-        var cur = document.getElementById('cl-funder');
-        if (!cur) return;
-        if (_halaxyFunders.length) {
-          cur.innerHTML = _buildFunderDropdownHtml(_halaxyFunders);
-        } else {
-          cur.innerHTML = '<option value="">No funders loaded — click \'⟳ Sync Halaxy data\' to load</option>';
-        }
-      } else if (attempts > 30) { // 9 seconds — give up waiting for pipeline
+        _setDropdowns(_halaxyFunders.length ? _buildFunderDropdownHtml(_halaxyFunders) : noFundersMsg);
+      } else if (attempts > 30) {
         clearInterval(poll);
-        var cur = document.getElementById('cl-funder');
-        if (cur) cur.innerHTML = '<option value="">No funders loaded — click \'⟳ Sync Halaxy data\' to load</option>';
+        _setDropdowns(noFundersMsg);
       }
     }, 300);
-  } else if (_halaxyFunders.length) {
-    sel.innerHTML = _buildFunderDropdownHtml(_halaxyFunders);
   } else {
-    // Pipeline loaded but returned 0 funders
-    sel.innerHTML = '<option value="">No funders loaded — click \'⟳ Sync Halaxy data\' to load</option>';
+    _setDropdowns(_halaxyFunders.length ? _buildFunderDropdownHtml(_halaxyFunders) : noFundersMsg);
   }
 }
 
 /** Called when the funder dropdown changes (data-billing drives plan manager + fee load) */
-function onModalFunderChange(sel) {
+function onModalFunderChange(sel, mode) {
   var opt        = sel.options[sel.selectedIndex];
-  // billingKey is always in data-billing (set by _buildFunderDropdownHtml)
   var billingKey = (opt && opt.dataset.billing) || '';
-  var pmField    = document.getElementById('plan-manager-field');
+  var pmFieldId  = (mode === 'new') ? 'plan-manager-field-new' : 'plan-manager-field';
+  var pmField    = document.getElementById(pmFieldId);
   if (pmField) pmField.style.display = billingKey === 'ndis_plan' ? '' : 'none';
-  // sel.value is the funder ID (seed ID like 'in-choice', or Halaxy org ID if from API)
   var funderId = sel.value;
   _loadModalFees(billingKey, funderId);
 }
@@ -2385,47 +2409,153 @@ function _selectModalHalaxyPatient(patientId, patientName) {
   document.getElementById('cl-halaxy-id').value     = patientId;
   document.getElementById('cl-halaxy-search').value = patientName;
   var el = document.getElementById('cl-halaxy-lookup');
-  if (el) el.innerHTML = '<div class="cl-halaxy-lookup-found">✓ Linked: <strong>' + escHtml(patientName) + '</strong>'
+  if (el) el.innerHTML = '<div class="cl-halaxy-lookup-found">✓ Selected: <strong>' + escHtml(patientName) + '</strong>'
     + ' <span style="color:var(--soft);font-size:10px">(ID: ' + escHtml(patientId) + ')</span>'
     + ' <button class="pl-action-btn pl-action-btn--soft" style="padding:2px 8px;font-size:10px;margin-left:6px"'
-    + ' onclick="document.getElementById(\'cl-halaxy-id\').value=\'\';document.getElementById(\'cl-halaxy-search\').value=\'\';this.parentNode.innerHTML=\'\'">✕</button></div>';
+    + ' onclick="_clearModalHalaxySelection()">✕ Change</button></div>';
+  // Pre-fill alias field and reveal the rest of the find-mode form
+  var nameEl = document.getElementById('cl-display-name');
+  if (nameEl && !nameEl.value) {
+    // Generate a privacy alias: first word + last initial if multi-word name
+    var parts = patientName.trim().split(/\s+/);
+    nameEl.value = parts.length > 1 ? (parts[0] + ' ' + parts[parts.length - 1][0] + '.') : patientName;
+  }
+  var findSel = document.getElementById('cl-find-selected');
+  if (findSel) findSel.style.display = '';
+}
+
+function _clearModalHalaxySelection() {
+  document.getElementById('cl-halaxy-id').value     = '';
+  document.getElementById('cl-halaxy-search').value = '';
+  document.getElementById('cl-display-name').value  = '';
+  var el = document.getElementById('cl-halaxy-lookup');
+  if (el) el.innerHTML = '';
+  var findSel = document.getElementById('cl-find-selected');
+  if (findSel) findSel.style.display = 'none';
 }
 
 async function saveNewClient() {
-  var name        = (document.getElementById('cl-display-name') || {}).value.trim();
-  var funderSel   = document.getElementById('cl-funder');
-  var funderOpt   = funderSel && funderSel.options[funderSel.selectedIndex];
-  // billingKey drives workflow (ndis_plan, medicare, etc.)
-  // If using Halaxy funder list, it's in data-billing; for fallback hardcoded list the value IS the key
-  var funder      = (funderOpt && (funderOpt.dataset.billing || funderSel.value)) || '';
-  // For NDIS plan-managed, store the actual plan manager org name
-  var pm          = (document.getElementById('cl-plan-manager') || {}).value.trim()
-                 || (funderOpt && funderOpt.dataset.billing === 'ndis_plan' ? funderOpt.dataset.name || '' : '');
-  var halaxyId    = (document.getElementById('cl-halaxy-id') || {}).value.trim();
-  var notes       = (document.getElementById('cl-notes') || {}).value.trim();
-  var sessionDate = (document.getElementById('cl-session-date') || {}).value;
-  var sessionAmt  = parseFloat((document.getElementById('cl-session-fee-amt') || {}).value) || null;
-  if (!name)   { toast('Please enter a name.', 'err');    return; }
-  if (!funder) { toast('Please select a funder.', 'err'); return; }
+  var modal   = document.getElementById('add-client-modal');
+  var mode    = (modal && modal.dataset.mode) || 'search';
+  var errEl   = document.getElementById('cl-modal-error');
+  var saveBtn = document.getElementById('cl-modal-save-btn');
+  function showErr(msg) { if (errEl) { errEl.textContent = msg; errEl.style.display = ''; } else toast(msg, 'err'); }
+
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+
   try {
-    var client = await apiFetch('/api/clients', {
-      method: 'POST',
-      body: { display_name: name, funder: funder, plan_manager: pm || null, halaxy_id: halaxyId || null, notes: notes || null },
-    });
-    if (sessionDate && client && client.id) {
-      var dateStr = sessionDate.slice(0, 10); // YYYY-MM-DD
-      await apiFetch('/api/sessions', {
+    if (mode === 'new') {
+      // ── NEW PATIENT IN HALAXY ──────────────────────────────────────
+      var firstName = (document.getElementById('cl-first-name') || {}).value.trim();
+      var lastName  = (document.getElementById('cl-last-name')  || {}).value.trim();
+      var phone     = (document.getElementById('cl-new-phone')  || {}).value.trim();
+      var email     = (document.getElementById('cl-new-email')  || {}).value.trim();
+      var dob       = (document.getElementById('cl-new-dob')    || {}).value.trim();
+      var gender    = (document.getElementById('cl-new-gender') || {}).value;
+      var funderSel = document.getElementById('cl-new-funder');
+      var funderOpt = funderSel && funderSel.options[funderSel.selectedIndex];
+      var funder    = (funderOpt && (funderOpt.dataset.billing || funderSel.value)) || '';
+      var pm        = (document.getElementById('cl-new-plan-manager') || {}).value.trim();
+      var notes     = (document.getElementById('cl-new-notes') || {}).value.trim();
+
+      if (!firstName) { showErr('First name is required'); return; }
+      if (!lastName)  { showErr('Last name is required');  return; }
+
+      var resp = await apiFetch('/api/admin-enquiries?halaxy_create_patient=1', {
         method: 'POST',
-        body: { client_id: client.id, session_date: dateStr, status: 'upcoming', amount: sessionAmt, notes: notes || null },
+        body: { firstName, lastName, phone: phone || undefined, email: email || undefined,
+                dob: dob || undefined, gender: gender || undefined,
+                funder: funder || undefined, planManager: pm || undefined, notes: notes || undefined },
       });
-      toast('Client + session added ✓');
+      toast('Patient created in Halaxy ✓ — ' + resp.client.display_name);
+
     } else {
-      toast('Client added ✓');
+      // ── LINK EXISTING HALAXY PATIENT ───────────────────────────────
+      var halaxyId  = (document.getElementById('cl-halaxy-id') || {}).value.trim();
+      var name      = (document.getElementById('cl-display-name') || {}).value.trim();
+      var funderSel = document.getElementById('cl-funder');
+      var funderOpt = funderSel && funderSel.options[funderSel.selectedIndex];
+      var funder    = (funderOpt && (funderOpt.dataset.billing || funderSel.value)) || '';
+      var pm        = (document.getElementById('cl-plan-manager') || {}).value.trim()
+                   || (funderOpt && funderOpt.dataset.billing === 'ndis_plan' ? funderOpt.dataset.name || '' : '');
+      var notes     = (document.getElementById('cl-notes') || {}).value.trim();
+
+      if (!halaxyId) { showErr('Please search for and select a Halaxy patient first'); return; }
+      if (!name)     { showErr('Please enter a dashboard alias (e.g. Sarah J.)'); return; }
+
+      await apiFetch('/api/clients', {
+        method: 'POST',
+        body: { display_name: name, funder: funder || null, plan_manager: pm || null,
+                halaxy_id: halaxyId, notes: notes || null },
+      });
+      toast('Client linked ✓ — ' + name);
     }
+
     closeAddClient();
     refreshPipeline();
   } catch (err) {
-    toast('Could not add client: ' + err.message, 'err');
+    showErr(err.message || 'Could not save client');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = mode === 'new' ? 'Create in Halaxy →' : 'Add client'; }
+  }
+}
+
+/* ── Link enquiry to existing client (merge/convert flow) ── */
+var _linkEnquiryId   = null;
+var _linkEnquiryName = '';
+
+function openLinkEnquiryModal(enquiryId, enquiryName) {
+  _linkEnquiryId   = enquiryId;
+  _linkEnquiryName = enquiryName;
+  var clients = (_pipelineData && _pipelineData.clients) || [];
+  // Build a searchable client list
+  var listHtml = clients.length
+    ? clients.map(function(c) {
+        return '<div class="cl-halaxy-lookup-found" style="cursor:pointer;padding:6px 10px;border-radius:6px;margin-bottom:4px"'
+          + ' onclick="confirmLinkEnquiry(\'' + c.id + '\',\'' + escHtml(c.display_name) + '\')">'
+          + '<strong>' + escHtml(c.display_name) + '</strong>'
+          + (c.halaxy_id ? ' <span style="font-size:10px;color:var(--soft)">· Halaxy linked</span>' : '')
+          + (c.funder ? ' <span style="font-size:10px;color:var(--soft)">· ' + escHtml(c.funder) + '</span>' : '')
+          + '</div>';
+      }).join('')
+    : '<div style="color:var(--soft);font-size:12px;padding:8px 0">No clients in dashboard yet</div>';
+
+  var overlay = document.getElementById('link-enquiry-modal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'link-enquiry-modal';
+    overlay.className = 'cl-modal-ov';
+    overlay.onclick = function(ev) { if (ev.target === overlay) closeLinkEnquiryModal(); };
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = '<div class="cl-modal" style="max-width:420px">'
+    + '<h2 class="cl-modal-title">Link <em>' + escHtml(_linkEnquiryName) + '</em> to a client</h2>'
+    + '<p style="font-size:12px;color:var(--soft);margin:0 0 14px">The enquiry will be marked converted and removed from intake.</p>'
+    + '<div style="max-height:260px;overflow-y:auto">' + listHtml + '</div>'
+    + '<div class="cl-modal-actions" style="margin-top:14px">'
+    + '<button class="cl-modal-cancel" onclick="closeLinkEnquiryModal()">Cancel</button>'
+    + '</div>'
+    + '</div>';
+  overlay.classList.add('open');
+}
+
+function closeLinkEnquiryModal() {
+  var overlay = document.getElementById('link-enquiry-modal');
+  if (overlay) overlay.classList.remove('open');
+}
+
+async function confirmLinkEnquiry(clientId, clientName) {
+  closeLinkEnquiryModal();
+  if (!_linkEnquiryId) return;
+  try {
+    await apiFetch('/api/admin-enquiries?id=' + _linkEnquiryId, {
+      method: 'PATCH',
+      body: { client_id: clientId, status: 'converted' },
+    });
+    toast('Enquiry linked to ' + clientName + ' ✓ — removed from intake');
+    refreshPipeline();
+  } catch (err) {
+    toast('Could not link: ' + err.message, 'err');
   }
 }
 

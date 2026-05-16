@@ -440,6 +440,77 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── POST ?halaxy_create_patient=1 — create a new patient in Halaxy + dashboard client ──
+   * Creates a FHIR R4 Patient in Halaxy, then saves a Supabase client record linked to them.
+   *
+   * Body fields:
+   *   firstName     string   (required)
+   *   lastName      string   (required)
+   *   phone         string   (optional)
+   *   email         string   (optional)
+   *   dob           string   YYYY-MM-DD (optional)
+   *   gender        string   male|female|other|unknown (optional)
+   *   funder        string   billing key e.g. 'private', 'medicare', 'ndis_plan' (optional)
+   *   planManager   string   plan manager name for ndis_plan (optional)
+   *   notes         string   dashboard notes (optional)
+   * ──────────────────────────────────────────────────────────────────────────────────── */
+  if (req.method === 'POST' && (req.query?.halaxy_create_patient || new URL(req.url, 'http://x').searchParams.get('halaxy_create_patient'))) {
+    if (!process.env.HALAXY_CLIENT_ID) {
+      return res.status(400).json({ error: 'Halaxy not configured' });
+    }
+
+    const { firstName, lastName, phone, email, dob, gender, funder, planManager, notes } = req.body || {};
+    if (!firstName || !lastName) {
+      return res.status(400).json({ error: 'firstName and lastName are required' });
+    }
+
+    try {
+      // Build FHIR R4 Patient resource
+      const patientResource = {
+        resourceType: 'Patient',
+        name: [{ use: 'official', given: [firstName.trim()], family: lastName.trim() }],
+      };
+      if (dob)    patientResource.birthDate = dob;
+      if (gender) patientResource.gender    = gender;
+      const telecom = [];
+      if (phone) telecom.push({ system: 'phone', value: phone.trim(), use: 'mobile' });
+      if (email) telecom.push({ system: 'email', value: email.trim() });
+      if (telecom.length) patientResource.telecom = telecom;
+
+      console.log('Creating Halaxy patient:', firstName, lastName);
+      const created   = await halaxyPost('/Patient', patientResource);
+      const halaxyId  = created.id;
+      if (!halaxyId) throw new Error('Halaxy did not return a patient ID. Response: ' + JSON.stringify(created).slice(0, 300));
+      console.log('Halaxy patient created:', halaxyId);
+
+      // Build privacy-safe display name (first name + last initial)
+      const displayName = firstName.trim() + ' ' + lastName.trim()[0] + '.';
+
+      // Create Supabase client record
+      const db2 = supabase();
+      const { data: client, error: clientErr } = await db2
+        .from('clients')
+        .insert({
+          display_name: displayName,
+          halaxy_id:    halaxyId,
+          funder:       funder       || null,
+          plan_manager: planManager  || null,
+          notes:        notes        || null,
+          active:       true,
+        })
+        .select()
+        .single();
+
+      if (clientErr) throw new Error('Supabase client insert failed: ' + clientErr.message);
+      console.log('Supabase client created:', client.id, 'linked to Halaxy', halaxyId);
+
+      return res.status(201).json({ ok: true, client, halaxyId });
+    } catch (err) {
+      console.error('halaxy_create_patient error:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   /* ── POST ?new_session=1 — create a session from the dashboard ──────────────────────
    * Creates a Google Calendar event and, for Halaxy clients, $books the appointment
    * in Halaxy (which auto-creates invoice + clinical note + reminder).
@@ -889,11 +960,14 @@ export default async function handler(req, res) {
     if (!id) return res.status(400).json({ error: 'Missing id' });
 
     try {
-      const { status, notes, halaxy_client_url } = req.body || {};
+      const { status, notes, halaxy_client_url, client_id } = req.body || {};
       const update = {};
       if (status            !== undefined) update.status            = status;
       if (notes             !== undefined) update.notes             = notes;
       if (halaxy_client_url !== undefined) update.halaxy_client_url = halaxy_client_url;
+      if (client_id         !== undefined) update.client_id         = client_id;
+      // Linking to a client always marks as converted
+      if (client_id && !status) update.status = 'converted';
 
       if (!Object.keys(update).length) return res.status(200).json({ ok: true }); // nothing to update
 
@@ -901,9 +975,10 @@ export default async function handler(req, res) {
       if (error) return res.status(500).json({ error: error.message });
 
       const logs = [];
-      if (status            !== undefined) logs.push({ enquiry_id: id, actor, action: 'status', detail: status });
-      if (notes             !== undefined) logs.push({ enquiry_id: id, actor, action: 'notes',  detail: null });
-      if (halaxy_client_url !== undefined) logs.push({ enquiry_id: id, actor, action: 'halaxy', detail: halaxy_client_url ? 'linked' : 'cleared' });
+      if (status            !== undefined) logs.push({ enquiry_id: id, actor, action: 'status',    detail: status });
+      if (notes             !== undefined) logs.push({ enquiry_id: id, actor, action: 'notes',     detail: null });
+      if (halaxy_client_url !== undefined) logs.push({ enquiry_id: id, actor, action: 'halaxy',    detail: halaxy_client_url ? 'linked' : 'cleared' });
+      if (client_id         !== undefined) logs.push({ enquiry_id: id, actor, action: 'converted', detail: String(client_id) });
       if (logs.length) await db.from('activity_log').insert(logs).catch(() => {});
 
       return res.status(200).json({ ok: true });
