@@ -2580,13 +2580,21 @@ function renderClientsView() {
       }
     }
 
-    // Footer actions
-    var queueBtn = '<button class="cl-card-action queue" onclick="event.stopPropagation();filterQueueForClient(' + JSON.stringify(c.display_name || '') + ',' + JSON.stringify(c.halaxy_id || '') + ')">↗ Queue</button>';
+    // Footer actions — use data-* attrs so names with quotes don't break onclick HTML
+    var queueBtn = '<button class="cl-card-action queue"'
+      + ' data-cn="' + escHtml(c.display_name || '') + '"'
+      + ' data-hid="' + escHtml(String(c.halaxy_id || '')) + '"'
+      + ' onclick="event.stopPropagation();filterQueueForClient(this.dataset.cn,this.dataset.hid)">'
+      + '↗ Queue</button>';
     var actionBtn = '';
     if (!c.halaxy_id && c.id) {
-      actionBtn = '<button class="cl-card-action link" onclick="event.stopPropagation();openHalaxyLinkPicker(\'' + escHtml(c.id) + '\')">🔗 Link to Halaxy</button>';
+      actionBtn = '<button class="cl-card-action link"'
+        + ' onclick="event.stopPropagation();openHalaxyLinkPicker(\'' + escHtml(c.id) + '\')">'
+        + '🔗 Link to Halaxy</button>';
     } else if (c._isHalaxyOnly) {
-      actionBtn = '<button class="cl-card-action create" onclick="event.stopPropagation();openAddClient(\'' + escHtml(c.halaxy_id) + '\')">+ Create record</button>';
+      actionBtn = '<button class="cl-card-action create"'
+        + ' onclick="event.stopPropagation();openAddClient()">'
+        + '+ Create record</button>';
     }
 
     var clickAttr = c.id ? ' onclick="openDetailPanel(\'client\',\'' + escHtml(c.id) + '\')"' : '';
