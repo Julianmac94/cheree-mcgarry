@@ -140,7 +140,7 @@ export async function halaxyPatch(path, body) {
     method:  'PATCH',
     headers: {
       Authorization:  `Bearer ${token}`,
-      'Content-Type': 'application/fhir+json',
+      'Content-Type': 'application/merge-patch+json',
       Accept:         'application/fhir+json',
     },
     body: JSON.stringify(body),
