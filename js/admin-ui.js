@@ -2371,10 +2371,22 @@ function renderClientsView() {
   var cutoff90Str = cutoff90.toISOString().slice(0, 10);
 
   // Determine last session date for each client
+  // Last seen: check Supabase sessions AND Halaxy invoices (by halaxy_id ↔ patientId)
+  // so clients active in Halaxy aren't buried under "Inactive" just because
+  // sessions haven't been separately recorded in this dashboard.
+  var halaxyInvoices = (_halaxyData && _halaxyData.invoices) || [];
   function lastSeen(c) {
-    var sessions = (c.sessions || []).filter(function(s) { return s.session_date; });
-    if (!sessions.length) return null;
-    return sessions.reduce(function(max, s) { return s.session_date > max ? s.session_date : max; }, '');
+    var dates = [];
+    (c.sessions || []).forEach(function(s) { if (s.session_date) dates.push(s.session_date); });
+    if (c.halaxy_id) {
+      halaxyInvoices.forEach(function(inv) {
+        if (inv.patientId && String(inv.patientId) === String(c.halaxy_id) && inv.date) {
+          dates.push(inv.date);
+        }
+      });
+    }
+    if (!dates.length) return null;
+    return dates.reduce(function(max, d) { return d > max ? d : max; }, '');
   }
 
   var notArchived = allClients.filter(function(c) { return c.active !== false; });
@@ -2462,13 +2474,18 @@ function renderBillingView() {
   if (!content) return;
 
   var now = new Date();
-  var yearStr  = now.getFullYear() + '';
   var monthStr = now.toISOString().slice(0, 7); // 'YYYY-MM'
   var invoices = (_halaxyData && _halaxyData.invoices) || [];
 
-  // YTD: sum of totalPaid for invoices in the current calendar year
+  // Australian tax financial year: 1 July → 30 June
+  // If we're in Jan–Jun, FY started last July; if Jul–Dec, FY started this July
+  var fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  var fyStart = fyStartYear + '-07-01';
+  var fyLabel = 'FY' + fyStartYear + '–' + String(fyStartYear + 1).slice(2);
+
+  // YTD: sum of totalPaid for invoices in the current Australian financial year
   var ytd = invoices.reduce(function(sum, inv) {
-    if (!inv.date || !inv.date.startsWith(yearStr)) return sum;
+    if (!inv.date || inv.date < fyStart) return sum;
     return sum + (parseFloat(inv.totalPaid) || 0);
   }, 0);
 
@@ -2498,9 +2515,9 @@ function renderBillingView() {
     + '<div class="bill-stat-sub">' + now.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }) + '</div>'
     + '</div>';
   html += '<div class="bill-stat">'
-    + '<div class="bill-stat-label">Year to Date</div>'
+    + '<div class="bill-stat-label">Financial Year to Date</div>'
     + '<div class="bill-stat-val' + (ytd === 0 ? ' zero' : '') + '">' + fmt(ytd) + '</div>'
-    + '<div class="bill-stat-sub">' + yearStr + ' total earned</div>'
+    + '<div class="bill-stat-sub">' + fyLabel + ' total earned</div>'
     + '</div>';
   html += '<div class="bill-stat">'
     + '<div class="bill-stat-label">Owing</div>'
