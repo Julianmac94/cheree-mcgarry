@@ -1849,7 +1849,7 @@ body {
     <div class="dash-panel" id="panel-appointments">
       <div class="dash-panel-hd">
         <span class="dash-panel-title">Appointments</span>
-        <button onclick="openAddAppointmentModal()" class="dash-panel-btn">+ Appointment</button>
+        <button onclick="openNewSessionModal()" class="dash-panel-btn">+ New Session</button>
       </div>
       <div class="dash-panel-body" id="appointments-panel-body">
         <div class="pl-loading">
