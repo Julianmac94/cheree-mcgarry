@@ -1318,110 +1318,12 @@ function renderBillingPanel() {
     return;
   }
 
-  /* ── Halaxy not configured — sessions-based billing (non-Halaxy practices only) ── */
-  if (!_pipelineData) return;
-  var needsAction = [];
-  var awaiting    = [];
-  var paid        = [];
-
-  clients.forEach(function(client) {
-    (client.sessions || []).forEach(function(s) {
-      if (s.status === 'upcoming' || s.status === 'completed') {
-        needsAction.push({ client: client, session: s });
-      } else if (s.status === 'invoiced' || s.status === 'submitted' || s.status === 'lodged') {
-        awaiting.push({ client: client, session: s });
-      } else if (s.status === 'paid') {
-        paid.push({ client: client, session: s });
-      }
-    });
-  });
-
-  function byDateDesc(a, b) { return (b.session.session_date || '').localeCompare(a.session.session_date || ''); }
-  needsAction.sort(byDateDesc);
-  awaiting.sort(byDateDesc);
-  paid.sort(byDateDesc);
-
-  var actionCount = needsAction.length + awaiting.length;
-  var countElFb = document.getElementById('billing-count');
-  if (countElFb) countElFb.textContent = actionCount || '';
-
-  var openItems = needsAction.concat(awaiting);
-  openItems.sort(function(a, b) { return (a.session.session_date || '').localeCompare(b.session.session_date || ''); });
-
-  var totalUnpaid = openItems.reduce(function(sum, item) { return sum + (parseFloat(item.session.amount) || 0); }, 0);
-
-  html += '<div class="billing-open-header">'
-    + '<span class="billing-open-label">Open invoices</span>'
-    + (openItems.length ? '<span class="billing-open-count">' + openItems.length + ' item' + (openItems.length !== 1 ? 's' : '') + '</span>' : '')
-    + (totalUnpaid ? '<span class="billing-open-total">$' + totalUnpaid.toFixed(2) + '</span>' : '')
+  // Halaxy is always required for billing — no fallback to local data.
+  body.innerHTML = '<div class="dp-offline-state">'
+    + '<div class="dp-offline-icon">⚡</div>'
+    + '<div class="dp-offline-title">Halaxy not configured</div>'
+    + '<div class="dp-offline-msg">Add HALAXY_CLIENT_ID and HALAXY_CLIENT_SECRET in Vercel environment variables to enable billing.</div>'
     + '</div>';
-
-  if (!openItems.length) {
-    html += '<div class="dp-empty">All invoices settled ✓</div>';
-  } else {
-    openItems.forEach(function(item) {
-      var c  = item.client;
-      var s  = item.session;
-      var dt = s.session_date ? new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
-      var funderLabel = FUNDER_LABELS[c.funder] || c.funder || '';
-      var amt = s.amount ? '$' + Number(s.amount).toFixed(2) : '';
-      var isAction = (s.status === 'upcoming' || s.status === 'completed');
-      var statusClass = 'dp-badge--status-' + (s.status || 'upcoming');
-      // Cross-reference Halaxy invoices for this client+date
-      var hKey = c.halaxy_id ? (String(c.halaxy_id) + '|' + (s.session_date || '')) : null;
-      var hInv = hKey ? halaxyInvMap[hKey] : null;
-      var hPaid = hInv ? _invIsPaid(hInv) : false;
-      html += '<div class="bill-card bill-card--open">'
-        + '<div class="bill-card-top">'
-        + '<span class="bill-card-name">' + escHtml(c.display_name) + '</span>'
-        + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
-        + '</div>'
-        + '<div class="bill-card-meta">'
-        + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
-        + '<span class="dp-badge dp-badge--funder">' + escHtml(funderLabel) + '</span>'
-        + '<span class="dp-badge ' + statusClass + '">' + escHtml(STATUS_DISPLAY[s.status] || s.status) + '</span>'
-        + (hPaid ? '<span class="dp-badge dp-badge--status-paid" title="Paid in Halaxy">Halaxy ✓</span>' : (hInv ? '<span class="dp-badge dp-badge--source" title="Invoice exists in Halaxy">Halaxy</span>' : ''))
-        + '</div>';
-      if (hPaid && isAction) {
-        // Halaxy shows paid — offer quick sync
-        html += '<div class="dp-card-actions"><button class="dp-btn dp-btn--pay" onclick="advanceSessionPl(\'' + s.id + '\',\'paid\',\'' + c.id + '\')">Sync paid ✓</button></div>';
-      } else if (isAction) {
-        html += '<div class="dp-card-actions">' + _billingActionBtn(c, s) + '</div>';
-      } else {
-        html += '<div class="dp-card-actions"><button class="dp-btn dp-btn--pay" onclick="advanceSessionPl(\'' + s.id + '\',\'paid\',\'' + c.id + '\')">Mark paid ✓</button></div>';
-      }
-      html += '</div>';
-    });
-  }
-
-  html += '<div class="dp-collapsible">'
-    + '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'paid-sessions\')">'
-    + '<span id="paid-sessions-arrow">▸</span> Paid (' + paid.length + ')'
-    + '</button>'
-    + '<div class="dp-collapsible-body" id="paid-sessions">';
-  if (!paid.length) {
-    html += '<div class="dp-empty">No paid sessions yet</div>';
-  } else {
-    paid.slice(0, 20).forEach(function(item) {
-      var c  = item.client;
-      var s  = item.session;
-      var dt = s.session_date ? new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
-      var amt = s.amount ? '$' + Number(s.amount).toFixed(2) : '';
-      html += '<div class="bill-card" style="opacity:0.7">'
-        + '<div class="bill-card-top">'
-        + '<span class="bill-card-name">' + escHtml(c.display_name) + '</span>'
-        + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
-        + '</div>'
-        + '<div class="bill-card-meta">'
-        + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
-        + '<span class="dp-badge dp-badge--status-paid">Paid</span>'
-        + '</div>'
-        + '</div>';
-    });
-  }
-  html += '</div></div>';
-
-  body.innerHTML = html;
 }
 
 /* ── Helpers ── */
@@ -2847,7 +2749,7 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
     + ' value="' + escHtml(evt.title || '') + '" placeholder="Session notes…" onclick="event.stopPropagation()" style="margin-top:6px">'
     + '<div class="pl-card-actions" style="margin-top:8px">'
     + '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();openCalSessionPanel(\'' + cardUid + '\',\'' + eventId + '\')">← Back</button>'
-    + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();_saveHalaxySession(\'' + cardUid + '\',\'' + eventId + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(patientName) + '\',\'' + (funderKey || '') + '\')">Save session →</button>'
+    + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();_saveHalaxySession(\'' + cardUid + '\',\'' + eventId + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(patientName) + '\',\'' + (funderKey || '') + '\')">Open in Halaxy →</button>'
     + '</div></div>';
   _syncFeeInput(cardUid);
 }
@@ -2920,44 +2822,29 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
   var panelEl = document.getElementById('pl-link-' + cardUid);
   var date = (panelEl && panelEl.dataset.apptDate) || (evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10));
 
-  if (!fk)     { toast('Please select a funder first.', 'err'); return; }
-  if (!amount) { toast('Please enter or select a fee amount.', 'err'); return; }
-
+  // Halaxy's FHIR API does not support POST /Invoice — invoices must be created
+  // in Halaxy's UI. This function syncs any non-PII CRM fields then opens Halaxy
+  // so the user can create the invoice there directly.
   try {
-    // 1. CRM sync — only update an existing enquiry-linked client record.
-    //    We never create Supabase client records from Halaxy patient data because
-    //    patient names and clinical details are PII that belongs exclusively in Halaxy.
+    // CRM sync — only update an existing enquiry-linked client record (non-PII fields).
     var local = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === patientId; });
     if (local) {
-      // Keep non-PII billing fields in sync (funder, plan manager)
       var patch = {};
-      if (fk  && !local.funder)        patch.funder       = fk;
-      if (pm  && !local.plan_manager)  patch.plan_manager = pm;
+      if (fk && !local.funder)       patch.funder       = fk;
+      if (pm && !local.plan_manager) patch.plan_manager = pm;
       if (Object.keys(patch).length) {
         patch.id = local.id;
         await apiFetch('/api/clients', { method: 'PATCH', body: patch });
       }
     }
+  } catch (_) {}
 
-    // 2. Create the invoice in Halaxy — source of truth for all billing
-    var inv = await apiFetch('/api/admin-enquiries?halaxy_invoice=1', {
-      method: 'POST',
-      body: {
-        patientId: patientId,
-        date:      date,
-        amount:    amount,
-        feeId:     feeId   || null,
-        feeName:   feeName || notes || 'Psychology session',
-        notes:     notes   || null,
-      },
-    });
+  // Dismiss the calendar event card so it doesn't keep showing
+  dismissCalEvent(eventId);
 
-    dismissCalEvent(eventId);
-    toast('Invoice created in Halaxy ✓ (#' + (inv.id || '—') + ')');
-    refreshPipeline();
-  } catch (err) {
-    toast('Could not create invoice: ' + err.message, 'err');
-  }
+  // Open Halaxy for invoice creation
+  window.open('https://www.halaxy.com/practitioner', '_blank', 'noopener');
+  toast('Opened Halaxy — create the invoice there, then tap Refresh ↺');
 }
 
 /* ═══════════════════════════════════════
