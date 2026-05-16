@@ -561,6 +561,44 @@ function renderPipeline() {
   renderIntakePanel();
   renderAppointmentsPanel();
   renderBillingPanel();
+  renderClientsPanel();
+}
+
+function renderClientsPanel() {
+  var body = document.getElementById('clients-panel-body');
+  if (!body || !_pipelineData) return;
+
+  var allClients  = _pipelineData.clients || [];
+  var active      = allClients.filter(function(c) { return c.active !== false; });
+  var archived    = allClients.filter(function(c) { return c.active === false; });
+
+  var countEl = document.getElementById('clients-count');
+  if (countEl) countEl.textContent = active.length || '';
+
+  if (!active.length && !archived.length) {
+    body.innerHTML = '<div class="dp-empty">No clients yet — click + Add Client to get started</div>';
+    return;
+  }
+
+  var html = '';
+
+  if (active.length) {
+    html += active.map(renderClientCardPl).join('');
+  } else {
+    html += '<div class="dp-empty">No active clients</div>';
+  }
+
+  if (archived.length) {
+    html += '<div class="dp-collapsible">'
+      + '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'archived-clients\')">'
+      + '<span id="archived-clients-arrow">▸</span> Archived (' + archived.length + ')'
+      + '</button>'
+      + '<div class="dp-collapsible-body" id="archived-clients">'
+      + archived.map(renderClientCardPl).join('')
+      + '</div></div>';
+  }
+
+  body.innerHTML = html;
 }
 
 /* ═══════════════════════════════════════════════════

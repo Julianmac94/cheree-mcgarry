@@ -1892,6 +1892,21 @@ body {
       </div>
     </div>
 
+    <!-- 4. CLIENTS panel -->
+    <div class="dash-panel" id="panel-clients">
+      <div class="dash-panel-hd">
+        <span class="dash-panel-title">Clients</span>
+        <span class="dash-panel-count" id="clients-count"></span>
+        <button onclick="openAddClient()" class="dash-panel-btn">+ Add Client</button>
+      </div>
+      <div class="dash-panel-body" id="clients-panel-body">
+        <div class="pl-loading">
+          <div class="pl-skeleton" style="height:60px"></div>
+          <div class="pl-skeleton" style="height:60px;margin-top:7px"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
