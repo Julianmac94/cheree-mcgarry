@@ -903,10 +903,13 @@ export default async function handler(req, res) {
               const subjectRef = inv.subject?.reference || '';
               if (subjectRef.includes('/')) patientId = subjectRef.split('/').pop();
             }
-            if (!patientId) return null;
+            // Keep invoices even without a resolvable patientId so the date-based
+            // fallback in the dashboard can still detect that billing happened on a day.
+            // patientId will be null — the dashboard handles this gracefully.
 
             // Halaxy date field is "created"; fall back to "date" for standard FHIR
             const invoiceDate = (inv.created || inv.date || '').slice(0, 10) || null;
+            if (!invoiceDate) return null; // need at least a date to be useful
 
             // Halaxy uses totalBalance (remaining owing) and totalPaid to indicate payment state.
             // totalBalance=0 means fully paid even if status is still "active".

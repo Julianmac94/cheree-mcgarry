@@ -339,8 +339,8 @@ body { overflow: hidden; height: 100svh; background: #F0EDE5; }
   display: inline-block; font-size: 11px; font-weight: 600; padding: 4px 10px;
   border-radius: 99px; letter-spacing: 0.03em;
 }
-.rdp-status-chip.invoiced { background: rgba(39,174,96,0.12); color: #27ae60; }
-.rdp-status-chip.paid     { background: rgba(0,0,0,0.06); color: #7A948F; }
+.rdp-status-chip.invoiced { background: rgba(200,160,0,0.12); color: #7a6300; }
+.rdp-status-chip.paid     { background: rgba(39,174,96,0.12); color: #27ae60; }
 
 /* ── Queue view ── */
 .queue-view { padding: 26px 28px 60px; max-width: 820px; }
@@ -420,8 +420,9 @@ body { overflow: hidden; height: 100svh; background: #F0EDE5; }
   font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 99px; letter-spacing: 0.03em;
 }
 .q-pill.pending  { background: rgba(190,110,68,0.12); color: #BE6E44; }
+.q-pill.record   { background: rgba(180,40,40,0.09); color: #b22929; }
 .q-pill.upcoming { background: rgba(42,88,80,0.10); color: #2A5850; }
-.q-pill.invoiced { background: rgba(39,174,96,0.12); color: #27ae60; }
+.q-pill.invoiced { background: rgba(200,160,0,0.12); color: #8a6e00; }
 .q-pill.paid     { background: rgba(0,0,0,0.06); color: #7A948F; }
 .q-pill.new      { background: rgba(190,110,68,0.12); color: #BE6E44; }
 .q-pill.awaiting { background: rgba(122,148,143,0.15); color: #7A948F; }

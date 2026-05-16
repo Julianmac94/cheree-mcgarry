@@ -1084,10 +1084,15 @@ function _buildUnifiedSessions() {
     } else if (key && sessionedSet.has(key)) {
       status = 'invoiced';
     } else if (startMs < now.getTime()) {
-      // Past appointment, not cancelled, no invoice yet.
-      // Halaxy is the source of truth for invoicing — show as pending-invoice so
-      // the practitioner sees an "Open in Halaxy →" link rather than a Record button.
-      status = 'pending-invoice';
+      // Past appointment — check dateInvoiceMap as a final fallback before assuming no billing.
+      // This catches invoices that Halaxy returned without a resolvable patientId (so they
+      // never made it into invoicedSet, but we know billing happened on this date).
+      if (dateInvoiceMap[dateStr] && dateInvoiceMap[dateStr].length) {
+        var fallbackInv = dateInvoiceMap[dateStr][0];
+        status = _invIsPaid(fallbackInv) ? 'paid' : 'invoiced';
+      } else {
+        status = 'pending-invoice';
+      }
     } else {
       status = 'needs-recording';
     }
@@ -2077,16 +2082,16 @@ function _qSessionItem(sess, barClass) {
   var typeLabel = isUnlinked ? 'Personal / Unlinked'
     : (sess.source === 'halaxy' ? 'Client Session' : 'Calendar Appointment');
   var hintMap = {
-    'pending-invoice': 'Open in Halaxy to add invoice',
-    'needs-recording': 'Session details still need to be recorded',
-    'invoiced':        'Invoice sent — awaiting payment',
+    'pending-invoice': 'No invoice yet — needs to be created in Halaxy',
+    'needs-recording': 'Session not yet recorded — add notes and confirm',
+    'invoiced':        'Invoice in Halaxy — awaiting payment or Medicare',
     'upcoming':        '',
     'paid':            '',
     'cancelled':       '',
   };
   var hintText = isUnlinked ? 'No client linked — personal or admin appointment' : (hintMap[sess.status] || '');
-  var pillLabel = { 'pending-invoice': 'Pending invoice', 'needs-recording': 'Record needed', 'upcoming': 'Upcoming', 'invoiced': 'Invoiced', 'paid': 'Paid', 'cancelled': 'Cancelled' }[sess.status] || sess.status;
-  var pillClass = { 'pending-invoice': 'pending', 'needs-recording': 'pending', 'upcoming': 'upcoming', 'invoiced': 'invoiced', 'paid': 'paid' }[sess.status] || 'awaiting';
+  var pillLabel = { 'pending-invoice': 'No invoice yet', 'needs-recording': 'Needs recording', 'upcoming': 'Upcoming', 'invoiced': 'Invoice unpaid', 'paid': 'Paid', 'cancelled': 'Cancelled' }[sess.status] || sess.status;
+  var pillClass = { 'pending-invoice': 'pending', 'needs-recording': 'record', 'upcoming': 'upcoming', 'invoiced': 'invoiced', 'paid': 'paid' }[sess.status] || 'awaiting';
   return '<div class="q-item" data-type="session" data-id="' + escHtml(sess.id) + '" onclick="openDetailPanel(\'session\',\'' + escHtml(sess.id) + '\')">'
     + '<div class="q-item-bar ' + barClass + '"></div>'
     + '<div class="q-item-main">'
@@ -2212,24 +2217,27 @@ function _renderSessionDetailPanel(sess) {
   html += '<div class="rdp-client">' + escHtml(sess.name || 'Session') + '</div>';
   html += '<div class="rdp-date">' + escHtml(sess.dateLabel || '') + (sess.timeStr ? ' · ' + sess.timeStr : '') + ' · Halaxy</div>';
   // Action zone
+  var _hUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
   html += '<div class="rdp-action-zone">';
   if (sess.status === 'pending-invoice') {
-    var hUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
-    html += '<a class="rdp-primary-btn" href="' + escHtml(hUrl) + '" target="_blank" rel="noopener">Open in Halaxy →</a>';
-    html += '<p class="rdp-action-hint">Session complete — create the invoice in Halaxy</p>';
-  } else if (sess.status === 'needs-recording' && sess.patientId) {
-    html += '<button class="rdp-primary-btn" onclick="openHalaxyApptLogPanel(\'' + escHtml(sess.id) + '\',\'' + escHtml(sess.patientId) + '\',\'' + escHtml(sess.name || '') + '\',\'' + escHtml(sess.dateStr) + '\',\'' + escHtml(sess.startIso || (sess.dateStr + 'T09:00:00')) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Record session →</button>';
+    html += '<a class="rdp-primary-btn" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">Open in Halaxy to invoice →</a>';
+    html += '<p class="rdp-action-hint">No invoice found yet — create one in Halaxy for this session</p>';
+  } else if (sess.status === 'needs-recording') {
+    // Always offer Record — patientId is used if available; modal handles null gracefully
+    var _pid = sess.patientId || '';
+    html += '<button class="rdp-primary-btn" onclick="openHalaxyApptLogPanel(\'' + escHtml(sess.id) + '\',\'' + escHtml(_pid) + '\',\'' + escHtml(sess.name || '') + '\',\'' + escHtml(sess.dateStr) + '\',\'' + escHtml(sess.startIso || (sess.dateStr + 'T09:00:00')) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Record this session →</button>';
+    html += '<p class="rdp-action-hint">Session not yet recorded — add notes and confirm in Halaxy</p>';
   } else if (sess.status === 'upcoming') {
-    var hUrl2 = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
-    html += '<a class="rdp-ghost-btn" href="' + escHtml(hUrl2) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
-    html += '<p class="rdp-action-hint" style="margin-top:6px">Upcoming session</p>';
+    html += '<a class="rdp-ghost-btn" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
+    html += '<p class="rdp-action-hint" style="margin-top:6px">Upcoming session — no action needed yet</p>';
   } else if (sess.status === 'invoiced') {
-    html += '<span class="rdp-status-chip invoiced">Invoiced ✓</span>';
+    html += '<span class="rdp-status-chip invoiced">Invoice raised ✓</span>';
+    html += '<p class="rdp-action-hint" style="margin-top:8px">Invoice is in Halaxy — awaiting payment or Medicare processing</p>';
+    html += '<a class="rdp-ghost-btn" style="margin-top:8px" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
   } else if (sess.status === 'paid') {
     html += '<span class="rdp-status-chip paid">Paid ✓</span>';
   } else {
-    var hUrl3 = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
-    html += '<a class="rdp-ghost-btn" href="' + escHtml(hUrl3) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
+    html += '<a class="rdp-ghost-btn" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
   }
   html += '</div>';
   // Meta
@@ -2247,23 +2255,24 @@ function _renderSessionDetailPanel(sess) {
       'Navigate to this date in the Halaxy calendar',
       'Click the appointment and select Add Invoice / Add Fee',
       'Set the item, amount and funder (Medicare, private, etc.)',
-      'Save — the dashboard updates on next refresh automatically'
+      'Save — the dashboard updates automatically on next refresh'
     ],
     'needs-recording': [
-      'Click "Record session" above to add session notes',
-      'Fill in presenting issues, what was covered, and outcome',
-      'Once saved, return here or open Halaxy to add the invoice',
-      'The dashboard status will update after saving'
+      'Click "Record this session" above',
+      'Fill in presenting issues, what was covered, and the outcome',
+      'Once saved, open Halaxy to add the fee / invoice for this session',
+      'The dashboard status will update after the invoice is saved in Halaxy'
     ],
     'upcoming': [
       'No action needed before the session',
-      'Return here after the appointment to add the invoice in Halaxy',
+      'After the appointment, return here — it will appear in Needs Attention for billing',
       'If the client cancels, update the status in Halaxy so it reflects here'
     ],
     'invoiced': [
-      'Invoice has been sent — awaiting payment or Medicare processing',
-      'If overdue after 2 weeks, follow up with the client directly',
-      'Once payment clears, status updates to Paid automatically'
+      'Invoice has been raised in Halaxy — no further action needed right now',
+      'If paying via Medicare/NDIS, processing can take a few business days',
+      'If the client is self-paying and it is overdue, follow up directly',
+      'Once payment clears in Halaxy, status updates to Paid automatically'
     ],
   }[sess.status];
 
