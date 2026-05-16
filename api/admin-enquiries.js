@@ -305,7 +305,7 @@ export default async function handler(req, res) {
    * For Google Cal events (no halaxyApptId): first calls POST /Appointment/$book to
    * create the appointment in Halaxy, then PATCHes it with the fee / cancelled status.
    * ─────────────────────────────────────────────────────────────────────────────────── */
-  if (req.method === 'POST' && params.get('halaxy_appt_action')) {
+  if (req.method === 'POST' && (req.query?.halaxy_appt_action || new URL(req.url, 'http://x').searchParams.get('halaxy_appt_action'))) {
     if (!process.env.HALAXY_CLIENT_ID) {
       return res.status(400).json({ error: 'Halaxy not configured' });
     }
