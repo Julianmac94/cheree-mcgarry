@@ -443,6 +443,59 @@ var _modalSearchTimer = null; // debounce timer for Add Client modal Halaxy sear
 var _halaxyFunders   = null; // cached Halaxy funder org list (null = not yet loaded; [] = loaded but empty)
 var _halaxyFeeMap    = {};   // funder ID → array of fee IDs (from halaxy_fee_funder_map setting)
 
+/* ── View routing ── */
+var _currentView = 'queue';
+
+function navigateTo(view) {
+  _currentView = view;
+  // Update sidebar + bottom nav active states
+  document.querySelectorAll('.sidebar-item, .bn-item').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.view === view);
+  });
+  closeDetailPanel();
+  if (!_pipelineData) return; // data not loaded yet — will render when loaded
+  if (view === 'queue')        renderQueueView();
+  else if (view === 'clients') renderClientsView();
+  else if (view === 'billing') renderBillingView();
+  else if (view === 'settings') renderSettingsView();
+}
+
+function openDetailPanel(type, id) {
+  var rdp  = document.getElementById('rdp');
+  var body = document.getElementById('rdp-body');
+  var title = document.getElementById('rdp-title');
+  if (!rdp || !body) return;
+  var html = '';
+  var titleText = 'Detail';
+  if (type === 'session') {
+    var unified = _buildUnifiedSessions();
+    var all = unified.upcoming.concat(unified.past);
+    var sess = all.find(function(s) { return s.id === id; });
+    if (sess) { html = _renderSessionDetailPanel(sess); titleText = sess.name || 'Session'; }
+  } else if (type === 'enquiry') {
+    var enqs = (_pipelineData && _pipelineData.enquiries) || [];
+    var enq = enqs.find(function(e) { return String(e.id) === String(id); });
+    if (enq) { html = _renderEnquiryDetailPanel(enq); titleText = [enq.first_name, enq.last_name].filter(Boolean).join(' ') || 'Lead'; }
+  } else if (type === 'client') {
+    var clients = (_pipelineData && _pipelineData.clients) || [];
+    var cl = clients.find(function(c) { return String(c.id) === String(id); });
+    if (cl) { html = _renderClientDetailPanel(cl); titleText = cl.display_name || 'Client'; }
+  }
+  if (title) title.textContent = titleText;
+  body.innerHTML = html || '<div class="q-empty">Not found</div>';
+  rdp.classList.add('is-open');
+  // Mark active item in list
+  document.querySelectorAll('.q-item').forEach(function(el) {
+    el.classList.toggle('is-active', el.dataset.id === String(id) && el.dataset.type === type);
+  });
+}
+
+function closeDetailPanel() {
+  var rdp = document.getElementById('rdp');
+  if (rdp) rdp.classList.remove('is-open');
+  document.querySelectorAll('.q-item.is-active').forEach(function(el) { el.classList.remove('is-active'); });
+}
+
 /* ── Load pipeline ── */
 function plSkeletons(n) {
   var heights = [64, 52, 58, 48, 60];
@@ -536,32 +589,53 @@ function refreshPipeline() {
 }
 
 function updateHalaxyDot() {
-  var dot     = document.getElementById('halaxy-status-dot');
-  var label   = document.getElementById('halaxy-chip-label');
+  // Old header dot elements (may not exist in new layout — kept as hidden compat stubs)
+  var dot = document.getElementById('halaxy-status-dot');
+  var label = document.getElementById('halaxy-chip-label');
   var tooltip = document.getElementById('halaxy-tooltip');
-  if (!dot) return;
-
-  if (_halaxyData.connected) {
-    var apptCount = (_halaxyData.appointments || []).length;
-    dot.className       = 'halaxy-dot halaxy-dot--ok';
-    if (label)   label.textContent   = 'Halaxy';
-    if (tooltip) tooltip.innerHTML   = '✓ Connected<br>'
-      + apptCount + ' upcoming appointment' + (apptCount === 1 ? '' : 's') + ' loaded';
-  } else {
-    dot.className       = 'halaxy-dot halaxy-dot--error';
-    if (label)   label.textContent   = 'Halaxy';
-    if (tooltip) tooltip.innerHTML   = _halaxyData.error
-      ? '✗ Error: ' + escHtml(_halaxyData.error) + '<br><span style="opacity:0.65">Check API credentials in Vercel env vars</span>'
-      : '✗ Not connected<br><span style="opacity:0.65">Add HALAXY_CLIENT_ID + SECRET in Vercel</span>';
+  if (dot) {
+    dot.className = _halaxyData.connected ? 'halaxy-dot halaxy-dot--ok' : 'halaxy-dot halaxy-dot--error';
+    if (label) label.textContent = 'Halaxy';
+    if (tooltip) tooltip.innerHTML = _halaxyData.connected
+      ? '✓ Connected<br>' + (_halaxyData.appointments||[]).length + ' appointments loaded'
+      : '✗ Not connected';
   }
+  // New sidebar dots
+  var sbHalaxyDot = document.getElementById('sb-halaxy-dot');
+  var sbHalaxyLabel = document.getElementById('sb-halaxy-label');
+  if (sbHalaxyDot) {
+    sbHalaxyDot.className = 'sidebar-dot ' + (_halaxyData.connected ? 'ok' : 'err');
+    if (sbHalaxyLabel) sbHalaxyLabel.textContent = _halaxyData.connected ? 'Halaxy ✓' : 'Halaxy ✗';
+  }
+  // Calendar dot
+  var sbGcalDot = document.getElementById('sb-gcal-dot');
+  var sbGcalLabel = document.getElementById('sb-gcal-label');
+  if (sbGcalDot) {
+    var calConnected = _calEventsLoaded;
+    sbGcalDot.className = 'sidebar-dot ' + (calConnected ? 'ok' : 'err');
+    if (sbGcalLabel) sbGcalLabel.textContent = calConnected ? 'Calendar ✓' : 'Calendar';
+  }
+}
+
+function updateSidebarBadge() {
+  // Count items that need attention
+  var enquiries = (_pipelineData && _pipelineData.enquiries) || [];
+  var newLeads = enquiries.filter(function(e) {
+    return !e.client_id && (e.status === 'new' || !e.status);
+  }).length;
+  var unified = _buildUnifiedSessions();
+  var needsAttn = unified.past.filter(function(s) {
+    return s.status === 'pending-invoice' || s.status === 'needs-recording';
+  }).length;
+  var total = newLeads + needsAttn;
+  var badge = document.getElementById('sib-queue');
+  if (badge) badge.textContent = total > 0 ? String(total) : '';
 }
 
 function renderPipeline() {
   if (!_pipelineData) return;
-  renderIntakePanel();
-  renderAppointmentsPanel();
-  renderBillingPanel();
-  renderClientsPanel();
+  navigateTo(_currentView); // re-render current view with fresh data
+  updateSidebarBadge();
 }
 
 function renderClientsPanel() {
@@ -1826,61 +1900,367 @@ function renderAddSessionFormPl(clientId) {
     + '</div>';
 }
 
-/* ── Dashboard tab switcher ── */
+/* ── Dashboard tab switcher (legacy compat stub) ── */
 function switchDashTab(tab, btn) {
-  document.querySelectorAll('.dash-tab').forEach(function(b) { b.classList.remove('active'); });
-  if (btn) btn.classList.add('active');
-  var pipelineEl = document.getElementById('pipeline-tab');
-  var websiteEl  = document.getElementById('main-layout');
-  if (tab === 'website') {
-    if (pipelineEl) pipelineEl.style.display = 'none';
-    if (websiteEl)  { websiteEl.style.display = ''; websiteEl.style.removeProperty('display'); }
-    document.getElementById('website-tab').style.display = '';
+  // No-op in new layout — navigation handled by navigateTo()
+}
+
+/* ═══════════════════════════════════════════════════
+   QUEUE VIEW
+   ═══════════════════════════════════════════════════ */
+
+function renderQueueView() {
+  var content = document.getElementById('view-content');
+  if (!content || !_pipelineData) return;
+  var now = new Date();
+  var todayStr = now.toISOString().slice(0, 10);
+  var enquiries = (_pipelineData && _pipelineData.enquiries) || [];
+  var unified = _buildUnifiedSessions();
+
+  // Today: sessions starting today
+  var todaySessions = unified.upcoming.filter(function(s) { return s.dateStr === todayStr; })
+    .concat(unified.past.filter(function(s) { return s.dateStr === todayStr; }));
+
+  // Needs attention: past sessions not yet invoiced/paid (excluding today)
+  var needsAttn = unified.past.filter(function(s) {
+    return s.dateStr !== todayStr && (s.status === 'pending-invoice' || s.status === 'needs-recording');
+  });
+
+  // New leads: enquiries not converted, status new or empty
+  var newLeads = enquiries.filter(function(e) {
+    return !e.client_id && (e.status === 'new' || !e.status);
+  });
+
+  // Awaiting: enquiries in progress (contacted, in_halaxy, etc.)
+  var awaiting = enquiries.filter(function(e) {
+    return !e.client_id && e.status && e.status !== 'new' && e.status !== 'closed' && e.status !== 'converted';
+  });
+
+  // Upcoming (next 14 days, not today)
+  var upcoming = unified.upcoming.filter(function(s) { return s.dateStr !== todayStr; });
+
+  // Stats
+  var html = '<div class="queue-view">';
+  html += '<div class="q-stats">';
+  html += '<div class="q-stat"><div class="q-stat-val' + (todaySessions.length ? ' urgent' : '') + '">' + todaySessions.length + '</div><div class="q-stat-label">Today</div></div>';
+  html += '<div class="q-stat"><div class="q-stat-val' + (needsAttn.length ? ' urgent' : '') + '">' + needsAttn.length + '</div><div class="q-stat-label">Needs Attention</div></div>';
+  html += '<div class="q-stat"><div class="q-stat-val' + (newLeads.length ? ' urgent' : '') + '">' + newLeads.length + '</div><div class="q-stat-label">New Leads</div></div>';
+  html += '<div class="q-stat"><div class="q-stat-val">' + upcoming.length + '</div><div class="q-stat-label">Upcoming</div></div>';
+  html += '</div>';
+
+  // Today section
+  html += '<div class="q-section">';
+  html += '<div class="q-section-hd"><span class="q-section-title">Today</span>';
+  if (todaySessions.length) html += '<span class="q-section-count today">' + todaySessions.length + '</span>';
+  html += '</div>';
+  if (todaySessions.length) {
+    html += '<div class="q-items">' + todaySessions.map(function(s) { return _qSessionItem(s, 'today'); }).join('') + '</div>';
   } else {
-    if (pipelineEl) pipelineEl.style.display = '';
-    if (websiteEl)  websiteEl.style.display  = 'none';
+    html += '<div class="q-items"><div class="q-empty">No sessions today</div></div>';
+  }
+  html += '</div>';
+
+  // Needs attention
+  if (needsAttn.length) {
+    html += '<div class="q-section">';
+    html += '<div class="q-section-hd"><span class="q-section-title">Needs Attention</span><span class="q-section-count urgent">' + needsAttn.length + '</span></div>';
+    html += '<div class="q-items">' + needsAttn.map(function(s) { return _qSessionItem(s, 'pending'); }).join('') + '</div>';
+    html += '</div>';
+  }
+
+  // New leads
+  if (newLeads.length) {
+    html += '<div class="q-section">';
+    html += '<div class="q-section-hd"><span class="q-section-title">New Leads</span><span class="q-section-count urgent">' + newLeads.length + '</span></div>';
+    html += '<div class="q-items">' + newLeads.map(function(e) { return _qEnquiryItem(e, 'new'); }).join('') + '</div>';
+    html += '</div>';
+  }
+
+  // Awaiting
+  if (awaiting.length) {
+    html += '<div class="q-section">';
+    html += '<div class="q-section-hd"><span class="q-section-title">Awaiting</span><span class="q-section-count">' + awaiting.length + '</span></div>';
+    html += '<div class="q-items">' + awaiting.map(function(e) { return _qEnquiryItem(e, 'awaiting'); }).join('') + '</div>';
+    html += '</div>';
+  }
+
+  // Upcoming (collapsible)
+  if (upcoming.length) {
+    html += '<div class="q-section">';
+    html += '<div class="q-section-hd"><span class="q-section-title">Upcoming Sessions</span><span class="q-section-count">' + upcoming.length + '</span></div>';
+    html += '<div class="q-items">' + upcoming.map(function(s) { return _qSessionItem(s, 'upcoming'); }).join('') + '</div>';
+    html += '</div>';
+  }
+
+  if (!todaySessions.length && !needsAttn.length && !newLeads.length && !awaiting.length && !upcoming.length) {
+    html += '<div class="q-items"><div class="q-empty">All caught up — nothing needs attention right now</div></div>';
+  }
+
+  html += '</div>'; // .queue-view
+  content.innerHTML = html;
+}
+
+function _qSessionItem(sess, barClass) {
+  var metaParts = [];
+  if (sess.dateLabel) metaParts.push(sess.dateLabel);
+  if (sess.timeStr) metaParts.push(sess.timeStr);
+  metaParts.push(sess.source === 'halaxy' ? 'Halaxy' : 'Calendar');
+  var pillLabel = { 'pending-invoice': 'Pending invoice', 'needs-recording': 'Record needed', 'upcoming': 'Upcoming', 'invoiced': 'Invoiced', 'paid': 'Paid', 'cancelled': 'Cancelled' }[sess.status] || sess.status;
+  var pillClass = { 'pending-invoice': 'pending', 'needs-recording': 'pending', 'upcoming': 'upcoming', 'invoiced': 'invoiced', 'paid': 'paid' }[sess.status] || 'awaiting';
+  return '<div class="q-item" data-type="session" data-id="' + escHtml(sess.id) + '" onclick="openDetailPanel(\'session\',\'' + escHtml(sess.id) + '\')">'
+    + '<div class="q-item-bar ' + barClass + '"></div>'
+    + '<div class="q-item-main">'
+    + '<div class="q-item-name">' + escHtml(sess.name || 'Halaxy appointment') + '</div>'
+    + '<div class="q-item-meta">' + escHtml(metaParts.join(' · ')) + '</div>'
+    + '</div>'
+    + '<div class="q-item-right">'
+    + '<span class="q-pill ' + pillClass + '">' + pillLabel + '</span>'
+    + '<span class="q-arrow">›</span>'
+    + '</div>'
+    + '</div>';
+}
+
+function _qEnquiryItem(enq, barClass) {
+  var name = [enq.first_name, enq.last_name].filter(Boolean).join(' ') || '—';
+  var meta = [];
+  if (enq.source) meta.push(enq.source);
+  if (enq.service) meta.push(enq.service);
+  if (enq.created_at) meta.push(_relativeDate(enq.created_at));
+  var statusLabels = { new: 'New', contacted: 'Contacted', in_halaxy: 'In Halaxy' };
+  var pillLabel = statusLabels[enq.status] || enq.status || 'New';
+  return '<div class="q-item" data-type="enquiry" data-id="' + escHtml(enq.id) + '" onclick="openDetailPanel(\'enquiry\',\'' + escHtml(enq.id) + '\')">'
+    + '<div class="q-item-bar ' + barClass + '"></div>'
+    + '<div class="q-item-main">'
+    + '<div class="q-item-name">' + escHtml(name) + '</div>'
+    + '<div class="q-item-meta">' + escHtml(meta.join(' · ')) + '</div>'
+    + '</div>'
+    + '<div class="q-item-right">'
+    + '<span class="q-pill ' + barClass + '">' + pillLabel + '</span>'
+    + '<span class="q-arrow">›</span>'
+    + '</div>'
+    + '</div>';
+}
+
+/* ═══════════════════════════════════════════════════
+   CLIENTS VIEW
+   ═══════════════════════════════════════════════════ */
+
+function renderClientsView() {
+  var content = document.getElementById('view-content');
+  if (!content || !_pipelineData) return;
+  var allClients = (_pipelineData.clients || []);
+  var active = allClients.filter(function(c) { return c.active !== false; });
+  var archived = allClients.filter(function(c) { return c.active === false; });
+  var html = '<div class="clients-view">';
+  html += '<div class="clients-view-hd"><span class="view-title">Clients (' + active.length + ')</span>';
+  html += '<button onclick="openAddClient()" class="dp-btn dp-btn--primary" style="font-size:12px;padding:6px 14px">+ Add Client</button>';
+  html += '</div>';
+  if (active.length) {
+    html += '<div class="clients-grid" id="clients-panel-body">' + active.map(renderClientCardPl).join('') + '</div>';
+  } else {
+    html += '<div id="clients-panel-body"><div class="dp-empty">No clients yet — click + Add Client to get started</div></div>';
+  }
+  if (archived.length) {
+    html += '<div class="dp-collapsible" style="margin-top:16px">'
+      + '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'archived-clients\')">'
+      + '<span id="archived-clients-arrow">▸</span> Archived (' + archived.length + ')'
+      + '</button>'
+      + '<div class="dp-collapsible-body" id="archived-clients">'
+      + archived.map(renderClientCardPl).join('')
+      + '</div></div>';
+  }
+  html += '</div>';
+  content.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════
+   BILLING VIEW
+   ═══════════════════════════════════════════════════ */
+
+function renderBillingView() {
+  var content = document.getElementById('view-content');
+  if (!content) return;
+  content.innerHTML = '<div class="billing-view"><div class="billing-view-hd"><span class="view-title">Billing</span></div><div id="billing-panel-body"><div class="pl-loading"><div class="pl-skeleton" style="height:60px"></div><div class="pl-skeleton" style="height:60px;margin-top:7px"></div></div></div></div>';
+  // Reuse existing billing render
+  renderBillingPanel();
+}
+
+/* ═══════════════════════════════════════════════════
+   SETTINGS VIEW
+   ═══════════════════════════════════════════════════ */
+
+function renderSettingsView() {
+  var content = document.getElementById('view-content');
+  if (!content) return;
+  var halaxyOk = _halaxyData && _halaxyData.connected;
+  var calOk = _calEventsLoaded;
+  var html = '<div class="settings-view"><span class="view-title" style="display:block;margin-bottom:22px">Settings</span>';
+  // Connections
+  html += '<div class="settings-section"><div class="settings-section-title">Connections</div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Halaxy</span><span class="settings-row-val">' + (halaxyOk ? '✓ Connected' : '✗ Not connected') + '</span>'
+    + '<div class="settings-row-action"><button onclick="syncHalaxyConfigData()">⟳ Sync</button></div></div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Google Calendar</span><span class="settings-row-val">' + (calOk ? '✓ Connected' : 'Not connected') + '</span>'
+    + '<div class="settings-row-action"><a href="/api/google-auth">Reconnect</a></div></div>';
+  html += '</div>';
+  // Account
+  html += '<div class="settings-section"><div class="settings-section-title">Account</div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Signed in as</span><span class="settings-row-val">' + escHtml(window.ADMIN_USER || 'Julian') + '</span></div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Session</span><span class="settings-row-val"></span><div class="settings-row-action"><a href="/admin?logout=1">Sign out</a></div></div>';
+  html += '</div>';
+  // Website links
+  html += '<div class="settings-section"><div class="settings-section-title">Website</div>';
+  html += '<div class="settings-row"><span class="settings-row-label">View site</span><span class="settings-row-val">chereemcgarry.com</span><div class="settings-row-action"><a href="/" target="_blank">Open ↗</a></div></div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Email history</span><span class="settings-row-val">Resend</span><div class="settings-row-action"><a href="https://resend.com/emails" target="_blank">Open ↗</a></div></div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Practice management</span><span class="settings-row-val">Halaxy</span><div class="settings-row-action"><a href="https://www.halaxy.com/practitioner" target="_blank">Open ↗</a></div></div>';
+  html += '</div>';
+  html += '</div>';
+  content.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════
+   DETAIL PANEL RENDERERS
+   ═══════════════════════════════════════════════════ */
+
+function _renderSessionDetailPanel(sess) {
+  var html = '';
+  html += '<div class="rdp-client">' + escHtml(sess.name || 'Session') + '</div>';
+  html += '<div class="rdp-date">' + escHtml(sess.dateLabel || '') + (sess.timeStr ? ' · ' + sess.timeStr : '') + ' · Halaxy</div>';
+  // Action zone
+  html += '<div class="rdp-action-zone">';
+  if (sess.status === 'pending-invoice') {
+    var hUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
+    html += '<a class="rdp-primary-btn" href="' + escHtml(hUrl) + '" target="_blank" rel="noopener">Open in Halaxy →</a>';
+    html += '<p class="rdp-action-hint">Session complete — create the invoice in Halaxy</p>';
+  } else if (sess.status === 'needs-recording' && sess.patientId) {
+    html += '<button class="rdp-primary-btn" onclick="openHalaxyApptLogPanel(\'' + escHtml(sess.id) + '\',\'' + escHtml(sess.patientId) + '\',\'' + escHtml(sess.name || '') + '\',\'' + escHtml(sess.dateStr) + '\',\'' + escHtml(sess.startIso || (sess.dateStr + 'T09:00:00')) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Record session →</button>';
+  } else if (sess.status === 'upcoming') {
+    var hUrl2 = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
+    html += '<a class="rdp-ghost-btn" href="' + escHtml(hUrl2) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
+    html += '<p class="rdp-action-hint" style="margin-top:6px">Upcoming session</p>';
+  } else if (sess.status === 'invoiced') {
+    html += '<span class="rdp-status-chip invoiced">Invoiced ✓</span>';
+  } else if (sess.status === 'paid') {
+    html += '<span class="rdp-status-chip paid">Paid ✓</span>';
+  } else {
+    var hUrl3 = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
+    html += '<a class="rdp-ghost-btn" href="' + escHtml(hUrl3) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
+  }
+  html += '</div>';
+  // Meta
+  html += '<div class="rdp-section">';
+  html += '<div class="rdp-section-label">Session Details</div>';
+  html += '<div class="rdp-row"><span class="rdp-row-label">Status</span><span class="rdp-row-val">' + escHtml(sess.status || '—') + '</span></div>';
+  html += '<div class="rdp-row"><span class="rdp-row-label">Source</span><span class="rdp-row-val">' + escHtml(sess.source || '—') + '</span></div>';
+  if (sess.halaxyApptId) html += '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span><span class="rdp-row-val" style="font-size:11px;color:#7A948F">' + escHtml(sess.halaxyApptId) + '</span></div>';
+  html += '</div>';
+  return html;
+}
+
+function _renderEnquiryDetailPanel(enq) {
+  var name = [enq.first_name, enq.last_name].filter(Boolean).join(' ') || '—';
+  var STATUS_LABELS_LOCAL = { new: 'New', contacted: 'Contacted', in_halaxy: 'In Halaxy', closed: 'Closed' };
+  var ENQ_ADVANCE_LOCAL = {
+    new:       { label: 'Mark as contacted →', next: 'contacted' },
+    contacted: { label: 'Mark as in Halaxy →', next: 'in_halaxy' },
+  };
+  var html = '';
+  html += '<div class="rdp-client">' + escHtml(name) + '</div>';
+  html += '<div class="rdp-date">' + escHtml(_relativeDate(enq.created_at)) + (enq.source ? ' · ' + escHtml(enq.source) : '') + '</div>';
+  // Action zone
+  html += '<div class="rdp-action-zone">';
+  // Send intake button
+  html += '<div style="margin-bottom:10px">';
+  html += '<div style="font-size:11px;font-weight:600;color:#7A948F;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.07em">Send intake form</div>';
+  var funderOpts = Object.entries(FUNDER_LABELS).map(function(kv) {
+    return '<option value="' + kv[0] + '">' + kv[1] + '</option>';
+  }).join('');
+  html += '<select id="rdp-intake-funder-' + enq.id + '" class="cl-modal-select" style="width:100%;margin-bottom:6px">';
+  html += '<option value="">Select funding type…</option>' + funderOpts;
+  html += '</select>';
+  html += '<button class="rdp-primary-btn" style="margin-bottom:0" onclick="_rdpSendIntake(\'' + enq.id + '\')">Send intake →</button>';
+  html += '</div>';
+  // Advance status
+  var adv = ENQ_ADVANCE_LOCAL[enq.status];
+  if (adv) {
+    html += '<button class="rdp-ghost-btn" onclick="updateStatus(\'' + enq.id + '\',\'' + adv.next + '\');closeDetailPanel()">' + adv.label + '</button>';
+  }
+  html += '</div>';
+  // Contact details
+  html += '<div class="rdp-section">';
+  html += '<div class="rdp-section-label">Contact</div>';
+  if (enq.phone) html += '<div class="rdp-row"><span class="rdp-row-label">Phone</span><span class="rdp-row-val"><a href="tel:' + escHtml(enq.phone) + '" style="color:inherit">' + escHtml(enq.phone) + '</a></span></div>';
+  if (enq.email) html += '<div class="rdp-row"><span class="rdp-row-label">Email</span><span class="rdp-row-val" style="font-size:11px"><a href="mailto:' + escHtml(enq.email) + '" style="color:inherit">' + escHtml(enq.email) + '</a></span></div>';
+  if (enq.service) html += '<div class="rdp-row"><span class="rdp-row-label">Service</span><span class="rdp-row-val">' + escHtml(enq.service) + '</span></div>';
+  if (enq.reason) html += '<div class="rdp-row"><span class="rdp-row-label">Reason</span><span class="rdp-row-val">' + escHtml(enq.reason) + '</span></div>';
+  html += '<div class="rdp-row"><span class="rdp-row-label">Status</span><span class="rdp-row-val">' + escHtml(STATUS_LABELS_LOCAL[enq.status] || enq.status || 'New') + '</span></div>';
+  html += '</div>';
+  if (enq.message) {
+    html += '<div class="rdp-section">';
+    html += '<div class="rdp-section-label">Message</div>';
+    html += '<div style="font-size:13px;color:#192E2A;line-height:1.5">' + escHtml(enq.message) + '</div>';
+    html += '</div>';
+  }
+  // Notes
+  html += '<div class="rdp-section">';
+  html += '<div class="rdp-section-label">Notes</div>';
+  html += '<textarea id="rdp-notes-' + enq.id + '" style="width:100%;min-height:70px;font-family:var(--sans);font-size:12.5px;padding:8px 10px;border:1px solid rgba(0,0,0,0.12);border-radius:7px;resize:vertical;outline:none" onblur="saveNotes(\'' + enq.id + '\',this.value)" placeholder="Add notes…">' + escHtml(enq.notes || '') + '</textarea>';
+  html += '</div>';
+  return html;
+}
+
+function _renderClientDetailPanel(cl) {
+  var sessions = (cl.sessions || []).slice().sort(function(a, b) { return b.session_date.localeCompare(a.session_date); });
+  var funderLabel = FUNDER_LABELS[cl.funder] || cl.funder || '—';
+  var html = '';
+  html += '<div class="rdp-client">' + escHtml(cl.display_name || '—') + '</div>';
+  html += '<div class="rdp-date">' + escHtml(funderLabel) + (cl.halaxy_id ? ' · Halaxy' : '') + '</div>';
+  // Action zone
+  html += '<div class="rdp-action-zone">';
+  if (cl.halaxy_id && _halaxyWebUrl) {
+    html += '<a class="rdp-primary-btn" href="' + escHtml(_halaxyWebUrl + '/clients') + '" target="_blank" rel="noopener">View in Halaxy →</a>';
+  }
+  html += '<button class="rdp-ghost-btn" onclick="openNewSessionModal()" style="margin-top:6px">+ New session</button>';
+  html += '</div>';
+  // Details
+  html += '<div class="rdp-section">';
+  html += '<div class="rdp-section-label">Client Details</div>';
+  if (cl.plan_manager) html += '<div class="rdp-row"><span class="rdp-row-label">Plan manager</span><span class="rdp-row-val">' + escHtml(cl.plan_manager) + '</span></div>';
+  if (cl.notes) html += '<div class="rdp-row"><span class="rdp-row-label">Notes</span><span class="rdp-row-val">' + escHtml(cl.notes) + '</span></div>';
+  if (cl.halaxy_id) html += '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span><span class="rdp-row-val" style="font-size:11px;color:#7A948F">' + escHtml(String(cl.halaxy_id)) + '</span></div>';
+  html += '</div>';
+  // Sessions
+  if (sessions.length) {
+    html += '<div class="rdp-section">';
+    html += '<div class="rdp-section-label">Sessions (' + sessions.length + ')</div>';
+    sessions.slice(0, 10).forEach(function(s) {
+      html += '<div class="rdp-row"><span class="rdp-row-label">' + escHtml(s.session_date || '') + '</span><span class="rdp-row-val">' + escHtml(s.status || '') + (s.amount ? ' · $' + s.amount : '') + '</span></div>';
+    });
+    html += '</div>';
+  }
+  return html;
+}
+
+// Helper: send intake from detail panel
+async function _rdpSendIntake(enquiryId) {
+  var sel = document.getElementById('rdp-intake-funder-' + enquiryId);
+  var funder = sel ? sel.value : '';
+  if (!funder) { toast('Select a funding type first', 'err'); return; }
+  var enqs = (_pipelineData && _pipelineData.enquiries) || [];
+  var enq = enqs.find(function(e) { return String(e.id) === String(enquiryId); });
+  if (!enq) return;
+  try {
+    await apiFetch('/api/send-intake', { method: 'POST', body: { enquiryId: enquiryId, funder: funder, firstName: enq.first_name, email: enq.email } });
+    toast('Intake email sent ✓');
+    closeDetailPanel();
+    refreshPipeline();
+  } catch (e) {
+    toast('Could not send intake: ' + e.message, 'err');
   }
 }
 
-/* ── Hello / greeting section ── */
+/* ── Hello / greeting section (stubbed — replaced by sidebar badge) ── */
 function renderHelloSection() {
-  var greetEl = document.getElementById('dash-hello-greet');
-  var itemsEl = document.getElementById('dash-hello-items');
-  if (!greetEl || !itemsEl || !_pipelineData) return;
-
-  var hour = new Date().getHours();
-  var greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  greetEl.textContent = greeting + ', Julian.';
-
-  var enquiries = _pipelineData.enquiries || [];
-  var clients   = _pipelineData.clients   || [];
-  var items = [];
-
-  // New / unread enquiries
-  var newCount = enquiries.filter(function(e) { return (e.status || 'new') === 'new'; }).length;
-  var contactedCount = enquiries.filter(function(e) { return e.status === 'contacted'; }).length;
-  var activeEnq = newCount + contactedCount;
-  if (activeEnq > 0) items.push('<span class="hello-item hello-item--alert">' + activeEnq + ' lead' + (activeEnq !== 1 ? 's' : '') + ' to action</span>');
-
-  // Unpaid sessions
-  var unpaidCount = 0; var unpaidTotal = 0;
-  clients.forEach(function(c) {
-    (c.sessions || []).forEach(function(s) {
-      if (s.status !== 'paid') { unpaidCount++; unpaidTotal += parseFloat(s.amount) || 0; }
-    });
-  });
-  if (unpaidCount > 0) items.push('<span class="hello-item hello-item--billing">' + unpaidCount + ' unpaid · $' + unpaidTotal.toFixed(0) + '</span>');
-
-  // Today's appointments (from Halaxy)
-  var today = new Date().toISOString().slice(0, 10);
-  var todayAppts = (_halaxyData.appointments || []).filter(function(a) {
-    return (a.start || '').slice(0, 10) === today && _isClinicalAppt(a);
-  }).length;
-  if (todayAppts > 0) items.push('<span class="hello-item">' + todayAppts + ' appointment' + (todayAppts !== 1 ? 's' : '') + ' today</span>');
-
-  if (!items.length) items.push('<span class="hello-item hello-item--ok">All caught up ✓</span>');
-
-  itemsEl.innerHTML = items.join('');
+  updateSidebarBadge(); // update queue badge instead
 }
 
 /* ── Add appointment (opens Google Calendar pre-filled) ── */

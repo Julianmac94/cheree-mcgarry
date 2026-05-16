@@ -203,64 +203,256 @@ function adminPage({ enquiries = [], tasks = [], currentUser = null, activityByE
   --serif:    'Cormorant Garamond', serif;
 }
 
-body {
-  background: #f0ece2;
-  font-family: var(--sans);
-  color: var(--tealDeep);
-  min-height: 100svh;
-}
+/* ── App shell ── */
+body { overflow: hidden; height: 100svh; background: #F0EDE5; }
+.app-shell { display: flex; height: 100svh; overflow: hidden; }
 
-/* ── Unified header ── */
-.dash-header {
-  position: sticky; top: 0; z-index: 100;
-  background: var(--tealDeep);
-  padding: 0 28px;
-  min-height: 68px;
-  display: flex; align-items: center; justify-content: space-between; gap: 20px;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.06), 0 4px 24px rgba(0,0,0,0.32);
+/* ── Sidebar ── */
+.sidebar {
+  width: 208px; flex-shrink: 0;
+  background: #192E2A;
+  display: flex; flex-direction: column;
+  height: 100svh;
+  border-right: 1px solid rgba(255,255,255,0.06);
 }
-.dash-header-left {
-  display: flex; align-items: center; gap: 14px; flex-shrink: 0; min-width: 0;
+.sidebar-brand {
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  display: flex; align-items: center; gap: 10px;
 }
-.dash-logo {
-  width: 36px; height: 36px; flex-shrink: 0;
-  filter: brightness(0) invert(1); opacity: 0.85;
+.sidebar-logo { width: 26px; height: 26px; filter: brightness(0) invert(1); opacity: 0.75; }
+.sidebar-brand-name {
+  font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.07em; text-transform: uppercase;
 }
-.dash-header-greet {
-  display: flex; flex-direction: column; gap: 6px; min-width: 0;
+.sidebar-nav { flex: 1; padding: 10px 8px; display: flex; flex-direction: column; gap: 1px; }
+.sidebar-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 11px; border-radius: 7px;
+  background: none; border: none; cursor: pointer;
+  color: rgba(255,255,255,0.48); font-family: var(--sans);
+  font-size: 13px; font-weight: 500; text-align: left; width: 100%;
+  transition: all 0.13s; position: relative;
 }
-.dash-header-right {
+.sidebar-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.82); }
+.sidebar-item.active { background: rgba(255,255,255,0.11); color: white; }
+.si-icon { font-size: 14px; width: 17px; flex-shrink: 0; text-align: center; line-height: 1; }
+.si-label { flex: 1; }
+.si-badge {
+  background: #BE6E44; color: white; font-size: 9.5px; font-weight: 700;
+  padding: 1px 5px; border-radius: 99px; min-width: 16px; text-align: center; display: none;
+}
+.si-badge:not(:empty) { display: inline-block; }
+.sidebar-footer {
+  padding: 10px 8px 14px; border-top: 1px solid rgba(255,255,255,0.07);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.sidebar-status-row {
+  display: flex; align-items: center; gap: 7px;
+  padding: 4px 11px; font-size: 11px; color: rgba(255,255,255,0.32);
+}
+.sidebar-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.18); flex-shrink: 0; }
+.sidebar-dot.ok  { background: #52c41a; }
+.sidebar-dot.err { background: #BE6E44; }
+.sidebar-dot.loading { background: rgba(255,255,255,0.18); animation: pulse 1.4s infinite; }
+.sidebar-util-row { padding: 3px 11px; }
+.sidebar-signout {
+  font-size: 11px; color: rgba(255,255,255,0.28); text-decoration: none;
+  transition: color 0.13s; display: block;
+}
+.sidebar-signout:hover { color: rgba(255,255,255,0.6); }
+.sidebar-refresh-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 11px; color: rgba(255,255,255,0.28); font-family: var(--sans);
+  padding: 0; text-align: left; transition: color 0.13s;
+}
+.sidebar-refresh-btn:hover { color: rgba(255,255,255,0.6); }
+
+/* ── App body ── */
+.app-body { flex: 1; display: flex; overflow: hidden; position: relative; background: #F0EDE5; }
+
+/* ── View content ── */
+.view-content { flex: 1; overflow-y: auto; min-width: 0; }
+
+/* ── Right detail panel ── */
+.rdp {
+  width: 380px; flex-shrink: 0;
+  background: white; border-left: 1px solid rgba(0,0,0,0.07);
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  margin-right: -380px;
+  transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), margin-right 0.22s cubic-bezier(0.22,1,0.36,1);
+  overflow: hidden;
+}
+.rdp.is-open { transform: translateX(0); margin-right: 0; }
+.rdp-header {
+  padding: 14px 18px; border-bottom: 1px solid rgba(0,0,0,0.07);
   display: flex; align-items: center; gap: 10px; flex-shrink: 0;
 }
-.dash-header-sep {
-  width: 1px; height: 18px; background: rgba(255,255,255,0.12); margin: 0 4px;
+.rdp-close {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: none; background: rgba(0,0,0,0.06); cursor: pointer;
+  font-size: 15px; display: flex; align-items: center; justify-content: center;
+  color: #192E2A; flex-shrink: 0; transition: background 0.13s;
 }
-.topbar-link {
-  font-size: 11.5px; color: rgba(255,255,255,0.4);
-  text-decoration: none; letter-spacing: 0.04em;
-  transition: color 0.2s; white-space: nowrap;
-}
-.topbar-link:hover { color: rgba(255,255,255,0.85); }
-.topbar-link.site { color: var(--mint); opacity: 0.75; }
-.topbar-link.site:hover { opacity: 1; }
+.rdp-close:hover { background: rgba(0,0,0,0.12); }
+.rdp-title { font-size: 13.5px; font-weight: 600; color: #192E2A; flex: 1; }
+.rdp-body { flex: 1; overflow-y: auto; padding: 22px 22px 30px; }
 
-/* ── Layout ── */
-.layout-full {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 32px 24px 0;
+/* Detail panel content styles */
+.rdp-client { font-size: 21px; font-weight: 700; color: #192E2A; margin-bottom: 3px; }
+.rdp-date { font-size: 12.5px; color: #7A948F; margin-bottom: 22px; }
+.rdp-action-zone {
+  background: #F4F1EB; border-radius: 10px; padding: 16px; margin-bottom: 20px;
 }
-.layout {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 20px 24px 80px;
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 24px;
-  align-items: start;
+.rdp-primary-btn {
+  display: block; width: 100%; padding: 11px 14px;
+  background: #2A5850; color: white; font-family: var(--sans);
+  font-size: 13px; font-weight: 600; border: none; border-radius: 7px;
+  cursor: pointer; text-align: center; text-decoration: none;
+  margin-bottom: 6px; transition: background 0.13s;
 }
-@media (max-width: 820px) {
-  .layout { grid-template-columns: 1fr; }
+.rdp-primary-btn:hover { background: #3E5C56; }
+.rdp-action-hint { font-size: 11.5px; color: #7A948F; text-align: center; }
+.rdp-ghost-btn {
+  display: block; width: 100%; padding: 9px 14px;
+  background: none; border: 1px solid rgba(42,88,80,0.25); border-radius: 7px;
+  color: #2A5850; font-family: var(--sans); font-size: 12.5px; font-weight: 500;
+  cursor: pointer; text-align: center; text-decoration: none; transition: all 0.13s;
+}
+.rdp-ghost-btn:hover { background: rgba(42,88,80,0.06); }
+.rdp-section { border-top: 1px solid rgba(0,0,0,0.07); padding-top: 16px; margin-top: 4px; }
+.rdp-section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #7A948F; margin-bottom: 10px; }
+.rdp-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.04); font-size: 12.5px; }
+.rdp-row:last-child { border-bottom: none; }
+.rdp-row-label { color: #7A948F; }
+.rdp-row-val { font-weight: 500; color: #192E2A; text-align: right; max-width: 60%; }
+.rdp-status-chip {
+  display: inline-block; font-size: 11px; font-weight: 600; padding: 4px 10px;
+  border-radius: 99px; letter-spacing: 0.03em;
+}
+.rdp-status-chip.invoiced { background: rgba(39,174,96,0.12); color: #27ae60; }
+.rdp-status-chip.paid     { background: rgba(0,0,0,0.06); color: #7A948F; }
+
+/* ── Queue view ── */
+.queue-view { padding: 26px 28px 60px; max-width: 820px; }
+@media (max-width: 900px) { .queue-view { padding: 18px 16px 70px; } }
+
+/* Stats row */
+.q-stats { display: flex; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+.q-stat {
+  background: white; border-radius: 9px; padding: 13px 16px;
+  flex: 1; min-width: 110px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.q-stat-val { font-size: 22px; font-weight: 700; color: #192E2A; line-height: 1; margin-bottom: 3px; }
+.q-stat-val.urgent { color: #BE6E44; }
+.q-stat-label { font-size: 10.5px; font-weight: 600; color: #7A948F; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Queue sections */
+.q-section { margin-bottom: 24px; }
+.q-section-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.q-section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #7A948F; }
+.q-section-count {
+  font-size: 9.5px; font-weight: 700; padding: 1px 5px; border-radius: 99px;
+  background: rgba(42,88,80,0.15); color: #2A5850;
+}
+.q-section-count.urgent { background: rgba(190,110,68,0.15); color: #BE6E44; }
+.q-section-toggle {
+  background: none; border: none; cursor: pointer;
+  font-size: 10px; color: #7A948F; padding: 0; font-family: var(--sans);
+  margin-left: auto; transition: color 0.13s;
+}
+.q-section-toggle:hover { color: #2A5850; }
+
+/* Queue item list */
+.q-items { background: white; border-radius: 9px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.q-item {
+  display: flex; align-items: stretch; cursor: pointer;
+  border-bottom: 1px solid rgba(0,0,0,0.05); transition: background 0.1s;
+}
+.q-item:last-child { border-bottom: none; }
+.q-item:hover { background: #FAFAFA; }
+.q-item.is-active { background: #F0F7F6; }
+.q-item-bar { width: 3px; flex-shrink: 0; }
+.q-item-bar.pending  { background: #BE6E44; }
+.q-item-bar.upcoming { background: #2A5850; }
+.q-item-bar.invoiced { background: #27ae60; }
+.q-item-bar.paid     { background: #bbb; }
+.q-item-bar.new      { background: #BE6E44; }
+.q-item-bar.awaiting { background: #7A948F; }
+.q-item-bar.today    { background: #2A5850; }
+.q-item-main { flex: 1; padding: 11px 13px; min-width: 0; }
+.q-item-name { font-size: 14px; font-weight: 600; color: #192E2A; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-item-meta { font-size: 11.5px; color: #7A948F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-item-right { padding: 11px 13px 11px 0; flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+.q-pill {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 99px; letter-spacing: 0.03em;
+}
+.q-pill.pending  { background: rgba(190,110,68,0.12); color: #BE6E44; }
+.q-pill.upcoming { background: rgba(42,88,80,0.10); color: #2A5850; }
+.q-pill.invoiced { background: rgba(39,174,96,0.12); color: #27ae60; }
+.q-pill.paid     { background: rgba(0,0,0,0.06); color: #7A948F; }
+.q-pill.new      { background: rgba(190,110,68,0.12); color: #BE6E44; }
+.q-pill.awaiting { background: rgba(122,148,143,0.15); color: #7A948F; }
+.q-arrow { font-size: 12px; color: rgba(0,0,0,0.18); }
+.q-empty { padding: 16px 14px; font-size: 13px; color: #7A948F; font-style: italic; }
+
+/* ── Clients view ── */
+.clients-view { padding: 26px 28px 60px; }
+@media (max-width: 900px) { .clients-view { padding: 18px 16px 70px; } }
+.clients-view-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 10px; }
+.view-title { font-size: 18px; font-weight: 700; color: #192E2A; }
+.clients-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .clients-grid { grid-template-columns: 1fr; } }
+
+/* ── Billing view ── */
+.billing-view { padding: 26px 28px 60px; }
+@media (max-width: 900px) { .billing-view { padding: 18px 16px 70px; } }
+.billing-view-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 10px; }
+
+/* ── Settings view ── */
+.settings-view { padding: 26px 28px 60px; max-width: 680px; }
+@media (max-width: 900px) { .settings-view { padding: 18px 16px 70px; } }
+.settings-section { background: white; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.settings-section-title { font-size: 13px; font-weight: 700; color: #192E2A; margin-bottom: 14px; }
+.settings-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 13px; gap: 12px; }
+.settings-row:last-child { border-bottom: none; }
+.settings-row-label { color: #192E2A; flex: 1; }
+.settings-row-val { color: #7A948F; font-size: 12px; text-align: right; }
+.settings-row-action a, .settings-row-action button {
+  font-size: 11.5px; font-weight: 600; color: #2A5850; background: none;
+  border: 1px solid rgba(42,88,80,0.25); border-radius: 5px; padding: 4px 10px;
+  cursor: pointer; text-decoration: none; font-family: var(--sans); transition: all 0.13s;
+}
+.settings-row-action a:hover, .settings-row-action button:hover { background: rgba(42,88,80,0.06); }
+
+/* ── Mobile ── */
+.bottom-nav { display: none; }
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .bottom-nav {
+    display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+    height: 56px; background: #192E2A;
+    border-top: 1px solid rgba(255,255,255,0.08); z-index: 200;
+  }
+  .bn-item {
+    flex: 1; background: none; border: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; padding: 6px 0; color: rgba(255,255,255,0.4);
+    font-family: var(--sans); transition: color 0.13s;
+  }
+  .bn-item.active { color: white; }
+  .bn-item:hover { color: rgba(255,255,255,0.75); }
+  .bn-icon { font-size: 17px; line-height: 1; }
+  .bn-label { font-size: 9px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+  .rdp {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 56px;
+    width: auto; margin-right: 0; z-index: 150;
+    transform: translateY(100%);
+  }
+  .rdp.is-open { transform: translateY(0); }
+  .view-content { padding-bottom: 70px; }
 }
 
 /* ── Section header ── */
@@ -654,31 +846,6 @@ body {
 }
 .setup-toggle-btn:hover { color: var(--teal); }
 
-/* ── Main nav tabs ── */
-.main-tabs {
-  display: flex; gap: 2px;
-  background: rgba(42,88,80,0.07);
-  border-radius: 10px;
-  padding: 3px;
-  margin-bottom: 28px;
-  width: fit-content;
-}
-.main-tab {
-  padding: 7px 18px;
-  border-radius: 8px;
-  font-size: 12.5px; font-weight: 500;
-  color: var(--soft);
-  background: transparent;
-  border: none; cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.main-tab.active {
-  background: white;
-  color: var(--tealDeep);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-}
-.main-tab:hover:not(.active) { color: var(--teal); }
-
 /* ── Website tab ── */
 #website-tab { display: none; }
 .ws-grid {
@@ -1067,11 +1234,7 @@ body {
   text-decoration: underline;
 }
 
-/* ── Pipeline three-panel dashboard ── */
-.pipeline-wrap {
-  max-width: 1400px; margin: 0 auto;
-  padding: 28px 24px 80px;
-}
+/* ── Pipeline toolbar (kept for compat) ── */
 .pipeline-toolbar {
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 10px;
@@ -1083,52 +1246,6 @@ body {
   letter-spacing: 0.02em;
 }
 .pl-refresh-btn:hover { color: var(--teal); }
-
-/* Three-panel grid */
-.dash-panels {
-  display: grid;
-  grid-template-columns: 1fr 1.5fr 1fr;
-  gap: 20px;
-  align-items: start;
-}
-@media (max-width: 1100px) {
-  .dash-panels { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 720px) {
-  .dash-panels { grid-template-columns: 1fr; }
-}
-
-/* Each panel is a flex column */
-.dash-panel {
-  background: white;
-  border-radius: 14px;
-  border: 1px solid rgba(42,88,80,0.09);
-  display: flex; flex-direction: column;
-  overflow: hidden;
-  min-height: 200px;
-}
-.dash-panel-hd {
-  padding: 14px 18px 12px;
-  border-bottom: 1px solid rgba(42,88,80,0.07);
-  display: flex; align-items: center; justify-content: space-between;
-  flex-shrink: 0;
-}
-.dash-panel-title {
-  font-size: 10px; font-weight: 700;
-  letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--soft);
-}
-.dash-panel-count {
-  font-size: 10px; font-weight: 700;
-  color: white;
-  border-radius: 100px; padding: 2px 8px;
-  min-width: 20px; text-align: center;
-}
-.dash-panel-body {
-  flex: 1; overflow-y: auto;
-  padding: 14px 14px 18px;
-  max-height: 80vh;
-}
 
 /* Intake panel sections */
 .intake-stage { margin-bottom: 20px; }
@@ -1499,63 +1616,9 @@ body {
 .pl-halaxy-chip:hover .pl-halaxy-tooltip { opacity: 1; pointer-events: none; transform: translateY(0); }
 .pl-gcal-chip { cursor: pointer; }
 
-/* ── Tabs (dark header variant) ── */
-.dash-tabs {
-  display: flex; gap: 2px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 8px; padding: 3px;
-}
-.dash-tab {
-  padding: 6px 18px; border-radius: 6px;
-  font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.5);
-  background: transparent; border: none; cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.dash-tab.active {
-  background: rgba(255,255,255,0.15); color: white;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
-}
-.dash-tab:hover:not(.active) { color: rgba(255,255,255,0.8); }
-
-/* ── Icon buttons in dark header ── */
-.dash-icon-btn {
-  font-family: var(--sans); font-size: 11px; font-weight: 500;
-  color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
-  cursor: pointer; padding: 5px 11px;
-  transition: color 0.15s, background 0.15s;
-  white-space: nowrap;
-}
-.dash-icon-btn:hover { color: white; background: rgba(255,255,255,0.14); }
-.dash-icon-btn--dim { opacity: 0.65; }
-.dash-icon-btn--dim:hover { opacity: 1; }
-
-/* ── Greeting + pills (inside header) ── */
-.dash-hello-greet {
-  font-family: var(--serif); font-size: 22px; font-weight: 300;
-  color: rgba(255,255,255,0.90); white-space: nowrap; line-height: 1;
-}
-.dash-hello-items {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-}
-.hello-item {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
-  padding: 3px 10px; border-radius: 100px;
-  background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.65);
-}
-.hello-item--alert   { background: rgba(190,110,68,0.35); color: #ffb48a; }
-.hello-item--billing { background: rgba(200,160,40,0.28); color: #ffd87a; }
-.hello-item--ok      { background: rgba(42,207,130,0.20); color: #7efbc1; }
-
-/* ── Panel action button (in panel header) ── */
-.dash-panel-btn {
-  font-family: var(--sans); font-size: 10px; font-weight: 600;
-  letter-spacing: 0.04em; padding: 5px 12px; border-radius: 6px;
-  background: var(--mint); color: var(--tealDeep);
-  border: none; cursor: pointer; white-space: nowrap;
-  transition: opacity 0.15s;
-}
-.dash-panel-btn:hover { opacity: 0.85; }
+/* ── Legacy tab stubs (kept for JS compat) ── */
+.dash-tab { display: none; }
+.dash-icon-btn { display: none; }
 
 /* Tooltip */
 .pl-halaxy-tooltip {
@@ -1802,330 +1865,109 @@ body {
 </head>
 <body>
 
-<!-- Unified header -->
-<header class="dash-header">
+<div class="app-shell" id="app-shell">
 
-  <!-- Left: logo + greeting -->
-  <div class="dash-header-left">
-    <img src="/assets/logo.svg" class="dash-logo" alt="" width="36" height="36">
-    <div class="dash-header-greet">
-      <div class="dash-hello-greet" id="dash-hello-greet">Hello, Julian.</div>
-      <div class="dash-hello-items" id="dash-hello-items"></div>
+  <!-- ── Desktop sidebar ── -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <img src="/assets/logo.svg" class="sidebar-logo" alt="" width="26" height="26">
+      <span class="sidebar-brand-name">Cheree</span>
     </div>
-  </div>
-
-  <!-- Centre: tab switcher -->
-  <div class="dash-tabs">
-    <button class="dash-tab active" onclick="switchDashTab('pipeline', this)">Pipeline</button>
-    <button class="dash-tab" onclick="switchDashTab('website', this)">Website</button>
-  </div>
-
-  <!-- Right: status chips + actions + nav -->
-  <div class="dash-header-right">
-    <div class="pl-halaxy-chip" id="halaxy-chip">
-      <div id="halaxy-status-dot" class="halaxy-dot halaxy-dot--loading"></div>
-      <span id="halaxy-chip-label">Halaxy</span>
-      <div class="pl-halaxy-tooltip" id="halaxy-tooltip">Checking connection…</div>
+    <div class="sidebar-nav">
+      <button class="sidebar-item active" data-view="queue" onclick="navigateTo('queue')">
+        <span class="si-icon">≡</span>
+        <span class="si-label">Queue</span>
+        <span class="si-badge" id="sib-queue"></span>
+      </button>
+      <button class="sidebar-item" data-view="clients" onclick="navigateTo('clients')">
+        <span class="si-icon">◎</span>
+        <span class="si-label">Clients</span>
+      </button>
+      <button class="sidebar-item" data-view="billing" onclick="navigateTo('billing')">
+        <span class="si-icon">$</span>
+        <span class="si-label">Billing</span>
+      </button>
+      <button class="sidebar-item" data-view="settings" onclick="navigateTo('settings')">
+        <span class="si-icon">⚙</span>
+        <span class="si-label">Settings</span>
+      </button>
     </div>
-    <a class="pl-halaxy-chip pl-gcal-chip" id="gcal-chip" href="/api/google-auth" onclick="return confirmGcalReconnect(event)">
-      <div id="gcal-status-dot" class="halaxy-dot halaxy-dot--loading"></div>
-      <span id="gcal-chip-label">Calendar</span>
-      <div class="pl-halaxy-tooltip" id="gcal-tooltip">Checking connection…</div>
-    </a>
-    <button onclick="refreshPipeline()" id="pl-refresh-btn" class="dash-icon-btn" title="Refresh data">↺ Refresh</button>
-    <button onclick="syncHalaxyConfigData()" id="halaxy-sync-btn" class="dash-icon-btn dash-icon-btn--dim" title="Re-sync Halaxy funders and fees">⟳ Sync config</button>
-    <div class="dash-header-sep"></div>
-    <a class="topbar-link site" href="/" target="_blank">View site →</a>
-    ${currentUser ? `<div class="topbar-user"><div class="user-avatar">${currentUser.initials}</div></div>` : ''}
-    <a class="topbar-link" href="/admin?logout=1">Sign out</a>
-  </div>
-
-</header>
-
-<!-- Pipeline tab — full width -->
-<div id="pipeline-tab" class="pipeline-wrap">
-
-  <!-- Three-panel dashboard -->
-  <div class="dash-panels" id="pipeline-board">
-
-    <!-- 1. TRIAGE panel -->
-    <div class="dash-panel" id="panel-intake">
-      <div class="dash-panel-hd">
-        <span class="dash-panel-title">Triage Clients</span>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span class="dash-panel-count" id="intake-count" style="background:${C.terra}"></span>
-          <button onclick="openAddClient()" class="dash-panel-btn">+ Add client</button>
-        </div>
+    <div class="sidebar-footer">
+      <div class="sidebar-status-row">
+        <span class="sidebar-dot loading" id="sb-halaxy-dot"></span>
+        <span id="sb-halaxy-label">Halaxy</span>
       </div>
-      <div class="dash-panel-body" id="intake-panel-body">
-        <div class="pl-loading">
-          <div class="pl-skeleton" style="height:70px"></div>
-          <div class="pl-skeleton" style="height:60px;margin-top:7px"></div>
-        </div>
+      <div class="sidebar-status-row">
+        <span class="sidebar-dot loading" id="sb-gcal-dot"></span>
+        <span id="sb-gcal-label">Calendar</span>
+      </div>
+      <div class="sidebar-util-row">
+        <button class="sidebar-refresh-btn" id="pl-refresh-btn" onclick="refreshPipeline()">↺ Refresh</button>
+      </div>
+      <div class="sidebar-util-row">
+        <a class="sidebar-signout" href="/admin?logout=1">Sign out</a>
       </div>
     </div>
+  </nav>
 
-    <!-- 2. APPOINTMENTS panel -->
-    <div class="dash-panel" id="panel-appointments">
-      <div class="dash-panel-hd">
-        <span class="dash-panel-title">Appointments</span>
-        <button onclick="openNewSessionModal()" class="dash-panel-btn">+ New Session</button>
-      </div>
-      <div class="dash-panel-body" id="appointments-panel-body">
-        <div class="pl-loading">
-          <div class="pl-skeleton" style="height:160px"></div>
-        </div>
-      </div>
+  <!-- ── App body ── -->
+  <div class="app-body" id="app-body">
+
+    <!-- Main view content area -->
+    <div class="view-content" id="view-content">
+      <div class="queue-view"><div class="q-stats">${[1,2,3].map(()=>'<div class="q-stat"><div class="q-stat-val" style="width:28px;height:22px;background:rgba(0,0,0,0.07);border-radius:4px"></div><div class="q-stat-label" style="width:70px;height:10px;background:rgba(0,0,0,0.06);border-radius:3px;margin-top:6px"></div></div>').join('')}</div><div class="pl-loading"><div class="pl-skeleton" style="height:56px"></div><div class="pl-skeleton" style="height:52px;margin-top:6px"></div><div class="pl-skeleton" style="height:52px;margin-top:6px"></div></div></div>
     </div>
 
-    <!-- 3. BILLING panel -->
-    <div class="dash-panel" id="panel-billing">
-      <div class="dash-panel-hd">
-        <span class="dash-panel-title">Billing</span>
-        <span class="dash-panel-count" id="billing-count" style="background:${C.terra}"></span>
+    <!-- Right detail panel -->
+    <div class="rdp" id="rdp">
+      <div class="rdp-header">
+        <button class="rdp-close" onclick="closeDetailPanel()">×</button>
+        <div class="rdp-title" id="rdp-title">Detail</div>
       </div>
-      <div class="dash-panel-body" id="billing-panel-body">
-        <div class="pl-loading">
-          <div class="pl-skeleton" style="height:60px"></div>
-          <div class="pl-skeleton" style="height:60px;margin-top:7px"></div>
-        </div>
-      </div>
+      <div class="rdp-body" id="rdp-body"></div>
     </div>
 
-    <!-- 4. CLIENTS panel -->
-    <div class="dash-panel" id="panel-clients">
-      <div class="dash-panel-hd">
-        <span class="dash-panel-title">Clients</span>
-        <span class="dash-panel-count" id="clients-count"></span>
-        <button onclick="openAddClient()" class="dash-panel-btn">+ Add Client</button>
-      </div>
-      <div class="dash-panel-body" id="clients-panel-body">
-        <div class="pl-loading">
-          <div class="pl-skeleton" style="height:60px"></div>
-          <div class="pl-skeleton" style="height:60px;margin-top:7px"></div>
-        </div>
-      </div>
-    </div>
+  </div><!-- /.app-body -->
 
-  </div>
-</div>
+  <!-- ── Mobile bottom nav ── -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="bn-item active" data-view="queue" onclick="navigateTo('queue')">
+      <span class="bn-icon">≡</span>
+      <span class="bn-label">Queue</span>
+    </button>
+    <button class="bn-item" data-view="clients" onclick="navigateTo('clients')">
+      <span class="bn-icon">◎</span>
+      <span class="bn-label">Clients</span>
+    </button>
+    <button class="bn-item" data-view="billing" onclick="navigateTo('billing')">
+      <span class="bn-icon">$</span>
+      <span class="bn-label">Billing</span>
+    </button>
+    <button class="bn-item" data-view="settings" onclick="navigateTo('settings')">
+      <span class="bn-icon">⚙</span>
+      <span class="bn-label">Settings</span>
+    </button>
+  </nav>
 
-<div class="layout" id="main-layout" style="display:none">
+</div><!-- /.app-shell -->
 
-  <!-- Website management tab -->
-  <div id="website-tab">
-    <div class="ws-grid">
-
-      <!-- Website pages -->
-      <div class="ws-card">
-        <div class="ws-card-hd">
-          <span class="ws-card-title">Website pages</span>
-          <span class="ws-card-tag">5 pages</span>
-        </div>
-        <div class="ws-card-body">
-          <p class="ws-card-desc">Your website has five public pages. They don't update themselves — any content changes (wording, pricing, new info) need to be made in the code by Julian and redeployed. Think of it like updating a brochure.</p>
-          <div class="ws-item">
-            <span class="ws-item-label"><strong>Home</strong> — First impression. Intro to you and your practice, what you offer, and a call to action to book.</span>
-            <a class="ws-link" href="/" target="_blank">View ↗</a>
-          </div>
-          <div class="ws-item">
-            <span class="ws-item-label"><strong>Sessions</strong> — How sessions work, what they cost, and funding options (private, Medicare, NDIS). The most referred-to page for new clients.</span>
-            <a class="ws-link" href="/sessions.html" target="_blank">View ↗</a>
-          </div>
-          <div class="ws-item">
-            <span class="ws-item-label"><strong>About</strong> — Your background, training, approach, and what clients can expect from working with you.</span>
-            <a class="ws-link" href="/about.html" target="_blank">View ↗</a>
-          </div>
-          <div class="ws-item">
-            <span class="ws-item-label"><strong>Client Info</strong> — Practical information for existing clients: policies, cancellations, what to bring, FAQs.</span>
-            <a class="ws-link" href="/info.html" target="_blank">View ↗</a>
-          </div>
-          <div class="ws-item">
-            <span class="ws-item-label"><strong>Request a Session</strong> — The enquiry form. When someone fills this in, it goes straight to the Enquiries tab here.</span>
-            <a class="ws-link" href="/request-session.html" target="_blank">View ↗</a>
-          </div>
-          <div class="ws-note">💡 To update any page — wording, pricing, adding a new section — let Julian know what you want changed and he'll handle it. Usually done same day.</div>
-        </div>
-      </div>
-
-      <!-- New client journey -->
-      <div class="ws-card">
-        <div class="ws-card-hd">
-          <span class="ws-card-title">New client journey</span>
-          <span class="ws-card-tag">End to end</span>
-        </div>
-        <div class="ws-card-body">
-          <p class="ws-card-desc">What happens from the moment someone fills in the form to their first session — and where you step in.</p>
-          <div class="ws-item"><span class="ws-item-label">1. Client submits request form</span><span class="ws-item-val">Automatic — no action needed</span></div>
-          <div class="ws-item"><span class="ws-item-label">2. Client gets a confirmation email</span><span class="ws-item-val">Sent automatically, BCC'd to you</span></div>
-          <div class="ws-item"><span class="ws-item-label">3. Enquiry appears here as "New"</span><span class="ws-item-val">Pulsing badge on the card</span></div>
-          <div class="ws-item"><span class="ws-item-label">4. You review &amp; update the status</span><span class="ws-item-val">Your first manual step</span></div>
-          <div class="ws-item"><span class="ws-item-label">5. Send the Halaxy intake link</span><span class="ws-item-val">Via the "Send intake" button on the card</span></div>
-          <div class="ws-item"><span class="ws-item-label">6. Client completes intake in Halaxy</span><span class="ws-item-val">Triggers appointment confirmation</span></div>
-          <div class="ws-item"><span class="ws-item-label">7. First session confirmed</span><span class="ws-item-val">Managed fully in Halaxy from here</span></div>
-          <div class="ws-note">💡 Steps 1–3 happen automatically. Your job starts at step 4 — reviewing the enquiry and deciding whether to proceed.</div>
-        </div>
-      </div>
-
-      <!-- Halaxy -->
-      <div class="ws-card">
-        <div class="ws-card-hd">
-          <span class="ws-card-title">Halaxy</span>
-          <span class="ws-card-tag">Practice management</span>
-        </div>
-        <div class="ws-card-body">
-          <p class="ws-card-desc">Halaxy is your practice management hub — the place where clients formally become clients. It handles everything after the initial enquiry: intake, appointments, notes, invoicing, and Medicare or NDIS billing. You'll use it every working day.</p>
-          <div class="ws-item"><span class="ws-item-label">Intake forms</span><span class="ws-item-val">Sent to new clients from this dashboard. They fill it in before their first session.</span></div>
-          <div class="ws-item"><span class="ws-item-label">Appointments</span><span class="ws-item-val">Schedule, confirm, and manage all sessions here. Online or in-person.</span></div>
-          <div class="ws-item"><span class="ws-item-label">Client records</span><span class="ws-item-val">Session notes, documents, contact details — all stored securely per client.</span></div>
-          <div class="ws-item"><span class="ws-item-label">Invoicing</span><span class="ws-item-val">Generate invoices per session. Halaxy handles the formatting and delivery.</span></div>
-          <div class="ws-item"><span class="ws-item-label">Medicare claiming</span><span class="ws-item-val">Clients need a Mental Health Care Plan from their GP. Rebate is processed through Halaxy.</span></div>
-          <div class="ws-item"><span class="ws-item-label">NDIS billing</span><span class="ws-item-val">Plan-managed: invoice goes to plan manager. Self-managed: invoice goes to client.</span></div>
-          <a class="ws-link" href="https://www.halaxy.com/practitioner" target="_blank" style="display:inline-block;margin-top:12px;">Open Halaxy ↗</a>
-        </div>
-      </div>
-
-      <!-- Email -->
-      <div class="ws-card">
-        <div class="ws-card-hd">
-          <span class="ws-card-title">Automated emails</span>
-          <span class="ws-card-tag">Resend</span>
-        </div>
-        <div class="ws-card-body">
-          <p class="ws-card-desc">Two emails go out to clients automatically through the website. You're BCC'd on both so you always have a copy. They're sent via Resend — an email delivery service — using your branding.</p>
-          <div class="ws-item"><span class="ws-item-label">Enquiry confirmation</span><span class="ws-item-val">Sent the moment someone submits the request form. Lets them know you'll be in touch.</span></div>
-          <div class="ws-item"><span class="ws-item-label">Intake form</span><span class="ws-item-val">Sent manually by you from the enquiry card. Includes the Halaxy intake link and funding-specific instructions.</span></div>
-          <div class="ws-item"><span class="ws-item-label">Sent from</span><span class="ws-item-val">Currently onboarding@resend.dev — pending domain setup</span></div>
-          <div class="ws-item"><span class="ws-item-label">Reply-to / admin BCC</span><span class="ws-item-val">admin@chereemcgarry.com</span></div>
-          <div class="ws-note">⚠️ Emails currently show a Resend placeholder address as the sender. Once the GoDaddy domain transfer is done, they'll send from admin@chereemcgarry.com — a quick fix Julian can do.</div>
-          <a class="ws-link" href="https://resend.com/emails" target="_blank" style="display:inline-block;margin-top:12px;">View email history ↗</a>
-        </div>
-      </div>
-
-      <!-- Making changes -->
-      <div class="ws-card">
-        <div class="ws-card-hd">
-          <span class="ws-card-title">Making changes</span>
-          <span class="ws-card-tag">How updates work</span>
-        </div>
-        <div class="ws-card-body">
-          <p class="ws-card-desc">The website doesn't have a drag-and-drop editor. It's built in code, which means changes are made by Julian and pushed live — usually the same day. Here's what requires a code change vs. what you can do yourself.</p>
-          <div class="ws-item"><span class="ws-item-label">Updating page text or pricing</span><span class="ws-item-val">Needs Julian → usually same day</span></div>
-          <div class="ws-item"><span class="ws-item-label">Adding a new page or section</span><span class="ws-item-val">Needs Julian → 1–2 days</span></div>
-          <div class="ws-item"><span class="ws-item-label">Changing your Halaxy intake URL</span><span class="ws-item-val">You do this — paste the new link in the enquiry card</span></div>
-          <div class="ws-item"><span class="ws-item-label">Managing enquiries &amp; tasks</span><span class="ws-item-val">You do this — right here in this dashboard</span></div>
-          <div class="ws-item"><span class="ws-item-label">Updating client records / notes</span><span class="ws-item-val">You do this — in Halaxy</span></div>
-          <div class="ws-note">💡 For anything website-related, message Julian with what you want changed and where. A screenshot or quote of the current text helps speed things up.</div>
-        </div>
-      </div>
-
-      <!-- How it all connects -->
-      <div class="ws-card">
-        <div class="ws-card-hd">
-          <span class="ws-card-title">How it all connects</span>
-          <span class="ws-card-tag">System overview</span>
-        </div>
-        <div class="ws-card-body">
-          <p class="ws-card-desc">Five services work together to run your website and practice. Here's what each one does and who looks after it.</p>
-          <div class="ws-item"><span class="ws-item-label">chereemcgarry.com</span><span class="ws-item-val">Your website — what clients see. Managed by Julian.</span></div>
-          <div class="ws-item"><span class="ws-item-label">Vercel</span><span class="ws-item-val">Hosts the website. Every code change goes live here automatically. Managed by Julian.</span></div>
-          <div class="ws-item"><span class="ws-item-label">GitHub</span><span class="ws-item-val">Stores all the website code. Julian pushes changes here and they deploy to Vercel. <a class="ws-link" href="https://github.com/Julianmac94/cheree-mcgarry" target="_blank">View repo ↗</a></span></div>
-          <div class="ws-item"><span class="ws-item-label">Supabase</span><span class="ws-item-val">The database behind this dashboard. Stores enquiries, tasks, and audit logs. You don't need to touch it.</span></div>
-          <div class="ws-item"><span class="ws-item-label">Resend</span><span class="ws-item-val">Sends the automated client emails. <a class="ws-link" href="https://resend.com/emails" target="_blank">Email history ↗</a></span></div>
-          <div class="ws-item"><span class="ws-item-label">Halaxy</span><span class="ws-item-val">Your practice management system — intake, appointments, invoicing, Medicare/NDIS. <a class="ws-link" href="https://www.halaxy.com/practitioner" target="_blank">Open ↗</a></span></div>
-          <div class="ws-item"><span class="ws-item-label">GoDaddy</span><span class="ws-item-val">Holds your domain name (chereemcgarry.com). DNS transfer in progress.</span></div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- Right: Tasks + Site reference -->
-  <aside class="right-col">
-
-    <!-- Tasks -->
-    <div class="panel">
-      <div class="panel-hd">
-        <span class="panel-title">Tasks</span>
-      </div>
-      <div class="panel-body">
-        <div class="task-add">
-          <input class="task-input" id="task-input" type="text"
-                 placeholder="Add a task…"
-                 onkeydown="if(event.key==='Enter')addTask()">
-          <button class="task-add-btn" onclick="addTask()">+</button>
-        </div>
-        <ul class="task-list" id="task-list">
-          ${tasks.length
-            ? tasks.map(taskItem).join('')
-            : '<li class="task-empty">No tasks yet</li>'
-          }
-        </ul>
-      </div>
-    </div>
-
-    <!-- Setup checklist -->
-    <div class="panel" id="setup-panel">
-      <div class="panel-hd" style="cursor:pointer" onclick="toggleSetup()">
-        <span class="panel-title">Setup checklist</span>
-        <button class="setup-toggle-btn" id="setup-toggle-btn" aria-label="Toggle">▾</button>
-      </div>
-      <div class="panel-body" id="setup-body">
-        ${[
-          'Get remaining Halaxy form URLs — couple, NDIS, child/adolescent',
-          'GoDaddy DNS transfer complete — chereemcgarry.com live',
-          'Add DKIM records to Resend after DNS transfer',
-          'Update email sender: onboarding@resend.dev → admin@chereemcgarry.com',
-          'Build: 48-hr appointment reminder email',
-          'Build: post-session follow-up email',
-          'Build: invoice cover email',
-          'Rebuild client info page (info.html)',
-        ].map((item, i) => `
-        <label class="setup-item" data-key="setup-${i}">
-          <input type="checkbox" onchange="saveSetup(${i}, this.checked)">
-          <span>${item}</span>
-        </label>`).join('')}
-      </div>
-    </div>
-
-    <!-- Site reference -->
-    <div class="panel">
-      <div class="panel-hd">
-        <span class="panel-title">Site reference</span>
-      </div>
-      <div class="panel-body">
-        <div class="ref-section">
-          <div class="ref-label">Pages</div>
-          ${[
-            ['Home', '/'],
-            ['Sessions', '/sessions.html'],
-            ['About', '/about.html'],
-            ['Client Info', '/info.html'],
-          ].map(([n,h]) => `<div class="ref-row">${n} <a class="ref-link" href="${h}" target="_blank">↗</a></div>`).join('')}
-        </div>
-        <div class="ref-section">
-          <div class="ref-label">Quick links</div>
-          <div class="ref-row">Halaxy <a class="ref-link" href="https://www.halaxy.com/practitioner" target="_blank">Open ↗</a></div>
-          <div class="ref-row">Resend <a class="ref-link" href="https://resend.com/emails" target="_blank">Open ↗</a></div>
-          <div class="ref-row">Supabase <a class="ref-link" href="https://supabase.com/dashboard" target="_blank">Open ↗</a></div>
-          <div class="ref-row">Vercel <a class="ref-link" href="https://vercel.com/dashboard" target="_blank">Open ↗</a></div>
-          <div class="ref-row">GitHub <a class="ref-link" href="https://github.com/Julianmac94/cheree-mcgarry" target="_blank">Open ↗</a></div>
-        </div>
-        <div class="ref-section">
-          <div class="ref-label">Email</div>
-          <div class="ref-row">Contact <span>reachout@chereemcgarry.com</span></div>
-          <div class="ref-row">Provider <span>Resend</span></div>
-          <div class="ref-row">Domain <span>Pending GoDaddy transfer</span></div>
-        </div>
-        <div class="ref-section">
-          <div class="ref-label">Deploy</div>
-          <div class="ref-row">Host <a class="ref-link" href="https://vercel.com" target="_blank">Vercel ↗</a></div>
-          <div class="ref-row">Repo <a class="ref-link" href="https://github.com/Julianmac94/cheree-mcgarry" target="_blank">GitHub ↗</a></div>
-        </div>
-      </div>
-    </div>
-
-  </aside>
+<!-- Hidden compat elements for old JS functions that look up these IDs -->
+<div style="display:none">
+  <div id="dash-hello-greet"></div>
+  <div id="dash-hello-items"></div>
+  <span id="halaxy-status-dot" class="halaxy-dot"></span>
+  <span id="halaxy-chip-label"></span>
+  <span id="halaxy-tooltip"></span>
+  <span id="gcal-status-dot" class="halaxy-dot"></span>
+  <span id="gcal-chip-label"></span>
+  <span id="gcal-tooltip"></span>
+  <span id="halaxy-sync-btn"></span>
+  <span id="intake-count"></span>
+  <span id="billing-count"></span>
+  <span id="clients-count"></span>
+  <div id="intake-panel-body"></div>
+  <div id="appointments-panel-body"></div>
+  <div id="clients-panel-body"></div>
 </div>
 
 <!-- Add client modal -->
@@ -2299,20 +2141,15 @@ body {
 <script>window.ADMIN_USER = '${currentUser?.name || ''}';</script>
 <script src="/js/admin-ui.js?v=${Date.now()}"></script>
 <script>
-function switchTab(tab, btn) {
-  switchDashTab(tab, btn);
-}
+function switchTab(tab, btn) { /* legacy compat — no-op */ }
 
 // Boot
 (function() {
   var params = new URLSearchParams(location.search);
-  var gcal   = params.get('gcal');
+  var gcal = params.get('gcal');
   if (gcal === 'connected')  setTimeout(function(){ toast('Google Calendar connected!'); }, 300);
   if (gcal === 'error')      setTimeout(function(){ toast('Google Calendar connection failed — try again.', 'err'); }, 300);
   if (gcal === 'no_refresh') setTimeout(function(){ toast('No refresh token returned — visit /api/google-auth again to reconnect.', 'err'); }, 300);
-  // Default tab: pipeline — also kick off the data load
-  var defaultBtn = document.querySelector('.dash-tab');
-  if (defaultBtn) switchDashTab('pipeline', defaultBtn);
   loadPipeline();
 })();
 </script>
