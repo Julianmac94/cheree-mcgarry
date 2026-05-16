@@ -592,10 +592,10 @@ document.addEventListener('keydown', function(e) {
 });
 
 function openDetailPanel(type, id) {
-  var rdp  = document.getElementById('rdp');
-  var body = document.getElementById('rdp-body');
-  var title = document.getElementById('rdp-title');
-  if (!rdp || !body) return;
+  var overlay = document.getElementById('modal-overlay');
+  var body    = document.getElementById('rdp-body');
+  var title   = document.getElementById('rdp-title');
+  if (!overlay || !body) return;
   var html = '';
   var titleText = 'Detail';
   if (type === 'session') {
@@ -614,16 +614,17 @@ function openDetailPanel(type, id) {
   }
   if (title) title.textContent = titleText;
   body.innerHTML = html || '<div class="q-empty">Not found</div>';
-  rdp.classList.add('is-open');
-  // Mark active item in list
+  // Scroll modal body to top
+  body.scrollTop = 0;
+  overlay.classList.add('is-open');
   document.querySelectorAll('.q-item').forEach(function(el) {
     el.classList.toggle('is-active', el.dataset.id === String(id) && el.dataset.type === type);
   });
 }
 
 function closeDetailPanel() {
-  var rdp = document.getElementById('rdp');
-  if (rdp) rdp.classList.remove('is-open');
+  var overlay = document.getElementById('modal-overlay');
+  if (overlay) overlay.classList.remove('is-open');
   document.querySelectorAll('.q-item.is-active').forEach(function(el) { el.classList.remove('is-active'); });
 }
 
@@ -2157,102 +2158,137 @@ function renderQueueView() {
   html += _qMetric(upcomingSessions.length, 'Upcoming', 'var(--s-upcoming)', false);
   html += '</div>';
 
-  // ── TODAY ────────────────────────────────────────────────
-  html += '<div class="q-section">';
-  html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--teal)"></span><span class="q-section-title">Today</span>';
-  if (todaySessions.length) html += '<span class="q-section-count">' + todaySessions.length + '</span>';
-  html += '</div>';
-  if (todaySessions.length) {
-    html += _qItemList(todaySessions, _qSessionItem, 'today', 'today');
-  } else {
-    html += '<div class="q-items"><div class="q-empty">No sessions scheduled today</div></div>';
-  }
-  html += '</div>';
+  // ── TODAY (always visible, always open by default) ───────
+  html += _qFolder('today', 'Today', 'var(--teal)', todaySessions, _qSessionItem, 'today', {
+    defaultOpen: 'always',
+    emptyMsg: 'No sessions today — clear schedule ✓'
+  });
 
-  // ── URGENT ───────────────────────────────────────────────
-  if (urgentRecord.length || urgentOverdue.length) {
-    html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-urgent)"></span><span class="q-section-title">Urgent</span><span class="q-section-count urgent">' + (urgentRecord.length + urgentOverdue.length) + '</span></div>';
-    if (urgentRecord.length) {
-      html += '<div class="q-sub-group"><div class="q-sub-title">Needs recording (' + urgentRecord.length + ')</div>';
-      html += _qItemList(urgentRecord, _qSessionItem, 'urgent', 'urgent-record');
-      html += '</div>';
-    }
-    if (urgentOverdue.length) {
-      html += '<div class="q-sub-group"><div class="q-sub-title">Overdue invoice (' + urgentOverdue.length + ')</div>';
-      html += _qItemList(urgentOverdue, _qSessionItem, 'urgent', 'urgent-overdue');
-      html += '</div>';
-    }
-    html += '</div>';
+  // ── URGENT (with sub-groups for needs-recording / overdue) ─
+  var urgentAll = urgentRecord.concat(urgentOverdue);
+  if (urgentAll.length) {
+    var urgentSubs = [
+      { key: 'record',  label: 'Needs recording (' + urgentRecord.length + ')',  items: urgentRecord,  fn: _qSessionItem, bar: 'urgent' },
+      { key: 'overdue', label: 'Overdue invoices (' + urgentOverdue.length + ')', items: urgentOverdue, fn: _qSessionItem, bar: 'urgent' }
+    ].filter(function(sg) { return sg.items.length > 0; });
+    html += _qFolder('urgent', 'Urgent', 'var(--s-urgent)', urgentAll, _qSessionItem, 'urgent', {
+      urgent: true, defaultOpen: true,
+      subGroups: urgentSubs
+    });
   }
 
   // ── POST SESSION ─────────────────────────────────────────
   if (postSession.length) {
-    html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-post)"></span><span class="q-section-title">Post Session</span><span class="q-section-count">' + postSession.length + '</span></div>';
-    html += _qItemList(postSession, _qSessionItem, 'post', 'post-session');
-    html += '</div>';
+    html += _qFolder('post', 'Post Session', 'var(--s-post)', postSession, _qSessionItem, 'post', {
+      defaultOpen: true
+    });
   }
 
   // ── NEW LEADS ────────────────────────────────────────────
   if (newLeads.length) {
-    html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-lead)"></span><span class="q-section-title">New Leads</span><span class="q-section-count urgent">' + newLeads.length + '</span></div>';
-    html += _qItemList(newLeads, _qEnquiryItem, 'lead', 'new-leads');
-    html += '</div>';
+    html += _qFolder('new-leads', 'New Leads', 'var(--s-lead)', newLeads, _qEnquiryItem, 'lead', {
+      urgent: true, defaultOpen: true
+    });
   }
 
-  // ── TRIAGE ───────────────────────────────────────────────
+  // ── IN PROGRESS (triage) ─────────────────────────────────
   if (triage.length) {
-    html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-triage)"></span><span class="q-section-title">Triage</span><span class="q-section-count">' + triage.length + '</span></div>';
-    html += _qItemList(triage, _qEnquiryItem, 'triage', 'triage');
-    html += '</div>';
+    html += _qFolder('triage', 'In Progress', 'var(--s-triage)', triage, _qEnquiryItem, 'triage', {
+      defaultOpen: true
+    });
   }
 
-  // ── UPCOMING ─────────────────────────────────────────────
+  // ── UPCOMING (collapsed by default) ──────────────────────
   if (upcomingSessions.length) {
-    html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-upcoming)"></span><span class="q-section-title">Upcoming Sessions</span><span class="q-section-count">' + upcomingSessions.length + '</span></div>';
-    html += _qItemList(upcomingSessions, _qSessionItem, 'upcoming', 'upcoming');
-    html += '</div>';
+    html += _qFolder('upcoming', 'Upcoming Sessions', 'var(--s-upcoming)', upcomingSessions, _qSessionItem, 'upcoming');
   }
 
-  // ── FINANCE ──────────────────────────────────────────────
+  // ── FINANCE (awaiting payment / invoiced) ────────────────
   if (finance.length) {
-    html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-finance)"></span><span class="q-section-title">Finance</span><span class="q-section-count">' + finance.length + '</span></div>';
-    html += _qItemList(finance, _qSessionItem, 'finance', 'finance');
-    html += '</div>';
+    html += _qFolder('finance', 'Awaiting Payment', 'var(--s-finance)', finance, _qSessionItem, 'finance');
   }
 
   // ── PERSONAL / UNLINKED ──────────────────────────────────
   if (unlinked.length) {
-    html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-triage);opacity:0.5"></span><span class="q-section-title">Personal / Unlinked</span><span class="q-section-count">' + unlinked.length + '</span></div>';
-    html += _qItemList(unlinked, _qSessionItem, 'unlinked', 'unlinked');
-    html += '</div>';
+    html += _qFolder('unlinked', 'Personal / Unlinked', 'var(--s-triage)', unlinked, _qSessionItem, 'unlinked');
   }
 
-  // ── COMPLETED (collapsed header, expand shows items) ─────
+  // ── COMPLETED ────────────────────────────────────────────
   if (completed.length) {
-    var isExpanded = window._completedExpanded;
-    html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-complete)"></span><span class="q-section-title">Completed</span><span class="q-section-count">' + completed.length + '</span>';
-    html += '<button class="q-section-toggle" onclick="window._completedExpanded=!window._completedExpanded;renderQueueView()">' + (isExpanded ? 'Collapse' : 'Show') + '</button>';
-    html += '</div>';
-    if (isExpanded) {
-      html += _qItemList(completed, _qSessionItem, 'complete', 'completed', 8);
-    }
-    html += '</div>';
-  }
-
-  if (!todaySessions.length && !urgentRecord.length && !urgentOverdue.length && !postSession.length && !newLeads.length && !triage.length && !upcomingSessions.length && !finance.length) {
-    html += '<div class="q-items" style="margin-top:0"><div class="q-empty">All clear — nothing needs attention right now ✓</div></div>';
+    html += _qFolder('completed', 'Completed', 'var(--s-complete)', completed, _qSessionItem, 'complete', {
+      maxVisible: 8
+    });
   }
 
   html += '</div>'; // .queue-view
   content.innerHTML = html;
+}
+
+/* ── Folder open/close state (undefined = use default) ── */
+if (!window._folderOpen) window._folderOpen = {};
+
+/**
+ * Render a collapsible folder section for the queue.
+ * @param {string} key         - unique key for state tracking
+ * @param {string} title       - folder label
+ * @param {string} color       - CSS color for the dot
+ * @param {Array}  items       - items array (used for count badge)
+ * @param {Function} renderFn  - item renderer
+ * @param {string} barClass    - legacy bar class (ignored visually, kept for API compat)
+ * @param {Object} opts        - { urgent, defaultOpen, maxVisible, subGroups, emptyMsg }
+ *   defaultOpen: 'always' | true | false
+ *     'always' = open even with no items (Today)
+ *     true     = open only if items.length > 0
+ *     false    = collapsed by default
+ */
+function _qFolder(key, title, color, items, renderFn, barClass, opts) {
+  opts = opts || {};
+  var hasUserState = window._folderOpen.hasOwnProperty(key);
+  var isOpen;
+  if (hasUserState) {
+    isOpen = window._folderOpen[key];
+  } else {
+    var def = opts.defaultOpen;
+    if (def === 'always') isOpen = true;
+    else if (def === true) isOpen = items.length > 0;
+    else isOpen = false;
+  }
+
+  var count = items.length;
+  var html = '<div class="q-folder">';
+
+  // Clickable tab header
+  html += '<div class="q-folder-tab' + (isOpen ? ' is-open' : '') + '"'
+    + ' onclick="window._folderOpen[\'' + key + '\']=' + (!isOpen) + ';renderQueueView()">';
+  html += '<span class="q-folder-chevron">›</span>';
+  html += '<span class="q-folder-dot" style="background:' + color + '"></span>';
+  html += '<span class="q-folder-label">' + escHtml(title) + '</span>';
+  html += '<span class="q-folder-count' + (opts.urgent ? ' urgent' : '') + '">' + count + '</span>';
+  html += '</div>';
+
+  // Expandable body
+  if (isOpen) {
+    html += '<div class="q-folder-body">';
+    var subs = opts.subGroups;
+    if (subs && subs.length) {
+      subs.forEach(function(sg) {
+        if (!sg.items.length) return;
+        html += '<div class="q-sub-title">' + escHtml(sg.label) + '</div>';
+        html += _qItemList(sg.items, sg.fn || renderFn, sg.bar || barClass, key + '-' + sg.key, opts.maxVisible || 5);
+      });
+      if (!items.length) html += '<div class="q-empty">' + (opts.emptyMsg || 'Nothing here') + '</div>';
+    } else {
+      if (items.length) {
+        html += _qItemList(items, renderFn, barClass, key, opts.maxVisible || 5);
+      } else {
+        html += '<div class="q-empty">' + (opts.emptyMsg || 'Nothing here right now') + '</div>';
+      }
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
 }
 
 /* Render a q-items list capped at maxVisible with a show-more button.
@@ -2318,7 +2354,6 @@ function _qSessionItem(sess, barClass) {
     'cancelled':       'awaiting',
   }[sess.status] || 'awaiting';
   return '<div class="q-item" data-type="session" data-id="' + escHtml(sess.id) + '" onclick="openDetailPanel(\'session\',\'' + escHtml(sess.id) + '\')">'
-    + '<div class="q-item-bar ' + barClass + '"></div>'
     + '<div class="q-item-main">'
     + '<div class="q-item-type' + (isUnlinked ? ' is-unlinked' : '') + '">' + typeLabel + '</div>'
     + '<div class="q-item-name">' + escHtml(sess.name || 'Unnamed appointment') + '</div>'
@@ -2344,7 +2379,6 @@ function _qEnquiryItem(enq, barClass) {
   var hintMap = { new: 'Review intake form and make contact', contacted: 'Awaiting response from client', in_halaxy: 'Client added to Halaxy — awaiting booking' };
   var hintText = hintMap[enq.status] || (barClass === 'lead' ? 'Review intake form and make contact' : '');
   return '<div class="q-item" data-type="enquiry" data-id="' + escHtml(enq.id) + '" onclick="openDetailPanel(\'enquiry\',\'' + escHtml(enq.id) + '\')">'
-    + '<div class="q-item-bar ' + barClass + '"></div>'
     + '<div class="q-item-main">'
     + '<div class="q-item-type">New Enquiry</div>'
     + '<div class="q-item-name">' + escHtml(name) + '</div>'
@@ -2447,39 +2481,79 @@ function renderClientsView() {
   recentClients.sort(function(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); });
   otherClients.sort(function(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); });
 
+  // Deterministic avatar gradient based on first initial
+  var _avatarGradients = [
+    'linear-gradient(145deg,#2A5850,#4A7A70)',
+    'linear-gradient(145deg,#3D6FA8,#5888C0)',
+    'linear-gradient(145deg,#7A7090,#9A90B0)',
+    'linear-gradient(145deg,#BE6E44,#D08A5C)',
+    'linear-gradient(145deg,#4A8060,#6AA070)',
+    'linear-gradient(145deg,#8A5058,#AA7078)',
+  ];
+  function _avatarGrad(name) {
+    var code = (name || '?').toUpperCase().charCodeAt(0) || 65;
+    return _avatarGradients[code % _avatarGradients.length];
+  }
+
+  // ── Player card renderer (active clients) ───────────────
+  function renderClientCard(c) {
+    var ls = lastSeen(c);
+    var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    var funderLabel = FUNDER_LABELS[c.funder] || c.funder || '';
+    var funderClass = { medicare: 'medicare', ndis: 'ndis', 'WorkCover': 'workcover', private: 'private' }[c.funder] || 'default';
+    var lastDate = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : 'No activity';
+    var clickAttr = c.id ? ' onclick="openDetailPanel(\'client\',\'' + escHtml(c.id) + '\')"' : '';
+
+    var statsHtml;
+    if (fromHalaxy) {
+      var invCount = c._invoiceCount || 0;
+      var owing = c._totalOwing || 0;
+      statsHtml = '<div class="cl-card-stat"><strong>' + invCount + '</strong>' + (invCount !== 1 ? 'invoices' : 'invoice') + '</div>';
+      if (owing > 0.005) {
+        statsHtml += '<div class="cl-card-stat"><span class="cl-card-owing-amt">$' + Math.round(owing) + '</span>owing</div>';
+      } else {
+        statsHtml += '<div class="cl-card-stat"><strong style="color:var(--s-complete)">✓</strong>Paid up</div>';
+      }
+    } else {
+      var sessions = (c.sessions || []);
+      var upcomingCount = sessions.filter(function(s) { return s.status === 'upcoming'; }).length;
+      statsHtml = '<div class="cl-card-stat"><strong>' + sessions.length + '</strong>sessions</div>';
+      if (upcomingCount) {
+        statsHtml += '<div class="cl-card-stat"><strong style="color:var(--s-upcoming)">' + upcomingCount + '</strong>upcoming</div>';
+      }
+    }
+
+    return '<div class="cl-card"' + clickAttr + '>'
+      + (funderLabel ? '<div class="cl-card-funder"><span class="cl-funder-pill ' + funderClass + '">' + escHtml(funderLabel) + '</span></div>' : '')
+      + '<div class="cl-card-avatar" style="background:' + _avatarGrad(c.display_name) + '">' + escHtml(initials) + '</div>'
+      + '<div class="cl-card-name" title="' + escHtml(c.display_name || '—') + '">' + escHtml(c.display_name || '—') + '</div>'
+      + '<div class="cl-card-since">Last seen ' + escHtml(lastDate) + '</div>'
+      + '<div class="cl-card-divider"></div>'
+      + '<div class="cl-card-stats">' + statsHtml + '</div>'
+      + '</div>';
+  }
+
+  // ── Compact list row renderer (inactive / archived) ─────
   function renderClientRow(c) {
     var ls = lastSeen(c);
     var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
     var funderLabel = FUNDER_LABELS[c.funder] || c.funder || '';
     var funderClass = { medicare: 'medicare', ndis: 'ndis', 'WorkCover': 'workcover', private: 'private' }[c.funder] || 'default';
     var lastDate = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No activity';
-    var clickAttr = c.id ? ' onclick="openDetailPanel(\'client\',\'' + escHtml(c.id) + '\')" style="cursor:pointer"' : ' style="cursor:default"';
 
-    var metaHtml;
+    var metaParts = [];
     if (fromHalaxy) {
-      metaHtml = '<span>' + (c._invoiceCount || 0) + ' invoice' + ((c._invoiceCount || 0) !== 1 ? 's' : '') + '</span>';
-      if ((c._totalOwing || 0) > 0.005) {
-        metaHtml += '<span style="color:var(--s-finance)">$' + (c._totalOwing).toFixed(2) + ' owing</span>';
-      } else if ((c._totalPaid || 0) > 0) {
-        metaHtml += '<span style="color:var(--s-complete)">Paid up</span>';
-      }
-      metaHtml += '<span style="color:var(--teal-mid);font-size:10px">Halaxy</span>';
+      metaParts.push((c._invoiceCount || 0) + ' invoices');
+      if ((c._totalOwing || 0) > 0.005) metaParts.push('$' + Math.round(c._totalOwing) + ' owing');
     } else {
-      var sessions = (c.sessions || []);
-      var upcomingCount = sessions.filter(function(s) { return s.status === 'upcoming'; }).length;
-      var totalSessions = sessions.length;
-      metaHtml = '<span>' + totalSessions + ' session' + (totalSessions !== 1 ? 's' : '') + '</span>';
-      if (upcomingCount) metaHtml += '<span>' + upcomingCount + ' upcoming</span>';
-      metaHtml += c.halaxy_id
-        ? '<span style="color:var(--teal-mid)">Halaxy ✓</span>'
-        : '<span style="color:#C09A30">No Halaxy link</span>';
+      metaParts.push((c.sessions || []).length + ' sessions');
     }
 
-    return '<div class="cl-list-item"' + clickAttr + '>'
-      + '<div class="cl-list-avatar">' + escHtml(initials) + '</div>'
+    return '<div class="cl-list-item">'
+      + '<div class="cl-list-avatar" style="background:' + _avatarGrad(c.display_name) + '">' + escHtml(initials) + '</div>'
       + '<div class="cl-list-main">'
       + '<div class="cl-list-name">' + escHtml(c.display_name || '—') + '</div>'
-      + '<div class="cl-list-meta">' + metaHtml + '</div>'
+      + '<div class="cl-list-meta"><span>' + metaParts.join(' · ') + '</span></div>'
       + '</div>'
       + '<div class="cl-list-right">'
       + (funderLabel ? '<span class="cl-funder-pill ' + funderClass + '">' + escHtml(funderLabel) + '</span>' : '')
@@ -2494,19 +2568,19 @@ function renderClientsView() {
   html += '</div>';
 
   if (fromHalaxy) {
-    html += '<div style="margin-bottom:16px;font-size:12px;color:#8A9A97;padding:9px 14px;background:rgba(42,88,80,0.05);border-radius:8px;border:1px solid rgba(42,88,80,0.1)">'
+    html += '<div style="margin-bottom:18px;font-size:12px;color:#8A9A97;padding:10px 14px;background:rgba(42,88,80,0.05);border-radius:10px;border:1px solid rgba(42,88,80,0.1)">'
       + 'Showing clients from Halaxy — no linked records in this dashboard yet. '
       + '<a href="#" onclick="openAddClient();return false" style="color:var(--teal-mid);text-decoration:none;font-weight:500">+ Link a client</a> to attach notes and sessions.</div>';
   }
 
   if (recentClients.length) {
-    html += '<span class="cl-section-label">Active — seen last 90 days (' + recentClients.length + ')</span>';
-    html += '<div class="cl-list" id="clients-panel-body">' + recentClients.map(renderClientRow).join('') + '</div>';
+    html += '<span class="cl-section-label">Active — last 90 days (' + recentClients.length + ')</span>';
+    html += '<div class="cl-card-grid" id="clients-panel-body">' + recentClients.map(renderClientCard).join('') + '</div>';
   }
 
   if (otherClients.length) {
-    html += '<span class="cl-section-label">Inactive — not seen in 90+ days (' + otherClients.length + ')</span>';
-    html += '<div class="cl-list">' + otherClients.map(renderClientRow).join('') + '</div>';
+    html += '<span class="cl-section-label" style="margin-top:20px">Inactive — 90+ days (' + otherClients.length + ')</span>';
+    html += '<div class="cl-card-grid">' + otherClients.map(renderClientCard).join('') + '</div>';
   }
 
   if (!notArchived.length && !fromHalaxy) {
@@ -2515,7 +2589,7 @@ function renderClientsView() {
 
   if (archived.length) {
     var archOpen = window._clientsArchiveOpen;
-    html += '<div style="margin-top:16px">';
+    html += '<div style="margin-top:20px">';
     html += '<button class="q-section-toggle" style="font-size:11px;color:#9AABA8;background:none;border:none;cursor:pointer;padding:4px 2px" onclick="window._clientsArchiveOpen=!window._clientsArchiveOpen;renderClientsView()">'
       + (archOpen ? '▾' : '▸') + ' Archived (' + archived.length + ')'
       + '</button>';
