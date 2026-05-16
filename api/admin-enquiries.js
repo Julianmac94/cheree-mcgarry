@@ -182,7 +182,7 @@ async function syncHalaxyConfig(db) {
     return true;
   });
 
-  console.log(`Halaxy sync: ${rawFees.length} raw fees → ${fees.length} after dedup. Sample: ${fees.slice(0,8).map(f=>f.name).join(' | ')}`);
+  console.log(`Halaxy sync: ${rawFees.length} raw fees → ${fees.length} after dedup. Sample IDs+names: ${fees.slice(0,8).map(f=>`${f.id}:${f.name}`).join(' | ')}`);
 
   const feeMap = {}; // always empty — Halaxy doesn't provide org refs in fees
 
@@ -455,7 +455,7 @@ export default async function handler(req, res) {
         const extSummary = (r.extension || []).slice(0, 3).map(e => ({
           url: e.url, valueRef: e.valueReference?.reference, valueDisplay: e.valueReference?.display,
         }));
-        return { name, amount, useContext: useContextSummary, extensions: extSummary };
+        return { id: r.id, url: r.url, name, amount, useContext: useContextSummary, extensions: extSummary };
       });
       return res.status(200).json({ count: fees.length, fees });
     } catch (err) {
