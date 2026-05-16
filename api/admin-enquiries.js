@@ -792,7 +792,7 @@ export default async function handler(req, res) {
   /* ── GET — pipeline data ── */
   if (req.method === 'GET') {
     const [
-      { data: enquiries }, { data: clients }, { data: activityRaw },
+      { data: enquiries }, clientsResult, { data: activityRaw },
       fundersCached, feesCached, feeMapCached,
     ] = await Promise.all([
       db.from('enquiries').select('*').order('created_at', { ascending: false }),
@@ -806,6 +806,27 @@ export default async function handler(req, res) {
       readCache(db, 'halaxy_fees_cache'),
       readCache(db, 'halaxy_fee_funder_map'),
     ]);
+
+    // If the full clients query failed (e.g. enquiry_id column not yet migrated),
+    // fall back to a minimal select without it so clients still render.
+    let clients = clientsResult.data;
+    if (!clients && clientsResult.error) {
+      console.warn('clients full-select failed (' + clientsResult.error.message + '), retrying without enquiry_id');
+      const fallback = await db.from('clients').select(`
+        id, display_name, funder, plan_manager, halaxy_id,
+        active, notes, created_at,
+        sessions (id, session_date, status, invoice_ref, amount, notes)
+      `).order('display_name', { ascending: true });
+      clients = fallback.data;
+      if (!clients && fallback.error) {
+        console.warn('clients fallback-select also failed (' + fallback.error.message + '), retrying without sessions');
+        const bare = await db.from('clients').select(
+          'id, display_name, funder, plan_manager, halaxy_id, active, notes, created_at'
+        ).order('display_name', { ascending: true });
+        clients = bare.data;
+        if (bare.error) console.error('clients bare-select failed:', bare.error.message);
+      }
+    }
 
     // Auto-sync config from Halaxy if cache is empty (first run)
     let cachedFunders = fundersCached?.funders || [];

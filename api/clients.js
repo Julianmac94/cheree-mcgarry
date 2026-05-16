@@ -43,8 +43,8 @@ export default async function handler(req, res) {
     const body = req.body || {};
     const { display_name, funder, plan_manager, halaxy_id, notes } = body;
 
-    if (!display_name || !funder) {
-      return res.status(400).json({ error: 'display_name and funder are required' });
+    if (!display_name) {
+      return res.status(400).json({ error: 'display_name is required' });
     }
 
     const { data, error } = await db
