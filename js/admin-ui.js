@@ -20,7 +20,7 @@ function toast(msg, type) {
   var el = document.createElement('div');
   var bg = type === 'err' ? '#BE6E44' : '#2A5850';
   el.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;max-width:340px;'
-    + 'padding:11px 18px;border-radius:9px;font-family:Raleway,sans-serif;font-size:13px;'
+    + 'padding:11px 18px;border-radius:9px;font-family:Inter,system-ui,sans-serif;font-size:13px;'
     + 'font-weight:500;color:#fff;background:' + bg + ';'
     + 'box-shadow:0 4px 20px rgba(0,0,0,0.22);opacity:1;transition:opacity 0.35s;pointer-events:none;';
   el.textContent = msg;
@@ -370,6 +370,7 @@ var _pipelineData    = null;
 var _halaxyData      = { connected: false, appointments: [], patients: [], patientMap: {}, funders: [] };
 var _calEventMap     = {};    // eventId → event object
 var _calDismissed    = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
+window._completedExpanded = false; // toggle for completed section in queue view
 // Halaxy appointments actioned (recorded or cancelled) this session — persisted in localStorage
 // so they don't bounce back into "Needs Recording" after a pipeline refresh.
 // Key format: "patientId|YYYY-MM-DD"  (same as invoicedSet / sessionedSet)
@@ -458,7 +459,137 @@ function navigateTo(view) {
   else if (view === 'clients') renderClientsView();
   else if (view === 'billing') renderBillingView();
   else if (view === 'settings') renderSettingsView();
+  else if (view === 'vendors') renderStubView('vendors', 'Vendors', 'Vendor payments and supplier management coming soon.')
+  else if (view === 'reports') renderStubView('reports', 'Reports', 'Practice reports and insights coming soon.')
 }
+
+function renderStubView(view, title, msg) {
+  var content = document.getElementById('view-content');
+  if (!content) return;
+  content.innerHTML = '<div style="padding:60px 32px;text-align:center;color:#9AABA8">'
+    + '<div style="font-size:32px;margin-bottom:14px;opacity:0.3">◈</div>'
+    + '<div style="font-size:16px;font-weight:600;color:#3A5550;margin-bottom:8px">' + title + '</div>'
+    + '<div style="font-size:13px;max-width:320px;margin:0 auto;line-height:1.6">' + msg + '</div>'
+    + '</div>';
+}
+
+/* ── Command bar ── */
+function openCmdBar() {
+  var overlay = document.getElementById('cmd-overlay');
+  var input = document.getElementById('cmd-input');
+  if (!overlay || !input) return;
+  overlay.classList.add('open');
+  input.value = '';
+  renderCmdResults();
+  setTimeout(function() { input.focus(); }, 50);
+}
+
+function closeCmdBar() {
+  var overlay = document.getElementById('cmd-overlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function renderCmdResults() {
+  var input = document.getElementById('cmd-input');
+  var results = document.getElementById('cmd-results');
+  if (!input || !results) return;
+  var q = input.value.trim().toLowerCase();
+  var html = '';
+
+  if (!q) {
+    // Default: quick navigation
+    html += '<div class="cmd-section-label">Navigate</div>';
+    var navItems = [
+      { icon: '≡', label: 'Queue', sub: 'Go to Queue', action: "navigateTo('queue');closeCmdBar()" },
+      { icon: '◎', label: 'Clients', sub: 'Go to Clients', action: "navigateTo('clients');closeCmdBar()" },
+      { icon: '$', label: 'Billing', sub: 'Go to Billing', action: "navigateTo('billing');closeCmdBar()" },
+      { icon: '⚙', label: 'Settings', sub: 'Go to Settings', action: "navigateTo('settings');closeCmdBar()" },
+    ];
+    navItems.forEach(function(item, i) {
+      html += '<div class="cmd-item' + (i === 0 ? ' selected' : '') + '" onclick="' + item.action + '">'
+        + '<span class="cmd-item-icon">' + item.icon + '</span>'
+        + '<div class="cmd-item-main"><div class="cmd-item-label">' + item.label + '</div>'
+        + '<div class="cmd-item-sub">' + item.sub + '</div></div>'
+        + '</div>';
+    });
+    results.innerHTML = html;
+    return;
+  }
+
+  var matches = [];
+
+  // Search clients
+  var clients = (_pipelineData && _pipelineData.clients) || [];
+  clients.forEach(function(c) {
+    var name = (c.display_name || '').toLowerCase();
+    if (name.includes(q)) {
+      matches.push({ icon: '◎', label: c.display_name || '—', sub: 'Client' + (c.funder ? ' · ' + (FUNDER_LABELS[c.funder] || c.funder) : ''), action: "navigateTo('clients');closeCmdBar()" });
+    }
+  });
+
+  // Search enquiries
+  var enquiries = (_pipelineData && _pipelineData.enquiries) || [];
+  enquiries.forEach(function(e) {
+    var name = ([e.first_name, e.last_name].filter(Boolean).join(' ')).toLowerCase();
+    if (name.includes(q)) {
+      matches.push({ icon: '→', label: [e.first_name, e.last_name].filter(Boolean).join(' ') || '—', sub: 'Lead · ' + (e.status || 'new'), action: "openDetailPanel('enquiry','" + e.id + "');closeCmdBar()" });
+    }
+  });
+
+  // Search sessions
+  var unified = _buildUnifiedSessions();
+  var allSessions = unified.upcoming.concat(unified.past);
+  allSessions.forEach(function(s) {
+    var name = (s.name || '').toLowerCase();
+    if (name.includes(q)) {
+      matches.push({ icon: '◷', label: s.name || '—', sub: (s.dateLabel || '') + (s.timeStr ? ' · ' + s.timeStr : '') + ' · ' + s.status, action: "openDetailPanel('session','" + s.id + "');closeCmdBar()" });
+    }
+  });
+
+  if (matches.length) {
+    html += '<div class="cmd-section-label">Results</div>';
+    matches.slice(0, 8).forEach(function(m, i) {
+      html += '<div class="cmd-item' + (i === 0 ? ' selected' : '') + '" onclick="' + m.action + '">'
+        + '<span class="cmd-item-icon">' + m.icon + '</span>'
+        + '<div class="cmd-item-main"><div class="cmd-item-label">' + escHtml(m.label) + '</div>'
+        + '<div class="cmd-item-sub">' + escHtml(m.sub) + '</div></div>'
+        + '</div>';
+    });
+  } else {
+    html = '<div class="cmd-empty">No results for "' + escHtml(q) + '"</div>';
+  }
+
+  results.innerHTML = html;
+}
+
+function cmdKeyNav(e) {
+  if (e.key === 'Escape') { closeCmdBar(); return; }
+  var items = document.querySelectorAll('#cmd-results .cmd-item');
+  if (!items.length) return;
+  var selected = document.querySelector('#cmd-results .cmd-item.selected');
+  var idx = Array.from(items).indexOf(selected);
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (selected) selected.classList.remove('selected');
+    items[Math.min(idx + 1, items.length - 1)].classList.add('selected');
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (selected) selected.classList.remove('selected');
+    items[Math.max(idx - 1, 0)].classList.add('selected');
+  } else if (e.key === 'Enter') {
+    if (selected) selected.click();
+  }
+}
+
+// Global keyboard shortcut: Cmd/Ctrl + K
+document.addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    var overlay = document.getElementById('cmd-overlay');
+    if (overlay && overlay.classList.contains('open')) { closeCmdBar(); }
+    else { openCmdBar(); }
+  }
+});
 
 function openDetailPanel(type, id) {
   var rdp  = document.getElementById('rdp');
@@ -618,18 +749,7 @@ function updateHalaxyDot() {
 }
 
 function updateSidebarBadge() {
-  // Count items that need attention
-  var enquiries = (_pipelineData && _pipelineData.enquiries) || [];
-  var newLeads = enquiries.filter(function(e) {
-    return !e.client_id && (e.status === 'new' || !e.status);
-  }).length;
-  var unified = _buildUnifiedSessions();
-  var needsAttn = unified.past.filter(function(s) {
-    return s.status === 'pending-invoice' || s.status === 'needs-recording';
-  }).length;
-  var total = newLeads + needsAttn;
-  var badge = document.getElementById('sib-queue');
-  if (badge) badge.textContent = total > 0 ? String(total) : '';
+  // Badge is now updated inside renderQueueView() — this is a no-op stub
 }
 
 function renderPipeline() {
@@ -1938,151 +2058,224 @@ function renderQueueView() {
   var todayStr = now.toISOString().slice(0, 10);
   var enquiries = (_pipelineData && _pipelineData.enquiries) || [];
   var unified = _buildUnifiedSessions();
+  var allClients = (_pipelineData.clients || []);
 
-  // Today: sessions starting today
+  // ── Section buckets ──────────────────────────────────────
+  // TODAY — any session (past or upcoming) starting today
   var todaySessions = unified.upcoming.filter(function(s) { return s.dateStr === todayStr; })
     .concat(unified.past.filter(function(s) { return s.dateStr === todayStr; }));
 
-  // Needs attention sub-groups (named clients only)
-  var needsInvoice = unified.past.filter(function(s) {
-    return s.dateStr !== todayStr && s.status === 'pending-invoice'
-      && s.name && s.name !== 'Halaxy appointment';
-  });
-  var needsRecord = unified.past.filter(function(s) {
+  // URGENT — needs-recording (any past) + overdue invoices (>14 days)
+  var cutoff14 = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  var urgentRecord = unified.past.filter(function(s) {
     return s.dateStr !== todayStr && s.status === 'needs-recording'
       && s.name && s.name !== 'Halaxy appointment';
   });
-  // Invoiced but unpaid — invoice exists in Halaxy, still needs payment processing
-  var awaitingPayment = unified.past.filter(function(s) {
+  var urgentOverdue = unified.past.filter(function(s) {
     return s.dateStr !== todayStr && s.status === 'invoiced'
+      && s.name && s.name !== 'Halaxy appointment'
+      && new Date(s.dateStr) < cutoff14;
+  });
+
+  // POST SESSION — sessions needing invoice (no invoice yet), recent (<= 14 days)
+  var postSession = unified.past.filter(function(s) {
+    return s.dateStr !== todayStr && s.status === 'pending-invoice'
       && s.name && s.name !== 'Halaxy appointment';
   });
-  var needsAttn = needsInvoice.concat(needsRecord).concat(awaitingPayment);
 
-  // Personal/unlinked: past sessions with no resolved client (show separately with flag)
-  var unlinkedPast = unified.past.filter(function(s) {
-    return s.dateStr !== todayStr
-      && (s.status === 'pending-invoice' || s.status === 'needs-recording')
-      && (!s.name || s.name === 'Halaxy appointment');
-  });
-
-  // New leads: enquiries not converted, status new or empty
+  // NEW LEADS — enquiries needing first contact
   var newLeads = enquiries.filter(function(e) {
     return !e.client_id && (e.status === 'new' || !e.status);
   });
 
-  // Awaiting: enquiries in progress (contacted, in_halaxy, etc.)
-  var awaiting = enquiries.filter(function(e) {
-    return !e.client_id && e.status && e.status !== 'new' && e.status !== 'closed' && e.status !== 'converted';
+  // TRIAGE — enquiries in progress
+  var triage = enquiries.filter(function(e) {
+    return !e.client_id && e.status && e.status !== 'new'
+      && e.status !== 'closed' && e.status !== 'converted';
   });
 
-  // Upcoming (next 14 days, not today)
-  var upcoming = unified.upcoming.filter(function(s) { return s.dateStr !== todayStr; });
+  // UPCOMING — future sessions (next 14 days, not today)
+  var upcomingSessions = unified.upcoming.filter(function(s) { return s.dateStr !== todayStr; });
 
-  // Home header — greeting + summary
+  // FINANCE — invoiced sessions ≤ 14 days (not yet overdue), named clients
+  var finance = unified.past.filter(function(s) {
+    return s.dateStr !== todayStr && s.status === 'invoiced'
+      && s.name && s.name !== 'Halaxy appointment'
+      && new Date(s.dateStr) >= cutoff14;
+  });
+
+  // PERSONAL / UNLINKED — no resolved client
+  var unlinked = unified.past.filter(function(s) {
+    return s.dateStr !== todayStr
+      && (s.status === 'pending-invoice' || s.status === 'needs-recording' || s.status === 'invoiced')
+      && (!s.name || s.name === 'Halaxy appointment');
+  });
+
+  // COMPLETED — paid sessions (collapsed by default)
+  var completed = unified.past.filter(function(s) {
+    return s.status === 'paid';
+  });
+
+  // Total urgent count for topbar/badge
+  var urgentTotal = todaySessions.length + urgentRecord.length + urgentOverdue.length;
+  var actionTotal = urgentTotal + postSession.length + newLeads.length;
+
+  // ── Update topbar metrics ──
+  _updateTopbarMetrics(actionTotal, urgentTotal, postSession.length, newLeads.length);
+
+  // ── Update sidebar badge ──
+  var badge = document.getElementById('sib-queue');
+  if (badge) {
+    if (actionTotal > 0) { badge.textContent = actionTotal; badge.classList.add('visible'); }
+    else { badge.classList.remove('visible'); }
+  }
+
+  // ── Home header ──────────────────────────────────────────
   var hour = now.getHours();
   var greeting = hour < 12 ? 'Good morning' : (hour < 17 ? 'Good afternoon' : 'Good evening');
-  var allClients = (_pipelineData.clients || []);
-  var pendingInvoiceCount = unified.past.filter(function(s) { return s.status === 'pending-invoice' && s.name && s.name !== 'Halaxy appointment'; }).length;
   var thisWeekMs = now.getTime() + 7 * 24 * 60 * 60 * 1000;
-  var upcomingWeek = unified.upcoming.filter(function(s) { return s.startMs <= thisWeekMs; });
+  var weekSessions = unified.upcoming.filter(function(s) { return s.startMs <= thisWeekMs; });
   var summaryParts = [];
-  if (allClients.length) summaryParts.push(allClients.length + ' active client' + (allClients.length !== 1 ? 's' : ''));
-  if (upcomingWeek.length) summaryParts.push(upcomingWeek.length + ' session' + (upcomingWeek.length !== 1 ? 's' : '') + ' this week');
+  if (allClients.length) summaryParts.push(allClients.length + ' client' + (allClients.length !== 1 ? 's' : ''));
+  if (weekSessions.length) summaryParts.push(weekSessions.length + ' session' + (weekSessions.length !== 1 ? 's' : '') + ' this week');
 
   var html = '<div class="queue-view">';
   html += '<div class="qhome-hd">';
   html += '<div class="qhome-greeting">' + greeting + ', <em>Cheree</em></div>';
-  if (summaryParts.length || pendingInvoiceCount) {
+  if (summaryParts.length) {
     html += '<div class="qhome-summary">' + summaryParts.join(' · ');
-    if (pendingInvoiceCount) html += (summaryParts.length ? ' · ' : '') + '<span class="qhome-alert">' + pendingInvoiceCount + ' invoice' + (pendingInvoiceCount !== 1 ? 's' : '') + ' need billing</span>';
+    if (urgentTotal) html += ' · <span class="qhome-alert">' + urgentTotal + ' urgent</span>';
     html += '</div>';
   }
   html += '</div>';
 
-  // Stats
-  html += '<div class="q-stats">';
-  html += '<div class="q-stat"><div class="q-stat-val' + (todaySessions.length ? ' urgent' : '') + '">' + todaySessions.length + '</div><div class="q-stat-label">Today</div></div>';
-  html += '<div class="q-stat"><div class="q-stat-val' + (needsAttn.length ? ' urgent' : '') + '">' + needsAttn.length + '</div><div class="q-stat-label">Needs Billing</div></div>';
-  html += '<div class="q-stat"><div class="q-stat-val' + (newLeads.length ? ' urgent' : '') + '">' + newLeads.length + '</div><div class="q-stat-label">New Leads</div></div>';
-  html += '<div class="q-stat"><div class="q-stat-val">' + upcoming.length + '</div><div class="q-stat-label">Upcoming</div></div>';
+  // ── Compact metrics row ──
+  html += '<div class="q-metrics">';
+  html += _qMetric(urgentTotal, 'Urgent', 'var(--s-urgent)', urgentTotal > 0);
+  html += _qMetric(postSession.length, 'Post-session', 'var(--s-post)', postSession.length > 0);
+  html += _qMetric(newLeads.length, 'New leads', 'var(--s-lead)', newLeads.length > 0);
+  html += _qMetric(upcomingSessions.length, 'Upcoming', 'var(--s-upcoming)', false);
   html += '</div>';
 
-  // Today section
+  // ── TODAY ────────────────────────────────────────────────
   html += '<div class="q-section">';
-  html += '<div class="q-section-hd"><span class="q-section-title">Today</span>';
-  if (todaySessions.length) html += '<span class="q-section-count today">' + todaySessions.length + '</span>';
+  html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--teal)"></span><span class="q-section-title">Today</span>';
+  if (todaySessions.length) html += '<span class="q-section-count">' + todaySessions.length + '</span>';
   html += '</div>';
   if (todaySessions.length) {
     html += '<div class="q-items">' + todaySessions.map(function(s) { return _qSessionItem(s, 'today'); }).join('') + '</div>';
   } else {
-    html += '<div class="q-items"><div class="q-empty">No sessions today</div></div>';
+    html += '<div class="q-items"><div class="q-empty">No sessions scheduled today</div></div>';
   }
   html += '</div>';
 
-  // Needs Attention — sub-grouped by type
-  if (needsAttn.length || unlinkedPast.length) {
+  // ── URGENT ───────────────────────────────────────────────
+  if (urgentRecord.length || urgentOverdue.length) {
     html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-title">Needs Attention</span><span class="q-section-count urgent">' + (needsAttn.length + unlinkedPast.length) + '</span></div>';
-
-    if (needsInvoice.length) {
+    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-urgent)"></span><span class="q-section-title">Urgent</span><span class="q-section-count urgent">' + (urgentRecord.length + urgentOverdue.length) + '</span></div>';
+    if (urgentRecord.length) {
       html += '<div class="q-sub-group">';
-      html += '<div class="q-sub-title">Invoice needed (' + needsInvoice.length + ')</div>';
-      html += '<div class="q-items">' + needsInvoice.map(function(s) { return _qSessionItem(s, 'pending'); }).join('') + '</div>';
+      html += '<div class="q-sub-title">Needs recording (' + urgentRecord.length + ')</div>';
+      html += '<div class="q-items">' + urgentRecord.map(function(s) { return _qSessionItem(s, 'urgent'); }).join('') + '</div>';
       html += '</div>';
     }
-    if (needsRecord.length) {
+    if (urgentOverdue.length) {
       html += '<div class="q-sub-group">';
-      html += '<div class="q-sub-title">Record needed (' + needsRecord.length + ')</div>';
-      html += '<div class="q-items">' + needsRecord.map(function(s) { return _qSessionItem(s, 'pending'); }).join('') + '</div>';
+      html += '<div class="q-sub-title">Overdue invoice (' + urgentOverdue.length + ')</div>';
+      html += '<div class="q-items">' + urgentOverdue.map(function(s) { return _qSessionItem(s, 'urgent'); }).join('') + '</div>';
       html += '</div>';
     }
-    if (awaitingPayment.length) {
-      html += '<div class="q-sub-group">';
-      html += '<div class="q-sub-title">Awaiting payment (' + awaitingPayment.length + ')</div>';
-      html += '<div class="q-items">' + awaitingPayment.map(function(s) { return _qSessionItem(s, 'invoiced'); }).join('') + '</div>';
-      html += '</div>';
-    }
-    if (unlinkedPast.length) {
-      html += '<div class="q-sub-group">';
-      html += '<div class="q-sub-title">Personal / unlinked (' + unlinkedPast.length + ')</div>';
-      html += '<div class="q-items">' + unlinkedPast.map(function(s) { return _qSessionItem(s, 'unlinked'); }).join('') + '</div>';
-      html += '</div>';
-    }
-
     html += '</div>';
   }
 
-  // New leads
+  // ── POST SESSION ─────────────────────────────────────────
+  if (postSession.length) {
+    html += '<div class="q-section">';
+    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-post)"></span><span class="q-section-title">Post Session</span><span class="q-section-count">' + postSession.length + '</span></div>';
+    html += '<div class="q-items">' + postSession.map(function(s) { return _qSessionItem(s, 'post'); }).join('') + '</div>';
+    html += '</div>';
+  }
+
+  // ── NEW LEADS ────────────────────────────────────────────
   if (newLeads.length) {
     html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-title">New Leads</span><span class="q-section-count urgent">' + newLeads.length + '</span></div>';
-    html += '<div class="q-items">' + newLeads.map(function(e) { return _qEnquiryItem(e, 'new'); }).join('') + '</div>';
+    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-lead)"></span><span class="q-section-title">New Leads</span><span class="q-section-count urgent">' + newLeads.length + '</span></div>';
+    html += '<div class="q-items">' + newLeads.map(function(e) { return _qEnquiryItem(e, 'lead'); }).join('') + '</div>';
     html += '</div>';
   }
 
-  // Awaiting
-  if (awaiting.length) {
+  // ── TRIAGE ───────────────────────────────────────────────
+  if (triage.length) {
     html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-title">Awaiting</span><span class="q-section-count">' + awaiting.length + '</span></div>';
-    html += '<div class="q-items">' + awaiting.map(function(e) { return _qEnquiryItem(e, 'awaiting'); }).join('') + '</div>';
+    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-triage)"></span><span class="q-section-title">Triage</span><span class="q-section-count">' + triage.length + '</span></div>';
+    html += '<div class="q-items">' + triage.map(function(e) { return _qEnquiryItem(e, 'triage'); }).join('') + '</div>';
     html += '</div>';
   }
 
-  // Upcoming (collapsible)
-  if (upcoming.length) {
+  // ── UPCOMING ─────────────────────────────────────────────
+  if (upcomingSessions.length) {
     html += '<div class="q-section">';
-    html += '<div class="q-section-hd"><span class="q-section-title">Upcoming Sessions</span><span class="q-section-count">' + upcoming.length + '</span></div>';
-    html += '<div class="q-items">' + upcoming.map(function(s) { return _qSessionItem(s, 'upcoming'); }).join('') + '</div>';
+    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-upcoming)"></span><span class="q-section-title">Upcoming Sessions</span><span class="q-section-count">' + upcomingSessions.length + '</span></div>';
+    html += '<div class="q-items">' + upcomingSessions.map(function(s) { return _qSessionItem(s, 'upcoming'); }).join('') + '</div>';
     html += '</div>';
   }
 
-  if (!todaySessions.length && !needsAttn.length && !newLeads.length && !awaiting.length && !upcoming.length) {
-    html += '<div class="q-items"><div class="q-empty">All caught up — nothing needs attention right now</div></div>';
+  // ── FINANCE ──────────────────────────────────────────────
+  if (finance.length) {
+    html += '<div class="q-section">';
+    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-finance)"></span><span class="q-section-title">Finance</span><span class="q-section-count">' + finance.length + '</span></div>';
+    html += '<div class="q-items">' + finance.map(function(s) { return _qSessionItem(s, 'finance'); }).join('') + '</div>';
+    html += '</div>';
+  }
+
+  // ── PERSONAL / UNLINKED ──────────────────────────────────
+  if (unlinked.length) {
+    html += '<div class="q-section">';
+    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-triage);opacity:0.5"></span><span class="q-section-title">Personal / Unlinked</span><span class="q-section-count">' + unlinked.length + '</span></div>';
+    html += '<div class="q-items">' + unlinked.map(function(s) { return _qSessionItem(s, 'unlinked'); }).join('') + '</div>';
+    html += '</div>';
+  }
+
+  // ── COMPLETED (collapsed) ────────────────────────────────
+  if (completed.length) {
+    var isExpanded = window._completedExpanded;
+    html += '<div class="q-section">';
+    html += '<div class="q-section-hd"><span class="q-section-accent" style="background:var(--s-complete)"></span><span class="q-section-title">Completed</span><span class="q-section-count">' + completed.length + '</span>';
+    html += '<button class="q-section-toggle" onclick="window._completedExpanded=!window._completedExpanded;renderQueueView()">' + (isExpanded ? 'Collapse' : 'Show') + '</button>';
+    html += '</div>';
+    if (isExpanded) {
+      html += '<div class="q-items">' + completed.map(function(s) { return _qSessionItem(s, 'complete'); }).join('') + '</div>';
+    }
+    html += '</div>';
+  }
+
+  if (!todaySessions.length && !urgentRecord.length && !urgentOverdue.length && !postSession.length && !newLeads.length && !triage.length && !upcomingSessions.length && !finance.length) {
+    html += '<div class="q-items" style="margin-top:0"><div class="q-empty">All clear — nothing needs attention right now ✓</div></div>';
   }
 
   html += '</div>'; // .queue-view
   content.innerHTML = html;
+}
+
+function _qMetric(val, label, color, highlight) {
+  return '<div class="q-metric">'
+    + '<span class="q-metric-dot" style="background:' + color + ';opacity:' + (highlight ? '1' : '0.3') + '"></span>'
+    + '<div>'
+    + '<div class="q-metric-val' + (highlight ? ' urgent' : '') + '">' + val + '</div>'
+    + '<div class="q-metric-label">' + label + '</div>'
+    + '</div>'
+    + '</div>';
+}
+
+function _updateTopbarMetrics(total, urgent, postSess, leads) {
+  var el = document.getElementById('topbar-metrics');
+  if (!el) return;
+  if (!total) { el.innerHTML = '<span style="color:#9AABA8">All clear</span>'; return; }
+  var parts = [];
+  if (urgent) parts.push('<span class="topbar-metric-urgent">' + urgent + ' urgent</span>');
+  if (postSess) parts.push('<span class="topbar-metric-val">' + postSess + ' to invoice</span>');
+  if (leads) parts.push('<span class="topbar-metric-val">' + leads + ' new lead' + (leads !== 1 ? 's' : '') + '</span>');
+  el.innerHTML = parts.join('<span class="topbar-sep">·</span>');
 }
 
 function _qSessionItem(sess, barClass) {
@@ -2102,7 +2295,14 @@ function _qSessionItem(sess, barClass) {
   };
   var hintText = isUnlinked ? 'No client linked — personal or admin appointment' : (hintMap[sess.status] || '');
   var pillLabel = { 'pending-invoice': 'No invoice yet', 'needs-recording': 'Needs recording', 'upcoming': 'Upcoming', 'invoiced': 'Invoice unpaid', 'paid': 'Paid', 'cancelled': 'Cancelled' }[sess.status] || sess.status;
-  var pillClass = { 'pending-invoice': 'pending', 'needs-recording': 'record', 'upcoming': 'upcoming', 'invoiced': 'invoiced', 'paid': 'paid' }[sess.status] || 'awaiting';
+  var pillClass = {
+    'pending-invoice': 'pending',
+    'needs-recording': 'record',
+    'upcoming':        'upcoming',
+    'invoiced':        'finance',
+    'paid':            'paid',
+    'cancelled':       'awaiting',
+  }[sess.status] || 'awaiting';
   return '<div class="q-item" data-type="session" data-id="' + escHtml(sess.id) + '" onclick="openDetailPanel(\'session\',\'' + escHtml(sess.id) + '\')">'
     + '<div class="q-item-bar ' + barClass + '"></div>'
     + '<div class="q-item-main">'
@@ -2126,8 +2326,9 @@ function _qEnquiryItem(enq, barClass) {
   if (enq.created_at) meta.push(_relativeDate(enq.created_at));
   var statusLabels = { new: 'New', contacted: 'Contacted', in_halaxy: 'In Halaxy' };
   var pillLabel = statusLabels[enq.status] || enq.status || 'New';
+  var pillClass = { new: 'lead', contacted: 'triage', in_halaxy: 'triage' }[enq.status] || 'triage';
   var hintMap = { new: 'Review intake form and make contact', contacted: 'Awaiting response from client', in_halaxy: 'Client added to Halaxy — awaiting booking' };
-  var hintText = hintMap[enq.status] || (barClass === 'new' ? 'Review intake form and make contact' : '');
+  var hintText = hintMap[enq.status] || (barClass === 'lead' ? 'Review intake form and make contact' : '');
   return '<div class="q-item" data-type="enquiry" data-id="' + escHtml(enq.id) + '" onclick="openDetailPanel(\'enquiry\',\'' + escHtml(enq.id) + '\')">'
     + '<div class="q-item-bar ' + barClass + '"></div>'
     + '<div class="q-item-main">'
@@ -2137,7 +2338,7 @@ function _qEnquiryItem(enq, barClass) {
     + (hintText ? '<div class="q-item-hint">' + escHtml(hintText) + '</div>' : '')
     + '</div>'
     + '<div class="q-item-right">'
-    + '<span class="q-pill ' + barClass + '">' + pillLabel + '</span>'
+    + '<span class="q-pill ' + pillClass + '">' + pillLabel + '</span>'
     + '<span class="q-arrow">›</span>'
     + '</div>'
     + '</div>';
