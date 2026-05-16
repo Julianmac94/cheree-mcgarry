@@ -522,8 +522,9 @@ export default async function handler(req, res) {
       activity: activityByEnquiry[e.id] || [],
     }));
 
-    let halaxy = { connected: false, appointments: [], patients: [], funders: cachedFunders, fees: cachedFees, feeMap: cachedFeeMap };
-    if (process.env.HALAXY_CLIENT_ID && process.env.HALAXY_CLIENT_SECRET) {
+    const halaxyConfigured = !!(process.env.HALAXY_CLIENT_ID && process.env.HALAXY_CLIENT_SECRET);
+    let halaxy = { connected: false, configured: halaxyConfigured, appointments: [], patients: [], funders: cachedFunders, fees: cachedFees, feeMap: cachedFeeMap };
+    if (halaxyConfigured) {
       try {
         const now           = new Date();
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -634,7 +635,7 @@ export default async function handler(req, res) {
         };
       } catch (err) {
         console.error('Halaxy API error:', err.message);
-        halaxy = { connected: false, error: err.message, appointments: [], patients: [], funders: cachedFunders, fees: cachedFees, feeMap: cachedFeeMap };
+        halaxy = { connected: false, configured: true, error: err.message, appointments: [], patients: [], funders: cachedFunders, fees: cachedFees, feeMap: cachedFeeMap };
       }
     }
 

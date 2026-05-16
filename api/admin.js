@@ -1405,6 +1405,13 @@ body {
   font-size: 11px; color: rgba(122,148,143,0.55);
   padding: 8px 2px; font-style: italic;
 }
+.dp-offline-state {
+  padding: 24px 12px; text-align: center;
+}
+.dp-offline-icon { font-size: 28px; margin-bottom: 8px; }
+.dp-offline-title { font-size: 13px; font-weight: 600; color: var(--tealDeep); margin-bottom: 4px; }
+.dp-offline-msg { font-size: 11px; color: var(--soft); line-height: 1.5; max-width: 220px; margin: 0 auto; }
+.dp-offline-error { font-size: 10px; color: rgba(190,110,68,0.8); margin-top: 8px; font-family: monospace; word-break: break-all; }
 
 /* Integrations status bar (right side of toolbar) */
 .pl-integrations {

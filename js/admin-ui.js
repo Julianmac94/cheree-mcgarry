@@ -1304,7 +1304,21 @@ function renderBillingPanel() {
     return;
   }
 
-  /* ── Fallback: Supabase sessions (Halaxy not connected) ── */
+  /* ── Halaxy configured but temporarily unavailable ── */
+  if (_halaxyData && _halaxyData.configured) {
+    var countElOff = document.getElementById('billing-count');
+    if (countElOff) countElOff.textContent = '';
+    body.innerHTML = '<div class="dp-offline-state">'
+      + '<div class="dp-offline-icon">⚡</div>'
+      + '<div class="dp-offline-title">Halaxy unavailable</div>'
+      + '<div class="dp-offline-msg">Billing data is managed in Halaxy. Check your connection or API credentials, then refresh.</div>'
+      + ((_halaxyData.error) ? '<div class="dp-offline-error">' + escHtml(_halaxyData.error) + '</div>' : '')
+      + '<button class="dp-btn dp-btn--ghost" onclick="refreshPipeline()" style="margin-top:12px">↺ Try again</button>'
+      + '</div>';
+    return;
+  }
+
+  /* ── Halaxy not configured — sessions-based billing (non-Halaxy practices only) ── */
   if (!_pipelineData) return;
   var needsAction = [];
   var awaiting    = [];
@@ -2910,22 +2924,19 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
   if (!amount) { toast('Please enter or select a fee amount.', 'err'); return; }
 
   try {
-    // 1. Ensure client CRM record exists in Supabase (for enquiry/dashboard linking only)
-    //    Clinical/billing data lives in Halaxy — not in Supabase sessions.
-    var local    = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === patientId; });
-    var clientId = local ? local.id : null;
-
-    if (!clientId) {
-      var nc = await apiFetch('/api/clients', {
-        method: 'POST',
-        body: { display_name: patientName, funder: fk, plan_manager: pm || null, halaxy_id: patientId },
-      });
-      clientId = nc.id;
-    } else if (pm && !local.plan_manager) {
-      await apiFetch('/api/clients', {
-        method: 'PATCH',
-        body: { id: clientId, plan_manager: pm },
-      });
+    // 1. CRM sync — only update an existing enquiry-linked client record.
+    //    We never create Supabase client records from Halaxy patient data because
+    //    patient names and clinical details are PII that belongs exclusively in Halaxy.
+    var local = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === patientId; });
+    if (local) {
+      // Keep non-PII billing fields in sync (funder, plan manager)
+      var patch = {};
+      if (fk  && !local.funder)        patch.funder       = fk;
+      if (pm  && !local.plan_manager)  patch.plan_manager = pm;
+      if (Object.keys(patch).length) {
+        patch.id = local.id;
+        await apiFetch('/api/clients', { method: 'PATCH', body: patch });
+      }
     }
 
     // 2. Create the invoice in Halaxy — source of truth for all billing
