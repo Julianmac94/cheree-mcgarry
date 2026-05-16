@@ -667,14 +667,14 @@ export default async function handler(req, res) {
     }
   }
 
-  /* ── GET ?halaxy_appts_raw=1 — diagnostic: dump full raw appointment resources ── */
+  /* ── GET ?halaxy_appts_raw=1 — diagnostic: dump raw appointment resources (past 30d + future) ── */
   if (req.method === 'GET' && params.get('halaxy_appts_raw')) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ appointments: [] });
     try {
       const now = new Date();
-      // Fetch first 5 appointments with _include AND dump the raw resource so we can see every field
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const apptBundle = await halaxyGet('/Appointment', {
-        date: `ge${now.toISOString().slice(0, 10)}`, _sort: 'date', _count: '5', _include: 'Appointment:patient',
+        date: `ge${thirtyDaysAgo.toISOString().slice(0, 10)}`, _sort: 'date', _count: '50', _include: 'Appointment:patient',
       });
       // Also fetch a single appointment individually to see if it has more fields
       const firstId = apptBundle.entry?.[0]?.resource?.id;
@@ -683,28 +683,9 @@ export default async function handler(req, res) {
         try { singleAppt = await halaxyGet(`/Appointment/${firstId}`); } catch (_) {}
       }
       return res.status(200).json({
+        count: (apptBundle.entry || []).length,
         bundleEntries: (apptBundle.entry || []).map(e => e.resource),
         singleAppt,
-      });
-    } catch (err) {
-      return res.status(500).json({ error: err.message });
-    }
-  }
-
-  /* ── GET ?halaxy_appts_raw=1 — diagnostic: dump raw past Appointment resources ── */
-  if (req.method === 'GET' && params.get('halaxy_appts_raw')) {
-    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ appointments: [] });
-    try {
-      const now = new Date();
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const bundle = await halaxyGet('/Appointment', {
-        date:   `ge${thirtyDaysAgo.toISOString().slice(0, 10)}`,
-        _sort:  'date',
-        _count: '50',
-      });
-      return res.status(200).json({
-        count:   (bundle.entry || []).length,
-        entries: (bundle.entry || []).map(e => e.resource),
       });
     } catch (err) {
       return res.status(500).json({ error: err.message });

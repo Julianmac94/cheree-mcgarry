@@ -820,11 +820,13 @@ function nextWeek() {
 }
 
 /** Extract patient display name from a FHIR Appointment resource */
-/** Returns true if a Halaxy appointment has a patient participant (clinical). */
+/** Returns true if a Halaxy appointment should be treated as a clinical session.
+ *  Halaxy's API does NOT return participant[] in appointment resources, so we
+ *  cannot filter by patient reference. Treat everything except entered-in-error
+ *  as clinical — we rely on status logic downstream to mark cancelled/noshow. */
 function _isClinicalAppt(a) {
-  return (a.participant || []).some(function(p) {
-    return p.actor && p.actor.reference && p.actor.reference.indexOf('/Patient/') !== -1;
-  });
+  var status = a.status || '';
+  return status !== 'entered-in-error';
 }
 
 /** Extract numeric/string patient ID from a FHIR reference like
@@ -930,6 +932,16 @@ function _buildUnifiedSessions() {
   var invoicedSet = sets.invoicedSet;
   var sessionedSet = sets.sessionedSet;
 
+  // Date-only invoice lookup — Halaxy omits participant[] from appointment API responses,
+  // so we can't match by patientId|date directly. Build a date → [invoice] map as fallback.
+  var dateInvoiceMap = {};
+  invoices.forEach(function(inv) {
+    if (inv.date) {
+      if (!dateInvoiceMap[inv.date]) dateInvoiceMap[inv.date] = [];
+      dateInvoiceMap[inv.date].push(inv);
+    }
+  });
+
   var halaxyAppts = (_halaxyData && _halaxyData.appointments) || [];
   var sessions = [];
 
@@ -949,43 +961,66 @@ function _buildUnifiedSessions() {
     if (dateD < past30 || dateD > future14) return;
 
     var patientId = _apptPatientId(appt);
-    var key = patientId ? (String(patientId) + '|' + dateStr) : null;
+    // Halaxy API often omits participant[], so patientId may be null.
+    // Infer patient from a same-date invoice when there's exactly one (covers solo-practitioner days).
+    var effectivePatientId = patientId;
+    if (!effectivePatientId) {
+      var dayInvs = dateInvoiceMap[dateStr];
+      if (dayInvs && dayInvs.length === 1) effectivePatientId = dayInvs[0].patientId;
+    }
+
+    var key = effectivePatientId ? (String(effectivePatientId) + '|' + dateStr) : null;
     if (key) halaxyKeySet.add(key);
 
+    // Build label — try participant resolution first, then fall back to effectivePatientId lookup
     var label = _halaxyApptLabel(appt);
+    if ((label === 'Halaxy appointment' || !label) && effectivePatientId) {
+      var pm2 = _halaxyData && _halaxyData.patientMap;
+      var infName = (pm2 && pm2[effectivePatientId]) || '';
+      if (!infName) {
+        var pt2 = (_halaxyData.patients || []).find(function(p) { return String(p.id) === String(effectivePatientId); });
+        if (pt2 && pt2.name) infName = pt2.name;
+      }
+      if (!infName) {
+        var lc2 = _pipelineData && (_pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(effectivePatientId); });
+        if (lc2 && lc2.display_name) infName = lc2.display_name;
+      }
+      if (infName) label = infName;
+    }
 
     // Status determination (priority order)
     var status;
     var apptStatus = appt.status || '';
-    // Check if Halaxy has a fee/ChargeItemDefinition attached to this appointment
-    var apptHasFee = (appt.supportingInformation || []).some(function(si) {
-      var ref = (si.reference || '').toLowerCase();
-      var type = (si.type || si.display || '').toLowerCase();
-      return ref.indexOf('chargeitemdefinition') !== -1 || type.indexOf('chargeitemdefinition') !== -1;
-    });
 
-    if (apptStatus === 'cancelled' || apptStatus === 'entered-in-error') {
+    if (apptStatus === 'cancelled' || apptStatus === 'entered-in-error' || apptStatus === 'noshow') {
       status = 'cancelled';
     } else if (startMs > now.getTime()) {
       status = 'upcoming';
-    } else if (key && (_halaxyActioned.has(key) || _recordedSessions.some(function(s) { return String(s.patientId) === String(patientId) && s.date === dateStr; }))) {
+    } else if (key && (_halaxyActioned.has(key) || _recordedSessions.some(function(s) { return String(s.patientId) === String(effectivePatientId) && s.date === dateStr; }))) {
       status = 'pending-invoice';
     } else if (key && invoicedSet.has(key)) {
-      var matchInv = invoices.find(function(inv) { return String(inv.patientId) === String(patientId) && inv.date === dateStr; });
+      var matchInv = invoices.find(function(inv) { return String(inv.patientId) === String(effectivePatientId) && inv.date === dateStr; });
       status = (matchInv && _invIsPaid(matchInv)) ? 'paid' : 'invoiced';
-    } else if (apptStatus === 'fulfilled' || apptHasFee) {
-      // fulfilled = Halaxy marked it complete; apptHasFee = fee attached via supportingInformation
-      // Either way, the session has been actioned — show as pending-invoice so the Halaxy link is visible
+    } else if (apptStatus === 'fulfilled') {
       status = key && invoicedSet.has(key) ? 'invoiced' : 'pending-invoice';
+    } else if (!key && dateInvoiceMap[dateStr]) {
+      // No patientId resolvable but an invoice exists for this date — session was actioned
+      var anyInv = dateInvoiceMap[dateStr][0];
+      status = _invIsPaid(anyInv) ? 'paid' : 'invoiced';
     } else if (key && sessionedSet.has(key)) {
-      status = 'invoiced'; // internal session record exists
+      status = 'invoiced';
+    } else if (startMs < now.getTime()) {
+      // Past appointment, not cancelled, no invoice yet.
+      // Halaxy is the source of truth for invoicing — show as pending-invoice so
+      // the practitioner sees an "Open in Halaxy →" link rather than a Record button.
+      status = 'pending-invoice';
     } else {
       status = 'needs-recording';
     }
 
     var timeStr = new Date(startStr).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
     var dateLabel = new Date(startStr).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-    var uid = 'hx-log-' + (patientId || 'unk') + '-' + dateStr.replace(/-/g, '');
+    var uid = 'hx-log-' + (effectivePatientId || appt.id || 'unk') + '-' + dateStr.replace(/-/g, '');
 
     sessions.push({
       id:           uid,
@@ -997,7 +1032,7 @@ function _buildUnifiedSessions() {
       dateLabel:    dateLabel,
       timeStr:      timeStr,
       name:         label,
-      patientId:    patientId ? String(patientId) : null,
+      patientId:    effectivePatientId ? String(effectivePatientId) : null,
       halaxyApptId: appt.id || '',
       startIso:     startStr,
       appt:         appt,
