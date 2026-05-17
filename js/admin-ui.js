@@ -454,9 +454,9 @@ var STATUS_DISPLAY = {
 };
 
 var ENQ_ADVANCE = {
-  new:       { label: 'Mark contacted →', next: 'contacted'  },
-  contacted: { label: 'In intake →',      next: 'in_halaxy'  },
-  in_halaxy: { label: 'Close →',          next: 'closed'     },
+  new:       { label: 'Mark contacted →', next: 'contacted' },
+  contacted: { label: 'Add to Halaxy →',  next: 'in_halaxy' },
+  // in_halaxy: no auto-advance — use Convert or Close (modal) from the card menu
 };
 
 var _modalSearchTimer = null; // debounce timer for Add Client modal Halaxy search
@@ -3282,7 +3282,9 @@ async function _searchHxEnqPatients(enqId) {
 
 async function _selectHxEnqPatient(enqId, patientId, patientName) {
   try {
-    await apiFetch('/api/admin-enquiries?id=' + enqId, { method: 'PATCH', body: { status: 'in_halaxy', log_action: 'halaxy', log_detail: 'linked:' + patientId + ':' + patientName } });
+    // Two separate calls: log_action early-returns in the PATCH handler, so status must be its own request
+    await apiFetch('/api/admin-enquiries?id=' + enqId, { method: 'PATCH', body: { status: 'in_halaxy' } });
+    await apiFetch('/api/admin-enquiries?id=' + enqId, { method: 'PATCH', body: { log_action: 'halaxy', log_detail: 'Linked Halaxy patient: ' + patientName + ' (' + patientId + ')' } });
     toast('Linked to Halaxy patient ' + patientName + ' ✓');
     refreshPipeline();
     closeDetailPanel();
@@ -4305,6 +4307,13 @@ async function saveNewClient() {
       });
       toast('Patient created in Halaxy ✓ — ' + resp.client.display_name);
 
+      // If this creation was triggered from an enquiry's "Add to Halaxy" flow, advance that enquiry
+      if (window._pendingEnqId) {
+        var pendingId = window._pendingEnqId;
+        window._pendingEnqId = null;
+        await apiFetch('/api/admin-enquiries?id=' + pendingId, { method: 'PATCH', body: { status: 'in_halaxy' } }).catch(function() {});
+      }
+
     } else {
       // ── LINK EXISTING HALAXY PATIENT ───────────────────────────────
       var halaxyId    = (document.getElementById('cl-halaxy-id')      || {}).value.trim();
@@ -4961,7 +4970,7 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
     + ' value="' + escHtml(evt.title || '') + '" placeholder="Appointment notes…" onclick="event.stopPropagation()" style="margin-top:6px">'
     + '<div class="pl-card-actions" style="margin-top:8px">'
     + backBtn
-    + '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();_sendManualReminder(\'' + escHtml(patientId) + '\',\'' + escHtml(panelEl ? (panelEl.dataset.apptDate || '') : '') + '\',\'' + escHtml(panelEl ? (panelEl.dataset.apptStart || '') : '') + '\')">🔔 Remind</button>'
+    + '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();_sendManualReminder(\'' + escHtml(patientId) + '\',\'' + escHtml(panel ? (panel.dataset.apptDate || '') : '') + '\',\'' + escHtml(panel ? (panel.dataset.apptStart || '') : '') + '\')">🔔 Remind</button>'
     + '<button class="pl-action-btn pl-action-btn--danger" onclick="event.stopPropagation();_cancelHalaxySession(\'' + cardUid + '\',\'' + (eventId || '') + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(halaxyApptId) + '\')">Cancel appointment</button>'
     + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();_saveHalaxySession(\'' + cardUid + '\',\'' + (eventId || '') + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(patientName) + '\',\'' + (funderKey || '') + '\',\'' + escHtml(halaxyApptId) + '\')">Record Attended →</button>'
     + '</div></div>';
@@ -5490,8 +5499,8 @@ function selectLinkedClient(cardUid, mode, sourceId, clientId) {
 
 async function confirmEnqLink(enquiryId, clientId) {
   try {
-    await apiFetch('/api/admin-enquiries?id=' + enquiryId, { method: 'PATCH', body: { status: 'closed' } });
-    toast('Enquiry closed — matched to existing client');
+    await apiFetch('/api/admin-enquiries?id=' + enquiryId, { method: 'PATCH', body: { client_id: clientId, status: 'converted' } });
+    toast('Enquiry converted — linked to existing client ✓');
     refreshPipeline();
   } catch (err) {
     toast('Error: ' + err.message, 'err');
