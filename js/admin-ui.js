@@ -2847,13 +2847,27 @@ function renderClientsView() {
     return new Date(iso + 'T12:00:00').toLocaleDateString('en-AU', opts);
   }
 
-  // Derive funder key from most recent Halaxy invoice fee name — avoids relying on
-  // Supabase funder field which is only set at onboarding and goes stale.
-  function _funderFromHxInvoices(hxId) {
-    var patInvs = halaxyInvoices.filter(function(i) { return i.patientId && String(i.patientId) === String(hxId); });
-    if (!patInvs.length) return null;
-    patInvs = patInvs.slice().sort(function(a, b) { return (b.date || '') > (a.date || '') ? 1 : -1; });
-    return _guessFunderKey(patInvs[0].feeName || '') || null;
+  // Return the funder key for a Halaxy patient.
+  // Source priority:
+  //   1. Halaxy Coverage (bulk-fetched on load) — authoritative
+  //   2. Invoice fee name — fallback if no Coverage resource exists
+  // Supabase funder is never consulted for Halaxy-linked clients.
+  function _funderFromHalaxy(hxId) {
+    var id = String(hxId);
+    // 1. Coverage map (patientId → raw payor name from Halaxy)
+    var pfm = _halaxyData && _halaxyData.patientFunderMap;
+    if (pfm && pfm[id]) {
+      var key = _mapCoverageToFunderKey(pfm[id]);
+      if (key) return key;
+    }
+    // 2. Fee name from most recent FY invoice
+    var patInvs = halaxyInvoices.filter(function(i) { return i.patientId && String(i.patientId) === id; });
+    if (patInvs.length) {
+      patInvs = patInvs.slice().sort(function(a, b) { return (b.date || '') > (a.date || '') ? 1 : -1; });
+      var key2 = _guessFunderKey(patInvs[0].feeName || '');
+      if (key2) return key2;
+    }
+    return null;
   }
 
   // Build list item HTML — dashboard client
@@ -2867,7 +2881,7 @@ function renderClientsView() {
     var typeLabel = c.is_contact ? 'Contact' : (c.client_type === 'couples' ? 'Couples' : (c.client_type === 'child' ? 'Child' : 'Individual'));
     tags += '<span class="cl-list-tag type">' + escHtml(typeLabel) + '</span>';
     // For Halaxy-linked clients use live invoice fee name; fall back to Supabase funder
-    var funderKey = c.halaxy_id ? (_funderFromHxInvoices(c.halaxy_id) || c.funder) : c.funder;
+    var funderKey = c.halaxy_id ? (_funderFromHalaxy(c.halaxy_id) || c.funder) : c.funder;
     if (funderKey) { var fl = FUNDER_LABELS[funderKey] || funderKey; tags += '<span class="cl-list-tag funder">' + escHtml(fl) + '</span>'; }
     if (c.halaxy_id) {
       tags += '<span class="cl-list-tag halaxy-linked">✓ Halaxy</span>';
@@ -2891,7 +2905,7 @@ function renderClientsView() {
     var ls = lastSeenHx(p.id);
     var lastDateStr = _fmtLastSeen(ls);
     var hid = escHtml(String(p.id || ''));
-    var funderKey = _funderFromHxInvoices(p.id);
+    var funderKey = _funderFromHalaxy(p.id);
     var tags = '<span class="cl-list-tag" style="background:#EBF1EF;color:#4A7A70">Halaxy</span>';
     if (funderKey) tags += '<span class="cl-list-tag funder">' + escHtml(FUNDER_LABELS[funderKey] || funderKey) + '</span>';
     return '<div class="cl-list-item" style="opacity:0.82" onclick="renderClientDetailView(\'hx:' + hid + '\')">'
@@ -6659,17 +6673,16 @@ function renderFundersView() {
   var invoices = (_halaxyData && _halaxyData.invoices)  || [];
   var clients  = (_pipelineData && _pipelineData.clients) || [];
 
-  // Build patientId → funder map via dashboard clients
-  var patientFunderMap = {};
-  clients.forEach(function(c) {
-    if (c.halaxy_id) patientFunderMap[String(c.halaxy_id)] = c.funder || 'private';
-  });
-
-  // Group invoices by funder key
+  // Group invoices by funder key — use Halaxy Coverage as source of truth
+  var hxCoverageMap = (_halaxyData && _halaxyData.patientFunderMap) || {};
   var byFunder = {};
   invoices.forEach(function(inv) {
     if (!inv.patientId || inv.status === 'cancelled' || inv.status === 'draft') return;
-    var fk = patientFunderMap[String(inv.patientId)] || 'private';
+    var pid = String(inv.patientId);
+    // Priority: Halaxy Coverage → fee name → 'private'
+    var fk = (hxCoverageMap[pid] && _mapCoverageToFunderKey(hxCoverageMap[pid]))
+          || _guessFunderKey(inv.feeName || '')
+          || 'private';
     if (!byFunder[fk]) byFunder[fk] = { owing: 0, paid: 0, count: 0 };
     var bal = parseFloat(inv.totalBalance);
     var pd  = parseFloat(inv.totalPaid);

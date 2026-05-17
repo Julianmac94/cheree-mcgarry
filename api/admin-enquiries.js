@@ -1180,7 +1180,7 @@ export default async function handler(req, res) {
         const fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
         const fyStartStr  = `${fyStartYear}-07-01`;
 
-        const [apptBundle, patientBundle, fyInvoiceBundle, preFyInvoiceBundle] = await Promise.all([
+        const [apptBundle, patientBundle, fyInvoiceBundle, preFyInvoiceBundle, coverageBundle] = await Promise.all([
           halaxyGet('/Appointment', {
             date:     `ge${fyStartStr}`, // full FY — matches invoice window so client detail is consistent
             _sort:    'date',
@@ -1203,6 +1203,10 @@ export default async function handler(req, res) {
             _count:   '300',
             _include: 'Invoice:recipient',
           }).catch(() => ({ entry: [] })),
+          // Bulk Coverage fetch: one call gives us every patient's funder.
+          // This is the authoritative source — we build a patientId → funderKey map
+          // so the client never has to fall back to stale Supabase funder fields.
+          halaxyGet('/Coverage', { _count: '500' }).catch(() => ({ entry: [] })),
         ]);
 
         // Merge invoice bundles (FY + pre-FY), deduplicate by id
@@ -1300,10 +1304,27 @@ export default async function handler(req, res) {
           })
           .filter(Boolean);
 
+        // Build patientId → payor name map from bulk Coverage fetch.
+        // Storing the raw payor display name so the client can apply its own
+        // _mapCoverageToFunderKey() without duplicating mapping logic server-side.
+        // This is the authoritative Halaxy funder source — no per-patient calls needed.
+        const patientFunderMap = {};
+        (coverageBundle.entry || []).forEach(e => {
+          const cov = e.resource;
+          if (!cov || cov.resourceType !== 'Coverage') return;
+          // beneficiary.reference can be "Patient/123" or an absolute URL
+          const benefRef = cov.beneficiary?.reference || '';
+          const patId    = benefRef.split('/').pop();
+          if (!patId) return;
+          const payor = cov.payor?.[0]?.display || cov.payor?.[0]?.reference || '';
+          if (payor) patientFunderMap[patId] = payor;
+        });
+
         halaxy = {
           connected:    true,
           appointments,
           patientMap,
+          patientFunderMap,
           patients:     (patientBundle.entry || []).map(e => e.resource).filter(Boolean).map(p => ({
             id: p.id, name: fhirPatientLegalName(p),
           })),
