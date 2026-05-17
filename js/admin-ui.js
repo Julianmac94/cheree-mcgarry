@@ -2155,41 +2155,29 @@ async function deleteClient(id, name) {
 }
 
 /* ── Home dashboard view ── */
+/* ── Home dashboard view ── */
 function renderHomeView() {
   var content = document.getElementById('view-content');
   if (!content || !_pipelineData) return;
 
   var enquiries  = (_pipelineData.enquiries  || []);
-  var clients    = (_pipelineData.clients    || []);
-  var invoices   = (_pipelineData.invoices   || []);
+  var tasks      = (_pipelineData.tasks      || []);
   var appts      = (_halaxyData && _halaxyData.appointments) || [];
+  var invoices   = (_halaxyData && _halaxyData.invoices) || [];
 
   // Stat: active enquiries (not closed/converted)
   var activeEnqCount = enquiries.filter(function(e) { return e.status !== 'closed' && e.status !== 'converted'; }).length;
 
-  // Stat: outstanding invoices ($)
+  // Stat: outstanding invoices
   var outstandingAmt = invoices.reduce(function(sum, inv) {
     if (inv.status === 'active' || inv.status === 'overdue') sum += parseFloat(inv.totalPrice || 0);
     return sum;
   }, 0);
 
-  // Stat: next upcoming appointment
-  var now        = Date.now();
-  var upcoming   = appts
-    .filter(function(a) { return a.start && new Date(a.start).getTime() > now && a.status !== 'cancelled'; })
-    .sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
-  var nextAppt   = upcoming[0] || null;
-  var nextApptLabel = '—';
-  if (nextAppt) {
-    var diff = Math.round((new Date(nextAppt.start) - now) / 3600000);
-    if (diff < 1)       nextApptLabel = 'soon';
-    else if (diff < 24) nextApptLabel = 'in ' + diff + ' hr' + (diff !== 1 ? 's' : '');
-    else                nextApptLabel = 'in ' + Math.round(diff / 24) + ' day' + (Math.round(diff / 24) !== 1 ? 's' : '');
-  }
-
   // Today's appointments
-  var todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-  var todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  var now        = new Date();
+  var todayStart = new Date(now); todayStart.setHours(0,0,0,0);
+  var todayEnd   = new Date(now); todayEnd.setHours(23,59,59,999);
   var todayAppts = appts
     .filter(function(a) {
       if (!a.start || a.status === 'cancelled') return false;
@@ -2198,66 +2186,162 @@ function renderHomeView() {
     })
     .sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
 
-  // Greeting
-  var hour = new Date().getHours();
-  var greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  // Tomorrow's appointments
+  var tomStart = new Date(todayStart); tomStart.setDate(tomStart.getDate() + 1);
+  var tomEnd   = new Date(todayEnd);   tomEnd.setDate(tomEnd.getDate() + 1);
+  var tomAppts = appts
+    .filter(function(a) {
+      if (!a.start || a.status === 'cancelled') return false;
+      var t = new Date(a.start).getTime();
+      return t >= tomStart.getTime() && t <= tomEnd.getTime();
+    })
+    .sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
+
+  // Calendar render: pick today if has appts, else tomorrow, else today
+  var calAppts  = todayAppts.length ? todayAppts : tomAppts;
+  var calLabel  = todayAppts.length ? 'Today' : (tomAppts.length ? 'Tomorrow' : 'Today');
+  var calDate   = todayAppts.length ? now : (tomAppts.length ? tomStart : now);
+
+  // Hour range: 8am–7pm (AEST)
+  var CAL_START = 8; // 8am
+  var CAL_END   = 19; // 7pm
+  var HOUR_PX   = 52;
+
+  function _apptPatientName(a) {
+    var pid = '';
+    (a.participant || []).forEach(function(p) {
+      var ref = (p.actor && p.actor.reference) || '';
+      if (ref.startsWith('Patient/')) pid = ref.replace('Patient/', '');
+    });
+    return (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[pid]) || pid || 'Patient';
+  }
+
+  var hour = now.getHours();
+  var greeting = hour < 12 ? 'Good morning' : (hour < 17 ? 'Good afternoon' : 'Good evening');
 
   var html = '<div class="home-view">';
 
-  // Header
-  html += '<div class="home-hd">'
-    + '<div class="home-greeting">' + greet + ', <em>Cheree</em></div>'
-    + '</div>';
-
-  // Action buttons
+  // Header + actions
+  html += '<div class="home-hd"><div class="home-greeting">' + greeting + ', <em>Cheree</em></div></div>';
   html += '<div class="home-actions">'
-    + '<button class="home-action-btn primary" onclick="openNewSessionModal()">'
-    + '<span class="hab-icon">+</span> New Appointment</button>'
-    + '<button class="home-action-btn" onclick="openAddClient()">'
-    + '<span class="hab-icon">+</span> Add Client</button>'
+    + '<button class="home-action-btn primary" onclick="openNewSessionModal()"><span class="hab-icon">+</span> New Appointment</button>'
+    + '<button class="home-action-btn" onclick="openAddClient()"><span class="hab-icon">+</span> Add Client</button>'
     + '</div>';
 
   // Stats
   html += '<div class="home-section-title">Overview</div>';
   html += '<div class="home-stats">'
-    + '<div class="home-stat">'
-    + '<div class="home-stat-val' + (activeEnqCount > 0 ? ' amber' : '') + '">' + activeEnqCount + '</div>'
-    + '<div class="home-stat-label">Active enquiries</div></div>'
-    + '<div class="home-stat">'
-    + '<div class="home-stat-val' + (outstandingAmt > 0 ? ' amber' : '') + '">'
-    + (outstandingAmt > 0 ? '$' + outstandingAmt.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '$0') + '</div>'
-    + '<div class="home-stat-label">Outstanding invoices</div></div>'
-    + '<div class="home-stat">'
-    + '<div class="home-stat-val teal">' + nextApptLabel + '</div>'
-    + '<div class="home-stat-label">Next appointment</div></div>'
+    + '<div class="home-stat"><div class="home-stat-val' + (activeEnqCount > 0 ? ' amber' : '') + '">' + activeEnqCount + '</div><div class="home-stat-label">Active enquiries</div></div>'
+    + '<div class="home-stat"><div class="home-stat-val' + (outstandingAmt > 0 ? ' amber' : '') + '">' + (outstandingAmt > 0 ? '$' + Math.round(outstandingAmt).toLocaleString('en-AU') : '$0') + '</div><div class="home-stat-label">Outstanding</div></div>'
+    + '<div class="home-stat"><div class="home-stat-val teal">' + todayAppts.length + '</div><div class="home-stat-label">Today\'s appts</div></div>'
     + '</div>';
 
-  // Today's appointments
-  html += '<div class="home-section-title">Today — ' + new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }) + '</div>';
-  html += '<div class="home-appts">';
-  if (todayAppts.length === 0) {
-    html += '<div class="home-empty">No appointments scheduled for today</div>';
+  // Two-column: calendar left, tasks right (on wide screens stack vertically on mobile)
+  html += '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">';
+
+  // ── Calendar column ──────────────────────────────
+  html += '<div style="flex:1;min-width:260px">';
+  html += '<div class="home-section-title">' + calLabel + ' — ' + calDate.toLocaleDateString('en-AU', {weekday:'long',day:'numeric',month:'long'}) + '</div>';
+  html += '<div class="home-cal-wrap">';
+
+  if (!calAppts.length) {
+    html += '<div class="home-cal-empty">No appointments scheduled' + (calLabel === 'Today' ? ' today' : ' tomorrow') + '</div>';
   } else {
-    todayAppts.forEach(function(a) {
-      var timeStr = new Date(a.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' });
-      // Look up patient name
-      var pid = (a.participant || []).map(function(p) {
-        var ref = (p.actor && p.actor.reference) || '';
-        return ref.startsWith('Patient/') ? ref.replace('Patient/', '') : null;
-      }).filter(Boolean)[0] || '';
-      var patientName = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[pid]) || pid || '—';
-      var apptType = a.appointmentType && a.appointmentType.text || '';
-      html += '<div class="home-appt-item">'
-        + '<span class="home-appt-time">' + escHtml(timeStr) + '</span>'
-        + '<span class="home-appt-name">' + escHtml(patientName) + '</span>'
-        + (apptType ? '<span class="home-appt-type">' + escHtml(apptType) + '</span>' : '')
+    html += '<div class="home-cal-body">';
+    // Time labels
+    html += '<div class="home-cal-times">';
+    for (var hr = CAL_START; hr < CAL_END; hr++) {
+      var lbl = hr === 12 ? '12 pm' : (hr > 12 ? (hr-12) + ' pm' : hr + ' am');
+      html += '<div class="home-cal-hour-label">' + lbl + '</div>';
+    }
+    html += '</div>';
+
+    // Grid
+    html += '<div class="home-cal-grid" style="height:' + ((CAL_END - CAL_START) * HOUR_PX) + 'px">';
+    for (var hr2 = CAL_START; hr2 < CAL_END; hr2++) {
+      html += '<div class="home-cal-hour-row"></div>';
+    }
+
+    // Now line
+    var nowHour = now.getHours() + now.getMinutes() / 60;
+    if (calLabel === 'Today' && nowHour >= CAL_START && nowHour < CAL_END) {
+      var nowTop = (nowHour - CAL_START) * HOUR_PX;
+      html += '<div class="home-cal-now-line" style="top:' + nowTop + 'px;background:var(--amber)">'
+        + '<div class="home-cal-now-dot" style="background:var(--amber)"></div></div>';
+    }
+
+    // Appointment blocks
+    calAppts.forEach(function(a) {
+      var startH = new Date(a.start).getHours() + new Date(a.start).getMinutes() / 60;
+      var endH   = a.end ? (new Date(a.end).getHours() + new Date(a.end).getMinutes() / 60) : (startH + 1);
+      // Clamp to grid
+      var top    = Math.max(0, (startH - CAL_START)) * HOUR_PX;
+      var height = Math.max(24, (endH - startH) * HOUR_PX - 3);
+      var name   = _apptPatientName(a);
+      var timeStr = new Date(a.start).toLocaleTimeString('en-AU', { hour:'numeric', minute:'2-digit', timeZone:'Australia/Brisbane' });
+      // Color: upcoming=teal, past=soft
+      var isPast = new Date(a.end || a.start).getTime() < now.getTime();
+      var bg = isPast ? 'rgba(42,88,80,0.15)' : 'rgba(42,88,80,0.80)';
+      var fg = isPast ? 'var(--teal)' : 'white';
+      html += '<div class="home-cal-appt-block" style="top:' + top + 'px;height:' + height + 'px;background:' + bg + ';color:' + fg + '">'
+        + '<div class="home-cal-appt-name">' + escHtml(name) + '</div>'
+        + (height > 32 ? '<div class="home-cal-appt-time">' + escHtml(timeStr) + '</div>' : '')
+        + '</div>';
+    });
+
+    html += '</div>'; // grid
+    html += '</div>'; // cal-body
+  }
+  html += '</div>'; // cal-wrap
+  html += '</div>'; // calendar column
+
+  // ── Tasks column ──────────────────────────────────
+  html += '<div style="flex:1;min-width:220px">';
+  html += '<div class="home-section-title">Tasks</div>';
+  html += '<div class="home-tasks-wrap">';
+
+  var activeTasks = tasks.filter(function(t) { return !t.completed; });
+  var doneTasks   = tasks.filter(function(t) { return t.completed; });
+  var shownTasks  = activeTasks.concat(doneTasks.slice(0, 3));
+
+  if (!shownTasks.length) {
+    html += '<div style="padding:20px 14px;font-size:12.5px;color:#9AABA8;text-align:center">No tasks — all clear ✓</div>';
+  } else {
+    shownTasks.forEach(function(t) {
+      html += '<div class="home-task-item">'
+        + '<button class="home-task-check' + (t.completed ? ' done' : '') + '" onclick="toggleTask(\'' + t.id + '\',' + (!t.completed) + ');renderHomeView()" title="Toggle">✓</button>'
+        + '<span class="home-task-text' + (t.completed ? ' done' : '') + '">' + escHtml(t.title || '') + '</span>'
         + '</div>';
     });
   }
-  html += '</div>';
 
-  html += '</div>'; // .home-view
+  // Quick add task
+  html += '<div class="home-task-add">'
+    + '<input class="home-task-add-input" id="home-task-input" placeholder="Add a task…" onkeydown="if(event.key===\'Enter\')_homeAddTask()">'
+    + '<button class="home-task-add-btn" onclick="_homeAddTask()">Add</button>'
+    + '</div>';
+
+  html += '</div>'; // tasks-wrap
+  html += '</div>'; // tasks column
+
+  html += '</div>'; // two-column row
+  html += '</div>'; // home-view
   content.innerHTML = html;
+}
+
+async function _homeAddTask() {
+  var input = document.getElementById('home-task-input');
+  if (!input || !input.value.trim()) return;
+  var title = input.value.trim();
+  input.value = '';
+  try {
+    var task = await apiFetch('/api/admin-tasks', { method: 'POST', body: { title: title } });
+    if (!_pipelineData.tasks) _pipelineData.tasks = [];
+    _pipelineData.tasks.unshift(task);
+    renderHomeView();
+  } catch (err) {
+    toast('Could not add task: ' + err.message, 'err');
+  }
 }
 
 function renderQueueView() {
@@ -2369,6 +2453,7 @@ function renderQueueView() {
   });
 
   // Total urgent count for topbar/badge
+  var urgentAll   = urgentRecord.concat(urgentOverdue);
   var urgentTotal = todaySessions.length + urgentRecord.length + urgentOverdue.length;
   var actionTotal = urgentTotal + postSession.length + newLeads.length;
 
@@ -2378,112 +2463,93 @@ function renderQueueView() {
   // ── Update sidebar badge ──
   var badge = document.getElementById('sib-queue');
   if (badge) {
-    if (actionTotal > 0) { badge.textContent = actionTotal; badge.classList.add('visible'); }
+    var badgeCount = urgentAll.length + postSession.length;
+    if (badgeCount > 0) { badge.textContent = badgeCount; badge.classList.add('visible'); }
     else { badge.classList.remove('visible'); }
   }
 
-  // ── Home header ──────────────────────────────────────────
-  var hour = now.getHours();
-  var greeting = hour < 12 ? 'Good morning' : (hour < 17 ? 'Good afternoon' : 'Good evening');
-  var thisWeekMs = now.getTime() + 7 * 24 * 60 * 60 * 1000;
-  var weekSessions = unified.upcoming.filter(function(s) { return s.startMs <= thisWeekMs; });
-  var summaryParts = [];
-  if (allClients.length) summaryParts.push(allClients.length + ' client' + (allClients.length !== 1 ? 's' : ''));
-  if (weekSessions.length) summaryParts.push(weekSessions.length + ' appointment' + (weekSessions.length !== 1 ? 's' : '') + ' this week');
+  // ── Build folders array ──────────────────────────────────
+  var folders = [
+    { key: 'today',    label: 'Today',            color: 'var(--teal)',       items: todaySessions,  fn: _qSessionItem,  isUrgent: false, subGroups: null },
+    { key: 'urgent',   label: 'Urgent',           color: 'var(--s-urgent)',   items: urgentAll,      fn: _qSessionItem,  isUrgent: true,
+      subGroups: [
+        { key: 'record',  label: 'Needs recording (' + urgentRecord.length + ')',   items: urgentRecord,  fn: _qSessionItem },
+        { key: 'overdue', label: 'Overdue invoices (' + urgentOverdue.length + ')', items: urgentOverdue, fn: _qSessionItem }
+      ].filter(function(sg) { return sg.items.length > 0; })
+    },
+    { key: 'post',      label: 'Post Appointment', color: 'var(--s-post)',     items: postSession,    fn: _qSessionItem,  isUrgent: false, subGroups: null },
+    { key: 'leads',     label: 'New Leads',        color: 'var(--s-lead)',     items: newLeads,       fn: _qEnquiryItem,  isUrgent: true,  subGroups: null },
+    { key: 'contacts',  label: 'Client Contacts',  color: 'var(--s-triage)',   items: triage,         fn: _qEnquiryItem,  isUrgent: false, subGroups: null },
+    { key: 'upcoming',  label: 'Upcoming',         color: 'var(--s-upcoming)', items: upcomingSessions, fn: _qSessionItem, isUrgent: false, subGroups: null },
+    { key: 'finance',   label: 'Awaiting Payment', color: 'var(--s-finance)',  items: finance,        fn: _qSessionItem,  isUrgent: false, subGroups: null },
+    { key: 'unlinked',  label: 'Personal / Unlinked', color: 'var(--s-triage)', items: unlinked,     fn: _qSessionItem,  isUrgent: false, subGroups: null },
+    { key: 'closed',    label: 'Closed',           color: 'var(--soft)',       items: closedEnqs,     fn: _qEnquiryItem,  isUrgent: false, subGroups: null },
+  ].concat(completed.length ? [{ key: 'complete', label: 'Completed', color: 'var(--s-complete)', items: completed, fn: _qSessionItem, isUrgent: false, subGroups: null }] : [])
+   .filter(function(f) { return f.items.length > 0 || f.key === 'today' || f.key === 'upcoming'; });
 
-  var html = '<div class="queue-view">';
-  html += '<div class="qhome-hd">';
-  html += '<div class="qhome-greeting">' + greeting + ', <em>Cheree</em></div>';
-  if (summaryParts.length) {
-    html += '<div class="qhome-summary">' + summaryParts.join(' · ');
-    if (urgentTotal) html += ' · <span class="qhome-alert">' + urgentTotal + ' urgent</span>';
-    html += '</div>';
+  // ── Auto-select active folder ──────────────────────────────
+  var priorityKeys = ['urgent', 'today', 'post', 'leads', 'contacts', 'upcoming'];
+  if (!window._inboxFolder) {
+    var autoKey = null;
+    for (var pi = 0; pi < priorityKeys.length; pi++) {
+      var pf = folders.find(function(f) { return f.key === priorityKeys[pi]; });
+      if (pf && pf.items.length > 0) { autoKey = pf.key; break; }
+    }
+    window._inboxFolder = autoKey || (folders.length ? folders[0].key : 'today');
   }
-  html += '</div>';
+  // Make sure the selected folder actually exists in the filtered list
+  var selFolder = folders.find(function(f) { return f.key === window._inboxFolder; });
+  if (!selFolder) {
+    window._inboxFolder = folders.length ? folders[0].key : 'today';
+    selFolder = folders[0] || null;
+  }
 
-  // ── Compact metrics row ──
-  html += '<div class="q-metrics">';
-  html += _qMetric(urgentTotal, 'Urgent', 'var(--s-urgent)', urgentTotal > 0);
-  html += _qMetric(postSession.length, 'Post-appt', 'var(--s-post)', postSession.length > 0);
-  html += _qMetric(newLeads.length, 'New leads', 'var(--s-lead)', newLeads.length > 0);
-  html += _qMetric(upcomingSessions.length, 'Upcoming', 'var(--s-upcoming)', false);
-  html += '</div>';
+  // ── Render inbox layout ───────────────────────────────────
+  var html = '<div class="inbox-layout">';
 
-  // ── TODAY (always visible, always open by default) ───────
-  html += _qFolder('today', 'Today', 'var(--teal)', todaySessions, _qSessionItem, 'today', {
-    defaultOpen: 'always',
-    emptyMsg: 'No sessions today — clear schedule ✓'
+  // Sidebar
+  html += '<div class="inbox-sidebar">';
+  html += '<div class="inbox-sidebar-label">Inbox</div>';
+  folders.forEach(function(f) {
+    var isActive = f.key === window._inboxFolder;
+    var countCls = f.isUrgent && f.items.length > 0 ? 'urgent' : 'normal';
+    html += '<button class="inbox-folder-btn' + (isActive ? ' active' : '') + '"'
+      + ' onclick="window._inboxFolder=\'' + f.key + '\';renderQueueView()">'
+      + '<span class="inbox-folder-dot" style="background:' + f.color + '"></span>'
+      + '<span class="inbox-folder-label">' + escHtml(f.label) + '</span>'
+      + (f.items.length > 0
+          ? '<span class="inbox-folder-count ' + countCls + '">' + f.items.length + '</span>'
+          : '')
+      + '</button>';
   });
+  html += '</div>'; // inbox-sidebar
 
-  // ── URGENT (with sub-groups for needs-recording / overdue) ─
-  var urgentAll = urgentRecord.concat(urgentOverdue);
-  if (urgentAll.length) {
-    var urgentSubs = [
-      { key: 'record',  label: 'Needs recording (' + urgentRecord.length + ')',  items: urgentRecord,  fn: _qSessionItem, bar: 'urgent' },
-      { key: 'overdue', label: 'Overdue invoices (' + urgentOverdue.length + ')', items: urgentOverdue, fn: _qSessionItem, bar: 'urgent' }
-    ].filter(function(sg) { return sg.items.length > 0; });
-    html += _qFolder('urgent', 'Urgent', 'var(--s-urgent)', urgentAll, _qSessionItem, 'urgent', {
-      urgent: true, defaultOpen: true,
-      subGroups: urgentSubs
-    });
+  // Main pane
+  html += '<div class="inbox-main">';
+  if (selFolder) {
+    html += '<div class="inbox-pane-title">' + escHtml(selFolder.label) + '</div>';
+    if (!selFolder.items.length) {
+      html += '<div class="q-empty">'
+        + (selFolder.key === 'today' ? 'No sessions today — clear schedule ✓' : 'Nothing here')
+        + '</div>';
+    } else if (selFolder.subGroups && selFolder.subGroups.length > 1) {
+      // Render sub-groups with labels
+      selFolder.subGroups.forEach(function(sg) {
+        if (!sg.items.length) return;
+        html += '<div class="q-sub-group">';
+        html += '<span class="q-sub-title">' + escHtml(sg.label) + '</span>';
+        html += '<div class="q-items">' + sg.items.map(function(item) { return sg.fn(item); }).join('') + '</div>';
+        html += '</div>';
+      });
+    } else {
+      html += '<div class="q-items">' + selFolder.items.map(function(item) { return selFolder.fn(item); }).join('') + '</div>';
+    }
+  } else {
+    html += '<div class="q-empty">Nothing to show</div>';
   }
+  html += '</div>'; // inbox-main
 
-  // ── POST SESSION ─────────────────────────────────────────
-  if (postSession.length) {
-    html += _qFolder('post', 'Post Appointment', 'var(--s-post)', postSession, _qSessionItem, 'post', {
-      defaultOpen: true
-    });
-  }
-
-  // ── NEW LEADS ────────────────────────────────────────────
-  if (newLeads.length) {
-    html += _qFolder('new-leads', 'New Leads', 'var(--s-lead)', newLeads, _qEnquiryItem, 'lead', {
-      urgent: true, defaultOpen: true
-    });
-  }
-
-  // ── CLIENT CONTACTS ──────────────────────────────────────
-  if (triage.length) {
-    var contactSubs = [
-      { key: 'contacted',  label: 'Contacted (' + triageContacted.length + ')',        items: triageContacted,  fn: _qEnquiryItem },
-      { key: 'in_halaxy',  label: 'Awaiting first booking (' + triageInHalaxy.length + ')', items: triageInHalaxy, fn: _qEnquiryItem },
-    ].filter(function(sg) { return sg.items.length > 0; });
-    html += _qFolder('triage', 'Client Contacts', 'var(--s-triage)', triage, _qEnquiryItem, 'triage', {
-      defaultOpen: true,
-      subGroups: contactSubs.length > 1 ? contactSubs : null,
-    });
-  }
-
-  // ── CLOSED ───────────────────────────────────────────────
-  if (closedEnqs.length) {
-    html += _qFolder('closed-enqs', 'Closed', 'var(--soft)', closedEnqs, _qEnquiryItem, 'closed', {
-      defaultOpen: false
-    });
-  }
-
-  // ── UPCOMING (collapsed by default) ──────────────────────
-  if (upcomingSessions.length) {
-    html += _qFolder('upcoming', 'Upcoming Sessions', 'var(--s-upcoming)', upcomingSessions, _qSessionItem, 'upcoming');
-  }
-
-  // ── FINANCE (awaiting payment / invoiced) ────────────────
-  if (finance.length) {
-    html += _qFolder('finance', 'Awaiting Payment', 'var(--s-finance)', finance, _qSessionItem, 'finance');
-  }
-
-  // ── PERSONAL / UNLINKED ──────────────────────────────────
-  if (unlinked.length) {
-    html += _qFolder('unlinked', 'Personal / Unlinked', 'var(--s-triage)', unlinked, _qSessionItem, 'unlinked');
-  }
-
-  // ── COMPLETED ────────────────────────────────────────────
-  if (completed.length) {
-    html += _qFolder('completed', 'Completed', 'var(--s-complete)', completed, _qSessionItem, 'complete', {
-      maxVisible: 8
-    });
-  }
-
-  html += '</div>'; // .queue-view
+  html += '</div>'; // inbox-layout
   content.innerHTML = html;
 }
 
@@ -2661,6 +2727,320 @@ function _qEnquiryItem(enq, barClass) {
    ═══════════════════════════════════════════════════ */
 
 function renderClientsView() {
+  var content = document.getElementById('view-content');
+  if (!content || !_pipelineData) return;
+
+  // Reset search if not set
+  if (window._clientListSearch === undefined) window._clientListSearch = '';
+
+  var supabaseClients = (_pipelineData.clients || []);
+  var allEnquiries    = (_pipelineData.enquiries || []);
+  var now = new Date();
+  var halaxyInvoices = (_halaxyData && _halaxyData.invoices) || [];
+  var pm = (_halaxyData && _halaxyData.patientMap) || {};
+
+  // Build invoice index for enrichment
+  var byPatient = {};
+  halaxyInvoices.forEach(function(inv) {
+    var pid = String(inv.patientId || '');
+    if (!pid || pid === 'null' || pid === 'undefined') return;
+    if (!byPatient[pid]) byPatient[pid] = { invoices: [], lastDate: '' };
+    byPatient[pid].invoices.push(inv);
+    if ((inv.date || '') > byPatient[pid].lastDate) byPatient[pid].lastDate = inv.date || '';
+  });
+
+  // Helper: last active date
+  function lastSeen(c) {
+    var dates = [];
+    (c.sessions || []).forEach(function(s) { if (s.session_date) dates.push(s.session_date); });
+    if (c.halaxy_id) {
+      halaxyInvoices.forEach(function(inv) {
+        if (inv.patientId && String(inv.patientId) === String(c.halaxy_id) && inv.date) dates.push(inv.date);
+      });
+    }
+    if (!dates.length) return null;
+    return dates.reduce(function(max, d) { return d > max ? d : max; }, '');
+  }
+
+  // Avatar helpers
+  var _avatarGradients = [
+    'linear-gradient(145deg,#2A5850,#4A7A70)',
+    'linear-gradient(145deg,#3D6FA8,#5888C0)',
+    'linear-gradient(145deg,#7A7090,#9A90B0)',
+    'linear-gradient(145deg,#BE6E44,#D08A5C)',
+    'linear-gradient(145deg,#4A8060,#6AA070)',
+    'linear-gradient(145deg,#8A5058,#AA7078)',
+  ];
+  function _avatarGrad(name) {
+    var code = (name || '?').toUpperCase().charCodeAt(0) || 65;
+    return _avatarGradients[code % _avatarGradients.length];
+  }
+
+  // Only show dashboard clients (active !== false) — no Group C
+  var activeClients = supabaseClients.filter(function(c) { return c.active !== false; });
+  var archived      = supabaseClients.filter(function(c) { return c.active === false; });
+
+  // Sort by last seen
+  function _byDate(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); }
+  activeClients = activeClients.slice().sort(_byDate);
+
+  // Apply client-side search filter
+  var searchQ = (window._clientListSearch || '').trim().toLowerCase();
+  var visibleClients = searchQ
+    ? activeClients.filter(function(c) {
+        return (c.display_name || '').toLowerCase().indexOf(searchQ) !== -1
+          || (c.funder || '').toLowerCase().indexOf(searchQ) !== -1;
+      })
+    : activeClients;
+
+  // Build list item HTML
+  function renderListItem(c) {
+    var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    var ls = lastSeen(c);
+    var lastDateStr = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : 'No activity';
+
+    // Compute owing
+    var invs = c.halaxy_id ? halaxyInvoices.filter(function(i) { return String(i.patientId) === String(c.halaxy_id); }) : [];
+    var totalOwing = invs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
+
+    // Tags
+    var tags = '';
+    var typeLabel = c.is_contact ? 'Contact' : (c.client_type === 'couples' ? 'Couples' : (c.client_type === 'child' ? 'Child' : 'Individual'));
+    tags += '<span class="cl-list-tag type">' + escHtml(typeLabel) + '</span>';
+    if (c.funder) {
+      var fl = FUNDER_LABELS[c.funder] || c.funder;
+      tags += '<span class="cl-list-tag funder">' + escHtml(fl) + '</span>';
+    }
+    if (c.is_contact) tags += '<span class="cl-list-tag contact">Contact</span>';
+    if (totalOwing > 0.005) tags += '<span class="cl-list-tag owing">$' + Math.round(totalOwing) + ' owing</span>';
+
+    var cid = escHtml(c.id || '');
+    return '<div class="cl-list-item" onclick="renderClientDetailView(\'' + cid + '\')">'
+      + '<div class="cl-list-av" style="background:' + _avatarGrad(c.display_name) + '">' + escHtml(initials) + '</div>'
+      + '<div class="cl-list-info">'
+      + '<div class="cl-list-name">' + escHtml(c.display_name || '—') + '</div>'
+      + '<div class="cl-list-tags">' + tags + '</div>'
+      + '</div>'
+      + '<div class="cl-list-meta">' + escHtml(lastDateStr) + '</div>'
+      + '</div>';
+  }
+
+  var html = '<div class="cl-list-view">';
+
+  // Header
+  html += '<div class="cl-list-hd">'
+    + '<span class="cl-list-hd-title">Clients</span>'
+    + '<input class="cl-list-search" type="search" placeholder="Search…" value="' + escHtml(window._clientListSearch || '') + '"'
+    + ' oninput="window._clientListSearch=this.value;renderClientsView()">'
+    + '<button class="cl-list-add-btn" onclick="openAddClient()">+ Add Client</button>'
+    + '</div>';
+
+  // List
+  html += '<div class="cl-list">';
+  if (!visibleClients.length) {
+    html += '<div class="cl-list-empty">' + (searchQ ? 'No clients match your search' : 'No clients yet — click + Add Client to get started') + '</div>';
+  } else {
+    html += visibleClients.map(renderListItem).join('');
+  }
+
+  // Archived section
+  if (archived.length) {
+    var archOpen = window._clientsArchiveOpen;
+    html += '<div style="margin-top:16px">';
+    html += '<button class="q-section-toggle" style="font-size:11px;color:#9AABA8;background:none;border:none;cursor:pointer;padding:4px 2px"'
+      + ' onclick="window._clientsArchiveOpen=!window._clientsArchiveOpen;renderClientsView()">'
+      + (archOpen ? '▾' : '▸') + ' Archived (' + archived.length + ')'
+      + '</button>';
+    if (archOpen) {
+      html += '<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">' + archived.map(renderListItem).join('') + '</div>';
+    }
+    html += '</div>';
+  }
+
+  html += '</div>'; // cl-list
+  html += '</div>'; // cl-list-view
+  content.innerHTML = html;
+}
+
+function renderClientDetailView(clientId) {
+  var content = document.getElementById('view-content');
+  if (!content || !_pipelineData) return;
+
+  var c = (_pipelineData.clients || []).find(function(x) { return String(x.id) === String(clientId); });
+  if (!c) {
+    content.innerHTML = '<div style="padding:20px;color:#9AABA8">Client not found</div>';
+    return;
+  }
+
+  var halaxyInvoices = (_halaxyData && _halaxyData.invoices) || [];
+  var halaxyAppts    = (_halaxyData && _halaxyData.appointments) || [];
+  var allEnquiries   = (_pipelineData.enquiries || []);
+
+  // Avatar helpers (local)
+  var _avatarGradients = [
+    'linear-gradient(145deg,#2A5850,#4A7A70)',
+    'linear-gradient(145deg,#3D6FA8,#5888C0)',
+    'linear-gradient(145deg,#7A7090,#9A90B0)',
+    'linear-gradient(145deg,#BE6E44,#D08A5C)',
+    'linear-gradient(145deg,#4A8060,#6AA070)',
+    'linear-gradient(145deg,#8A5058,#AA7078)',
+  ];
+  function _avatarGrad(name) {
+    var code = (name || '?').toUpperCase().charCodeAt(0) || 65;
+    return _avatarGradients[code % _avatarGradients.length];
+  }
+
+  var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
+
+  // Filter Halaxy data for this client
+  var clientInvoices = c.halaxy_id
+    ? halaxyInvoices.filter(function(i) { return String(i.patientId) === String(c.halaxy_id); })
+      .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
+    : [];
+  var clientAppts = c.halaxy_id
+    ? halaxyAppts.filter(function(a) {
+        return (a.participant || []).some(function(p) {
+          var ref = (p.actor && p.actor.reference) || '';
+          return ref === 'Patient/' + c.halaxy_id;
+        });
+      }).sort(function(a, b) { return (b.start || '').localeCompare(a.start || ''); })
+    : [];
+
+  // Linked enquiry
+  var linkedEnq = c.enquiry_id
+    ? allEnquiries.find(function(e) { return String(e.id) === String(c.enquiry_id); })
+    : null;
+
+  // Financials
+  var totalPaid    = clientInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
+  var totalOwing   = clientInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
+  var funderLabel  = FUNDER_LABELS[c.funder] || c.funder || '—';
+
+  // Header tags
+  var headerTags = '';
+  var typeLabel = c.is_contact ? 'Contact' : (c.client_type === 'couples' ? 'Couples' : (c.client_type === 'child' ? 'Child' : 'Individual'));
+  headerTags += '<span class="cl-list-tag type">' + escHtml(typeLabel) + '</span>';
+  if (c.funder) headerTags += '<span class="cl-list-tag funder">' + escHtml(funderLabel) + '</span>';
+  if (c.is_contact) headerTags += '<span class="cl-list-tag contact">Contact</span>';
+  if (c.halaxy_id) {
+    headerTags += '<a href="https://au.halaxy.com/app/clients/' + escHtml(String(c.halaxy_id)) + '" target="_blank" rel="noopener"'
+      + ' style="font-size:10px;color:var(--teal);text-decoration:none;font-weight:600;padding:2px 7px;border-radius:99px;background:rgba(42,88,80,0.10)">'
+      + 'Open in Halaxy ↗</a>';
+  }
+
+  var html = '<div class="cl-detail-view">';
+
+  // Back button
+  html += '<button class="cl-detail-back" onclick="renderClientsView()">← Clients</button>';
+
+  // Header
+  html += '<div class="cl-detail-hd">'
+    + '<div class="cl-detail-av" style="background:' + _avatarGrad(c.display_name) + '">' + escHtml(initials) + '</div>'
+    + '<div class="cl-detail-hd-info">'
+    + '<div class="cl-detail-hd-name">' + escHtml(c.display_name || '—') + '</div>'
+    + '<div class="cl-detail-hd-tags">' + headerTags + '</div>'
+    + '</div>'
+    + '</div>';
+
+  html += '<div class="cl-detail-body">';
+
+  // Overview section
+  html += '<div class="cl-detail-section">'
+    + '<div class="cl-detail-sec-title">Overview</div>'
+    + '<div class="cl-detail-row"><span class="cl-detail-row-label">Halaxy ID</span><span class="cl-detail-row-val">' + escHtml(c.halaxy_id ? String(c.halaxy_id) : 'None') + '</span></div>'
+    + '<div class="cl-detail-row"><span class="cl-detail-row-label">Funder</span><span class="cl-detail-row-val">' + escHtml(funderLabel) + '</span></div>';
+  if (c.plan_manager) {
+    html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Plan manager</span><span class="cl-detail-row-val">' + escHtml(c.plan_manager) + '</span></div>';
+  }
+  if (c.created_at) {
+    html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Client since</span><span class="cl-detail-row-val">' + fmtDate(c.created_at) + '</span></div>';
+  }
+  if (totalPaid > 0) {
+    html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Total paid</span><span class="cl-detail-row-val">$' + totalPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
+  }
+  if (totalOwing > 0.005) {
+    html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Outstanding</span><span class="cl-detail-row-val" style="color:var(--amber)">$' + totalOwing.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
+  }
+  if (c.notes) {
+    html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Notes</span><span class="cl-detail-row-val" style="text-align:left;max-width:70%">' + escHtml(c.notes) + '</span></div>';
+  }
+  html += '</div>';
+
+  // Onboarding section (only if linked enquiry)
+  if (linkedEnq) {
+    html += '<div class="cl-detail-section">'
+      + '<div class="cl-detail-sec-title">Onboarding</div>';
+    if (linkedEnq.source) {
+      html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Source</span><span class="cl-detail-row-val">' + escHtml(linkedEnq.source) + '</span></div>';
+    }
+    if (linkedEnq.service) {
+      html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Service</span><span class="cl-detail-row-val">' + escHtml(linkedEnq.service) + '</span></div>';
+    }
+    if (linkedEnq.created_at) {
+      html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Enquiry date</span><span class="cl-detail-row-val">' + fmtDate(linkedEnq.created_at) + '</span></div>';
+    }
+    if (linkedEnq.intake_funder) {
+      html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Intake funder</span><span class="cl-detail-row-val">' + escHtml(FUNDER_LABELS[linkedEnq.intake_funder] || linkedEnq.intake_funder) + '</span></div>';
+    }
+    if (linkedEnq.notes) {
+      html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Notes</span><span class="cl-detail-row-val" style="text-align:left;max-width:70%">' + escHtml(linkedEnq.notes) + '</span></div>';
+    }
+    html += '</div>';
+  }
+
+  // Appointments section
+  if (clientAppts.length) {
+    html += '<div class="cl-detail-section">'
+      + '<div class="cl-detail-sec-title">Appointments (' + clientAppts.length + ')</div>';
+    clientAppts.forEach(function(a) {
+      var dateStr = a.start ? new Date(a.start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Australia/Brisbane' }) : '—';
+      var timeStr = a.start ? new Date(a.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' }) : '';
+      var apptType = (a.appointmentType && a.appointmentType.text) || '';
+      var statusStr = a.status || 'booked';
+      var isCancelled = statusStr === 'cancelled';
+      html += '<div class="cl-detail-appt-row">'
+        + '<span class="cl-detail-appt-date">' + escHtml(dateStr) + '</span>'
+        + '<span class="cl-detail-appt-time">' + escHtml(timeStr) + (apptType ? ' · ' + escHtml(apptType) : '') + '</span>'
+        + '<span class="cl-detail-appt-badge' + (isCancelled ? ' cancelled' : '') + '">' + escHtml(statusStr) + '</span>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Invoices section
+  if (clientInvoices.length) {
+    html += '<div class="cl-detail-section">'
+      + '<div class="cl-detail-sec-title">Invoices (' + clientInvoices.length + ')</div>';
+    clientInvoices.forEach(function(inv) {
+      var dateStr = inv.date ? fmtDate(inv.date) : '—';
+      var amount  = parseFloat(inv.totalPrice || 0);
+      var owing   = parseFloat(inv.totalBalance || 0);
+      var status  = inv.status || 'active';
+      html += '<div class="cl-detail-inv-row">'
+        + '<span style="flex:1;font-size:12px;color:#7A948F">' + escHtml(dateStr) + '</span>'
+        + '<span style="font-weight:600;color:#1A2F2B">' + (amount > 0 ? '$' + amount.toFixed(2) : '—') + '</span>'
+        + (owing > 0.005 ? '<span style="font-size:11px;color:var(--amber)">$' + owing.toFixed(2) + ' owing</span>' : '')
+        + '<span class="cl-detail-inv-badge ' + escHtml(status) + '">' + escHtml(status) + '</span>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Actions
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:4px">';
+  if (c.id) {
+    html += '<button class="rdp-ghost-btn" style="width:auto;padding:9px 18px" onclick="openClientEditPanel(\'' + escHtml(c.id) + '\')">Edit client</button>';
+  }
+  html += '<button class="rdp-ghost-btn" style="width:auto;padding:9px 18px" onclick="navigateTo(\'billing\')">View in Billing</button>';
+  html += '</div>';
+
+  html += '</div>'; // cl-detail-body
+  html += '</div>'; // cl-detail-view
+  content.innerHTML = html;
+}
+
+// ── Legacy renderClientsView data setup (kept for backward compatibility with the old card-based view) ──
+function _renderClientsViewLegacy() {
   var content = document.getElementById('view-content');
   if (!content || !_pipelineData) return;
 
