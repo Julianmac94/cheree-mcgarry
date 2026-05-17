@@ -2511,38 +2511,47 @@ function renderClientsView() {
   var pm = (_halaxyData && _halaxyData.patientMap) || {};
 
   // ── Build Halaxy-only patients (those NOT linked to any Supabase client) ──
+  // Source: full patient list from Halaxy (all active patients, not just those with invoices/appts).
+  // This makes the dashboard Halaxy-first: every Halaxy patient is visible here.
   var linkedHalaxyIds = new Set(
     supabaseClients.map(function(c) { return String(c.halaxy_id || ''); }).filter(Boolean)
   );
 
+  // Build invoice/activity index for enrichment
   var byPatient = {};
   halaxyInvoices.forEach(function(inv) {
     var pid = String(inv.patientId || '');
     if (!pid || pid === 'null' || pid === 'undefined') return;
-    if (linkedHalaxyIds.has(pid)) return; // already linked
     if (!byPatient[pid]) byPatient[pid] = { invoices: [], lastDate: '' };
     byPatient[pid].invoices.push(inv);
     if ((inv.date || '') > byPatient[pid].lastDate) byPatient[pid].lastDate = inv.date || '';
   });
-  // Include Halaxy patients with appointments but no invoices
+  // Pull appointment dates into lastDate too
   Object.keys(pm).forEach(function(pid) {
-    if (!linkedHalaxyIds.has(pid) && !byPatient[pid]) byPatient[pid] = { invoices: [], lastDate: '' };
+    if (!byPatient[pid]) byPatient[pid] = { invoices: [], lastDate: '' };
   });
 
-  var halaxyOnlyClients = Object.keys(byPatient).map(function(pid) {
-    var rec = byPatient[pid];
-    var invs = rec.invoices;
-    return {
-      id: null, halaxy_id: pid,
-      display_name: pm[pid] || ('Patient #' + pid),
-      sessions: [], funder: null, active: true,
-      _isHalaxyOnly: true,
-      _invoiceCount: invs.length,
-      _lastDate: rec.lastDate,
-      _totalOwing: invs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0),
-      _totalPaid:  invs.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0),
-    };
-  });
+  // Full patient list is the primary source — include every unlinked patient
+  var allHalaxyPatients = (_halaxyData && _halaxyData.patients) || [];
+  var halaxyOnlyClients = allHalaxyPatients
+    .filter(function(p) { return p.id && !linkedHalaxyIds.has(String(p.id)); })
+    .map(function(p) {
+      var pid  = String(p.id);
+      var rec  = byPatient[pid] || { invoices: [], lastDate: '' };
+      var invs = rec.invoices;
+      var hasActivity = invs.length > 0 || !!pm[pid];
+      return {
+        id: null, halaxy_id: pid,
+        display_name: p.name || pm[pid] || ('Patient #' + pid),
+        sessions: [], funder: null, active: true,
+        _isHalaxyOnly: true,
+        _hasActivity:  hasActivity,
+        _invoiceCount: invs.length,
+        _lastDate:     rec.lastDate,
+        _totalOwing:   invs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0),
+        _totalPaid:    invs.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0),
+      };
+    });
 
   // ── All clients = Supabase clients + Halaxy-only ──
   // ── Verified Halaxy patient IDs (from full patient list + patientMap) ──
@@ -2677,9 +2686,22 @@ function renderClientsView() {
         + ' onclick="event.stopPropagation();deleteClient(this.dataset.cid,this.dataset.cn)">×</button>'
       : '';
 
-    // Topbar: funder pill (right) + dupe badge (left of funder)
+    // Type badge (couples, child, contact)
+    var typeTag = '';
+    if (c.is_contact)             typeTag = '<span class="cl-card-type-tag contact">Contact</span>';
+    else if (c.client_type === 'couples') typeTag = '<span class="cl-card-type-tag couples">Couples</span>';
+    else if (c.client_type === 'child')   typeTag = '<span class="cl-card-type-tag child">Child</span>';
+
+    // Parent link indicator
+    var parentTag = '';
+    if (c.parent_client_id) {
+      var parentRec = (_pipelineData && _pipelineData.clients || []).find(function(x) { return x.id === c.parent_client_id; });
+      if (parentRec) parentTag = '<span class="cl-card-type-tag parent">↑ ' + escHtml(parentRec.display_name.split(' ')[0]) + '</span>';
+    }
+
+    // Topbar: funder pill (right) + dupe/type badges (left)
     var topbarRight = (funderLabel ? '<span class="cl-funder-pill ' + funderClass + '">' + escHtml(funderLabel) + '</span>' : '');
-    var topbarLeft  = isDupe ? '<span class="cl-card-dupe-tag">⚠ Duplicate</span>' : '';
+    var topbarLeft  = (isDupe ? '<span class="cl-card-dupe-tag">⚠ Duplicate</span>' : '') + typeTag + parentTag;
     var topbar = '<div class="cl-card-topbar"><div class="cl-card-topbar-left">' + topbarLeft + '</div>'
       + '<div class="cl-card-topbar-right">' + topbarRight + '</div></div>';
 
@@ -2758,17 +2780,35 @@ function renderClientsView() {
 
   // ── Group C: Halaxy patients with no dashboard record ──────────────
   if (groupC.length) {
-    var gcOpen = window._groupCOpen !== false; // default open
-    var descC = gcOpen
-      ? '<strong>Halaxy-only patients</strong> have appointments or invoices in Halaxy but no entry here yet. '
-        + 'Invoice counts and billing come from Halaxy. Use <strong>+ Add record</strong> to create a dashboard entry for them.'
-      : '';
-    html += '<div class="cl-section-toggle-wrap">';
-    html += _sectionLabel('In Halaxy — no dashboard record', groupC.length, '', descC);
-    html += '<button class="cl-section-collapse-btn" onclick="window._groupCOpen=!' + gcOpen + ';renderClientsView()">'
-      + (gcOpen ? '▾ Hide' : '▸ Show') + '</button>';
-    html += '</div>';
-    if (gcOpen) html += _cardGrid(groupC);
+    // Split into active (has invoices/appointments) vs new/unknown (zero activity).
+    // New patients with no history get a prompt so Cheree can decide if they're
+    // a client (billable) or a contact (referrer, parent, etc.).
+    var groupCActive = groupC.filter(function(c) { return c._hasActivity; });
+    var groupCNew    = groupC.filter(function(c) { return !c._hasActivity; });
+
+    if (groupCActive.length) {
+      var gcOpen = window._groupCOpen !== false; // default open
+      html += '<div class="cl-section-toggle-wrap">';
+      html += _sectionLabel('In Halaxy — no dashboard record', groupCActive.length, '',
+        gcOpen ? '<strong>Halaxy patients</strong> with appointment or invoice history but no dashboard entry yet. '
+          + 'Use <strong>+ Add record</strong> to track them here.' : '');
+      html += '<button class="cl-section-collapse-btn" onclick="window._groupCOpen=!' + gcOpen + ';renderClientsView()">'
+        + (gcOpen ? '▾ Hide' : '▸ Show') + '</button>';
+      html += '</div>';
+      if (gcOpen) html += _cardGrid(groupCActive);
+    }
+
+    if (groupCNew.length) {
+      var gnOpen = window._groupCNewOpen !== false; // default open
+      html += '<div class="cl-section-toggle-wrap" style="margin-top:' + (groupCActive.length ? '16px' : '0') + '">';
+      html += _sectionLabel('New in Halaxy — contact or client?', groupCNew.length, '🟡 Review',
+        gnOpen ? 'These Halaxy patients have no appointment or billing history yet. '
+          + 'Use <strong>+ Add record</strong> to track them as a client, or ignore them if they\'re contacts (referrers, parents, etc.).' : '');
+      html += '<button class="cl-section-collapse-btn" onclick="window._groupCNewOpen=!' + gnOpen + ';renderClientsView()">'
+        + (gnOpen ? '▾ Hide' : '▸ Show') + '</button>';
+      html += '</div>';
+      if (gnOpen) html += _cardGrid(groupCNew);
+    }
   }
 
   if (!groupA.length && !groupB.length && !groupC.length) {
@@ -3098,15 +3138,28 @@ function _renderClientDetailPanel(cl) {
   if (hid && _halaxyWebUrl) {
     html += '<a class="rdp-primary-btn" href="' + escHtml(_halaxyWebUrl + '/clients') + '" target="_blank" rel="noopener">Open in Halaxy →</a>';
   }
-  html += '<button class="rdp-ghost-btn" onclick="openNewSessionModal()" style="margin-top:6px">+ Log session</button>';
+  html += '<button class="rdp-ghost-btn" onclick="openNewSessionModal()" style="margin-top:6px">+ Log appointment</button>';
   html += '</div>';
 
   // Client details
+  var TYPE_LABELS = { individual: 'Individual', couples: 'Couples', child: 'Child' };
   html += '<div class="rdp-section">';
   html += '<div class="rdp-section-label">Details</div>';
+  html += '<div class="rdp-row"><span class="rdp-row-label">Type</span><span class="rdp-row-val">'
+    + (cl.is_contact ? '<span class="cl-card-type-tag contact" style="font-size:10px">Contact (non-billable)</span>' : (TYPE_LABELS[cl.client_type] || 'Individual'))
+    + '</span></div>';
+  if (cl.parent_client_id) {
+    var parentName = '';
+    var parentRec2 = (_pipelineData && _pipelineData.clients || []).find(function(x) { return x.id === cl.parent_client_id; });
+    if (parentRec2) parentName = parentRec2.display_name;
+    html += '<div class="rdp-row"><span class="rdp-row-label">Parent/Guardian</span><span class="rdp-row-val">' + escHtml(parentName || cl.parent_client_id) + '</span></div>';
+  }
   if (cl.plan_manager) html += '<div class="rdp-row"><span class="rdp-row-label">Plan manager</span><span class="rdp-row-val">' + escHtml(cl.plan_manager) + '</span></div>';
   if (cl.notes)        html += '<div class="rdp-row"><span class="rdp-row-label">Notes</span><span class="rdp-row-val">' + escHtml(cl.notes) + '</span></div>';
   if (hid)             html += '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span><span class="rdp-row-val" style="font-size:11px;color:#7A948F">' + escHtml(hid) + '</span></div>';
+  html += '<div style="margin-top:8px">'
+    + '<button class="rdp-ghost-btn" style="font-size:11px;padding:4px 10px" onclick="openEditClientTypePanel(\'' + escHtml(cl.id) + '\')">Edit type / parent…</button>'
+    + '</div>';
   html += '</div>';
 
   // ── Halaxy billing history ──────────────────────────────────────────
@@ -3163,6 +3216,75 @@ function _renderClientDetailPanel(cl) {
   html += '<div style="font-size:10px;color:#9AABA8;margin-top:4px">Does not affect Halaxy</div>';
   html += '</div>';
   return html;
+}
+
+/** Inline panel inside the detail panel to edit client_type, is_contact, parent_client_id */
+function openEditClientTypePanel(clientId) {
+  var clients = (_pipelineData && _pipelineData.clients) || [];
+  var cl = clients.find(function(c) { return String(c.id) === String(clientId); });
+  if (!cl) return;
+
+  var TYPE_LABELS = { individual: 'Individual', couples: 'Couples', child: 'Child' };
+  var parentName = '';
+  if (cl.parent_client_id) {
+    var pr = clients.find(function(x) { return x.id === cl.parent_client_id; });
+    if (pr) parentName = pr.display_name;
+  }
+
+  var overlay = document.getElementById('edit-client-type-modal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'edit-client-type-modal';
+    overlay.className = 'cl-modal-ov';
+    overlay.onclick = function(ev) { if (ev.target === overlay) overlay.classList.remove('open'); };
+    document.body.appendChild(overlay);
+  }
+
+  var clientOpts = clients.filter(function(c) { return c.id !== clientId; }).map(function(c) {
+    return '<option value="' + escHtml(c.id) + '"' + (c.id === cl.parent_client_id ? ' selected' : '') + '>' + escHtml(c.display_name) + '</option>';
+  }).join('');
+
+  overlay.innerHTML = '<div class="cl-modal" style="max-width:360px">'
+    + '<h2 class="cl-modal-title">Edit client type</h2>'
+    + '<div class="cl-modal-field"><label>Client type</label>'
+    + '<select class="cl-modal-select" id="ect-type" onchange="document.getElementById(\'ect-parent-row\').style.display=this.value===\'child\'?\'\':\'none\'">'
+    + '<option value="individual"' + (cl.client_type === 'individual' || !cl.client_type ? ' selected' : '') + '>Individual</option>'
+    + '<option value="couples"'  + (cl.client_type === 'couples'  ? ' selected' : '') + '>Couples</option>'
+    + '<option value="child"'    + (cl.client_type === 'child'    ? ' selected' : '') + '>Child</option>'
+    + '</select></div>'
+    + '<div class="cl-modal-field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'
+    + '<input type="checkbox" id="ect-contact"' + (cl.is_contact ? ' checked' : '') + '> Contact only (non-billable)</label></div>'
+    + '<div class="cl-modal-field" id="ect-parent-row" style="display:' + (cl.client_type === 'child' ? '' : 'none') + '">'
+    + '<label>Parent/Guardian client</label>'
+    + '<select class="cl-modal-select" id="ect-parent-id"><option value="">— none —</option>' + clientOpts + '</select>'
+    + '</div>'
+    + '<div class="cl-modal-actions">'
+    + '<button class="cl-modal-cancel" onclick="document.getElementById(\'edit-client-type-modal\').classList.remove(\'open\')">Cancel</button>'
+    + '<button class="cl-modal-save" onclick="_saveClientType(\'' + escHtml(clientId) + '\')">Save</button>'
+    + '</div></div>';
+  overlay.classList.add('open');
+}
+
+async function _saveClientType(clientId) {
+  var typeEl   = document.getElementById('ect-type');
+  var contEl   = document.getElementById('ect-contact');
+  var parentEl = document.getElementById('ect-parent-id');
+  try {
+    await apiFetch('/api/clients', {
+      method: 'PATCH',
+      body: {
+        id:               clientId,
+        client_type:      (typeEl   && typeEl.value)   || 'individual',
+        is_contact:       !!(contEl && contEl.checked),
+        parent_client_id: (parentEl && parentEl.value) || null,
+      },
+    });
+    document.getElementById('edit-client-type-modal').classList.remove('open');
+    toast('Client type updated ✓');
+    refreshPipeline();
+  } catch (err) {
+    toast('Save failed: ' + err.message, 'err');
+  }
 }
 
 // Helper: auto-fill intake URL when funder is selected in detail panel
@@ -3611,9 +3733,18 @@ function openHalaxyLinkPicker(clientId) {
 function openAddClient(prefillHalaxyId) {
   // Reset fields
   var ids = ['cl-display-name','cl-plan-manager','cl-halaxy-search','cl-halaxy-id','cl-notes',
-             'cl-first-name','cl-last-name','cl-new-phone','cl-new-email','cl-new-dob','cl-new-notes','cl-new-plan-manager'];
+             'cl-first-name','cl-last-name','cl-new-phone','cl-new-email','cl-new-dob','cl-new-notes','cl-new-plan-manager',
+             'cl-parent-search','cl-parent-id','cl-new-parent-search','cl-new-parent-id'];
   ids.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
   var newGender = document.getElementById('cl-new-gender'); if (newGender) newGender.value = '';
+  var ctFind = document.getElementById('cl-client-type');     if (ctFind) ctFind.value = 'individual';
+  var ctNew  = document.getElementById('cl-new-client-type'); if (ctNew)  ctNew.value  = 'individual';
+  var icFind = document.getElementById('cl-is-contact');      if (icFind) icFind.checked = false;
+  var icNew  = document.getElementById('cl-new-is-contact');  if (icNew)  icNew.checked = false;
+  var pfFind = document.getElementById('cl-parent-field');    if (pfFind) pfFind.style.display = 'none';
+  var pfNew  = document.getElementById('cl-new-parent-field');if (pfNew)  pfNew.style.display  = 'none';
+  var prFind = document.getElementById('cl-parent-results');  if (prFind) prFind.innerHTML = '';
+  var prNew  = document.getElementById('cl-new-parent-results'); if (prNew) prNew.innerHTML = '';
   _hideHalaxyLookup();
   var errEl = document.getElementById('cl-modal-error'); if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
   // Show find-selected section hidden initially
@@ -3869,6 +4000,44 @@ function _clearModalHalaxySelection() {
   if (findSel) findSel.style.display = 'none';
 }
 
+/** Show/hide parent-client field when client type is 'child' */
+function onClientTypeChange(sel, mode) {
+  var parentField = document.getElementById(mode === 'find' ? 'cl-parent-field' : 'cl-new-parent-field');
+  if (parentField) parentField.style.display = sel.value === 'child' ? '' : 'none';
+}
+
+var _parentSearchTimer = null;
+function _debounceParentSearch(query, mode) {
+  clearTimeout(_parentSearchTimer);
+  var resEl = document.getElementById(mode === 'find' ? 'cl-parent-results' : 'cl-new-parent-results');
+  if (!query || query.length < 2) { if (resEl) resEl.innerHTML = ''; return; }
+  _parentSearchTimer = setTimeout(function() { _searchParentClients(query, mode); }, 300);
+}
+
+function _searchParentClients(query, mode) {
+  var resEl = document.getElementById(mode === 'find' ? 'cl-parent-results' : 'cl-new-parent-results');
+  var idEl  = document.getElementById(mode === 'find' ? 'cl-parent-id'      : 'cl-new-parent-id');
+  if (!resEl) return;
+  var clients = (_pipelineData && _pipelineData.clients) || [];
+  var q = query.toLowerCase();
+  var matches = clients.filter(function(c) { return (c.display_name || '').toLowerCase().includes(q); }).slice(0, 6);
+  if (!matches.length) { resEl.innerHTML = '<div style="font-size:11px;color:#9AABA8;padding:4px 0">No clients found</div>'; return; }
+  resEl.innerHTML = matches.map(function(c) {
+    return '<div class="cl-halaxy-lookup-found" style="cursor:pointer;padding:4px 8px;border-radius:5px;margin-bottom:2px"'
+      + ' onclick="_selectParentClient(\'' + escHtml(c.id) + '\',\'' + escHtml(c.display_name) + '\',\'' + mode + '\')">'
+      + escHtml(c.display_name) + '</div>';
+  }).join('');
+}
+
+function _selectParentClient(clientId, clientName, mode) {
+  var idEl  = document.getElementById(mode === 'find' ? 'cl-parent-id'      : 'cl-new-parent-id');
+  var srEl  = document.getElementById(mode === 'find' ? 'cl-parent-search'  : 'cl-new-parent-search');
+  var resEl = document.getElementById(mode === 'find' ? 'cl-parent-results' : 'cl-new-parent-results');
+  if (idEl)  idEl.value  = clientId;
+  if (srEl)  srEl.value  = clientName;
+  if (resEl) resEl.innerHTML = '<div style="font-size:11px;color:var(--teal)">✓ ' + escHtml(clientName) + '</div>';
+}
+
 async function saveNewClient() {
   var modal   = document.getElementById('add-client-modal');
   var mode    = (modal && modal.dataset.mode) || 'search';
@@ -3896,24 +4065,33 @@ async function saveNewClient() {
       if (!firstName) { showErr('First name is required'); return; }
       if (!lastName)  { showErr('Last name is required');  return; }
 
+      var clientTypeN = (document.getElementById('cl-new-client-type') || {}).value || 'individual';
+      var isContactN  = !!(document.getElementById('cl-new-is-contact') || {}).checked;
+      var parentIdN   = (document.getElementById('cl-new-parent-id')   || {}).value.trim() || null;
+
       var resp = await apiFetch('/api/admin-enquiries?halaxy_create_patient=1', {
         method: 'POST',
         body: { firstName, lastName, phone: phone || undefined, email: email || undefined,
                 dob: dob || undefined, gender: gender || undefined,
-                funder: funder || undefined, planManager: pm || undefined, notes: notes || undefined },
+                funder: funder || undefined, planManager: pm || undefined, notes: notes || undefined,
+                client_type: clientTypeN || undefined, is_contact: isContactN || undefined,
+                parent_client_id: parentIdN || undefined },
       });
       toast('Patient created in Halaxy ✓ — ' + resp.client.display_name);
 
     } else {
       // ── LINK EXISTING HALAXY PATIENT ───────────────────────────────
-      var halaxyId  = (document.getElementById('cl-halaxy-id') || {}).value.trim();
-      var name      = (document.getElementById('cl-display-name') || {}).value.trim();
-      var funderSel = document.getElementById('cl-funder');
-      var funderOpt = funderSel && funderSel.options[funderSel.selectedIndex];
-      var funder    = (funderOpt && (funderOpt.dataset.billing || funderSel.value)) || '';
-      var pm        = (document.getElementById('cl-plan-manager') || {}).value.trim()
-                   || (funderOpt && funderOpt.dataset.billing === 'ndis_plan' ? funderOpt.dataset.name || '' : '');
-      var notes     = (document.getElementById('cl-notes') || {}).value.trim();
+      var halaxyId    = (document.getElementById('cl-halaxy-id')      || {}).value.trim();
+      var name        = (document.getElementById('cl-display-name')   || {}).value.trim();
+      var funderSel   = document.getElementById('cl-funder');
+      var funderOpt   = funderSel && funderSel.options[funderSel.selectedIndex];
+      var funder      = (funderOpt && (funderOpt.dataset.billing || funderSel.value)) || '';
+      var pm          = (document.getElementById('cl-plan-manager')   || {}).value.trim()
+                     || (funderOpt && funderOpt.dataset.billing === 'ndis_plan' ? funderOpt.dataset.name || '' : '');
+      var notes       = (document.getElementById('cl-notes')          || {}).value.trim();
+      var clientTypeF = (document.getElementById('cl-client-type')    || {}).value || 'individual';
+      var isContactF  = !!(document.getElementById('cl-is-contact')   || {}).checked;
+      var parentIdF   = (document.getElementById('cl-parent-id')      || {}).value.trim() || null;
 
       if (!halaxyId) { showErr('Please search for and select a Halaxy patient first'); return; }
       if (!name)     { showErr('Please enter a dashboard alias (e.g. Sarah J.)'); return; }
@@ -3921,7 +4099,9 @@ async function saveNewClient() {
       await apiFetch('/api/clients', {
         method: 'POST',
         body: { display_name: name, funder: funder || null, plan_manager: pm || null,
-                halaxy_id: halaxyId, notes: notes || null },
+                halaxy_id: halaxyId, notes: notes || null,
+                client_type: clientTypeF || null, is_contact: isContactF || false,
+                parent_client_id: parentIdF || null },
       });
       toast('Client linked ✓ — ' + name);
     }
@@ -4519,6 +4699,20 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
     ? '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();openCalSessionPanel(\'' + cardUid + '\',\'' + eventId + '\')">← Back</button>'
     : '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();closeLinkPanel(\'' + cardUid + '\')">✕ Close</button>';
 
+  // Halaxy manual-entry helper: shown after a fee is selected — lets Cheree
+  // copy the fee details to paste directly into Halaxy if $book is unavailable.
+  var manualHelper = funderLabel
+    ? '<div id="pl-manual-helper-' + cardUid + '" style="'
+      + 'background:rgba(42,88,80,0.06);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:11px;line-height:1.5">'
+      + '<div style="font-weight:600;color:#2A5850;margin-bottom:3px">Halaxy manual entry</div>'
+      + '<div>Funder: <strong>' + escHtml(funderLabel) + (planManager ? ' — ' + escHtml(planManager) : '') + '</strong></div>'
+      + '<div id="pl-manual-fee-line-' + cardUid + '" style="color:#555">Fee: select a fee item above</div>'
+      + '<button onclick="event.stopPropagation();_copyManualEntry(\'' + cardUid + '\')" style="'
+      + 'margin-top:5px;background:var(--teal);color:#fff;border:none;border-radius:5px;'
+      + 'padding:3px 10px;font-size:10px;cursor:pointer;font-weight:600">⎘ Copy to clipboard</button>'
+      + '</div>'
+    : '';
+
   panel.innerHTML = '<div class="pl-link-panel">'
     + '<div class="pl-link-preview">'
     + '<div class="pl-link-preview-name">' + escHtml(patientName) + '</div>'
@@ -4527,6 +4721,7 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
     + (planManager ? ' · ' + escHtml(planManager) : '')
     + (local ? ' · in dashboard ✓' : '') + '</div>'
     + '</div>'
+    + manualHelper
     + funderPickerHtml
     + pmHtml
     + feeHtml
@@ -4540,6 +4735,7 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
     + ' value="' + escHtml(evt.title || '') + '" placeholder="Appointment notes…" onclick="event.stopPropagation()" style="margin-top:6px">'
     + '<div class="pl-card-actions" style="margin-top:8px">'
     + backBtn
+    + '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();_sendManualReminder(\'' + escHtml(patientId) + '\',\'' + escHtml(panelEl ? (panelEl.dataset.apptDate || '') : '') + '\',\'' + escHtml(panelEl ? (panelEl.dataset.apptStart || '') : '') + '\')">🔔 Remind</button>'
     + '<button class="pl-action-btn pl-action-btn--danger" onclick="event.stopPropagation();_cancelHalaxySession(\'' + cardUid + '\',\'' + (eventId || '') + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(halaxyApptId) + '\')">Cancel appointment</button>'
     + '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();_saveHalaxySession(\'' + cardUid + '\',\'' + (eventId || '') + '\',\'' + escHtml(patientId) + '\',\'' + escHtml(patientName) + '\',\'' + (funderKey || '') + '\',\'' + escHtml(halaxyApptId) + '\')">Record Attended →</button>'
     + '</div></div>';
@@ -4568,11 +4764,47 @@ function _rebuildFeesForFunder(cardUid) {
   } else if (feeAmt) { feeAmt.value = FUNDER_RATES[fk] || ''; }
 }
 
-/** When fee dropdown changes, sync the editable amount field */
+/** When fee dropdown changes, sync the editable amount field + manual-entry helper */
 function _syncFeeInput(cardUid) {
   var sel = document.getElementById('pl-cs-fee-' + cardUid);
   var amt = document.getElementById('pl-cs-fee-amt-' + cardUid);
   if (sel && amt && sel.value) amt.value = sel.value;
+  // Update the manual-entry fee line
+  var feeLine = document.getElementById('pl-manual-fee-line-' + cardUid);
+  if (feeLine && sel && sel.selectedIndex > 0) {
+    var opt = sel.options[sel.selectedIndex];
+    var feeName = (opt && opt.dataset && opt.dataset.feeName) ? opt.dataset.feeName : '';
+    var feeVal  = sel.value ? '$' + Number(sel.value).toFixed(2) : '';
+    if (feeName && feeVal) feeLine.innerHTML = 'Fee: <strong>' + escHtml(feeName) + ' — ' + escHtml(feeVal) + '</strong>';
+  }
+}
+
+/** Copy the funder + fee details from the manual-entry helper to clipboard */
+function _copyManualEntry(cardUid) {
+  var helper = document.getElementById('pl-manual-helper-' + cardUid);
+  if (!helper) return;
+  // Extract the text from each label line
+  var lines = helper.querySelectorAll('div');
+  var text = [];
+  lines.forEach(function(el) {
+    var t = el.textContent.trim();
+    if (t && t !== 'Halaxy manual entry') text.push(t);
+  });
+  var copyText = text.join('\n');
+  if (!copyText) return;
+  navigator.clipboard.writeText(copyText).then(function() {
+    toast('Copied to clipboard ✓');
+  }).catch(function() {
+    // Fallback for browsers without clipboard API
+    var ta = document.createElement('textarea');
+    ta.value = copyText;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast('Copied to clipboard ✓'); } catch (_) {}
+    document.body.removeChild(ta);
+  });
 }
 
 async function _saveHalaxySession(cardUid, eventId, patientId, patientName, funderKey, halaxyApptId) {
@@ -4732,19 +4964,90 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
  * Mark a session as cancelled in Halaxy.
  * For Google Cal events with no Halaxy appointment, calls $book first then immediately cancels.
  */
-async function _cancelHalaxySession(cardUid, eventId, patientId, halaxyApptId) {
-  var panelEl  = document.getElementById('pl-link-' + cardUid);
-  var notesEl  = document.getElementById('pl-cs-notes-' + cardUid);
-  var evt      = _calEventMap[eventId] || {};
-
+/**
+ * Show a cancellation modal with fee disposition options before cancelling in Halaxy.
+ * Options: keep fee, convert to private, waive, or exception.
+ */
+function _cancelHalaxySession(cardUid, eventId, patientId, halaxyApptId) {
+  var panelEl = document.getElementById('pl-link-' + cardUid);
+  var notesEl = document.getElementById('pl-cs-notes-' + cardUid);
+  var evt     = _calEventMap[eventId] || {};
   var apptDate  = (panelEl && panelEl.dataset.apptDate) || (evt.start ? evt.start.slice(0, 10) : new Date().toISOString().slice(0, 10));
   var apptStart = (panelEl && panelEl.dataset.apptStart) || evt.start || (apptDate + 'T09:00:00');
   var apptEnd   = evt.end || null;
   var hxApptId  = halaxyApptId || (panelEl && panelEl.dataset.halaxyApptId) || null;
-  var notes     = notesEl ? (notesEl.value.trim() || 'Client cancellation') : 'Client cancellation';
+  var currentNote = notesEl ? notesEl.value.trim() : '';
 
-  if (!confirm('Mark this session as cancelled in Halaxy?')) return;
+  // Determine current funder for fee options
+  var funderEl = document.getElementById('pl-cs-funder-' + cardUid);
+  var funderKey = funderEl ? (funderEl.options[funderEl.selectedIndex] || {}).dataset?.billing || '' : '';
+  if (!funderKey) {
+    var localClient = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(patientId); });
+    if (localClient) funderKey = localClient.funder || '';
+  }
+  var showConvertToPrivate = funderKey && funderKey !== 'private';
 
+  var overlay = document.getElementById('cancel-appt-modal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'cancel-appt-modal';
+    overlay.className = 'cl-modal-ov';
+    overlay.onclick = function(ev) { if (ev.target === overlay) overlay.classList.remove('open'); };
+    document.body.appendChild(overlay);
+  }
+
+  overlay.innerHTML = '<div class="cl-modal" style="max-width:380px">'
+    + '<h2 class="cl-modal-title">Cancel appointment</h2>'
+    + '<p style="font-size:12px;color:#7A9090;margin:0 0 12px">How should the fee be handled?</p>'
+    + '<div style="display:flex;flex-direction:column;gap:8px">'
+    // Keep fee (late cancellation charge)
+    + '<label class="cancel-opt" style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px;border-radius:8px;border:1.5px solid rgba(42,88,80,0.15)">'
+    + '<input type="radio" name="cancel-fee" value="keep" checked style="margin-top:2px"> '
+    + '<div><div style="font-weight:600;font-size:13px">Keep fee</div>'
+    + '<div style="font-size:11px;color:#9AABA8">Late cancellation charge — invoice stays in Halaxy</div></div></label>'
+    // Convert to private
+    + (showConvertToPrivate
+      ? '<label class="cancel-opt" style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px;border-radius:8px;border:1.5px solid rgba(42,88,80,0.15)">'
+        + '<input type="radio" name="cancel-fee" value="convert" style="margin-top:2px"> '
+        + '<div><div style="font-weight:600;font-size:13px">Convert to private</div>'
+        + '<div style="font-size:11px;color:#9AABA8">Funder won\'t accept — charge client directly instead</div></div></label>'
+      : '')
+    // Waive fee
+    + '<label class="cancel-opt" style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px;border-radius:8px;border:1.5px solid rgba(42,88,80,0.15)">'
+    + '<input type="radio" name="cancel-fee" value="waive" style="margin-top:2px"> '
+    + '<div><div style="font-weight:600;font-size:13px">Waive fee</div>'
+    + '<div style="font-size:11px;color:#9AABA8">Client gave sufficient notice — no charge</div></div></label>'
+    // Exception
+    + '<label class="cancel-opt" style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px;border-radius:8px;border:1.5px solid rgba(42,88,80,0.15)">'
+    + '<input type="radio" name="cancel-fee" value="exception" style="margin-top:2px"> '
+    + '<div><div style="font-weight:600;font-size:13px">Exception</div>'
+    + '<div style="font-size:11px;color:#9AABA8">Cheree\'s discretion — document reason below</div></div></label>'
+    + '</div>'
+    + '<div style="margin-top:12px">'
+    + '<label style="font-size:11px;color:#9AABA8;display:block;margin-bottom:4px">Cancellation note</label>'
+    + '<input class="cl-modal-input" id="cancel-appt-notes" type="text"'
+    + ' value="' + escHtml(currentNote || 'Client cancellation') + '"'
+    + ' placeholder="Reason or notes…">'
+    + '</div>'
+    + '<div class="cl-modal-actions" style="margin-top:12px">'
+    + '<button class="cl-modal-cancel" onclick="document.getElementById(\'cancel-appt-modal\').classList.remove(\'open\')">Back</button>'
+    + '<button class="cl-modal-save" style="background:#dc2626" onclick="_confirmCancelAppt(\''
+    + escHtml(cardUid) + '\',\'' + escHtml(eventId || '') + '\',\'' + escHtml(patientId) + '\',\''
+    + escHtml(hxApptId || '') + '\',\'' + escHtml(apptDate) + '\',\'' + escHtml(apptStart) + '\',\'' + escHtml(apptEnd || '') + '\')">'
+    + 'Confirm cancellation</button>'
+    + '</div></div>';
+  overlay.classList.add('open');
+}
+
+async function _confirmCancelAppt(cardUid, eventId, patientId, hxApptId, apptDate, apptStart, apptEnd) {
+  var overlay  = document.getElementById('cancel-appt-modal');
+  var feeDisp  = (document.querySelector('input[name="cancel-fee"]:checked') || {}).value || 'keep';
+  var notes    = (document.getElementById('cancel-appt-notes') || {}).value || 'Client cancellation';
+  var fullNote = notes + ' [fee: ' + feeDisp + ']';
+
+  if (overlay) overlay.classList.remove('open');
+
+  var panelEl = document.getElementById('pl-link-' + cardUid);
   var btn = panelEl && panelEl.querySelector('.pl-action-btn--danger');
   if (btn) { btn.disabled = true; btn.textContent = 'Cancelling…'; }
 
@@ -4757,11 +5060,10 @@ async function _cancelHalaxySession(cardUid, eventId, patientId, halaxyApptId) {
         halaxyApptId: hxApptId   || undefined,
         apptStart:    apptStart  || undefined,
         apptEnd:      apptEnd    || undefined,
-        notes:        notes,
+        notes:        fullNote,
       },
     });
 
-    // Mark actioned so it doesn't reappear after refresh
     _halaxyActioned.add(patientId + '|' + apptDate);
     localStorage.setItem('halaxy_actioned', JSON.stringify([..._halaxyActioned]));
 
@@ -4772,12 +5074,98 @@ async function _cancelHalaxySession(cardUid, eventId, patientId, halaxyApptId) {
       if (cardEl) cardEl.remove();
     }
 
-    toast('Appointment cancelled in Halaxy ✓', 'ok');
+    var dispLabel = { keep: 'fee kept', convert: 'convert to private', waive: 'fee waived', exception: 'exception' }[feeDisp] || feeDisp;
+    toast('Appointment cancelled — ' + dispLabel + ' ✓', 'ok');
     setTimeout(function() { refreshPipeline(); }, 2000);
 
   } catch (err) {
     toast('Error cancelling appointment: ' + err.message, 'err');
     if (btn) { btn.disabled = false; btn.textContent = 'Cancel appointment'; }
+  }
+}
+
+/**
+ * Send a manual 48hr reminder email for an appointment.
+ * Opens a modal that pre-fills the client's Halaxy email if found,
+ * letting Cheree confirm or override before sending.
+ */
+function _sendManualReminder(patientId, apptDate, apptStart) {
+  var overlay = document.getElementById('send-reminder-modal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'send-reminder-modal';
+    overlay.className = 'cl-modal-ov';
+    overlay.onclick = function(ev) { if (ev.target === overlay) overlay.classList.remove('open'); };
+    document.body.appendChild(overlay);
+  }
+
+  // Try to find a known email from local dashboard clients
+  var local = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(patientId); });
+  var name  = (local && local.display_name) || '';
+
+  // Parse time from ISO string
+  var timeStr = '';
+  if (apptStart) {
+    try { timeStr = apptStart.slice(11, 16); } catch (_) {}
+  }
+
+  overlay.innerHTML = '<div class="cl-modal" style="max-width:360px">'
+    + '<h2 class="cl-modal-title">Send appointment reminder</h2>'
+    + '<div class="cl-modal-field"><label>Client name</label>'
+    + '<input class="cl-modal-input" id="reminder-name" type="text" value="' + escHtml(name) + '" placeholder="Client name (for greeting)"></div>'
+    + '<div class="cl-modal-field"><label>Client email <span style="color:var(--terra)">*</span></label>'
+    + '<input class="cl-modal-input" id="reminder-email" type="email" placeholder="client@example.com"></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+    + '<div class="cl-modal-field"><label>Date</label>'
+    + '<input class="cl-modal-input" id="reminder-date" type="date" value="' + escHtml(apptDate || '') + '"></div>'
+    + '<div class="cl-modal-field"><label>Time</label>'
+    + '<input class="cl-modal-input" id="reminder-time" type="time" value="' + escHtml(timeStr) + '"></div>'
+    + '</div>'
+    + '<div class="cl-modal-field"><label>Format</label>'
+    + '<select class="cl-modal-select" id="reminder-location">'
+    + '<option value="clinic">In-clinic</option>'
+    + '<option value="telehealth">Telehealth (video)</option>'
+    + '<option value="phone">Phone</option>'
+    + '</select></div>'
+    + '<div id="reminder-err" style="display:none;color:var(--terra);font-size:12px;margin-top:6px"></div>'
+    + '<div class="cl-modal-actions">'
+    + '<button class="cl-modal-cancel" onclick="document.getElementById(\'send-reminder-modal\').classList.remove(\'open\')">Cancel</button>'
+    + '<button class="cl-modal-save" id="reminder-send-btn" onclick="_submitManualReminder()">Send reminder</button>'
+    + '</div></div>';
+  overlay.classList.add('open');
+}
+
+async function _submitManualReminder() {
+  var emailEl  = document.getElementById('reminder-email');
+  var nameEl   = document.getElementById('reminder-name');
+  var dateEl   = document.getElementById('reminder-date');
+  var timeEl   = document.getElementById('reminder-time');
+  var locEl    = document.getElementById('reminder-location');
+  var errEl    = document.getElementById('reminder-err');
+  var btn      = document.getElementById('reminder-send-btn');
+  var email    = (emailEl && emailEl.value.trim()) || '';
+  if (!email) {
+    if (errEl) { errEl.textContent = 'Email address is required'; errEl.style.display = ''; }
+    return;
+  }
+  if (errEl) errEl.style.display = 'none';
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    await apiFetch('/api/admin-reminder', {
+      method: 'POST',
+      body: {
+        clientEmail:     email,
+        clientName:      nameEl ? nameEl.value.trim() : '',
+        appointmentDate: dateEl ? dateEl.value : '',
+        appointmentTime: timeEl ? timeEl.value : '',
+        locationType:    locEl  ? locEl.value  : 'clinic',
+      },
+    });
+    document.getElementById('send-reminder-modal').classList.remove('open');
+    toast('Reminder sent ✓');
+  } catch (err) {
+    if (errEl) { errEl.textContent = err.message; errEl.style.display = ''; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Send reminder'; }
   }
 }
 

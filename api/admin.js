@@ -744,6 +744,14 @@ body {
   background: rgba(190,110,68,0.10); border-radius: 5px;
   padding: 2px 5px; white-space: nowrap;
 }
+.cl-card-type-tag {
+  font-size: 9px; font-weight: 600; border-radius: 5px;
+  padding: 2px 6px; white-space: nowrap;
+}
+.cl-card-type-tag.couples { background: rgba(61,111,168,0.12); color: #3D6FA8; }
+.cl-card-type-tag.child   { background: rgba(122,112,144,0.12); color: #7A7090; }
+.cl-card-type-tag.contact { background: rgba(154,171,168,0.15); color: #6A8A85; }
+.cl-card-type-tag.parent  { background: rgba(42,88,80,0.10);   color: var(--teal); }
 
 /* Avatar + text body */
 .cl-card-body {
@@ -2551,6 +2559,29 @@ body {
           <label for="cl-plan-manager">Plan manager name</label>
           <input class="cl-modal-input" id="cl-plan-manager" type="text" placeholder="e.g. ABC Plan Management">
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="cl-modal-field">
+            <label for="cl-client-type">Client type</label>
+            <select class="cl-modal-select" id="cl-client-type" onchange="onClientTypeChange(this,'find')">
+              <option value="individual">Individual</option>
+              <option value="couples">Couples</option>
+              <option value="child">Child</option>
+            </select>
+          </div>
+          <div class="cl-modal-field">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="cl-is-contact" style="margin:0"> Contact only
+            </label>
+            <div style="font-size:10px;color:#9AABA8;margin-top:2px">Non-billable (referrer, parent etc.)</div>
+          </div>
+        </div>
+        <div class="cl-modal-field" id="cl-parent-field" style="display:none">
+          <label for="cl-parent-id">Parent/Guardian client</label>
+          <input class="cl-modal-input" id="cl-parent-search" type="text" placeholder="Search client by name…"
+            autocomplete="off" oninput="_debounceParentSearch(this.value,'find')">
+          <input type="hidden" id="cl-parent-id">
+          <div id="cl-parent-results" style="margin-top:4px"></div>
+        </div>
         <div class="cl-modal-field">
           <label for="cl-notes">Notes (optional)</label>
           <input class="cl-modal-input" id="cl-notes" type="text" placeholder="Any useful context…">
@@ -2603,6 +2634,29 @@ body {
       <div class="cl-modal-field" id="plan-manager-field-new" style="display:none">
         <label for="cl-new-plan-manager">Plan manager name</label>
         <input class="cl-modal-input" id="cl-new-plan-manager" type="text" placeholder="e.g. ABC Plan Management">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="cl-modal-field">
+          <label for="cl-new-client-type">Client type</label>
+          <select class="cl-modal-select" id="cl-new-client-type" onchange="onClientTypeChange(this,'new')">
+            <option value="individual">Individual</option>
+            <option value="couples">Couples</option>
+            <option value="child">Child</option>
+          </select>
+        </div>
+        <div class="cl-modal-field">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="cl-new-is-contact" style="margin:0"> Contact only
+          </label>
+          <div style="font-size:10px;color:#9AABA8;margin-top:2px">Non-billable (referrer, parent etc.)</div>
+        </div>
+      </div>
+      <div class="cl-modal-field" id="cl-new-parent-field" style="display:none">
+        <label for="cl-new-parent-id">Parent/Guardian client</label>
+        <input class="cl-modal-input" id="cl-new-parent-search" type="text" placeholder="Search client by name…"
+          autocomplete="off" oninput="_debounceParentSearch(this.value,'new')">
+        <input type="hidden" id="cl-new-parent-id">
+        <div id="cl-new-parent-results" style="margin-top:4px"></div>
       </div>
       <div class="cl-modal-field">
         <label for="cl-new-notes">Notes (optional)</label>

@@ -2,5 +2,11 @@
   "rewrites": [
     { "source": "/admin",       "destination": "/api/admin" },
     { "source": "/admin-login", "destination": "/api/admin-login" }
+  ],
+  "crons": [
+    {
+      "path": "/api/admin-reminder?cron=1",
+      "schedule": "0 22 * * *"
+    }
   ]
 }

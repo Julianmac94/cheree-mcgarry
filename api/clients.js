@@ -3,7 +3,7 @@
  * GET    → list all clients (active by default, ?all=1 includes inactive)
  * POST   → create client
  * PATCH  → update client fields
- * DELETE → deactivate client (sets active = false)
+ * DELETE → hard-delete client and their sessions (Halaxy is not affected)
  */
 
 import { isAuthed } from './_auth.js';
@@ -25,7 +25,8 @@ export default async function handler(req, res) {
     let query = db
       .from('clients')
       .select(`
-        id, display_name, funder, plan_manager, halaxy_id, active, notes,
+        id, display_name, funder, plan_manager, halaxy_id, enquiry_id, active, notes,
+        client_type, parent_client_id, is_contact,
         created_at,
         sessions (id, session_date, status, invoice_ref, amount, notes)
       `)
@@ -41,7 +42,8 @@ export default async function handler(req, res) {
   // ── POST ─────────────────────────────────────────────────────────────
   if (req.method === 'POST') {
     const body = req.body || {};
-    const { display_name, funder, plan_manager, halaxy_id, notes } = body;
+    const { display_name, funder, plan_manager, halaxy_id, notes, enquiry_id,
+            client_type, parent_client_id, is_contact } = body;
 
     if (!display_name) {
       return res.status(400).json({ error: 'display_name is required' });
@@ -49,7 +51,16 @@ export default async function handler(req, res) {
 
     const { data, error } = await db
       .from('clients')
-      .insert({ display_name, funder, plan_manager: plan_manager || null, halaxy_id: halaxy_id || null, notes: notes || null })
+      .insert({
+        display_name, funder,
+        plan_manager:      plan_manager      || null,
+        halaxy_id:         halaxy_id         || null,
+        notes:             notes             || null,
+        enquiry_id:        enquiry_id        || null,
+        client_type:       client_type       || null,
+        parent_client_id:  parent_client_id  || null,
+        is_contact:        is_contact        || false,
+      })
       .select()
       .single();
 
@@ -63,7 +74,8 @@ export default async function handler(req, res) {
     const { id, ...fields } = body;
     if (!id) return res.status(400).json({ error: 'id is required' });
 
-    const allowed = ['display_name', 'funder', 'plan_manager', 'halaxy_id', 'active', 'notes'];
+    const allowed = ['display_name', 'funder', 'plan_manager', 'halaxy_id', 'active', 'notes', 'enquiry_id',
+                     'client_type', 'parent_client_id', 'is_contact'];
     const update = Object.fromEntries(
       Object.entries(fields).filter(([k]) => allowed.includes(k))
     );

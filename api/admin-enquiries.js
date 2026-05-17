@@ -460,7 +460,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Halaxy not configured' });
     }
 
-    const { firstName, lastName, phone, email, dob, gender, funder, planManager, notes } = req.body || {};
+    const { firstName, lastName, phone, email, dob, gender, funder, planManager, notes,
+            client_type, is_contact, parent_client_id } = req.body || {};
     if (!firstName || !lastName) {
       return res.status(400).json({ error: 'firstName and lastName are required' });
     }
@@ -492,12 +493,15 @@ export default async function handler(req, res) {
       const { data: client, error: clientErr } = await db2
         .from('clients')
         .insert({
-          display_name: displayName,
-          halaxy_id:    halaxyId,
-          funder:       funder       || null,
-          plan_manager: planManager  || null,
-          notes:        notes        || null,
-          active:       true,
+          display_name:     displayName,
+          halaxy_id:        halaxyId,
+          funder:           funder            || null,
+          plan_manager:     planManager       || null,
+          notes:            notes             || null,
+          client_type:      client_type       || null,
+          is_contact:       is_contact        || false,
+          parent_client_id: parent_client_id  || null,
+          active:           true,
         })
         .select()
         .single();
@@ -799,7 +803,7 @@ export default async function handler(req, res) {
       db.from('enquiries').select('*').order('created_at', { ascending: false }),
       db.from('clients').select(`
         id, display_name, funder, plan_manager, halaxy_id, enquiry_id,
-        active, notes, created_at,
+        active, notes, client_type, parent_client_id, is_contact, created_at,
         sessions (id, session_date, status, invoice_ref, amount, notes)
       `).order('display_name', { ascending: true }),
       db.from('activity_log').select('*').order('created_at', { ascending: false }).limit(200),
