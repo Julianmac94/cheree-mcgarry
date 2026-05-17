@@ -2222,7 +2222,8 @@ function renderHomeView() {
   var html = '<div class="home-view">';
 
   // Header + actions
-  html += '<div class="home-hd"><div class="home-greeting">' + greeting + ', <em>Cheree</em></div></div>';
+  var userName = (window.ADMIN_USER && window.ADMIN_USER.trim()) ? window.ADMIN_USER.trim() : 'there';
+  html += '<div class="home-hd"><div class="home-greeting">' + greeting + ', <em>' + escHtml(userName) + '</em></div></div>';
   html += '<div class="home-actions">'
     + '<button class="home-action-btn primary" onclick="openNewSessionModal()"><span class="hab-icon">+</span> New Appointment</button>'
     + '<button class="home-action-btn" onclick="openAddClient()"><span class="hab-icon">+</span> Add Client</button>'
