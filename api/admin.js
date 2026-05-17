@@ -595,6 +595,110 @@ body {
 }
 .q-section-toggle:hover { color: var(--teal); }
 
+/* ── Mini modal (close reason, log interaction) ── */
+.mm-ov {
+  position: fixed; inset: 0; z-index: 10001;
+  background: rgba(20,30,28,0.42);
+  backdrop-filter: blur(3px);
+  display: none; align-items: center; justify-content: center;
+}
+.mm-ov.open { display: flex; }
+.mm-card {
+  background: var(--cream);
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.09);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  padding: 24px 26px 20px;
+  width: 380px; max-width: calc(100vw - 40px);
+  animation: modalIn 0.2s ease;
+}
+.mm-title { font-size: 14px; font-weight: 600; color: var(--tealDeep); margin-bottom: 16px; }
+.mm-field { margin-bottom: 12px; }
+.mm-field label { display: block; font-size: 11px; font-weight: 600; color: var(--soft); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+.mm-field select, .mm-field input, .mm-field textarea {
+  width: 100%; box-sizing: border-box;
+  font-size: 12.5px; padding: 7px 9px;
+  border: 1px solid rgba(0,0,0,0.12); border-radius: 7px;
+  background: #fff; color: var(--tealDeep); outline: none; font-family: var(--sans);
+}
+.mm-field select:focus, .mm-field input:focus, .mm-field textarea:focus { border-color: var(--teal); }
+.mm-field textarea { min-height: 56px; resize: vertical; }
+.mm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.mm-btn-cancel {
+  font-size: 12px; padding: 7px 14px; border-radius: 7px; cursor: pointer;
+  background: transparent; border: 1px solid rgba(0,0,0,0.12); color: var(--soft);
+}
+.mm-btn-cancel:hover { background: rgba(0,0,0,0.05); }
+.mm-btn-confirm {
+  font-size: 12px; padding: 7px 16px; border-radius: 7px; cursor: pointer;
+  background: var(--teal); border: none; color: #fff; font-weight: 500;
+}
+.mm-btn-confirm:hover { background: var(--tealDeep); }
+.mm-btn-danger {
+  font-size: 12px; padding: 7px 16px; border-radius: 7px; cursor: pointer;
+  background: #d94f3b; border: none; color: #fff; font-weight: 500;
+}
+.mm-btn-danger:hover { background: #b93a28; }
+
+/* ── Activity timeline ── */
+.enq-timeline { margin: 14px 0 0; }
+.enq-tl-item { display: flex; gap: 10px; margin-bottom: 10px; }
+.enq-tl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--soft); flex-shrink: 0; margin-top: 5px; }
+.enq-tl-dot.tl-status { background: var(--teal); }
+.enq-tl-dot.tl-call { background: #5498d4; }
+.enq-tl-dot.tl-email { background: #8a7ec8; }
+.enq-tl-dot.tl-intake { background: #4aad8e; }
+.enq-tl-body { flex: 1; min-width: 0; }
+.enq-tl-label { font-size: 11.5px; color: var(--tealDeep); line-height: 1.4; }
+.enq-tl-meta  { font-size: 10px; color: var(--soft); margin-top: 1px; }
+.enq-log-form { margin-top: 10px; padding: 10px 12px; background: rgba(42,88,80,0.05); border-radius: 8px; }
+.enq-log-form select, .enq-log-form textarea { width: 100%; box-sizing: border-box; font-size: 11.5px; padding: 6px 8px; border: 1px solid rgba(0,0,0,0.12); border-radius: 6px; background: #fff; outline: none; font-family: var(--sans); margin-bottom: 6px; }
+.enq-log-form textarea { min-height: 44px; resize: vertical; }
+
+/* ── Funders view ── */
+.funders-view { padding: 0 0 60px; }
+.funders-view-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.funder-card {
+  background: #fff; border-radius: 11px;
+  border: 1px solid rgba(42,88,80,0.10);
+  padding: 14px 18px; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 16px;
+}
+.funder-card-name { font-size: 13px; font-weight: 600; color: var(--tealDeep); flex: 1; min-width: 0; }
+.funder-card-sub  { font-size: 11px; color: var(--soft); margin-top: 2px; }
+.funder-stat { text-align: right; }
+.funder-stat-val { font-size: 14px; font-weight: 600; color: var(--mid); }
+.funder-stat-val.owing { color: #d94f3b; }
+.funder-stat-label { font-size: 10px; color: var(--soft); }
+
+/* ── Billing submission badge ── */
+.bill-sub-badge {
+  display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 5px;
+  margin-left: 6px; font-weight: 500;
+}
+.bill-sub-badge.not-submitted { background: rgba(0,0,0,0.06); color: var(--soft); }
+.bill-sub-badge.submitted { background: rgba(42,88,80,0.10); color: var(--teal); }
+.bill-sub-badge.chase      { background: rgba(217,79,59,0.12); color: #c0412e; }
+
+/* ── Closed enquiry reason tag ── */
+.enq-closed-reason {
+  display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 5px;
+  background: rgba(0,0,0,0.06); color: var(--soft); margin-left: 6px;
+}
+
+/* ── Halaxy-link panel (inline in detail panel) ── */
+.enq-halaxy-link-panel {
+  margin: 10px 0; padding: 12px 14px;
+  background: rgba(42,88,80,0.05); border-radius: 9px;
+  border: 1px solid rgba(42,88,80,0.12);
+}
+.enq-halaxy-link-title { font-size: 11px; font-weight: 600; color: var(--teal); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.07em; }
+.enq-halaxy-search-row { display: flex; gap: 6px; margin-bottom: 8px; }
+.enq-halaxy-search-row input { flex: 1; font-size: 12px; padding: 6px 9px; border: 1px solid rgba(0,0,0,0.12); border-radius: 6px; outline: none; font-family: var(--sans); }
+.enq-halaxy-results { margin-top: 4px; }
+.enq-halaxy-result-item { font-size: 12px; padding: 6px 10px; cursor: pointer; border-radius: 5px; color: var(--tealDeep); }
+.enq-halaxy-result-item:hover { background: rgba(42,88,80,0.08); }
+
 /* ── Command bar overlay ── */
 .cmd-overlay {
   position: fixed; inset: 0; z-index: 9999;
@@ -2395,8 +2499,7 @@ body {
       </button>
       <button class="sidebar-item" data-view="vendors" onclick="navigateTo('vendors')">
         <span class="si-icon">◈</span>
-        <span class="si-label">Vendors</span>
-        <span class="si-stub">Soon</span>
+        <span class="si-label">Funders</span>
       </button>
 
       <div class="sidebar-divider"></div>
@@ -2486,6 +2589,9 @@ body {
     <div class="rdp-body" id="rdp-body"></div>
   </div>
 </div>
+
+<!-- ── Mini modal (close reason, log interaction, etc.) ── -->
+<div class="mm-ov" id="mini-modal-ov" onclick="if(event.target===this)this.classList.remove('open')"></div>
 
 <!-- ── Command bar ── -->
 <div class="cmd-overlay" id="cmd-overlay" onclick="if(event.target===this)closeCmdBar()">

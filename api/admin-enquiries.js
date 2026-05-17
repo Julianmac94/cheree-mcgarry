@@ -1257,12 +1257,27 @@ export default async function handler(req, res) {
     if (!id) return res.status(400).json({ error: 'Missing id' });
 
     try {
-      const { status, notes, halaxy_client_url, client_id } = req.body || {};
+      const {
+        status, notes, halaxy_client_url, client_id,
+        closed_reason, intake_funder,
+        log_action, log_detail,   // manual interaction log (no row update needed)
+      } = req.body || {};
+
+      // ── Log-only path: just insert to activity_log, no enquiry row update ──
+      if (log_action) {
+        await db.from('activity_log').insert({
+          enquiry_id: id, actor, action: log_action, detail: log_detail || null,
+        }).catch(() => {});
+        return res.status(200).json({ ok: true });
+      }
+
       const update = {};
       if (status            !== undefined) update.status            = status;
       if (notes             !== undefined) update.notes             = notes;
       if (halaxy_client_url !== undefined) update.halaxy_client_url = halaxy_client_url;
       if (client_id         !== undefined) update.client_id         = client_id;
+      if (closed_reason     !== undefined) update.closed_reason     = closed_reason;
+      if (intake_funder     !== undefined) update.intake_funder     = intake_funder;
       // Linking to a client always marks as converted
       if (client_id && !status) update.status = 'converted';
 
@@ -1272,10 +1287,11 @@ export default async function handler(req, res) {
       if (error) return res.status(500).json({ error: error.message });
 
       const logs = [];
-      if (status            !== undefined) logs.push({ enquiry_id: id, actor, action: 'status',    detail: status });
+      if (status            !== undefined) logs.push({ enquiry_id: id, actor, action: 'status',    detail: status + (status === 'closed' && closed_reason ? ':' + closed_reason : '') });
       if (notes             !== undefined) logs.push({ enquiry_id: id, actor, action: 'notes',     detail: null });
       if (halaxy_client_url !== undefined) logs.push({ enquiry_id: id, actor, action: 'halaxy',    detail: halaxy_client_url ? 'linked' : 'cleared' });
       if (client_id         !== undefined) logs.push({ enquiry_id: id, actor, action: 'converted', detail: String(client_id) });
+      if (intake_funder     !== undefined) logs.push({ enquiry_id: id, actor, action: 'intake',    detail: intake_funder });
       if (logs.length) await db.from('activity_log').insert(logs).catch(() => {});
 
       return res.status(200).json({ ok: true });

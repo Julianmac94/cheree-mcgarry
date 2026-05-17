@@ -15,6 +15,25 @@ var HALAXY_URLS = {
   dva:       '', // paste DVA intake URL when available
 };
 
+/* ── Billing submission tracking (localStorage) ── */
+var _billingSubmissions = JSON.parse(localStorage.getItem('billing_submissions') || '{}');
+function _getSubStatus(invId) {
+  var s = _billingSubmissions[invId];
+  if (!s) return null;
+  var daysAgo = (Date.now() - new Date(s.date).getTime()) / 86400000;
+  return { date: s.date, daysAgo: Math.round(daysAgo), chase: daysAgo >= 7 };
+}
+function _markBillingSubmitted(invId) {
+  _billingSubmissions[invId] = { date: new Date().toISOString().slice(0, 10) };
+  localStorage.setItem('billing_submissions', JSON.stringify(_billingSubmissions));
+  renderBillingPanel();
+}
+function _clearBillingSubmission(invId) {
+  delete _billingSubmissions[invId];
+  localStorage.setItem('billing_submissions', JSON.stringify(_billingSubmissions));
+  renderBillingPanel();
+}
+
 /* ── Toast notifications ── */
 function toast(msg, type) {
   var el = document.createElement('div');
@@ -459,7 +478,7 @@ function navigateTo(view) {
   else if (view === 'clients') renderClientsView();
   else if (view === 'billing') renderBillingView();
   else if (view === 'settings') renderSettingsView();
-  else if (view === 'vendors') renderStubView('vendors', 'Vendors', 'Vendor payments and supplier management coming soon.')
+  else if (view === 'vendors') renderFundersView()
   else if (view === 'reports') renderStubView('reports', 'Reports', 'Practice reports and insights coming soon.')
 }
 
@@ -857,7 +876,7 @@ function _intakeEnquiryCard(e) {
   if (e.source) badgesHtml += '<span class="dp-badge dp-badge--source">' + escHtml(e.source || 'Website') + '</span>';
 
   var menuItems = [
-    { label: '✕ Close without converting', fn: 'advanceEnquiryStatus("' + e.id + '","closed")', warn: true },
+    { label: '✕ Close without converting', fn: '_openCloseEnquiryModal("' + e.id + '")', warn: true },
   ];
 
   // Intake email panel only shows on 'contacted' stage (toggled by togglePipelineIntake)
@@ -901,7 +920,7 @@ function _intakeEnquiryCard(e) {
     // Right: primary action + close
     + '<div class="dp-card-right">'
     + primaryBtn
-    + '<button class="dp-btn dp-btn--ghost" style="font-size:9px;margin-top:2px" onclick="event.stopPropagation();advanceEnquiryStatus(\'' + e.id + '\',\'closed\')">Close</button>'
+    + '<button class="dp-btn dp-btn--ghost" style="font-size:9px;margin-top:2px" onclick="event.stopPropagation();_openCloseEnquiryModal(\'' + e.id + '\')">Close</button>'
     + '</div>'
     + '</div>'
     + '</div>';
@@ -1811,6 +1830,16 @@ function renderBillingPanel() {
         var dt   = inv.date ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
         var _invAmt = inv.totalBalance != null ? inv.totalBalance : inv.amount;
         var amt  = _invAmt ? '$' + Number(_invAmt).toFixed(2) : '';
+        var sub  = _getSubStatus(inv.id);
+        var subBadge = '', subAction = '';
+        if (sub) {
+          var badgeClass = sub.chase ? 'chase' : 'submitted';
+          var badgeLabel = sub.chase ? '⚠ Chase up — submitted ' + sub.daysAgo + 'd ago' : '✓ Submitted ' + sub.date;
+          subBadge = '<span class="bill-sub-badge ' + badgeClass + '">' + escHtml(badgeLabel) + '</span>';
+          subAction = '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(0,0,0,0.12);border-radius:5px;background:transparent;color:var(--soft);cursor:pointer;margin-left:6px" onclick="event.stopPropagation();_clearBillingSubmission(\'' + escHtml(inv.id) + '\')">Clear</button>';
+        } else {
+          subAction = '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(42,88,80,0.25);border-radius:5px;background:transparent;color:var(--teal);cursor:pointer;margin-left:6px" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(inv.id) + '\')">Mark submitted</button>';
+        }
         html += '<div class="bill-card bill-card--open">'
           + '<div class="bill-card-top">'
           + '<span class="bill-card-name">' + escHtml(name) + '</span>'
@@ -1819,8 +1848,12 @@ function renderBillingPanel() {
           + '<div class="bill-card-meta">'
           + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
           + '<span class="dp-badge dp-badge--status-invoiced">Awaiting payment</span>'
+          + subBadge
           + '</div>'
-          + '<div class="dp-card-actions"><a class="dp-btn dp-btn--ghost" href="' + escHtml(_halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + inv.date) : 'https://www.halaxy.com/practitioner') + '" target="_blank" rel="noopener">View in Halaxy →</a></div>'
+          + '<div class="dp-card-actions" style="display:flex;align-items:center;gap:6px">'
+          + '<a class="dp-btn dp-btn--ghost" href="' + escHtml(_halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + inv.date) : 'https://www.halaxy.com/practitioner') + '" target="_blank" rel="noopener">View in Halaxy →</a>'
+          + subAction
+          + '</div>'
           + '</div>';
       });
     }
@@ -1940,7 +1973,7 @@ function renderEnquiryCardPl(e) {
 
   var menuItems = [];
   if (status !== 'closed') menuItems.push({ label: '🔗 Link to existing client', fn: 'openLinkPanel("' + uid + '","enq","' + e.id + '")' });
-  menuItems.push({ label: '✕ Close without converting', fn: 'advanceEnquiryStatus("' + e.id + '","closed")', warn: true });
+  menuItems.push({ label: '✕ Close without converting', fn: '_openCloseEnquiryModal("' + e.id + '")', warn: true });
 
   return '<div class="pl-card' + (isNew ? ' pl-card--new' : '') + '" id="pl-' + uid + '" onclick="togglePipelineCard(\'' + uid + '\')">'
     + _menuHtml(uid, menuItems)
@@ -2189,10 +2222,18 @@ function renderQueueView() {
     return !e.client_id && (e.status === 'new' || !e.status);
   });
 
-  // TRIAGE — enquiries in progress
-  var triage = enquiries.filter(function(e) {
-    return !e.client_id && e.status && e.status !== 'new'
-      && e.status !== 'closed' && e.status !== 'converted';
+  // CLIENT CONTACTS — enquiries in progress (contacted / in_halaxy)
+  var triageContacted = enquiries.filter(function(e) {
+    return !e.client_id && e.status === 'contacted';
+  });
+  var triageInHalaxy = enquiries.filter(function(e) {
+    return !e.client_id && e.status === 'in_halaxy';
+  });
+  var triage = triageContacted.concat(triageInHalaxy);
+
+  // CLOSED — enquiries that were closed (not converted)
+  var closedEnqs = enquiries.filter(function(e) {
+    return e.status === 'closed';
   });
 
   // UPCOMING — future sessions (next 14 days, not today)
@@ -2293,10 +2334,22 @@ function renderQueueView() {
     });
   }
 
-  // ── IN PROGRESS (triage) ─────────────────────────────────
+  // ── CLIENT CONTACTS ──────────────────────────────────────
   if (triage.length) {
-    html += _qFolder('triage', 'In Progress', 'var(--s-triage)', triage, _qEnquiryItem, 'triage', {
-      defaultOpen: true
+    var contactSubs = [
+      { key: 'contacted',  label: 'Contacted (' + triageContacted.length + ')',        items: triageContacted,  fn: _qEnquiryItem },
+      { key: 'in_halaxy',  label: 'Awaiting first booking (' + triageInHalaxy.length + ')', items: triageInHalaxy, fn: _qEnquiryItem },
+    ].filter(function(sg) { return sg.items.length > 0; });
+    html += _qFolder('triage', 'Client Contacts', 'var(--s-triage)', triage, _qEnquiryItem, 'triage', {
+      defaultOpen: true,
+      subGroups: contactSubs.length > 1 ? contactSubs : null,
+    });
+  }
+
+  // ── CLOSED ───────────────────────────────────────────────
+  if (closedEnqs.length) {
+    html += _qFolder('closed-enqs', 'Closed', 'var(--soft)', closedEnqs, _qEnquiryItem, 'closed', {
+      defaultOpen: false
     });
   }
 
@@ -2475,10 +2528,11 @@ function _qEnquiryItem(enq, barClass) {
   if (enq.source) meta.push(enq.source);
   if (enq.service) meta.push(enq.service);
   if (enq.created_at) meta.push(_relativeDate(enq.created_at));
-  var statusLabels = { new: 'New', contacted: 'Contacted', in_halaxy: 'In Halaxy' };
+  var CLOSED_REASON_LABELS = { not_interested: 'Not interested', wrong_service: 'Wrong service', no_response: 'No response', converted_elsewhere: 'Converted elsewhere', duplicate: 'Duplicate', other: 'Other' };
+  var statusLabels = { new: 'New', contacted: 'Contacted', in_halaxy: 'Awaiting booking', closed: 'Closed' };
   var pillLabel = statusLabels[enq.status] || enq.status || 'New';
-  var pillClass = { new: 'lead', contacted: 'triage', in_halaxy: 'triage' }[enq.status] || 'triage';
-  var hintMap = { new: 'Review intake form and make contact', contacted: 'Awaiting response from client', in_halaxy: 'Client added to Halaxy — awaiting booking' };
+  var pillClass = { new: 'lead', contacted: 'triage', in_halaxy: 'finance', closed: 'awaiting' }[enq.status] || 'triage';
+  var hintMap = { new: 'Review intake form and make contact', contacted: 'Awaiting response from client', in_halaxy: 'Intake sent — awaiting first appointment', closed: enq.closed_reason ? CLOSED_REASON_LABELS[enq.closed_reason] || enq.closed_reason : 'Closed without converting' };
   var hintText = hintMap[enq.status] || (barClass === 'lead' ? 'Review intake form and make contact' : '');
   return '<div class="q-item" data-type="enquiry" data-id="' + escHtml(enq.id) + '" onclick="openDetailPanel(\'enquiry\',\'' + escHtml(enq.id) + '\')">'
     + '<div class="q-item-main">'
@@ -3013,90 +3067,258 @@ function _renderSessionDetailPanel(sess) {
 
 function _renderEnquiryDetailPanel(enq) {
   var name = [enq.first_name, enq.last_name].filter(Boolean).join(' ') || '—';
-  var STATUS_LABELS_LOCAL = { new: 'New', contacted: 'Contacted', in_halaxy: 'In Halaxy', closed: 'Closed' };
-  var ENQ_ADVANCE_LOCAL = {
-    new:       { label: 'Mark as contacted →', next: 'contacted' },
-    contacted: { label: 'Mark as in Halaxy →', next: 'in_halaxy' },
-  };
+  var CLOSED_REASON_LABELS_RDP = { not_interested: 'Not interested', wrong_service: 'Wrong service', no_response: 'No response', converted_elsewhere: 'Converted elsewhere', duplicate: 'Duplicate enquiry', other: 'Other' };
+  var STATUS_LABELS_RDP = { new: 'New', contacted: 'Contacted', in_halaxy: 'Awaiting first booking', closed: 'Closed', converted: 'Converted' };
   var html = '';
   html += '<div class="rdp-client">' + escHtml(name) + '</div>';
-  html += '<div class="rdp-date">' + escHtml(_relativeDate(enq.created_at)) + (enq.source ? ' · ' + escHtml(enq.source) : '') + '</div>';
-  // Action zone
+  html += '<div class="rdp-date">' + escHtml(_relativeDate(enq.created_at)) + (enq.source ? ' · ' + escHtml(enq.source) : '')
+    + (enq.status === 'closed' && enq.closed_reason ? ' · <span class="enq-closed-reason">' + escHtml(CLOSED_REASON_LABELS_RDP[enq.closed_reason] || enq.closed_reason) + '</span>' : '')
+    + '</div>';
+
+  // ── ACTION ZONE ────────────────────────────────────────────────────────
   html += '<div class="rdp-action-zone">';
-  // Send intake button
-  html += '<div style="margin-bottom:10px">';
-  html += '<div style="font-size:11px;font-weight:600;color:#7A948F;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.07em">Send intake form</div>';
-  var funderOpts = Object.entries(FUNDER_LABELS).map(function(kv) {
-    return '<option value="' + kv[0] + '">' + kv[1] + '</option>';
-  }).join('');
-  html += '<select id="rdp-intake-funder-' + enq.id + '" class="cl-modal-select" style="width:100%;margin-bottom:6px"'
-    + ' onchange="_rdpUpdateIntakeUrl(\'' + enq.id + '\')">';
-  html += '<option value="">Select funding type…</option>' + funderOpts;
-  html += '</select>';
-  html += '<input id="rdp-intake-url-' + enq.id + '" type="url" class="cl-modal-input"'
-    + ' placeholder="Intake form URL (auto-fills for known funders)…"'
-    + ' style="width:100%;margin-bottom:6px;font-size:11px" />';
-  html += '<button class="rdp-primary-btn" style="margin-bottom:0" onclick="_rdpSendIntake(\'' + enq.id + '\')">Send intake →</button>';
-  html += '</div>';
-  // Advance status
-  var adv = ENQ_ADVANCE_LOCAL[enq.status];
-  if (adv) {
-    html += '<button class="rdp-ghost-btn" onclick="updateStatus(\'' + enq.id + '\',\'' + adv.next + '\');closeDetailPanel()">' + adv.label + '</button>';
+
+  var isClosed    = enq.status === 'closed' || enq.status === 'converted';
+  var isNew       = enq.status === 'new' || !enq.status;
+  var isContacted = enq.status === 'contacted';
+  var isInHalaxy  = enq.status === 'in_halaxy';
+
+  if (!isClosed) {
+    // ── Complete Onboarding (formerly "Send intake form") ──
+    html += '<div style="margin-bottom:12px">';
+    html += '<div style="font-size:11px;font-weight:600;color:#7A948F;margin-bottom:7px;text-transform:uppercase;letter-spacing:0.07em">Complete Onboarding</div>';
+
+    // Client person type
+    html += '<select id="rdp-ctype-' + enq.id + '" class="cl-modal-select" style="width:100%;margin-bottom:6px">';
+    html += '<option value="">Client type…</option>';
+    html += '<option value="individual">Individual</option>';
+    html += '<option value="couples">Couples / relationship</option>';
+    html += '<option value="child">Child / family</option>';
+    html += '</select>';
+
+    // Funder type
+    var funderOpts = Object.entries(FUNDER_LABELS).map(function(kv) {
+      return '<option value="' + kv[0] + '">' + kv[1] + '</option>';
+    }).join('');
+    html += '<select id="rdp-intake-funder-' + enq.id + '" class="cl-modal-select" style="width:100%;margin-bottom:6px"'
+      + ' onchange="_rdpUpdateIntakeUrl(\'' + enq.id + '\')">';
+    html += '<option value="">Funding type…</option>' + funderOpts;
+    html += '</select>';
+
+    html += '<input id="rdp-intake-url-' + enq.id + '" type="url" class="cl-modal-input"'
+      + ' placeholder="Intake form URL (auto-fills for known funders)…"'
+      + ' style="width:100%;margin-bottom:6px;font-size:11px" />';
+    html += '<button class="rdp-primary-btn" style="margin-bottom:0" onclick="_rdpSendIntake(\'' + enq.id + '\')">Send onboarding email →</button>';
+    html += '</div>';
+
+    // ── Stage-specific actions ──
+    if (isNew) {
+      html += '<button class="rdp-ghost-btn" onclick="advanceEnquiryStatus(\'' + enq.id + '\',\'contacted\');closeDetailPanel()">Mark as contacted →</button>';
+    }
+    if (isContacted) {
+      html += '<button class="rdp-ghost-btn" style="margin-bottom:6px" onclick="_openAddToHalaxyPanel(\'' + enq.id + '\')">Add to Halaxy →</button>';
+    }
+    if (isInHalaxy) {
+      html += '<button class="rdp-ghost-btn" style="margin-bottom:6px" onclick="convertEnquiryPl(\'' + enq.id + '\')">Convert to client →</button>';
+    }
+    html += '<button class="rdp-ghost-btn" style="font-size:10px;color:var(--soft)" onclick="_openCloseEnquiryModal(\'' + enq.id + '\')">Close enquiry…</button>';
   }
+
   html += '</div>';
-  // Contact details
+
+  // ── Add-to-Halaxy panel placeholder (rendered dynamically) ──
+  html += '<div id="rdp-halaxy-link-' + enq.id + '"></div>';
+
+  // ── Contact details ──
   html += '<div class="rdp-section">';
   html += '<div class="rdp-section-label">Contact</div>';
   if (enq.phone) html += '<div class="rdp-row"><span class="rdp-row-label">Phone</span><span class="rdp-row-val"><a href="tel:' + escHtml(enq.phone) + '" style="color:inherit">' + escHtml(enq.phone) + '</a></span></div>';
   if (enq.email) html += '<div class="rdp-row"><span class="rdp-row-label">Email</span><span class="rdp-row-val" style="font-size:11px"><a href="mailto:' + escHtml(enq.email) + '" style="color:inherit">' + escHtml(enq.email) + '</a></span></div>';
   if (enq.service) html += '<div class="rdp-row"><span class="rdp-row-label">Service</span><span class="rdp-row-val">' + escHtml(enq.service) + '</span></div>';
-  if (enq.reason) html += '<div class="rdp-row"><span class="rdp-row-label">Reason</span><span class="rdp-row-val">' + escHtml(enq.reason) + '</span></div>';
-  html += '<div class="rdp-row"><span class="rdp-row-label">Status</span><span class="rdp-row-val">' + escHtml(STATUS_LABELS_LOCAL[enq.status] || enq.status || 'New') + '</span></div>';
+  if (enq.reason)  html += '<div class="rdp-row"><span class="rdp-row-label">Reason</span><span class="rdp-row-val">' + escHtml(enq.reason) + '</span></div>';
+  html += '<div class="rdp-row"><span class="rdp-row-label">Status</span><span class="rdp-row-val">' + escHtml(STATUS_LABELS_RDP[enq.status] || enq.status || 'New') + '</span></div>';
+  if (enq.intake_funder) html += '<div class="rdp-row"><span class="rdp-row-label">Funder</span><span class="rdp-row-val">' + escHtml(FUNDER_LABELS[enq.intake_funder] || enq.intake_funder) + '</span></div>';
   html += '</div>';
+
   if (enq.message) {
     html += '<div class="rdp-section">';
     html += '<div class="rdp-section-label">Message</div>';
     html += '<div style="font-size:13px;color:#192E2A;line-height:1.5">' + escHtml(enq.message) + '</div>';
     html += '</div>';
   }
-  // Notes
+
+  // ── Notes ──
   html += '<div class="rdp-section">';
   html += '<div class="rdp-section-label">Notes</div>';
   html += '<textarea id="rdp-notes-' + enq.id + '" style="width:100%;min-height:70px;font-family:var(--sans);font-size:12.5px;padding:8px 10px;border:1px solid rgba(0,0,0,0.12);border-radius:7px;resize:vertical;outline:none" onblur="saveNotes(\'' + enq.id + '\',this.value)" placeholder="Add notes…">' + escHtml(enq.notes || '') + '</textarea>';
   html += '</div>';
 
-  // How-to instructions (collapsed)
-  var enqHowtoSteps = {
-    new: [
-      'Review the intake form details and message above',
-      'Call or email the client to introduce yourself and understand their needs',
-      'Click "Mark as contacted" once you have reached out',
-      'When ready to book, create a client record in Halaxy',
-      'Click "Mark as in Halaxy" once their first appointment is confirmed'
-    ],
-    contacted: [
-      'Follow up if no response after 48 hours',
-      'Confirm the client is ready to proceed and book',
-      'Add the client into Halaxy and create a first appointment',
-      'Click "Mark as in Halaxy" once confirmed'
-    ],
-    in_halaxy: [
-      'Confirm the first appointment is booked in Halaxy',
-      'Ensure the client has completed their intake / consent forms',
-      'After their first session they will appear in the sessions queue for billing'
-    ],
-  }[enq.status || 'new'];
+  // ── Activity / interaction timeline ──
+  var activity = enq.activity || [];
+  html += '<div class="rdp-section">';
+  html += '<div class="rdp-section-label" style="display:flex;align-items:center;justify-content:space-between">'
+    + 'Activity'
+    + (isClosed ? '' : '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(42,88,80,0.25);border-radius:5px;background:transparent;color:var(--teal);cursor:pointer" onclick="_toggleLogInteractionForm(\'' + enq.id + '\')">+ Log</button>')
+    + '</div>';
 
-  if (enqHowtoSteps) {
-    html += '<div class="rdp-howto"><details><summary>How to action this</summary>';
-    html += '<div class="rdp-howto-steps">';
-    enqHowtoSteps.forEach(function(step, i) {
-      html += '<div class="rdp-howto-step"><span class="rdp-howto-step-n">' + (i + 1) + '</span><span>' + escHtml(step) + '</span></div>';
-    });
-    html += '</div></details></div>';
+  // Log form (hidden by default, toggled)
+  if (!isClosed) {
+    html += '<div id="rdp-log-form-' + enq.id + '" class="enq-log-form" style="display:none">';
+    html += '<select id="rdp-log-type-' + enq.id + '">'
+      + '<option value="call">📞 Phone call</option>'
+      + '<option value="email">✉ Email</option>'
+      + '<option value="note">📝 Note</option>'
+      + '</select>';
+    html += '<textarea id="rdp-log-text-' + enq.id + '" placeholder="What happened? e.g. Left voicemail, client confirmed Thursday…"></textarea>';
+    html += '<div style="display:flex;justify-content:flex-end;gap:6px">'
+      + '<button style="font-size:11px;padding:4px 10px;border:1px solid rgba(0,0,0,0.12);border-radius:5px;background:transparent;color:var(--soft);cursor:pointer" onclick="_toggleLogInteractionForm(\'' + enq.id + '\')">Cancel</button>'
+      + '<button style="font-size:11px;padding:4px 12px;border:none;border-radius:5px;background:var(--teal);color:#fff;cursor:pointer" onclick="_submitLogInteraction(\'' + enq.id + '\')">Save</button>'
+      + '</div>';
+    html += '</div>';
   }
 
+  if (activity.length) {
+    var TL_DOT = { status: 'tl-status', notes: '', halaxy: 'tl-status', converted: 'tl-status', intake: 'tl-intake', call: 'tl-call', email: 'tl-email', note: '' };
+    var TL_LABEL = {
+      status:    function(a) { var s = (a.detail || '').split(':')[0]; var reason = (a.detail || '').split(':')[1]; var sl = { new: 'Enquiry received', contacted: 'Marked as contacted', in_halaxy: 'Added to Halaxy', closed: 'Enquiry closed' + (reason ? ' — ' + (CLOSED_REASON_LABELS_RDP[reason] || reason) : ''), converted: 'Converted to client' }; return sl[s] || ('Status → ' + escHtml(s)); },
+      notes:     function() { return 'Notes updated'; },
+      halaxy:    function(a) { return a.detail === 'linked' ? 'Halaxy patient linked' : 'Halaxy link cleared'; },
+      converted: function(a) { return 'Converted to client'; },
+      intake:    function(a) { return 'Onboarding sent' + (a.detail ? ' — ' + escHtml(FUNDER_LABELS[a.detail] || a.detail) : ''); },
+      call:      function(a) { return '📞 ' + escHtml(a.detail || 'Phone call'); },
+      email:     function(a) { return '✉ ' + escHtml(a.detail || 'Email'); },
+      note:      function(a) { return '📝 ' + escHtml(a.detail || 'Note'); },
+    };
+    html += '<div class="enq-timeline">';
+    activity.slice(0, 8).forEach(function(a) {
+      var dotClass = TL_DOT[a.action] || '';
+      var labelFn  = TL_LABEL[a.action] || function(x) { return escHtml(x.action + (x.detail ? ': ' + x.detail : '')); };
+      html += '<div class="enq-tl-item">'
+        + '<div class="enq-tl-dot ' + dotClass + '"></div>'
+        + '<div class="enq-tl-body">'
+        + '<div class="enq-tl-label">' + labelFn(a) + '</div>'
+        + '<div class="enq-tl-meta">' + escHtml(_relativeDate(a.created_at)) + (a.actor ? ' · ' + escHtml(a.actor) : '') + '</div>'
+        + '</div>'
+        + '</div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="font-size:12px;color:var(--soft);margin-top:6px">No activity yet</div>';
+  }
+  html += '</div>';
+
   return html;
+}
+
+function _toggleLogInteractionForm(enqId) {
+  var f = document.getElementById('rdp-log-form-' + enqId);
+  if (f) f.style.display = f.style.display === 'none' ? '' : 'none';
+}
+
+async function _submitLogInteraction(enqId) {
+  var typeEl = document.getElementById('rdp-log-type-' + enqId);
+  var textEl = document.getElementById('rdp-log-text-' + enqId);
+  var type = typeEl ? typeEl.value : 'note';
+  var text = textEl ? textEl.value.trim() : '';
+  if (!text) { toast('Add a note before saving', 'err'); return; }
+  try {
+    await apiFetch('/api/admin-enquiries?id=' + enqId, {
+      method: 'PATCH',
+      body: { log_action: type, log_detail: text },
+    });
+    toast('Interaction logged ✓');
+    refreshPipeline();
+    closeDetailPanel();
+  } catch (e) {
+    toast('Could not save: ' + e.message, 'err');
+  }
+}
+
+function _openAddToHalaxyPanel(enqId) {
+  var panel = document.getElementById('rdp-halaxy-link-' + enqId);
+  if (!panel) return;
+  var enq = (_pipelineData && _pipelineData.enquiries || []).find(function(e) { return e.id === enqId; }) || {};
+  panel.innerHTML = '<div class="enq-halaxy-link-panel">'
+    + '<div class="enq-halaxy-link-title">Add to Halaxy</div>'
+    + '<div style="font-size:11.5px;color:var(--mid);margin-bottom:10px">Search for an existing Halaxy patient, or create a new one pre-filled from this enquiry.</div>'
+    + '<div class="enq-halaxy-search-row">'
+    + '<input id="rdp-hx-search-' + enqId + '" type="text" placeholder="Search by name…" value="' + escHtml([enq.first_name, enq.last_name].filter(Boolean).join(' ')) + '"'
+    + ' oninput="_debounceHxEnqSearch(\'' + enqId + '\')">'
+    + '<button style="font-size:11px;padding:6px 12px;border:none;border-radius:6px;background:var(--teal);color:#fff;cursor:pointer;white-space:nowrap" onclick="_searchHxEnqPatients(\'' + enqId + '\')">Search</button>'
+    + '</div>'
+    + '<div id="rdp-hx-results-' + enqId + '" class="enq-halaxy-results"></div>'
+    + '<div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid rgba(0,0,0,0.08);padding-top:10px">'
+    + '<button style="flex:1;font-size:11px;padding:7px 10px;border:1px solid rgba(42,88,80,0.25);border-radius:6px;background:transparent;color:var(--teal);cursor:pointer" onclick="_createHalaxyFromEnquiry(\'' + enqId + '\')">+ Create new patient →</button>'
+    + '<button style="font-size:11px;padding:7px 12px;border:1px solid rgba(0,0,0,0.12);border-radius:6px;background:transparent;color:var(--soft);cursor:pointer" onclick="_markInHalaxyDirectly(\'' + enqId + '\')">Already added ✓</button>'
+    + '</div>'
+    + '</div>';
+}
+
+var _hxEnqSearchTimer = null;
+function _debounceHxEnqSearch(enqId) {
+  clearTimeout(_hxEnqSearchTimer);
+  _hxEnqSearchTimer = setTimeout(function() { _searchHxEnqPatients(enqId); }, 350);
+}
+
+async function _searchHxEnqPatients(enqId) {
+  var q = (document.getElementById('rdp-hx-search-' + enqId) || {}).value || '';
+  q = q.trim();
+  var resEl = document.getElementById('rdp-hx-results-' + enqId);
+  if (!resEl || !q) return;
+  resEl.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:4px 0">Searching…</div>';
+  try {
+    var data = await apiFetch('/api/admin-enquiries?halaxy_patient_name=' + encodeURIComponent(q));
+    var pts = (data && data.patients) || [];
+    if (!pts.length) { resEl.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:4px 0">No matches found</div>'; return; }
+    resEl.innerHTML = pts.map(function(p) {
+      return '<div class="enq-halaxy-result-item" onclick="_selectHxEnqPatient(\'' + enqId + '\',\'' + escHtml(p.id) + '\',\'' + escHtml(p.name) + '\')">'
+        + escHtml(p.name) + ' <span style="color:var(--soft);font-size:10px">#' + escHtml(p.id) + '</span>'
+        + '</div>';
+    }).join('');
+  } catch (e) {
+    resEl.innerHTML = '<div style="font-size:11px;color:var(--terra)">Search failed</div>';
+  }
+}
+
+async function _selectHxEnqPatient(enqId, patientId, patientName) {
+  try {
+    await apiFetch('/api/admin-enquiries?id=' + enqId, { method: 'PATCH', body: { status: 'in_halaxy', log_action: 'halaxy', log_detail: 'linked:' + patientId + ':' + patientName } });
+    toast('Linked to Halaxy patient ' + patientName + ' ✓');
+    refreshPipeline();
+    closeDetailPanel();
+  } catch (e) {
+    toast('Could not link: ' + e.message, 'err');
+  }
+}
+
+function _createHalaxyFromEnquiry(enqId) {
+  var enq = (_pipelineData && _pipelineData.enquiries || []).find(function(e) { return e.id === enqId; }) || {};
+  closeDetailPanel();
+  // Pre-fill add-client modal with enquiry data
+  openAddClient();
+  setTimeout(function() {
+    var fn = document.getElementById('ac-first-name');
+    var ln = document.getElementById('ac-last-name');
+    var em = document.getElementById('ac-email');
+    var ph = document.getElementById('ac-phone');
+    if (fn && enq.first_name) fn.value = enq.first_name;
+    if (ln && enq.last_name)  ln.value = enq.last_name;
+    if (em && enq.email)      em.value = enq.email;
+    if (ph && enq.phone)      ph.value = enq.phone;
+    // Store enquiry id to advance status after creation
+    window._pendingEnqId = enqId;
+  }, 80);
+}
+
+async function _markInHalaxyDirectly(enqId) {
+  try {
+    await apiFetch('/api/admin-enquiries?id=' + enqId, { method: 'PATCH', body: { status: 'in_halaxy' } });
+    toast('Marked as in Halaxy ✓');
+    refreshPipeline();
+    closeDetailPanel();
+  } catch (e) {
+    toast('Could not update: ' + e.message, 'err');
+  }
 }
 
 function _renderClientDetailPanel(cl) {
@@ -3299,13 +3521,13 @@ function _rdpUpdateIntakeUrl(enquiryId) {
   if (!known) urlEl.focus();
 }
 
-// Helper: send intake from detail panel
+// Helper: send onboarding (intake) email from detail panel
 async function _rdpSendIntake(enquiryId) {
-  var sel = document.getElementById('rdp-intake-funder-' + enquiryId);
-  var clientType = sel ? sel.value : '';
+  var funderSel = document.getElementById('rdp-intake-funder-' + enquiryId);
+  var ctypeSel  = document.getElementById('rdp-ctype-'         + enquiryId);
+  var clientType = funderSel ? funderSel.value : '';
   if (!clientType) { toast('Select a funding type first', 'err'); return; }
 
-  // Look up the pre-filled intake URL from HALAXY_URLS, or fall back to a URL input if present
   var urlEl = document.getElementById('rdp-intake-url-' + enquiryId);
   var intakeUrl = (urlEl ? urlEl.value : '') || HALAXY_URLS[clientType] || '';
   intakeUrl = intakeUrl.trim();
@@ -3315,13 +3537,17 @@ async function _rdpSendIntake(enquiryId) {
     return;
   }
 
+  var personType = ctypeSel ? ctypeSel.value : '';
+
   try {
-    await apiFetch('/api/admin-intake', { method: 'POST', body: { enquiryId: enquiryId, clientType: clientType, intakeUrl: intakeUrl } });
-    toast('Intake email sent ✓');
+    await apiFetch('/api/admin-intake', { method: 'POST', body: { enquiryId: enquiryId, clientType: clientType, personType: personType, intakeUrl: intakeUrl } });
+    // Also record the funder selection on the enquiry
+    await apiFetch('/api/admin-enquiries?id=' + enquiryId, { method: 'PATCH', body: { intake_funder: clientType } }).catch(function() {});
+    toast('Onboarding email sent ✓');
     closeDetailPanel();
     refreshPipeline();
   } catch (e) {
-    toast('Could not send intake: ' + e.message, 'err');
+    toast('Could not send onboarding email: ' + e.message, 'err');
   }
 }
 
@@ -5478,6 +5704,115 @@ async function _submitNewSession() {
     errEl.textContent = err.message || 'Failed to create appointment';
     errEl.style.display = '';
   }
+}
+
+/* ── Close enquiry with reason modal ── */
+function _openCloseEnquiryModal(enqId) {
+  var ov = document.getElementById('mini-modal-ov');
+  if (!ov) return;
+  ov.innerHTML = '<div class="mm-card">'
+    + '<div class="mm-title">Close enquiry</div>'
+    + '<div class="mm-field"><label>Reason</label>'
+    + '<select id="mm-close-reason">'
+    + '<option value="">Select a reason…</option>'
+    + '<option value="not_interested">Not interested</option>'
+    + '<option value="wrong_service">Wrong service or fit</option>'
+    + '<option value="no_response">No response after follow-up</option>'
+    + '<option value="converted_elsewhere">Converted elsewhere</option>'
+    + '<option value="duplicate">Duplicate enquiry</option>'
+    + '<option value="other">Other</option>'
+    + '</select></div>'
+    + '<div class="mm-field"><label>Note (optional)</label>'
+    + '<textarea id="mm-close-note" placeholder="Any additional context…"></textarea></div>'
+    + '<div class="mm-actions">'
+    + '<button class="mm-btn-cancel" onclick="document.getElementById(\'mini-modal-ov\').classList.remove(\'open\')">Cancel</button>'
+    + '<button class="mm-btn-danger" onclick="_submitCloseEnquiry(\'' + enqId + '\')">Close enquiry</button>'
+    + '</div>'
+    + '</div>';
+  ov.classList.add('open');
+}
+
+async function _submitCloseEnquiry(enqId) {
+  var reason = (document.getElementById('mm-close-reason') || {}).value || '';
+  var note   = ((document.getElementById('mm-close-note') || {}).value || '').trim();
+  var ov = document.getElementById('mini-modal-ov');
+  if (ov) ov.classList.remove('open');
+  try {
+    var body = { status: 'closed' };
+    if (reason) body.closed_reason = reason;
+    if (note)   body.notes = note;
+    await apiFetch('/api/admin-enquiries?id=' + enqId, { method: 'PATCH', body: body });
+    toast('Enquiry closed');
+    refreshPipeline();
+    closeDetailPanel();
+  } catch (err) {
+    toast('Could not close: ' + err.message, 'err');
+  }
+}
+
+/* ── Funders view ── */
+function renderFundersView() {
+  var content = document.getElementById('view-content');
+  if (!content) return;
+
+  var funders  = (_halaxyData && _halaxyData.funders)   || [];
+  var invoices = (_halaxyData && _halaxyData.invoices)  || [];
+  var clients  = (_pipelineData && _pipelineData.clients) || [];
+
+  // Build patientId → funder map via dashboard clients
+  var patientFunderMap = {};
+  clients.forEach(function(c) {
+    if (c.halaxy_id) patientFunderMap[String(c.halaxy_id)] = c.funder || 'private';
+  });
+
+  // Group invoices by funder key
+  var byFunder = {};
+  invoices.forEach(function(inv) {
+    if (!inv.patientId || inv.status === 'cancelled' || inv.status === 'draft') return;
+    var fk = patientFunderMap[String(inv.patientId)] || 'private';
+    if (!byFunder[fk]) byFunder[fk] = { owing: 0, paid: 0, count: 0 };
+    var bal = parseFloat(inv.totalBalance);
+    var pd  = parseFloat(inv.totalPaid);
+    if (bal > 0) byFunder[fk].owing += bal;
+    if (pd > 0)  byFunder[fk].paid  += pd;
+    byFunder[fk].count++;
+  });
+
+  function fmt(n) { return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+  var html = '<div class="funders-view">';
+  html += '<div class="funders-view-hd"><span class="view-title">Funders</span></div>';
+
+  if (!funders.length && !Object.keys(byFunder).length) {
+    html += '<div class="dp-empty" style="margin-top:40px">No funder data available — run a Halaxy sync in Settings</div>';
+    html += '</div>';
+    content.innerHTML = html;
+    return;
+  }
+
+  // Show all known funders, highlight ones with activity
+  var funderKeys = Object.keys(FUNDER_LABELS);
+  // Add any extra keys from invoice data not in FUNDER_LABELS
+  Object.keys(byFunder).forEach(function(k) { if (!funderKeys.includes(k)) funderKeys.push(k); });
+
+  funderKeys.forEach(function(fk) {
+    var stats = byFunder[fk] || { owing: 0, paid: 0, count: 0 };
+    if (!stats.count) return; // only show funders with actual invoices
+    var label = FUNDER_LABELS[fk] || fk;
+    html += '<div class="funder-card">'
+      + '<div>'
+      + '<div class="funder-card-name">' + escHtml(label) + '</div>'
+      + '<div class="funder-card-sub">' + stats.count + ' invoice' + (stats.count !== 1 ? 's' : '') + (stats.paid > 0 ? ' · ' + fmt(stats.paid) + ' paid FY' : '') + '</div>'
+      + '</div>'
+      + '<div class="funder-stat">'
+      + '<div class="funder-stat-val' + (stats.owing > 0 ? ' owing' : '') + '">' + (stats.owing > 0 ? fmt(stats.owing) : '—') + '</div>'
+      + '<div class="funder-stat-label">' + (stats.owing > 0 ? 'outstanding' : 'all clear') + '</div>'
+      + '</div>'
+      + '</div>';
+  });
+
+  html += '</div>';
+  content.innerHTML = html;
 }
 
 /* ── Escape HTML helper ── */
