@@ -857,6 +857,13 @@ function _relativeDate(iso) {
   return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
 }
 
+/** Format a date string or ISO timestamp as "12 May 2025" */
+function fmtDate(iso) {
+  if (!iso) return '—';
+  var d = new Date(iso.length === 10 ? iso + 'T12:00:00' : iso);
+  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 function _intakeEnquiryCard(e) {
   var status  = e.status || 'new';
   var isNew   = status === 'new';

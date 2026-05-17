@@ -1136,18 +1136,7 @@ body {
 .q-client-filter-back:hover { background: rgba(42,88,80,0.06); }
 .q-client-filter-name { font-size: 18px; font-weight: 700; color: #1A2F2B; }
 
-/* Client list — used for archived / inactive compact rows */
-.cl-list {
-  background: var(--surface); border: 1px solid var(--surface-border);
-  border-radius: 11px; overflow: hidden; box-shadow: var(--surface-shadow);
-}
-.cl-list-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 11px 15px; border-bottom: 1px solid rgba(0,0,0,0.04);
-  cursor: default; transition: background 0.1s;
-}
-.cl-list-item:last-child { border-bottom: none; }
-.cl-list-item:hover { background: rgba(0,0,0,0.015); }
+/* Client list — legacy compact rows (superseded by phase-5 styles above) */
 .cl-list-avatar {
   width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
   background: var(--teal); color: white; font-size: 11px; font-weight: 600;
