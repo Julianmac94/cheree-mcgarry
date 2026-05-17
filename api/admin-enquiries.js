@@ -1081,6 +1081,7 @@ export default async function handler(req, res) {
     const [
       { data: enquiries }, clientsResult, { data: activityRaw },
       fundersCached, feesCached, feeMapCached,
+      { data: tasksRaw },
     ] = await Promise.all([
       db.from('enquiries').select('*').order('created_at', { ascending: false }),
       db.from('clients').select(`
@@ -1092,6 +1093,7 @@ export default async function handler(req, res) {
       readCache(db, 'halaxy_funders_cache'),
       readCache(db, 'halaxy_fees_cache'),
       readCache(db, 'halaxy_fee_funder_map'),
+      db.from('tasks').select('*').order('created_at', { ascending: true }),
     ]);
 
     // If the full clients query failed (e.g. enquiry_id column not yet migrated),
@@ -1292,6 +1294,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       enquiries: enrichedEnquiries,
       clients:   clients || [],
+      tasks:     tasksRaw || [],
       halaxy,
     });
   }
