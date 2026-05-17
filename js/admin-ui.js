@@ -2771,16 +2771,24 @@ function renderClientsView() {
     return _avatarGradients[code % _avatarGradients.length];
   }
 
-  // Dashboard clients split into active / archived
-  var activeClients = supabaseClients.filter(function(c) { return c.active !== false; });
-  var archived      = supabaseClients.filter(function(c) { return c.active === false; });
+  // 90-day cutoff
+  var _90dAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  // Dashboard clients split: active (seen in last 90 days or no history yet), inactive (>90 days), archived
+  var allActive = supabaseClients.filter(function(c) { return c.active !== false; });
+  var archived  = supabaseClients.filter(function(c) { return c.active === false; });
+  var activeClients  = allActive.filter(function(c) { var ls = lastSeen(c); return !ls || ls >= _90dAgo; });
+  var inactiveClients = allActive.filter(function(c) { var ls = lastSeen(c); return ls && ls < _90dAgo; });
 
   // Build Halaxy-only (Group C) — patients in Halaxy with no dashboard record
   var linkedHalaxyIds = new Set(
     supabaseClients.map(function(c) { return String(c.halaxy_id || ''); }).filter(Boolean)
   );
   var halaxyPatients = (_halaxyData && _halaxyData.patients) || [];
-  var groupC = halaxyPatients.filter(function(p) { return p.id && !linkedHalaxyIds.has(String(p.id)); });
+  var allGroupC  = halaxyPatients.filter(function(p) { return p.id && !linkedHalaxyIds.has(String(p.id)); });
+  // Split Halaxy-only by 90-day activity
+  var groupC         = allGroupC.filter(function(p) { var ls = lastSeenHx(p.id); return !ls || ls >= _90dAgo; });
+  var groupCInactive = allGroupC.filter(function(p) { var ls = lastSeenHx(p.id); return ls && ls < _90dAgo; });
 
   // Sort helpers
   function lastSeen(c) {
@@ -2879,10 +2887,28 @@ function renderClientsView() {
     }
   }
 
+  // Inactive section (dashboard clients not seen in 90 days + Halaxy-only old patients)
+  var inactiveAll = inactiveClients.concat(groupCInactive);
+  if (inactiveAll.length) {
+    var inactOpen = window._clientsInactiveOpen;
+    html += '<div style="margin-top:16px">';
+    html += '<button class="q-section-toggle" style="font-size:11px;color:#9AABA8;background:none;border:none;cursor:pointer;padding:4px 2px"'
+      + ' onclick="window._clientsInactiveOpen=!window._clientsInactiveOpen;renderClientsView()">'
+      + (inactOpen ? '▾' : '▸') + ' Inactive — no activity in 90+ days (' + inactiveAll.length + ')'
+      + '</button>';
+    if (inactOpen) {
+      html += '<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">';
+      html += inactiveClients.map(renderListItem).join('');
+      html += groupCInactive.map(renderHalaxyListItem).join('');
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
   // Archived section
   if (archived.length) {
     var archOpen = window._clientsArchiveOpen;
-    html += '<div style="margin-top:16px">';
+    html += '<div style="margin-top:8px">';
     html += '<button class="q-section-toggle" style="font-size:11px;color:#9AABA8;background:none;border:none;cursor:pointer;padding:4px 2px"'
       + ' onclick="window._clientsArchiveOpen=!window._clientsArchiveOpen;renderClientsView()">'
       + (archOpen ? '▾' : '▸') + ' Archived (' + archived.length + ')'
@@ -2909,8 +2935,13 @@ function _renderHalaxyOnlyDetail(content, hxId) {
   var gradients = ['linear-gradient(145deg,#2A5850,#4A7A70)','linear-gradient(145deg,#3D6FA8,#5888C0)','linear-gradient(145deg,#7A7090,#9A90B0)','linear-gradient(145deg,#BE6E44,#D08A5C)','linear-gradient(145deg,#4A8060,#6AA070)','linear-gradient(145deg,#8A5058,#AA7078)'];
   var grad = gradients[(name.toUpperCase().charCodeAt(0) || 65) % gradients.length];
 
-  var clientInvoices = halaxyInvoices.filter(function(i) { return String(i.patientId) === String(hxId); })
+  var _tod2 = new Date();
+  var _fyStart2 = (_tod2.getMonth() >= 6 ? _tod2.getFullYear() : _tod2.getFullYear() - 1) + '-07-01';
+
+  var allHxInvoices = halaxyInvoices.filter(function(i) { return String(i.patientId) === String(hxId); })
     .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+  var clientInvoices = allHxInvoices.filter(function(i) { return (i.date || '') >= _fyStart2; });
+
   var clientAppts = halaxyAppts.filter(function(a) {
     return (a.participant || []).some(function(pp) {
       var ref = (pp.actor && pp.actor.reference) || '';
@@ -2918,8 +2949,9 @@ function _renderHalaxyOnlyDetail(content, hxId) {
     });
   }).sort(function(a, b) { return (b.start || '').localeCompare(a.start || ''); });
 
-  var totalPaid  = clientInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
-  var totalOwing = clientInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
+  var totalPaid  = allHxInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
+  var totalOwing = allHxInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
+  var fyPaid2    = clientInvoices.reduce(function(s, i)  { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
 
   var html = '<div class="cl-detail-view">';
   html += '<button class="cl-detail-back" onclick="renderClientsView()">← Clients</button>';
@@ -2956,21 +2988,28 @@ function _renderHalaxyOnlyDetail(content, hxId) {
     html += '</div>';
   }
 
-  // Invoices
+  // Invoices — current FY only
   if (clientInvoices.length) {
-    html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Invoices (' + clientInvoices.length + ')</div>';
+    html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Invoices this FY (' + clientInvoices.length + ')'
+      + (fyPaid2 > 0 ? ' <span style="font-size:11px;color:#7A948F;font-weight:400;margin-left:8px">$' + fyPaid2.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' paid</span>' : '')
+      + '</div>';
     clientInvoices.forEach(function(inv) {
-      var dateStr = inv.date ? fmtDate(inv.date) : '—';
-      var amount  = parseFloat(inv.totalPrice || 0);
-      var owing   = parseFloat(inv.totalBalance || 0);
-      var status  = inv.status || 'active';
+      var dateStr  = inv.date ? fmtDate(inv.date) : '—';
+      var amount   = parseFloat(inv.amount || 0);
+      var owing    = parseFloat(inv.totalBalance || 0);
+      var isPaid   = owing === 0 && parseFloat(inv.totalPaid || 0) > 0;
+      var statusLbl = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : (inv.status || 'active'));
+      var statusCls = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : 'active');
       html += '<div class="cl-detail-inv-row">'
         + '<span style="flex:1;font-size:12px;color:#7A948F">' + escHtml(dateStr) + '</span>'
         + '<span style="font-weight:600;color:#1A2F2B">' + (amount > 0 ? '$' + amount.toFixed(2) : '—') + '</span>'
         + (owing > 0.005 ? '<span style="font-size:11px;color:var(--amber)">$' + owing.toFixed(2) + ' owing</span>' : '')
-        + '<span class="cl-detail-inv-badge ' + escHtml(status) + '">' + escHtml(status) + '</span></div>';
+        + '<span class="cl-detail-inv-badge ' + statusCls + '">' + statusLbl + '</span></div>';
     });
     html += '</div>';
+  } else {
+    html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Invoices this FY</div>'
+      + '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">No invoices in the current financial year</div></div>';
   }
 
   // Import to dashboard CTA
@@ -3017,10 +3056,17 @@ function renderClientDetailView(clientId) {
   var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
 
   // Filter Halaxy data for this client
-  var clientInvoices = c.halaxy_id
+  // Current FY start: 1 Jul of the FY that contains today
+  var _today = new Date();
+  var _fyStart = (_today.getMonth() >= 6 ? _today.getFullYear() : _today.getFullYear() - 1) + '-07-01';
+
+  var allClientInvoices = c.halaxy_id
     ? halaxyInvoices.filter(function(i) { return String(i.patientId) === String(c.halaxy_id); })
       .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
     : [];
+  // Show only current-FY invoices in the detail view
+  var clientInvoices = allClientInvoices.filter(function(i) { return (i.date || '') >= _fyStart; });
+
   var clientAppts = c.halaxy_id
     ? halaxyAppts.filter(function(a) {
         return (a.participant || []).some(function(p) {
@@ -3035,9 +3081,10 @@ function renderClientDetailView(clientId) {
     ? allEnquiries.find(function(e) { return String(e.id) === String(c.enquiry_id); })
     : null;
 
-  // Financials
-  var totalPaid    = clientInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
-  var totalOwing   = clientInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
+  // Financials — use all invoices for lifetime totals but FY slice for detail list
+  var totalPaid    = allClientInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
+  var totalOwing   = allClientInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
+  var fyPaid       = clientInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)       || 0); }, 0);
   var funderLabel  = FUNDER_LABELS[c.funder] || c.funder || '—';
 
   // Header tags
@@ -3131,23 +3178,32 @@ function renderClientDetailView(clientId) {
     html += '</div>';
   }
 
-  // Invoices section
+  // Invoices section — current FY only
   if (clientInvoices.length) {
     html += '<div class="cl-detail-section">'
-      + '<div class="cl-detail-sec-title">Invoices (' + clientInvoices.length + ')</div>';
+      + '<div class="cl-detail-sec-title">Invoices this FY (' + clientInvoices.length + ')'
+      + (fyPaid > 0 ? ' <span style="font-size:11px;color:#7A948F;font-weight:400;margin-left:8px">$' + fyPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' paid</span>' : '')
+      + '</div>';
     clientInvoices.forEach(function(inv) {
-      var dateStr = inv.date ? fmtDate(inv.date) : '—';
-      var amount  = parseFloat(inv.totalPrice || 0);
-      var owing   = parseFloat(inv.totalBalance || 0);
-      var status  = inv.status || 'active';
+      var dateStr  = inv.date ? fmtDate(inv.date) : '—';
+      var amount   = parseFloat(inv.amount || 0);
+      var owing    = parseFloat(inv.totalBalance || 0);
+      // Halaxy keeps status "active" even when paid — derive from balance
+      var isPaid   = owing === 0 && parseFloat(inv.totalPaid || 0) > 0;
+      var statusLbl = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : (inv.status || 'active'));
+      var statusCls = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : 'active');
       html += '<div class="cl-detail-inv-row">'
         + '<span style="flex:1;font-size:12px;color:#7A948F">' + escHtml(dateStr) + '</span>'
         + '<span style="font-weight:600;color:#1A2F2B">' + (amount > 0 ? '$' + amount.toFixed(2) : '—') + '</span>'
         + (owing > 0.005 ? '<span style="font-size:11px;color:var(--amber)">$' + owing.toFixed(2) + ' owing</span>' : '')
-        + '<span class="cl-detail-inv-badge ' + escHtml(status) + '">' + escHtml(status) + '</span>'
+        + '<span class="cl-detail-inv-badge ' + statusCls + '">' + statusLbl + '</span>'
         + '</div>';
     });
     html += '</div>';
+  } else if (c.halaxy_id) {
+    html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Invoices this FY</div>'
+      + '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">No invoices in the current financial year</div>'
+      + '</div>';
   }
 
   // Actions
