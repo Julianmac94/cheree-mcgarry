@@ -1159,9 +1159,9 @@ export default async function handler(req, res) {
 
         const [apptBundle, patientBundle, fyInvoiceBundle, preFyInvoiceBundle] = await Promise.all([
           halaxyGet('/Appointment', {
-            date:     `ge${thirtyDaysAgo.toISOString().slice(0, 10)}`, // past 30 days + future
+            date:     `ge${fyStartStr}`, // full FY — matches invoice window so client detail is consistent
             _sort:    'date',
-            _count:   '200',
+            _count:   '500',
             _include: 'Appointment:patient',
           }),
           halaxyGet('/Patient', { _count: '200' }),

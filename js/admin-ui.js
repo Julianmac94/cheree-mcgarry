@@ -2960,10 +2960,11 @@ function _renderHalaxyOnlyDetail(content, hxId) {
     .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
   var clientInvoices = allHxInvoices.filter(function(i) { return (i.date || '') >= _fyStart2; });
 
+  var _hxPatientRef = 'Patient/' + hxId;
   var clientAppts = halaxyAppts.filter(function(a) {
     return (a.participant || []).some(function(pp) {
       var ref = (pp.actor && pp.actor.reference) || '';
-      return ref === 'Patient/' + hxId;
+      return ref === _hxPatientRef || ref.endsWith('/' + _hxPatientRef);
     });
   }).sort(function(a, b) { return (b.start || '').localeCompare(a.start || ''); });
 
@@ -2991,9 +2992,10 @@ function _renderHalaxyOnlyDetail(content, hxId) {
   if (totalOwing > 0.005) html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Outstanding</span><span class="cl-detail-row-val" style="color:var(--amber)">$' + totalOwing.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
   html += '</div>';
 
-  // Appointments
+  // Appointments — independent from invoices; always show section
+  html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Appointments this FY'
+    + (clientAppts.length ? ' (' + clientAppts.length + ')' : '') + '</div>';
   if (clientAppts.length) {
-    html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Appointments (' + clientAppts.length + ')</div>';
     clientAppts.forEach(function(a) {
       var dateStr = a.start ? new Date(a.start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Australia/Brisbane' }) : '—';
       var timeStr = a.start ? new Date(a.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' }) : '';
@@ -3003,8 +3005,10 @@ function _renderHalaxyOnlyDetail(content, hxId) {
         + '<span class="cl-detail-appt-time">' + escHtml(timeStr) + (apptType ? ' · ' + escHtml(apptType) : '') + '</span>'
         + '<span class="cl-detail-appt-badge' + (isCancelled ? ' cancelled' : '') + '">' + escHtml(a.status || 'booked') + '</span></div>';
     });
-    html += '</div>';
+  } else {
+    html += '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">No appointments in Halaxy this FY</div>';
   }
+  html += '</div>';
 
   // Invoices — current FY only
   if (clientInvoices.length) {
@@ -3085,11 +3089,12 @@ function renderClientDetailView(clientId) {
   // Show only current-FY invoices in the detail view
   var clientInvoices = allClientInvoices.filter(function(i) { return (i.date || '') >= _fyStart; });
 
+  var _patientRefSuffix = 'Patient/' + c.halaxy_id;
   var clientAppts = c.halaxy_id
     ? halaxyAppts.filter(function(a) {
         return (a.participant || []).some(function(p) {
           var ref = (p.actor && p.actor.reference) || '';
-          return ref === 'Patient/' + c.halaxy_id;
+          return ref === _patientRefSuffix || ref.endsWith('/' + _patientRefSuffix);
         });
       }).sort(function(a, b) { return (b.start || '').localeCompare(a.start || ''); })
     : [];
@@ -3177,22 +3182,28 @@ function renderClientDetailView(clientId) {
     html += '</div>';
   }
 
-  // Appointments section
-  if (clientAppts.length) {
-    html += '<div class="cl-detail-section">'
-      + '<div class="cl-detail-sec-title">Appointments (' + clientAppts.length + ')</div>';
-    clientAppts.forEach(function(a) {
-      var dateStr = a.start ? new Date(a.start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Australia/Brisbane' }) : '—';
-      var timeStr = a.start ? new Date(a.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' }) : '';
-      var apptType = (a.appointmentType && a.appointmentType.text) || '';
-      var statusStr = a.status || 'booked';
-      var isCancelled = statusStr === 'cancelled';
-      html += '<div class="cl-detail-appt-row">'
-        + '<span class="cl-detail-appt-date">' + escHtml(dateStr) + '</span>'
-        + '<span class="cl-detail-appt-time">' + escHtml(timeStr) + (apptType ? ' · ' + escHtml(apptType) : '') + '</span>'
-        + '<span class="cl-detail-appt-badge' + (isCancelled ? ' cancelled' : '') + '">' + escHtml(statusStr) + '</span>'
-        + '</div>';
-    });
+  // Appointments section — always show (appointments and invoices are independent;
+  // a session may be free/cancelled with no invoice, or an invoice may exist without
+  // a formal Halaxy appointment)
+  if (c.halaxy_id) {
+    html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Appointments this FY'
+      + (clientAppts.length ? ' (' + clientAppts.length + ')' : '') + '</div>';
+    if (clientAppts.length) {
+      clientAppts.forEach(function(a) {
+        var dateStr = a.start ? new Date(a.start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Australia/Brisbane' }) : '—';
+        var timeStr = a.start ? new Date(a.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' }) : '';
+        var apptType = (a.appointmentType && a.appointmentType.text) || '';
+        var statusStr = a.status || 'booked';
+        var isCancelled = statusStr === 'cancelled';
+        html += '<div class="cl-detail-appt-row">'
+          + '<span class="cl-detail-appt-date">' + escHtml(dateStr) + '</span>'
+          + '<span class="cl-detail-appt-time">' + escHtml(timeStr) + (apptType ? ' · ' + escHtml(apptType) : '') + '</span>'
+          + '<span class="cl-detail-appt-badge' + (isCancelled ? ' cancelled' : '') + '">' + escHtml(statusStr) + '</span>'
+          + '</div>';
+      });
+    } else {
+      html += '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">No appointments in Halaxy this FY</div>';
+    }
     html += '</div>';
   }
 
