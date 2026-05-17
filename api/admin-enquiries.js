@@ -1186,7 +1186,7 @@ export default async function handler(req, res) {
             _count:   '500',
             _include: 'Appointment:patient',
           }),
-          halaxyGet('/Patient', { _count: '200' }),
+          halaxyGet('/Patient', { _count: '500' }),
           // FY invoices: paid + unpaid since July 1 (full financial year)
           halaxyGet('/Invoice', {
             created:  `ge${fyStartStr}`,

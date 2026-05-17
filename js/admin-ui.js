@@ -10,9 +10,9 @@ var HALAXY_URLS = {
   private:   'https://www.halaxy.com/a/online/form/new-patient/245011/kDQfMObOfT-YECP02pycZm5BSGRoeUNxVVAzMzRCclVNTzdoZnNEZTZPdmc',
   medicare:  'https://www.halaxy.com/a/online/form/new-patient/245011/kDQfMObOfT-YECP02pycZm5BSGRoeUNxVVAzMzRCclVNTzdoZnNEZTZPdmc',
   ndis_plan: '', // paste NDIS plan-managed intake URL when available
-  ndis_self: '', // paste NDIS self-managed intake URL when available
   qfes:      '', // paste QFES EAP intake URL when available
-  dva:       '', // paste DVA intake URL when available
+  dva:       '', // paste DVA / ADFHSC intake URL when available
+  workcover: '', // paste WorkCover intake URL when available
 };
 
 /* ── Billing submission tracking (localStorage) ── */
@@ -417,22 +417,22 @@ document.addEventListener('click', function(e) {
 });
 
 var FUNDER_LABELS = {
-  ndis_plan: 'NDIS Plan',
-  ndis_self: 'NDIS Self',
-  medicare:  'Medicare',
-  qfes:      'QFES EAP',
-  dva:       'DVA',
   private:   'Private',
+  medicare:  'Medicare',
+  dva:       'DVA / ADFHSC',
+  ndis_plan: 'NDIS Plan Managed',
+  qfes:      'QFES EAP',
+  workcover: 'WorkCover',
 };
 
 /* Default session rates (AUD) — editable in the fee field */
 var FUNDER_RATES = {
-  ndis_plan: '193.99',
-  ndis_self: '193.99',
-  medicare:  '141.85',
-  qfes:      '190.00',
-  dva:       '141.85',
   private:   '180.00',
+  medicare:  '141.85',
+  dva:       '141.85',
+  ndis_plan: '193.99',
+  qfes:      '190.00',
+  workcover: '190.00',
 };
 
 var STATUS_NEXT = {
@@ -1737,7 +1737,7 @@ function _overdueThresholdDays(patientId) {
   var funder  = client ? (client.funder || 'private') : 'private';
   if (funder === 'ndis_plan' || funder === 'dva') return 7;
   if (funder === 'qfes')                          return 21;
-  return 1; // medicare, private, ndis_self
+  return 1; // medicare, private, workcover
 }
 
 function _billingActionBtn(client, session) {
@@ -1752,7 +1752,7 @@ function _billingActionBtn(client, session) {
   if (funder === 'dva') {
     return '<button class="dp-btn dp-btn--primary" onclick="advanceSessionPl(\'' + session.id + '\',\'invoiced\',\'' + client.id + '\')">Lodge DVA claim →</button>';
   }
-  // medicare, private, ndis_self → Halaxy
+  // medicare, private, workcover → Halaxy
   var halaxyCalUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + session.session_date) : 'https://www.halaxy.com/practitioner';
   return '<a class="dp-btn dp-btn--primary" href="' + escHtml(halaxyCalUrl) + '" target="_blank" rel="noopener" onclick="advanceSessionPl(\'' + session.id + '\',\'invoiced\',\'' + client.id + '\')">Process in Halaxy →</a>';
 }
@@ -3076,12 +3076,14 @@ async function _fetchHalaxyCoverage(hxId) {
 
 function _guessFunderKey(payorStr) {
   var s = (payorStr || '').toLowerCase();
-  if (s.includes('medicare'))                                   return 'medicare';
-  if (s.includes('ndis') || s.includes('plan manag'))          return 'ndis_plan';
-  if (s.includes('dva') || s.includes('defence'))              return 'dva';
-  if (s.includes('workcover') || s.includes('compensation'))   return 'other';
-  if (s.includes('qfes') || s.includes('eap'))                 return 'qfes';
-  if (s.includes('private') || s.includes('self'))             return 'private';
+  if (s.includes('medicare'))                                                                             return 'medicare';
+  // Bupa in Halaxy = DVA/ADFHSC for this practice
+  if (s.includes('dva') || s.includes('defence') || s.includes('veteran') || s.includes('adfhcs') || s.includes('bupa')) return 'dva';
+  // All NDIS orgs this practice bills are plan managers
+  if (s.includes('ndis') || s.includes('plan manag') || s.includes('plan-manag') || s.includes('in choice') || s.includes('future by design') || s.includes('alliance plan') || s.includes('purple leopard') || s.includes('freedom plan') || s.includes('individualised community') || s.includes('ndsp')) return 'ndis_plan';
+  if (s.includes('qfes') || s.includes('queensland fire') || s.includes('fire and emergency') || (s.includes('eap') && !s.includes('ndis'))) return 'qfes';
+  if (s.includes('workcover') || s.includes('work cover') || s.includes('worksafe') || s.includes('returntowork') || s.includes('return to work') || s.includes('compensation')) return 'workcover';
+  if (s.includes('private') || s.includes('self pay') || s.includes('self-pay'))                        return 'private';
   return null;
 }
 
@@ -4842,41 +4844,49 @@ function closeAddClient() {
  * lookup in updatePipelineIntakeUrl() still works.
  */
 function _intakeTypeSelectorHtml(id) {
-  var groupLabels = { medicare: 'Medicare', ndis_plan: 'NDIS', ndis_self: 'NDIS (self-managed)', private: 'Private', qfes: 'QFES / EAP', dva: 'DVA / ADFHCS', other: 'Other' };
-  var groupOrder  = ['medicare', 'ndis_plan', 'ndis_self', 'private', 'qfes', 'dva', 'other'];
-  var opts = '';
-  var seen = {};
-  var funders = _halaxyFunders || [];
-  if (funders.length) {
-    // Derive unique billingKeys that actually exist in our funder list
-    funders.forEach(function(f) { seen[f.billingKey] = true; });
-    groupOrder.forEach(function(k) {
-      if (seen[k]) opts += '<option value="' + k + '">' + escHtml(groupLabels[k] || k) + '</option>';
-    });
-  } else {
-    // Funders not yet loaded — use groupLabels set (everything except 'other')
-    groupOrder.filter(function(k) { return k !== 'other'; }).forEach(function(k) {
-      opts += '<option value="' + k + '">' + escHtml(groupLabels[k] || k) + '</option>';
-    });
-  }
+  // Private and Medicare are always available (no Halaxy org); other funders
+  // are shown if they have at least one Halaxy Organisation record.
+  var alwaysOn   = ['private', 'medicare'];
+  var orgBacked  = ['dva', 'ndis_plan', 'qfes', 'workcover'];
+  var seen       = {};
+  var funders    = _halaxyFunders || [];
+  funders.forEach(function(f) { if (f.billingKey) seen[f.billingKey] = true; });
+
+  var opts = alwaysOn.map(function(k) {
+    return '<option value="' + k + '">' + escHtml(FUNDER_LABELS[k] || k) + '</option>';
+  }).join('');
+
+  orgBacked.forEach(function(k) {
+    // Show if Halaxy has an org for it, OR if funders haven't loaded yet (show all as fallback)
+    if (seen[k] || !funders.length) {
+      opts += '<option value="' + k + '">' + escHtml(FUNDER_LABELS[k] || k) + '</option>';
+    }
+  });
+
   return '<select class="pl-intake-sel" id="pl-itype-' + id + '" onclick="event.stopPropagation()" onchange="updatePipelineIntakeUrl(\'' + id + '\')">'
     + opts + '</select>';
 }
 
 function _buildFunderDropdownHtml(funders) {
-  var groups      = {};
-  var groupOrder  = ['medicare','ndis_plan','private','qfes','dva','other'];
-  var groupLabels = { medicare:'Medicare', ndis_plan:'NDIS', private:'Private', qfes:'Third-party / EAP', dva:'DVA / Defence', other:'Other' };
+  // Private and Medicare have no Halaxy Organisation record — always add them as
+  // static options so they never go missing from the dropdown.
+  var html = '<option value="">Select…</option>'
+    + '<option value="private"   data-billing="private">Private</option>'
+    + '<option value="medicare"  data-billing="medicare">Medicare</option>';
+
+  // Group remaining Halaxy org funders by billingKey
+  var groups     = {};
+  var groupOrder = ['dva', 'ndis_plan', 'qfes', 'workcover'];
   funders.forEach(function(f) {
-    var k = f.billingKey || 'other';
+    var k = f.billingKey;
+    if (!k || k === 'private' || k === 'medicare') return; // already handled above
     if (!groups[k]) groups[k] = [];
     groups[k].push(f);
   });
-  var html = '<option value="">Select…</option>';
   groupOrder.forEach(function(key) {
     var grp = groups[key];
     if (!grp || !grp.length) return;
-    html += '<optgroup label="' + escHtml(groupLabels[key] || key) + '">';
+    html += '<optgroup label="' + escHtml(FUNDER_LABELS[key] || key) + '">';
     grp.forEach(function(f) {
       html += '<option value="' + escHtml(f.id) + '" data-billing="' + escHtml(f.billingKey) + '" data-name="' + escHtml(f.name) + '">'
             + escHtml(f.name) + '</option>';
@@ -5031,9 +5041,22 @@ async function _prefillFunderFromCoverage(hxId) {
     if (!coverage.length) return;
     var funderKey = _guessFunderKey(coverage[0].payor || coverage[0].typeText || '');
     if (!funderKey) return;
-    // Set funder dropdown in the import/new modal
-    var sel = document.getElementById('cl-funder') || document.getElementById('cl-new-funder');
-    if (sel) { sel.value = funderKey; onModalFunderChange(); }
+    // Set funder dropdown in the import/new modal.
+    // Options are keyed by Halaxy org ID with data-billing = funderKey, so we
+    // match on data-billing rather than value.
+    var selEl = document.getElementById('cl-funder');
+    var mode  = undefined;
+    if (!selEl) { selEl = document.getElementById('cl-new-funder'); mode = 'new'; }
+    if (selEl) {
+      // Find the option whose data-billing matches the resolved funder key
+      var matchOpt = Array.prototype.find.call(selEl.options, function(o) {
+        return o.dataset.billing === funderKey || o.value === funderKey;
+      });
+      if (matchOpt) {
+        selEl.value = matchOpt.value;
+        onModalFunderChange(selEl, mode);
+      }
+    }
   } catch (_) {}
 }
 
@@ -5498,15 +5521,14 @@ function toggleCardMenu(uid) {
 function _mapCoverageToFunderKey(str) {
   if (!str) return null;
   var s = str.toLowerCase();
-  // NDIS: distinguish self-managed vs plan-managed
-  if (s.indexOf('ndis') !== -1) {
-    if (s.indexOf('self') !== -1) return 'ndis_self';
-    return 'ndis_plan'; // plan manager name will be extracted separately
-  }
   if (s.indexOf('medicare') !== -1 || s.indexOf('mbs') !== -1 || s.indexOf('mhcp') !== -1) return 'medicare';
-  if (s.indexOf('dva') !== -1 || s.indexOf('veteran') !== -1 || s.indexOf('defence') !== -1) return 'dva';
-  if (s.indexOf('qfes') !== -1 || s.indexOf('eap') !== -1)     return 'qfes';
-  if (s.indexOf('private') !== -1 || s.indexOf('self') !== -1) return 'private';
+  // Bupa in Halaxy = DVA/ADFHSC for this practice
+  if (s.indexOf('dva') !== -1 || s.indexOf('veteran') !== -1 || s.indexOf('defence') !== -1 || s.indexOf('adfhcs') !== -1 || s.indexOf('bupa') !== -1) return 'dva';
+  // All NDIS orgs this practice bills are plan managers
+  if (s.indexOf('ndis') !== -1 || s.indexOf('plan manag') !== -1 || s.indexOf('in choice') !== -1 || s.indexOf('future by design') !== -1 || s.indexOf('alliance plan') !== -1 || s.indexOf('purple leopard') !== -1 || s.indexOf('freedom plan') !== -1 || s.indexOf('individualised community') !== -1 || s.indexOf('ndsp') !== -1) return 'ndis_plan';
+  if (s.indexOf('qfes') !== -1 || s.indexOf('queensland fire') !== -1 || s.indexOf('fire and emergency') !== -1 || (s.indexOf('eap') !== -1 && s.indexOf('ndis') === -1)) return 'qfes';
+  if (s.indexOf('workcover') !== -1 || s.indexOf('work cover') !== -1 || s.indexOf('worksafe') !== -1 || s.indexOf('returntowork') !== -1 || s.indexOf('return to work') !== -1 || s.indexOf('compensation') !== -1) return 'workcover';
+  if (s.indexOf('private') !== -1 || s.indexOf('self pay') !== -1) return 'private';
   return null;
 }
 
@@ -5514,7 +5536,8 @@ function _mapCoverageToFunderKey(str) {
 // Derived from actual Halaxy fee naming conventions (Halaxy does not provide
 // funder references inside ChargeItemDefinition — keyword matching is the only option).
 var FUNDER_KEYWORDS = {
-  // NDIS fees are consistently named with Social Worker credentials / NDIS line items
+  // NDIS fees are consistently named with NDIS line items / SW credentials
+  // All NDIS clients at this practice are plan-managed
   ndis_plan: [
     'ndis', 'social worker', 'amhsw', 'aasw',
     'therapeutic supports', 'improved daily living',
@@ -5522,32 +5545,29 @@ var FUNDER_KEYWORDS = {
     'client non-attendance', 'training for carers',
     'case conference', 'communication - ',
   ],
-  ndis_self: [
-    'ndis', 'social worker', 'amhsw', 'aasw',
-    'therapeutic supports', 'improved daily living',
-    'early childhood intervention', 'training for carers',
-  ],
-  // Medicare fees are the "Other than Client" rebate items
+  // Medicare fees — Better Access / MBS item numbers
   medicare: [
     'medicare', 'mbs', 'mhcp', 'other than client',
     'better access', 'rebate',
   ],
-  // QFES fees are all explicitly named "QFES Consultation / Cancellation"
-  qfes: ['qfes'],
-  // DVA fees use DVA item codes and rate-specific names
+  // QFES fees — explicitly named in Halaxy
+  qfes: ['qfes', 'queensland fire', 'fire and emergency', 'eap consultation'],
+  // DVA / ADFHSC — Bupa is how DVA shows in Halaxy for this practice
   dva: [
-    'dva', 'defence', 'veteran', 'bupa adf', 'adfhcs',
+    'dva', 'defence', 'veteran', 'adfhcs', 'bupa',
     'us04', 'initial consultation', 'subsequent consultation',
     'consultation 50',
   ],
-  // Private fees are the generic session types without funder-specific naming
+  // WorkCover — Queensland and SA (ReturnToWork)
+  workcover: [
+    'workcover', "worker's comp", 'workers comp',
+    'return to work', 'returntowork', 'worksafe', 'compensation',
+  ],
+  // Private — generic session types with no funder-specific naming
   private: [
     'in person consultation', 'video telehealth', 'phone telehealth',
     'face to face', 'online', 'ongoing session',
     'couple session', 'parent intake',
-  ],
-  other: [
-    'workcover', "worker's comp", 'workers comp', 'return to work', 'worksafe',
   ],
 };
 
