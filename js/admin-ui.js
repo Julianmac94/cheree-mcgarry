@@ -2786,9 +2786,11 @@ function renderClientsView() {
   );
   var halaxyPatients = (_halaxyData && _halaxyData.patients) || [];
   var allGroupC  = halaxyPatients.filter(function(p) { return p.id && !linkedHalaxyIds.has(String(p.id)); });
-  // Split Halaxy-only by 90-day activity
-  var groupC         = allGroupC.filter(function(p) { var ls = lastSeenHx(p.id); return !ls || ls >= _90dAgo; });
-  var groupCInactive = allGroupC.filter(function(p) { var ls = lastSeenHx(p.id); return ls && ls < _90dAgo; });
+  // Split Halaxy-only by 90-day activity.
+  // null lastSeen = no data in loaded window = old/inactive patient (not a new client).
+  // New clients come through the enquiry flow first so they'll have a dashboard record.
+  var groupC         = allGroupC.filter(function(p) { var ls = lastSeenHx(p.id); return ls && ls >= _90dAgo; });
+  var groupCInactive = allGroupC.filter(function(p) { var ls = lastSeenHx(p.id); return !ls || ls < _90dAgo; });
 
   // Sort helpers
   function lastSeen(c) {
@@ -2805,6 +2807,14 @@ function renderClientsView() {
     var dates = [];
     halaxyInvoices.forEach(function(inv) {
       if (inv.patientId && String(inv.patientId) === String(hxId) && inv.date) dates.push(inv.date);
+    });
+    // Also check appointments (catches active patients with no recent invoices yet)
+    var hxAppts = (_halaxyData && _halaxyData.appointments) || [];
+    hxAppts.forEach(function(a) {
+      var isPatient = (a.participant || []).some(function(pp) {
+        return (pp.actor && pp.actor.reference) === 'Patient/' + hxId;
+      });
+      if (isPatient && a.start) dates.push(a.start.slice(0, 10));
     });
     return dates.length ? dates.reduce(function(max, d) { return d > max ? d : max; }, '') : null;
   }
@@ -2823,11 +2833,19 @@ function renderClientsView() {
     ? groupC.filter(function(p) { return (p.name || '').toLowerCase().indexOf(searchQ) !== -1; })
     : groupC;
 
+  var _thisYear = String(new Date().getFullYear());
+  function _fmtLastSeen(iso) {
+    if (!iso) return 'No activity';
+    var opts = { day: 'numeric', month: 'short' };
+    if (iso.slice(0, 4) !== _thisYear) opts.year = 'numeric';
+    return new Date(iso + 'T12:00:00').toLocaleDateString('en-AU', opts);
+  }
+
   // Build list item HTML — dashboard client
   function renderListItem(c) {
     var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
     var ls = lastSeen(c);
-    var lastDateStr = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : 'No activity';
+    var lastDateStr = _fmtLastSeen(ls);
     var invs = c.halaxy_id ? halaxyInvoices.filter(function(i) { return String(i.patientId) === String(c.halaxy_id); }) : [];
     var totalOwing = invs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
     var tags = '';
@@ -2849,7 +2867,7 @@ function renderClientsView() {
     var name = p.name || 'Unknown';
     var initials = name.split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
     var ls = lastSeenHx(p.id);
-    var lastDateStr = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : 'No activity';
+    var lastDateStr = _fmtLastSeen(ls);
     var hid = escHtml(String(p.id || ''));
     return '<div class="cl-list-item" style="opacity:0.82" onclick="renderClientDetailView(\'hx:' + hid + '\')">'
       + '<div class="cl-list-av" style="background:' + _avatarGrad(name) + '">' + escHtml(initials) + '</div>'
