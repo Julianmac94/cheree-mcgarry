@@ -1062,6 +1062,28 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── POST ?halaxy_coverage=1 — write Coverage (funder) to Halaxy ── */
+  if (req.method === 'POST' && params.get('halaxy_coverage')) {
+    const { patientId, payorId, payorName } = req.body || {};
+    if (!patientId || (!payorId && !payorName))
+      return res.status(400).json({ error: 'patientId and payor required' });
+    const coverageResource = {
+      resourceType: 'Coverage',
+      status:       'active',
+      beneficiary:  { reference: `Patient/${patientId}` },
+      payor:        [payorId
+        ? { reference: `Organization/${payorId}`, display: payorName || '' }
+        : { display: payorName }
+      ],
+    };
+    try {
+      const result = await halaxyPost('/Coverage', coverageResource);
+      return res.status(201).json({ ok: true, coverageId: result.id });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   /* ── GET /api/admin-enquiries?halaxy_search=<email> — find Halaxy patient by email ── */
   if (req.method === 'GET' && halaxySearch) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ patients: [] });

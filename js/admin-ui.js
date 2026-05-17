@@ -3049,6 +3049,62 @@ function _renderHalaxyOnlyDetail(content, hxId) {
   content.innerHTML = html;
 }
 
+async function _fetchHalaxyCoverage(hxId) {
+  var el = document.getElementById('cl-hx-funder-' + hxId);
+  if (!el) return;
+  try {
+    var data = await apiFetch('/api/admin-enquiries?halaxy_coverage=' + encodeURIComponent(hxId));
+    var coverage = (data && data.coverage) || [];
+    if (coverage.length) {
+      // Map payor display name to our known funder keys
+      var payor = coverage[0].payor || coverage[0].typeText || '';
+      var funderKey = _guessFunderKey(payor);
+      var label = (funderKey && FUNDER_LABELS[funderKey]) ? FUNDER_LABELS[funderKey] : (payor || '—');
+      el.innerHTML = escHtml(label)
+        + ' <span style="font-size:10px;color:#9AABA8;margin-left:4px">Halaxy</span>'
+        + ' <button onclick="_editHalaxyCoverage(' + hxId + ')" style="font-size:10px;background:none;border:none;color:var(--teal);cursor:pointer;padding:0 4px">Edit</button>';
+    } else {
+      el.innerHTML = '<span style="color:#9AABA8">Not set in Halaxy</span>'
+        + ' <button onclick="_editHalaxyCoverage(' + hxId + ')" style="font-size:10px;background:none;border:none;color:var(--teal);cursor:pointer;padding:0 4px;font-weight:600">+ Set funder</button>';
+    }
+  } catch (e) {
+    el.innerHTML = '<span style="color:#9AABA8">Could not load</span>';
+  }
+}
+
+function _guessFunderKey(payorStr) {
+  var s = (payorStr || '').toLowerCase();
+  if (s.includes('medicare'))                                   return 'medicare';
+  if (s.includes('ndis') || s.includes('plan manag'))          return 'ndis_plan';
+  if (s.includes('dva') || s.includes('defence'))              return 'dva';
+  if (s.includes('workcover') || s.includes('compensation'))   return 'other';
+  if (s.includes('qfes') || s.includes('eap'))                 return 'qfes';
+  if (s.includes('private') || s.includes('self'))             return 'private';
+  return null;
+}
+
+async function _editHalaxyCoverage(hxId) {
+  // Build funder options from loaded Halaxy funders + known list
+  var funders = (_halaxyFunders && _halaxyFunders.length) ? _halaxyFunders : [];
+  var options = Object.keys(FUNDER_LABELS).map(function(k) {
+    // Try to match to a Halaxy org
+    var hxFunder = funders.find(function(f) { return (f.billingKey === k) || (f.name && f.name.toLowerCase().includes(k)); });
+    return { key: k, label: FUNDER_LABELS[k], payorId: hxFunder ? hxFunder.id : null, payorName: hxFunder ? hxFunder.name : FUNDER_LABELS[k] };
+  });
+  var chosen = prompt('Set funder for this client:\n' + options.map(function(o, i) { return (i+1) + '. ' + o.label; }).join('\n') + '\n\nEnter number:');
+  if (!chosen) return;
+  var idx = parseInt(chosen, 10) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= options.length) return toast('Invalid selection', 'err');
+  var opt = options[idx];
+  try {
+    await apiFetch('/api/admin-enquiries?halaxy_coverage=1', { method: 'POST', body: { patientId: String(hxId), payorId: opt.payorId, payorName: opt.payorName } });
+    toast('Funder set to ' + opt.label + ' in Halaxy');
+    _fetchHalaxyCoverage(hxId); // refresh the display
+  } catch (e) {
+    toast('Could not set funder: ' + e.message, 'err');
+  }
+}
+
 function renderClientDetailView(clientId) {
   var content = document.getElementById('view-content');
   if (!content || !_pipelineData) return;
@@ -3153,8 +3209,16 @@ function renderClientDetailView(clientId) {
   // Overview section
   html += '<div class="cl-detail-section">'
     + '<div class="cl-detail-sec-title">Overview</div>'
-    + '<div class="cl-detail-row"><span class="cl-detail-row-label">Halaxy ID</span><span class="cl-detail-row-val">' + escHtml(c.halaxy_id ? String(c.halaxy_id) : 'None') + '</span></div>'
-    + '<div class="cl-detail-row"><span class="cl-detail-row-label">Funder</span><span class="cl-detail-row-val">' + escHtml(funderLabel) + '</span></div>';
+    + '<div class="cl-detail-row"><span class="cl-detail-row-label">Halaxy ID</span><span class="cl-detail-row-val">' + escHtml(c.halaxy_id ? String(c.halaxy_id) : 'None') + '</span></div>';
+  if (c.halaxy_id) {
+    // Funder comes from Halaxy Coverage — fetched async below
+    html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Funder</span>'
+      + '<span class="cl-detail-row-val" id="cl-hx-funder-' + escHtml(String(c.halaxy_id)) + '">'
+      + '<span style="color:#9AABA8">Loading…</span></span></div>';
+  } else {
+    html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Funder</span>'
+      + '<span class="cl-detail-row-val">' + escHtml(funderLabel) + '</span></div>';
+  }
   if (c.plan_manager) {
     html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Plan manager</span><span class="cl-detail-row-val">' + escHtml(c.plan_manager) + '</span></div>';
   }
@@ -3163,16 +3227,6 @@ function renderClientDetailView(clientId) {
   }
   if (totalPaid > 0) {
     html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Total paid</span><span class="cl-detail-row-val">$' + totalPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
-  }
-  // Funder mismatch warning: if dashboard says private but invoices reference a known funder
-  // (Halaxy Coverage data isn't fetched per-patient, so we infer from the invoice funder field if present)
-  if (c.funder === 'private' && c.halaxy_id) {
-    var hxFunders = (_halaxyData && _halaxyData.funders) || [];
-    // Check if any loaded funder org is referenced in this client's invoices via invoice ref patterns
-    var mightBeMedicare = allClientInvoices.some(function(inv) { return (inv.ref || '').toLowerCase().includes('medicare') || (inv.currency || '') === 'MBS'; });
-    if (mightBeMedicare) {
-      html += '<div class="cl-detail-row"><span class="cl-detail-row-label" style="color:var(--amber)">⚠ Funder check</span><span class="cl-detail-row-val" style="color:var(--amber);font-size:11.5px">Dashboard shows Private — invoices suggest Medicare. Edit client to update.</span></div>';
-    }
   }
   if (totalOwing > 0.005) {
     html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Outstanding</span><span class="cl-detail-row-val" style="color:var(--amber)">$' + totalOwing.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
@@ -3270,6 +3324,9 @@ function renderClientDetailView(clientId) {
   html += '</div>'; // cl-detail-body
   html += '</div>'; // cl-detail-view
   content.innerHTML = html;
+
+  // Fetch Halaxy Coverage for linked clients
+  if (c.halaxy_id) _fetchHalaxyCoverage(c.halaxy_id);
 }
 
 // ── Legacy renderClientsView data setup (kept for backward compatibility with the old card-based view) ──
@@ -4960,6 +5017,22 @@ function _selectModalHalaxyPatient(patientId, patientName) {
   }
   var findSel = document.getElementById('cl-find-selected');
   if (findSel) findSel.style.display = '';
+
+  // Pre-fill funder from Halaxy Coverage
+  _prefillFunderFromCoverage(patientId);
+}
+
+async function _prefillFunderFromCoverage(hxId) {
+  try {
+    var data = await apiFetch('/api/admin-enquiries?halaxy_coverage=' + encodeURIComponent(hxId));
+    var coverage = (data && data.coverage) || [];
+    if (!coverage.length) return;
+    var funderKey = _guessFunderKey(coverage[0].payor || coverage[0].typeText || '');
+    if (!funderKey) return;
+    // Set funder dropdown in the import/new modal
+    var sel = document.getElementById('cl-funder') || document.getElementById('cl-new-funder');
+    if (sel) { sel.value = funderKey; onModalFunderChange(); }
+  } catch (_) {}
 }
 
 function _clearModalHalaxySelection() {
@@ -5050,6 +5123,15 @@ async function saveNewClient() {
                 parent_client_id: parentIdN || undefined },
       });
       toast('Patient created in Halaxy ✓ — ' + resp.client.display_name);
+
+      // Write Coverage (funder) to Halaxy for non-private funders
+      if (funder && funder !== 'private' && resp.halaxyId) {
+        var hxF = (_halaxyFunders || []).find(function(f) { return f.billingKey === funder || f.key === funder; });
+        apiFetch('/api/admin-enquiries?halaxy_coverage=1', {
+          method: 'POST',
+          body: { patientId: String(resp.halaxyId), payorId: hxF ? hxF.id : null, payorName: hxF ? hxF.name : (FUNDER_LABELS[funder] || funder) }
+        }).catch(function() {}); // non-blocking, best-effort
+      }
 
       // If this creation was triggered from an enquiry's "Add to Halaxy" flow, advance that enquiry
       if (window._pendingEnqId) {
