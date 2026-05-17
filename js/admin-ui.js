@@ -2852,6 +2852,11 @@ function renderClientsView() {
     var typeLabel = c.is_contact ? 'Contact' : (c.client_type === 'couples' ? 'Couples' : (c.client_type === 'child' ? 'Child' : 'Individual'));
     tags += '<span class="cl-list-tag type">' + escHtml(typeLabel) + '</span>';
     if (c.funder) { var fl = FUNDER_LABELS[c.funder] || c.funder; tags += '<span class="cl-list-tag funder">' + escHtml(fl) + '</span>'; }
+    if (c.halaxy_id) {
+      tags += '<span class="cl-list-tag halaxy-linked">✓ Halaxy</span>';
+    } else {
+      tags += '<span class="cl-list-tag" style="background:#F5F0EB;color:#8A7060">Dashboard only</span>';
+    }
     if (totalOwing > 0.005) tags += '<span class="cl-list-tag owing">$' + Math.round(totalOwing) + ' owing</span>';
     var cid = escHtml(c.id || '');
     return '<div class="cl-list-item" onclick="renderClientDetailView(\'' + cid + '\')">'
@@ -2996,14 +3001,17 @@ function _renderHalaxyOnlyDetail(content, hxId) {
   html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Appointments this FY'
     + (clientAppts.length ? ' (' + clientAppts.length + ')' : '') + '</div>';
   if (clientAppts.length) {
+    var _sm = { fulfilled: 'attended', cancelled: 'cancelled', noshow: 'no show', arrived: 'arrived', 'checked-in': 'checked in', proposed: 'pending', pending: 'pending', booked: 'booked', waitlist: 'waitlist' };
     clientAppts.forEach(function(a) {
       var dateStr = a.start ? new Date(a.start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Australia/Brisbane' }) : '—';
       var timeStr = a.start ? new Date(a.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' }) : '';
       var apptType = (a.appointmentType && a.appointmentType.text) || '';
-      var isCancelled = (a.status || '') === 'cancelled';
+      var raw = a.status || 'booked';
+      var statusLbl = _sm[raw] || raw;
+      var statusCls = (raw === 'fulfilled') ? 'attended' : (raw === 'cancelled' || raw === 'noshow') ? 'cancelled' : '';
       html += '<div class="cl-detail-appt-row"><span class="cl-detail-appt-date">' + escHtml(dateStr) + '</span>'
         + '<span class="cl-detail-appt-time">' + escHtml(timeStr) + (apptType ? ' · ' + escHtml(apptType) : '') + '</span>'
-        + '<span class="cl-detail-appt-badge' + (isCancelled ? ' cancelled' : '') + '">' + escHtml(a.status || 'booked') + '</span></div>';
+        + '<span class="cl-detail-appt-badge ' + statusCls + '">' + escHtml(statusLbl) + '</span></div>';
     });
   } else {
     html += '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">No appointments in Halaxy this FY</div>';
@@ -3116,10 +3124,14 @@ function renderClientDetailView(clientId) {
   headerTags += '<span class="cl-list-tag type">' + escHtml(typeLabel) + '</span>';
   if (c.funder) headerTags += '<span class="cl-list-tag funder">' + escHtml(funderLabel) + '</span>';
   if (c.is_contact) headerTags += '<span class="cl-list-tag contact">Contact</span>';
+  // Halaxy-linked vs dashboard-only indicator
   if (c.halaxy_id) {
+    headerTags += '<span class="cl-list-tag halaxy-linked">✓ Halaxy</span>';
     headerTags += '<a href="https://au.halaxy.com/app/clients/' + escHtml(String(c.halaxy_id)) + '" target="_blank" rel="noopener"'
       + ' style="font-size:10px;color:var(--teal);text-decoration:none;font-weight:600;padding:2px 7px;border-radius:99px;background:rgba(42,88,80,0.10)">'
       + 'Open in Halaxy ↗</a>';
+  } else {
+    headerTags += '<span class="cl-list-tag" style="background:#F5F0EB;color:#8A7060">Dashboard only</span>';
   }
 
   var html = '<div class="cl-detail-view">';
@@ -3151,6 +3163,16 @@ function renderClientDetailView(clientId) {
   }
   if (totalPaid > 0) {
     html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Total paid</span><span class="cl-detail-row-val">$' + totalPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
+  }
+  // Funder mismatch warning: if dashboard says private but invoices reference a known funder
+  // (Halaxy Coverage data isn't fetched per-patient, so we infer from the invoice funder field if present)
+  if (c.funder === 'private' && c.halaxy_id) {
+    var hxFunders = (_halaxyData && _halaxyData.funders) || [];
+    // Check if any loaded funder org is referenced in this client's invoices via invoice ref patterns
+    var mightBeMedicare = allClientInvoices.some(function(inv) { return (inv.ref || '').toLowerCase().includes('medicare') || (inv.currency || '') === 'MBS'; });
+    if (mightBeMedicare) {
+      html += '<div class="cl-detail-row"><span class="cl-detail-row-label" style="color:var(--amber)">⚠ Funder check</span><span class="cl-detail-row-val" style="color:var(--amber);font-size:11.5px">Dashboard shows Private — invoices suggest Medicare. Edit client to update.</span></div>';
+    }
   }
   if (totalOwing > 0.005) {
     html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Outstanding</span><span class="cl-detail-row-val" style="color:var(--amber)">$' + totalOwing.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
@@ -3193,12 +3215,14 @@ function renderClientDetailView(clientId) {
         var dateStr = a.start ? new Date(a.start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Australia/Brisbane' }) : '—';
         var timeStr = a.start ? new Date(a.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' }) : '';
         var apptType = (a.appointmentType && a.appointmentType.text) || '';
-        var statusStr = a.status || 'booked';
-        var isCancelled = statusStr === 'cancelled';
+        var raw = a.status || 'booked';
+        var _apptStatusMap = { fulfilled: 'attended', cancelled: 'cancelled', noshow: 'no show', arrived: 'arrived', 'checked-in': 'checked in', proposed: 'pending', pending: 'pending', booked: 'booked', waitlist: 'waitlist' };
+        var statusLbl = _apptStatusMap[raw] || raw;
+        var statusCls = (raw === 'fulfilled') ? 'attended' : (raw === 'cancelled' || raw === 'noshow') ? 'cancelled' : '';
         html += '<div class="cl-detail-appt-row">'
           + '<span class="cl-detail-appt-date">' + escHtml(dateStr) + '</span>'
           + '<span class="cl-detail-appt-time">' + escHtml(timeStr) + (apptType ? ' · ' + escHtml(apptType) : '') + '</span>'
-          + '<span class="cl-detail-appt-badge' + (isCancelled ? ' cancelled' : '') + '">' + escHtml(statusStr) + '</span>'
+          + '<span class="cl-detail-appt-badge ' + statusCls + '">' + escHtml(statusLbl) + '</span>'
           + '</div>';
       });
     } else {

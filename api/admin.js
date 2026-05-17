@@ -878,10 +878,11 @@ body {
 .cl-list-name { font-size: 13.5px; font-weight: 600; color: #1A2F2B; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cl-list-tags { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
 .cl-list-tag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 99px; white-space: nowrap; }
-.cl-list-tag.type    { background: rgba(42,88,80,0.10);    color: var(--teal); }
-.cl-list-tag.funder  { background: rgba(61,111,168,0.10);  color: #3D6FA8; }
-.cl-list-tag.contact { background: rgba(154,171,168,0.14); color: #6A8A85; }
-.cl-list-tag.owing   { background: rgba(190,110,68,0.12);  color: var(--amber); }
+.cl-list-tag.type         { background: rgba(42,88,80,0.10);    color: var(--teal); }
+.cl-list-tag.funder       { background: rgba(61,111,168,0.10);  color: #3D6FA8; }
+.cl-list-tag.contact      { background: rgba(154,171,168,0.14); color: #6A8A85; }
+.cl-list-tag.owing        { background: rgba(190,110,68,0.12);  color: var(--amber); }
+.cl-list-tag.halaxy-linked { background: rgba(42,88,80,0.10); color: var(--teal); }
 .cl-list-meta { font-size: 11px; color: #9AABA8; flex-shrink: 0; text-align: right; line-height: 1.5; }
 .cl-list-empty { padding: 60px 20px; text-align: center; color: #9AABA8; font-size: 13px; }
 
@@ -912,7 +913,8 @@ body {
 .cl-detail-appt-date { font-weight: 600; color: var(--teal); min-width: 100px; font-size: 12px; }
 .cl-detail-appt-time { color: #7A948F; font-size: 11.5px; }
 .cl-detail-appt-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 99px; background: rgba(42,88,80,0.10); color: var(--teal); margin-left: auto; white-space: nowrap; }
-.cl-detail-appt-badge.cancelled { background: rgba(0,0,0,0.07); color: #9AABA8; }
+.cl-detail-appt-badge.attended  { background: rgba(42,88,80,0.14); color: var(--teal); }
+.cl-detail-appt-badge.cancelled { background: rgba(0,0,0,0.07); color: #9AABA8; text-decoration: line-through; }
 
 /* ── Inbox two-column layout ── */
 .inbox-layout { display: flex; height: 100%; min-height: 0; overflow: hidden; }
