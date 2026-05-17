@@ -2847,6 +2847,15 @@ function renderClientsView() {
     return new Date(iso + 'T12:00:00').toLocaleDateString('en-AU', opts);
   }
 
+  // Derive funder key from most recent Halaxy invoice fee name — avoids relying on
+  // Supabase funder field which is only set at onboarding and goes stale.
+  function _funderFromHxInvoices(hxId) {
+    var patInvs = halaxyInvoices.filter(function(i) { return i.patientId && String(i.patientId) === String(hxId); });
+    if (!patInvs.length) return null;
+    patInvs = patInvs.slice().sort(function(a, b) { return (b.date || '') > (a.date || '') ? 1 : -1; });
+    return _guessFunderKey(patInvs[0].feeName || '') || null;
+  }
+
   // Build list item HTML — dashboard client
   function renderListItem(c) {
     var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
@@ -2857,7 +2866,9 @@ function renderClientsView() {
     var tags = '';
     var typeLabel = c.is_contact ? 'Contact' : (c.client_type === 'couples' ? 'Couples' : (c.client_type === 'child' ? 'Child' : 'Individual'));
     tags += '<span class="cl-list-tag type">' + escHtml(typeLabel) + '</span>';
-    if (c.funder) { var fl = FUNDER_LABELS[c.funder] || c.funder; tags += '<span class="cl-list-tag funder">' + escHtml(fl) + '</span>'; }
+    // For Halaxy-linked clients use live invoice fee name; fall back to Supabase funder
+    var funderKey = c.halaxy_id ? (_funderFromHxInvoices(c.halaxy_id) || c.funder) : c.funder;
+    if (funderKey) { var fl = FUNDER_LABELS[funderKey] || funderKey; tags += '<span class="cl-list-tag funder">' + escHtml(fl) + '</span>'; }
     if (c.halaxy_id) {
       tags += '<span class="cl-list-tag halaxy-linked">✓ Halaxy</span>';
     } else {
@@ -2880,10 +2891,13 @@ function renderClientsView() {
     var ls = lastSeenHx(p.id);
     var lastDateStr = _fmtLastSeen(ls);
     var hid = escHtml(String(p.id || ''));
+    var funderKey = _funderFromHxInvoices(p.id);
+    var tags = '<span class="cl-list-tag" style="background:#EBF1EF;color:#4A7A70">Halaxy</span>';
+    if (funderKey) tags += '<span class="cl-list-tag funder">' + escHtml(FUNDER_LABELS[funderKey] || funderKey) + '</span>';
     return '<div class="cl-list-item" style="opacity:0.82" onclick="renderClientDetailView(\'hx:' + hid + '\')">'
       + '<div class="cl-list-av" style="background:' + _avatarGrad(name) + '">' + escHtml(initials) + '</div>'
       + '<div class="cl-list-info"><div class="cl-list-name">' + escHtml(name) + '</div>'
-      + '<div class="cl-list-tags"><span class="cl-list-tag" style="background:#EBF1EF;color:#4A7A70">Halaxy</span></div></div>'
+      + '<div class="cl-list-tags">' + tags + '</div></div>'
       + '<div class="cl-list-meta">' + escHtml(lastDateStr) + '</div>'
       + '</div>';
   }
