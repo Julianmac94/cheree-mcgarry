@@ -75,7 +75,8 @@ function mapOrgToFunder(org) {
         || n.includes('qfes')     || n.includes('eap')
         || n.includes('queensland fire') || n.includes('fire and emergency')) billingKey = 'qfes';
   else if (t.includes('worker')  || t.includes('compensation')
-        || n.includes('workcover') || n.includes('return to work'))   billingKey = 'other';
+        || n.includes('workcover') || n.includes('return to work')
+        || n.includes('worksafe') || n.includes('returntowork'))      billingKey = 'workcover';
   return { id: org.id, name, type: typeText, billingKey };
 }
 
@@ -1278,6 +1279,12 @@ export default async function handler(req, res) {
             const totalPaid    = inv.totalPaid?.value    ?? null;
             const totalAmount  = inv.totalGross?.value   ?? inv.totalNet?.value ?? null;
 
+            // Extract fee name from lineItem for funder inference
+            const lineItem = (inv.lineItem || [])[0];
+            const feeName  = lineItem?.chargeItemReference?.display
+                          || lineItem?.chargeItemCodeableConcept?.text
+                          || '';
+
             return {
               id:           inv.id,
               status,
@@ -1286,6 +1293,7 @@ export default async function handler(req, res) {
               amount:       totalAmount,
               totalBalance,
               totalPaid,
+              feeName,
               currency:     inv.totalGross?.currency || inv.totalNet?.currency || 'AUD',
               ref:          inv.identifier?.[0]?.value || inv.id,
             };

@@ -2811,10 +2811,14 @@ function renderClientsView() {
       if (inv.patientId && String(inv.patientId) === String(hxId) && inv.date) dates.push(inv.date);
     });
     // Also check appointments (catches active patients with no recent invoices yet)
+    // Use endsWith() because Halaxy sometimes returns absolute URLs like
+    // https://api.halaxy.com/Patient/123 rather than the relative form Patient/123
     var hxAppts = (_halaxyData && _halaxyData.appointments) || [];
+    var _patSuffix = 'Patient/' + String(hxId);
     hxAppts.forEach(function(a) {
       var isPatient = (a.participant || []).some(function(pp) {
-        return (pp.actor && pp.actor.reference) === 'Patient/' + hxId;
+        var ref = (pp.actor && pp.actor.reference) || '';
+        return ref === _patSuffix || ref.endsWith('/' + _patSuffix);
       });
       if (isPatient && a.start) dates.push(a.start.slice(0, 10));
     });
@@ -5038,17 +5042,37 @@ async function _prefillFunderFromCoverage(hxId) {
   try {
     var data = await apiFetch('/api/admin-enquiries?halaxy_coverage=' + encodeURIComponent(hxId));
     var coverage = (data && data.coverage) || [];
-    if (!coverage.length) return;
-    var funderKey = _guessFunderKey(coverage[0].payor || coverage[0].typeText || '');
+
+    var funderKey = null;
+
+    // Primary: Coverage resource payor name
+    if (coverage.length) {
+      funderKey = _guessFunderKey(coverage[0].payor || coverage[0].typeText || '');
+    }
+
+    // Fallback: infer from this patient's most recent invoice fee name
+    // (Some funders like QFES may not have a Coverage resource in Halaxy
+    //  but the fee name in their invoice will contain "QFES".)
+    if (!funderKey) {
+      var invoices = (_halaxyData && _halaxyData.invoices) || [];
+      var patInvoices = invoices.filter(function(inv) {
+        return inv.patientId && String(inv.patientId) === String(hxId);
+      });
+      if (patInvoices.length) {
+        // Sort most recent first
+        patInvoices.sort(function(a, b) { return (b.date || '') > (a.date || '') ? 1 : -1; });
+        funderKey = _guessFunderKey(patInvoices[0].feeName || patInvoices[0].description || '');
+      }
+    }
+
     if (!funderKey) return;
-    // Set funder dropdown in the import/new modal.
-    // Options are keyed by Halaxy org ID with data-billing = funderKey, so we
-    // match on data-billing rather than value.
+
+    // Set funder dropdown — options are keyed by Halaxy org ID with data-billing = funderKey,
+    // so match on data-billing rather than value.
     var selEl = document.getElementById('cl-funder');
     var mode  = undefined;
     if (!selEl) { selEl = document.getElementById('cl-new-funder'); mode = 'new'; }
     if (selEl) {
-      // Find the option whose data-billing matches the resolved funder key
       var matchOpt = Array.prototype.find.call(selEl.options, function(o) {
         return o.dataset.billing === funderKey || o.value === funderKey;
       });
