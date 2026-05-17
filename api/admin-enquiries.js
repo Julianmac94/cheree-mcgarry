@@ -1180,14 +1180,14 @@ export default async function handler(req, res) {
         const fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
         const fyStartStr  = `${fyStartYear}-07-01`;
 
-        const [apptBundle, patientBundle, fyInvoiceBundle, preFyInvoiceBundle, coverageBundle] = await Promise.all([
+        const [apptBundle, patientBundle, fyInvoiceBundle, preFyInvoiceBundle] = await Promise.all([
           halaxyGet('/Appointment', {
             date:     `ge${fyStartStr}`, // full FY — matches invoice window so client detail is consistent
             _sort:    'date',
             _count:   '500',
             _include: 'Appointment:patient',
           }),
-          halaxyGet('/Patient', { _count: '500' }),
+          halaxyGet('/Patient', { _count: '500', _revinclude: 'Coverage:beneficiary' }),
           // FY invoices: paid + unpaid since July 1 (full financial year)
           halaxyGet('/Invoice', {
             created:  `ge${fyStartStr}`,
@@ -1203,10 +1203,6 @@ export default async function handler(req, res) {
             _count:   '300',
             _include: 'Invoice:recipient',
           }).catch(() => ({ entry: [] })),
-          // Bulk Coverage fetch: one call gives us every patient's funder.
-          // This is the authoritative source — we build a patientId → funderKey map
-          // so the client never has to fall back to stale Supabase funder fields.
-          halaxyGet('/Coverage', { _count: '500' }).catch(() => ({ entry: [] })),
         ]);
 
         // Merge invoice bundles (FY + pre-FY), deduplicate by id
@@ -1224,6 +1220,11 @@ export default async function handler(req, res) {
         const allBundleResources = (apptBundle.entry || []).map(e => e.resource).filter(Boolean);
         const appointments       = allBundleResources.filter(r => r.resourceType === 'Appointment');
         const includedPatients   = allBundleResources.filter(r => r.resourceType === 'Patient');
+
+        // _revinclude=Coverage:beneficiary returns Coverage resources alongside Patient records.
+        // Split them out of the patient bundle — this gives us every patient's funder in one call.
+        const patientBundleResources = (patientBundle.entry || []).map(e => e.resource).filter(Boolean);
+        const coverageResources      = patientBundleResources.filter(r => r.resourceType === 'Coverage');
 
         // Build a fast id→name map from the included Patient resources
         const patientMap = {};
@@ -1304,15 +1305,12 @@ export default async function handler(req, res) {
           })
           .filter(Boolean);
 
-        // Build patientId → payor name map from bulk Coverage fetch.
-        // Storing the raw payor display name so the client can apply its own
-        // _mapCoverageToFunderKey() without duplicating mapping logic server-side.
-        // This is the authoritative Halaxy funder source — no per-patient calls needed.
+        // Build patientId → payor name map from Coverage resources returned via
+        // _revinclude=Coverage:beneficiary on the Patient fetch.
+        // Storing raw payor display name; client applies _mapCoverageToFunderKey().
         const patientFunderMap = {};
-        (coverageBundle.entry || []).forEach(e => {
-          const cov = e.resource;
-          if (!cov || cov.resourceType !== 'Coverage') return;
-          // beneficiary.reference can be "Patient/123" or an absolute URL
+        coverageResources.forEach(cov => {
+          // beneficiary.reference: "Patient/123" or absolute URL
           const benefRef = cov.beneficiary?.reference || '';
           const patId    = benefRef.split('/').pop();
           if (!patId) return;
@@ -1325,7 +1323,7 @@ export default async function handler(req, res) {
           appointments,
           patientMap,
           patientFunderMap,
-          patients:     (patientBundle.entry || []).map(e => e.resource).filter(Boolean).map(p => ({
+          patients:     patientBundleResources.filter(r => r.resourceType === 'Patient').map(p => ({
             id: p.id, name: fhirPatientLegalName(p),
           })),
           invoices,
