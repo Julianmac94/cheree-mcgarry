@@ -883,6 +883,7 @@ body {
 .cl-list-tag.contact      { background: rgba(154,171,168,0.14); color: #6A8A85; }
 .cl-list-tag.owing        { background: rgba(190,110,68,0.12);  color: var(--amber); }
 .cl-list-tag.halaxy-linked { background: rgba(42,88,80,0.10); color: var(--teal); }
+.cl-list-tag.onboarding   { background: rgba(154,110,180,0.12); color: #7A50A0; }
 .cl-list-meta { font-size: 11px; color: #9AABA8; flex-shrink: 0; text-align: right; line-height: 1.5; }
 .cl-list-empty { padding: 60px 20px; text-align: center; color: #9AABA8; font-size: 13px; }
 

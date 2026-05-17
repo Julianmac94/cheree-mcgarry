@@ -2778,21 +2778,30 @@ function renderClientsView() {
   var _fyYear    = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
   var _fyStart   = _fyYear + '-07-01';
 
-  // Dashboard clients split: active (seen this FY or no history yet), inactive (pre-FY), archived
-  var allActive = supabaseClients.filter(function(c) { return c.active !== false; });
-  var archived  = supabaseClients.filter(function(c) { return c.active === false; });
-  var activeClients   = allActive.filter(function(c) { var ls = lastSeen(c); return !ls || ls >= _fyStart; });
-  var inactiveClients = allActive.filter(function(c) { var ls = lastSeen(c); return ls && ls < _fyStart; });
+  // Halaxy is the client database. Supabase holds onboarding records only.
+  //
+  // Groups:
+  //   activeHx   — Halaxy patients with activity this FY (the primary client list)
+  //   inactiveHx — Halaxy patients with no FY activity
+  //   onboarding — Supabase records with no halaxy_id yet (working toward Halaxy entry)
+  //   archived   — Supabase records explicitly archived
 
-  // Build Halaxy-only (Group C) — patients in Halaxy with no dashboard record
-  var linkedHalaxyIds = new Set(
-    supabaseClients.map(function(c) { return String(c.halaxy_id || ''); }).filter(Boolean)
-  );
+  // Fast lookup: halaxy_id → supabase record (for enriching Halaxy clients with notes/type)
+  var hxToSupabase = {};
+  supabaseClients.forEach(function(c) {
+    if (c.halaxy_id) hxToSupabase[String(c.halaxy_id)] = c;
+  });
+
+  var onboarding = supabaseClients.filter(function(c) { return !c.halaxy_id && c.active !== false; });
+  var archived   = supabaseClients.filter(function(c) { return c.active === false; });
+
   var halaxyPatients = (_halaxyData && _halaxyData.patients) || [];
-  var allGroupC  = halaxyPatients.filter(function(p) { return p.id && !linkedHalaxyIds.has(String(p.id)); });
-  // Halaxy-only: active = seen this FY; null = no data in loaded window = pre-FY/old patient
-  var groupC         = allGroupC.filter(function(p) { var ls = lastSeenHx(p.id); return ls && ls >= _fyStart; });
-  var groupCInactive = allGroupC.filter(function(p) { var ls = lastSeenHx(p.id); return !ls || ls < _fyStart; });
+  var activeHx   = halaxyPatients.filter(function(p) { var ls = lastSeenHx(p.id); return ls && ls >= _fyStart; })
+                     .sort(function(a, b) { return (lastSeenHx(b.id) || '').localeCompare(lastSeenHx(a.id) || ''); });
+  var inactiveHx = halaxyPatients.filter(function(p) { var ls = lastSeenHx(p.id); return !ls || ls < _fyStart; });
+
+  // Legacy — keep lastSeen for archived Supabase records
+  var allActive = supabaseClients.filter(function(c) { return c.active !== false; });
 
   // Sort helpers
   function lastSeen(c) {
@@ -2824,20 +2833,18 @@ function renderClientsView() {
     });
     return dates.length ? dates.reduce(function(max, d) { return d > max ? d : max; }, '') : null;
   }
-  function _byDate(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); }
-  activeClients = activeClients.slice().sort(_byDate);
-
   // Apply search
   var searchQ = (window._clientListSearch || '').trim().toLowerCase();
-  var visibleClients = searchQ
-    ? activeClients.filter(function(c) {
-        return (c.display_name || '').toLowerCase().indexOf(searchQ) !== -1
-          || (c.funder || '').toLowerCase().indexOf(searchQ) !== -1;
+  var visibleActiveHx = searchQ
+    ? activeHx.filter(function(p) {
+        var linked = hxToSupabase[String(p.id)];
+        return (p.name || '').toLowerCase().indexOf(searchQ) !== -1
+          || (linked && (linked.display_name || '').toLowerCase().indexOf(searchQ) !== -1);
       })
-    : activeClients;
-  var visibleGroupC = searchQ
-    ? groupC.filter(function(p) { return (p.name || '').toLowerCase().indexOf(searchQ) !== -1; })
-    : groupC;
+    : activeHx;
+  var visibleOnboarding = searchQ
+    ? onboarding.filter(function(c) { return (c.display_name || '').toLowerCase().indexOf(searchQ) !== -1; })
+    : onboarding;
 
   var _thisYear = String(new Date().getFullYear());
   function _fmtLastSeen(iso) {
@@ -2845,6 +2852,61 @@ function renderClientsView() {
     var opts = { day: 'numeric', month: 'short' };
     if (iso.slice(0, 4) !== _thisYear) opts.year = 'numeric';
     return new Date(iso + 'T12:00:00').toLocaleDateString('en-AU', opts);
+  }
+
+  // ── Unified Halaxy client list item ──────────────────────────────────────────
+  // Used for ALL Halaxy patients — whether or not they have a linked Supabase record.
+  // Name comes from Halaxy. Funder comes from Coverage. Notes/type from Supabase if linked.
+  function renderHalaxyClientItem(p) {
+    var hid    = String(p.id || '');
+    var name   = p.name || 'Unknown';
+    var linked = hxToSupabase[hid]; // Supabase enrichment (optional)
+    var initials = name.split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    var ls = lastSeenHx(hid);
+    var lastDateStr = _fmtLastSeen(ls);
+
+    var funderKey  = _funderFromHalaxy(hid);
+    var totalOwing = halaxyInvoices.filter(function(i) { return String(i.patientId) === hid; })
+                       .reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
+
+    var tags = '';
+    if (linked && linked.client_type) {
+      var _tl = linked.client_type === 'couples' ? 'Couples' : linked.client_type === 'child' ? 'Child' : 'Individual';
+      tags += '<span class="cl-list-tag type">' + escHtml(_tl) + '</span>';
+    }
+    if (funderKey) tags += '<span class="cl-list-tag funder">' + escHtml(FUNDER_LABELS[funderKey] || funderKey) + '</span>';
+    if (linked && linked.notes) tags += '<span class="cl-list-tag" style="background:#F0EDE8;color:#7A6A54;font-size:10px">Notes</span>';
+    if (totalOwing > 0.005) tags += '<span class="cl-list-tag owing">$' + Math.round(totalOwing) + ' owing</span>';
+
+    // Click opens the Supabase-enriched detail if linked, otherwise Halaxy-only detail
+    var onclick = linked
+      ? 'renderClientDetailView(\'' + escHtml(linked.id) + '\')'
+      : 'renderClientDetailView(\'hx:' + escHtml(hid) + '\')';
+
+    return '<div class="cl-list-item" onclick="' + onclick + '">'
+      + '<div class="cl-list-av" style="background:' + _avatarGrad(name) + '">' + escHtml(initials) + '</div>'
+      + '<div class="cl-list-info"><div class="cl-list-name">' + escHtml(name) + '</div>'
+      + '<div class="cl-list-tags">' + tags + '</div></div>'
+      + '<div class="cl-list-meta">' + escHtml(lastDateStr) + '</div>'
+      + '</div>';
+  }
+
+  // ── Onboarding client list item ───────────────────────────────────────────────
+  // Supabase-only records not yet mapped to a Halaxy patient.
+  function renderOnboardingItem(c) {
+    var name     = c.display_name || '—';
+    var initials = name.split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    var tags = '';
+    var typeLabel = c.is_contact ? 'Contact' : (c.client_type === 'couples' ? 'Couples' : (c.client_type === 'child' ? 'Child' : 'Individual'));
+    tags += '<span class="cl-list-tag type">' + escHtml(typeLabel) + '</span>';
+    tags += '<span class="cl-list-tag onboarding">Onboarding</span>';
+    if (c.funder) tags += '<span class="cl-list-tag funder">' + escHtml(FUNDER_LABELS[c.funder] || c.funder) + '</span>';
+    return '<div class="cl-list-item" onclick="renderClientDetailView(\'' + escHtml(c.id || '') + '\')">'
+      + '<div class="cl-list-av" style="background:' + _avatarGrad(name) + '">' + escHtml(initials) + '</div>'
+      + '<div class="cl-list-info"><div class="cl-list-name">' + escHtml(name) + '</div>'
+      + '<div class="cl-list-tags">' + tags + '</div></div>'
+      + '<div class="cl-list-meta">Onboarding</div>'
+      + '</div>';
   }
 
   // Return the funder key for a Halaxy patient.
@@ -2928,35 +2990,31 @@ function renderClientsView() {
 
   // List
   html += '<div class="cl-list">';
-  if (!visibleClients.length && !visibleGroupC.length) {
+  if (!visibleActiveHx.length && !visibleOnboarding.length) {
     html += '<div class="cl-list-empty">' + (searchQ ? 'No clients match your search' : 'No clients yet') + '</div>';
   } else {
-    // Dashboard clients first
-    if (visibleClients.length) {
-      html += visibleClients.map(renderListItem).join('');
+    // Primary: all active Halaxy clients (no section label — this IS the client list)
+    if (visibleActiveHx.length) {
+      html += visibleActiveHx.map(renderHalaxyClientItem).join('');
     }
-    // Then Halaxy-only patients
-    if (visibleGroupC.length) {
-      if (visibleClients.length) {
-        html += '<div style="font-size:10.5px;color:#9AABA8;padding:10px 14px 4px;letter-spacing:.04em;text-transform:uppercase">In Halaxy</div>';
-      }
-      html += visibleGroupC.map(renderHalaxyListItem).join('');
+    // Onboarding: Supabase-only records not yet in Halaxy
+    if (visibleOnboarding.length) {
+      html += '<div style="font-size:10.5px;color:#9AABA8;padding:14px 14px 4px;letter-spacing:.04em;text-transform:uppercase">Onboarding</div>';
+      html += visibleOnboarding.map(renderOnboardingItem).join('');
     }
   }
 
-  // Inactive section (dashboard + Halaxy-only clients with no activity this FY)
-  var inactiveAll = inactiveClients.concat(groupCInactive);
-  if (inactiveAll.length) {
+  // Inactive — Halaxy patients with no activity this FY (collapsed)
+  if (inactiveHx.length) {
     var inactOpen = window._clientsInactiveOpen;
     html += '<div style="margin-top:16px">';
     html += '<button class="q-section-toggle" style="font-size:11px;color:#9AABA8;background:none;border:none;cursor:pointer;padding:4px 2px"'
       + ' onclick="window._clientsInactiveOpen=!window._clientsInactiveOpen;renderClientsView()">'
-      + (inactOpen ? '▾' : '▸') + ' Inactive — no activity this FY (' + inactiveAll.length + ')'
+      + (inactOpen ? '▾' : '▸') + ' Inactive — no activity this FY (' + inactiveHx.length + ')'
       + '</button>';
     if (inactOpen) {
       html += '<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">';
-      html += inactiveClients.map(renderListItem).join('');
-      html += groupCInactive.map(renderHalaxyListItem).join('');
+      html += inactiveHx.map(renderHalaxyClientItem).join('');
       html += '</div>';
     }
     html += '</div>';
@@ -3076,8 +3134,7 @@ function _renderHalaxyOnlyDetail(content, hxId) {
       + '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">No invoices in the current financial year</div></div>';
   }
 
-  // Import to dashboard CTA
-  html += '<div style="padding-top:4px"><button class="rdp-ghost-btn" style="width:auto;padding:9px 18px" onclick="_prefillImportPatient(\'' + escHtml(String(hxId)) + '\',\'' + escHtml(name) + '\')">+ Add to Dashboard</button></div>';
+  // No CTA needed — this is an active Halaxy client, they don't need importing
 
   html += '</div></div>';
   content.innerHTML = html;
@@ -3352,9 +3409,15 @@ function renderClientDetailView(clientId) {
   // Actions
   html += '<div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:4px">';
   if (c.id) {
-    html += '<button class="rdp-ghost-btn" style="width:auto;padding:9px 18px" onclick="openClientEditPanel(\'' + escHtml(c.id) + '\')">Edit client</button>';
+    html += '<button class="rdp-ghost-btn" style="width:auto;padding:9px 18px" onclick="openClientEditPanel(\'' + escHtml(c.id) + '\')">Edit</button>';
   }
-  html += '<button class="rdp-ghost-btn" style="width:auto;padding:9px 18px" onclick="navigateTo(\'billing\')">View in Billing</button>';
+  if (!c.halaxy_id && c.id) {
+    // Onboarding client — not yet in Halaxy
+    html += '<button class="rdp-ghost-btn" style="width:auto;padding:9px 18px;border-color:var(--teal);color:var(--teal)" onclick="openMapToHalaxy(\'' + escHtml(c.id) + '\')">Map to Halaxy →</button>';
+  }
+  if (c.halaxy_id) {
+    html += '<button class="rdp-ghost-btn" style="width:auto;padding:9px 18px" onclick="navigateTo(\'billing\')">View in Billing</button>';
+  }
   html += '</div>';
 
   html += '</div>'; // cl-detail-body
@@ -4774,6 +4837,106 @@ function openHalaxyLinkPicker(clientId) {
 
 function _prefillImportPatient(hxId, name) {
   openAddClient(hxId);
+}
+
+// ── Map onboarding client to Halaxy ──────────────────────────────────────────
+// Called from an onboarding client's detail view.
+// Two paths:
+//   1. Search for an existing Halaxy patient (already created in Halaxy by Cheree)
+//   2. Create a new Halaxy patient now and link immediately
+function openMapToHalaxy(clientId) {
+  var clients = (_pipelineData && _pipelineData.clients) || [];
+  var c = clients.find(function(x) { return x.id === clientId; });
+  if (!c) return;
+
+  var modal = document.getElementById('add-client-modal');
+  if (!modal) return;
+
+  // Reuse the modal but show the Map-to-Halaxy UI
+  modal.style.display = 'flex';
+  var inner = modal.querySelector('.cl-modal-inner') || modal;
+
+  inner.innerHTML = '<div style="padding:28px 24px;max-width:480px;width:100%">'
+    + '<div style="font-size:22px;font-weight:600;color:#1A2F2B;margin-bottom:6px">Map to Halaxy</div>'
+    + '<div style="font-size:13px;color:#7A948F;margin-bottom:24px">Link <strong>' + escHtml(c.display_name) + '</strong> to their Halaxy patient record.</div>'
+
+    // Option 1 — Search existing
+    + '<div style="margin-bottom:20px">'
+    + '<div style="font-size:11px;font-weight:600;color:#9AABA8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Already in Halaxy?</div>'
+    + '<div style="font-size:12.5px;color:#4A5A58;margin-bottom:10px">Search for their existing patient record and link it.</div>'
+    + '<input type="text" id="map-hx-search" class="cl-modal-input" placeholder="Search Halaxy by name…" oninput="_mapHxSearch(this.value,\'' + escHtml(clientId) + '\')" autocomplete="off">'
+    + '<div id="map-hx-results" style="margin-top:6px"></div>'
+    + '</div>'
+
+    // Divider
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">'
+    + '<div style="flex:1;height:1px;background:#E8E4DF"></div>'
+    + '<div style="font-size:11px;color:#9AABA8">or</div>'
+    + '<div style="flex:1;height:1px;background:#E8E4DF"></div>'
+    + '</div>'
+
+    // Option 2 — Create new
+    + '<div style="margin-bottom:24px">'
+    + '<div style="font-size:11px;font-weight:600;color:#9AABA8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Not yet in Halaxy?</div>'
+    + '<div style="font-size:12.5px;color:#4A5A58;margin-bottom:12px">Create a new patient in Halaxy and link them automatically.</div>'
+    + '<button class="cl-modal-save-btn" onclick="_createAndMapHalaxyPatient(\'' + escHtml(clientId) + '\')" style="width:100%">Create in Halaxy + Link →</button>'
+    + '</div>'
+
+    + '<button onclick="closeAddClient()" style="background:none;border:none;color:#9AABA8;font-size:12px;cursor:pointer;padding:0">Cancel</button>'
+    + '</div>';
+}
+
+async function _mapHxSearch(q, clientId) {
+  var el = document.getElementById('map-hx-results');
+  if (!el) return;
+  if (!q || q.trim().length < 2) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div style="font-size:12px;color:#9AABA8">Searching…</div>';
+  try {
+    var data = await apiFetch('/api/admin-enquiries?halaxy_search=' + encodeURIComponent(q.trim()));
+    var patients = (data && data.patients) || [];
+    // Filter out already-linked patients
+    var linked = ((_pipelineData && _pipelineData.clients) || []).map(function(c) { return String(c.halaxy_id || ''); }).filter(Boolean);
+    patients = patients.filter(function(p) { return !linked.includes(String(p.id)); });
+    if (!patients.length) { el.innerHTML = '<div style="font-size:12px;color:#9AABA8">No patients found</div>'; return; }
+    el.innerHTML = patients.slice(0, 8).map(function(p) {
+      return '<div class="cl-halaxy-lookup-found" style="cursor:pointer;padding:6px 10px;border-radius:6px;margin-bottom:3px;background:#F5F2EF"'
+        + ' onclick="_confirmMapHalaxy(\'' + escHtml(clientId) + '\',\'' + escHtml(String(p.id)) + '\',\'' + escHtml(p.name || '') + '\')">'
+        + '<strong>' + escHtml(p.name || 'Unknown') + '</strong>'
+        + ' <span style="font-size:11px;color:#9AABA8">ID: ' + escHtml(String(p.id)) + '</span>'
+        + '</div>';
+    }).join('');
+  } catch (e) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--amber)">Search failed</div>';
+  }
+}
+
+async function _confirmMapHalaxy(clientId, hxId, hxName) {
+  if (!confirm('Link this onboarding record to Halaxy patient "' + hxName + '"?\n\nThe Halaxy record will become the source of truth for name, funder, appointments and invoices.')) return;
+  try {
+    await apiFetch('/api/clients', { method: 'PATCH', body: { id: clientId, halaxy_id: hxId } });
+    closeAddClient();
+    toast('Mapped to Halaxy — client is now active');
+    refreshPipeline();
+  } catch (e) {
+    toast('Could not map: ' + e.message, 'err');
+  }
+}
+
+async function _createAndMapHalaxyPatient(clientId) {
+  var clients = (_pipelineData && _pipelineData.clients) || [];
+  var c = clients.find(function(x) { return x.id === clientId; });
+  if (!c) return;
+  // For now, open the new-patient form in Halaxy and let Cheree create them there,
+  // then come back and use Search to link. Full push-to-Halaxy API coming next.
+  var halaxyNewUrl = (_halaxyData && _halaxyData.webUrl)
+    ? _halaxyData.webUrl + '/app/clients/new'
+    : 'https://au.halaxy.com/app/clients/new';
+  window.open(halaxyNewUrl, '_blank');
+  var el = document.getElementById('map-hx-results');
+  if (el) el.innerHTML = '';
+  var inp = document.getElementById('map-hx-search');
+  if (inp) { inp.value = c.display_name || ''; _mapHxSearch(inp.value, clientId); }
+  toast('Halaxy opened — create the patient, then search above to link');
 }
 
 function openAddClient(prefillHalaxyId) {
