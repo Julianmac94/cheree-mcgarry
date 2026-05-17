@@ -2750,19 +2750,6 @@ function renderClientsView() {
     if ((inv.date || '') > byPatient[pid].lastDate) byPatient[pid].lastDate = inv.date || '';
   });
 
-  // Helper: last active date
-  function lastSeen(c) {
-    var dates = [];
-    (c.sessions || []).forEach(function(s) { if (s.session_date) dates.push(s.session_date); });
-    if (c.halaxy_id) {
-      halaxyInvoices.forEach(function(inv) {
-        if (inv.patientId && String(inv.patientId) === String(c.halaxy_id) && inv.date) dates.push(inv.date);
-      });
-    }
-    if (!dates.length) return null;
-    return dates.reduce(function(max, d) { return d > max ? d : max; }, '');
-  }
-
   // Avatar helpers
   var _avatarGradients = [
     'linear-gradient(145deg,#2A5850,#4A7A70)',
@@ -2777,15 +2764,39 @@ function renderClientsView() {
     return _avatarGradients[code % _avatarGradients.length];
   }
 
-  // Only show dashboard clients (active !== false) — no Group C
+  // Dashboard clients split into active / archived
   var activeClients = supabaseClients.filter(function(c) { return c.active !== false; });
   var archived      = supabaseClients.filter(function(c) { return c.active === false; });
 
-  // Sort by last seen
+  // Build Halaxy-only (Group C) — patients in Halaxy with no dashboard record
+  var linkedHalaxyIds = new Set(
+    supabaseClients.map(function(c) { return String(c.halaxy_id || ''); }).filter(Boolean)
+  );
+  var halaxyPatients = (_halaxyData && _halaxyData.patients) || [];
+  var groupC = halaxyPatients.filter(function(p) { return p.id && !linkedHalaxyIds.has(String(p.id)); });
+
+  // Sort helpers
+  function lastSeen(c) {
+    var dates = [];
+    (c.sessions || []).forEach(function(s) { if (s.session_date) dates.push(s.session_date); });
+    if (c.halaxy_id) {
+      halaxyInvoices.forEach(function(inv) {
+        if (inv.patientId && String(inv.patientId) === String(c.halaxy_id) && inv.date) dates.push(inv.date);
+      });
+    }
+    return dates.length ? dates.reduce(function(max, d) { return d > max ? d : max; }, '') : null;
+  }
+  function lastSeenHx(hxId) {
+    var dates = [];
+    halaxyInvoices.forEach(function(inv) {
+      if (inv.patientId && String(inv.patientId) === String(hxId) && inv.date) dates.push(inv.date);
+    });
+    return dates.length ? dates.reduce(function(max, d) { return d > max ? d : max; }, '') : null;
+  }
   function _byDate(a, b) { return (lastSeen(b) || '').localeCompare(lastSeen(a) || ''); }
   activeClients = activeClients.slice().sort(_byDate);
 
-  // Apply client-side search filter
+  // Apply search
   var searchQ = (window._clientListSearch || '').trim().toLowerCase();
   var visibleClients = searchQ
     ? activeClients.filter(function(c) {
@@ -2793,35 +2804,42 @@ function renderClientsView() {
           || (c.funder || '').toLowerCase().indexOf(searchQ) !== -1;
       })
     : activeClients;
+  var visibleGroupC = searchQ
+    ? groupC.filter(function(p) { return (p.name || '').toLowerCase().indexOf(searchQ) !== -1; })
+    : groupC;
 
-  // Build list item HTML
+  // Build list item HTML — dashboard client
   function renderListItem(c) {
     var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
     var ls = lastSeen(c);
     var lastDateStr = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : 'No activity';
-
-    // Compute owing
     var invs = c.halaxy_id ? halaxyInvoices.filter(function(i) { return String(i.patientId) === String(c.halaxy_id); }) : [];
     var totalOwing = invs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
-
-    // Tags
     var tags = '';
     var typeLabel = c.is_contact ? 'Contact' : (c.client_type === 'couples' ? 'Couples' : (c.client_type === 'child' ? 'Child' : 'Individual'));
     tags += '<span class="cl-list-tag type">' + escHtml(typeLabel) + '</span>';
-    if (c.funder) {
-      var fl = FUNDER_LABELS[c.funder] || c.funder;
-      tags += '<span class="cl-list-tag funder">' + escHtml(fl) + '</span>';
-    }
-    if (c.is_contact) tags += '<span class="cl-list-tag contact">Contact</span>';
+    if (c.funder) { var fl = FUNDER_LABELS[c.funder] || c.funder; tags += '<span class="cl-list-tag funder">' + escHtml(fl) + '</span>'; }
     if (totalOwing > 0.005) tags += '<span class="cl-list-tag owing">$' + Math.round(totalOwing) + ' owing</span>';
-
     var cid = escHtml(c.id || '');
     return '<div class="cl-list-item" onclick="renderClientDetailView(\'' + cid + '\')">'
       + '<div class="cl-list-av" style="background:' + _avatarGrad(c.display_name) + '">' + escHtml(initials) + '</div>'
-      + '<div class="cl-list-info">'
-      + '<div class="cl-list-name">' + escHtml(c.display_name || '—') + '</div>'
-      + '<div class="cl-list-tags">' + tags + '</div>'
-      + '</div>'
+      + '<div class="cl-list-info"><div class="cl-list-name">' + escHtml(c.display_name || '—') + '</div>'
+      + '<div class="cl-list-tags">' + tags + '</div></div>'
+      + '<div class="cl-list-meta">' + escHtml(lastDateStr) + '</div>'
+      + '</div>';
+  }
+
+  // Build list item HTML — Halaxy-only patient (Group C)
+  function renderHalaxyListItem(p) {
+    var name = p.name || 'Unknown';
+    var initials = name.split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    var ls = lastSeenHx(p.id);
+    var lastDateStr = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : 'No activity';
+    var hid = escHtml(String(p.id || ''));
+    return '<div class="cl-list-item" style="opacity:0.82" onclick="renderClientDetailView(\'hx:' + hid + '\')">'
+      + '<div class="cl-list-av" style="background:' + _avatarGrad(name) + '">' + escHtml(initials) + '</div>'
+      + '<div class="cl-list-info"><div class="cl-list-name">' + escHtml(name) + '</div>'
+      + '<div class="cl-list-tags"><span class="cl-list-tag" style="background:#EBF1EF;color:#4A7A70">Halaxy</span></div></div>'
       + '<div class="cl-list-meta">' + escHtml(lastDateStr) + '</div>'
       + '</div>';
   }
@@ -2838,10 +2856,20 @@ function renderClientsView() {
 
   // List
   html += '<div class="cl-list">';
-  if (!visibleClients.length) {
-    html += '<div class="cl-list-empty">' + (searchQ ? 'No clients match your search' : 'No clients yet — click + Add Client to get started') + '</div>';
+  if (!visibleClients.length && !visibleGroupC.length) {
+    html += '<div class="cl-list-empty">' + (searchQ ? 'No clients match your search' : 'No clients yet') + '</div>';
   } else {
-    html += visibleClients.map(renderListItem).join('');
+    // Dashboard clients first
+    if (visibleClients.length) {
+      html += visibleClients.map(renderListItem).join('');
+    }
+    // Then Halaxy-only patients
+    if (visibleGroupC.length) {
+      if (visibleClients.length) {
+        html += '<div style="font-size:10.5px;color:#9AABA8;padding:10px 14px 4px;letter-spacing:.04em;text-transform:uppercase">In Halaxy</div>';
+      }
+      html += visibleGroupC.map(renderHalaxyListItem).join('');
+    }
   }
 
   // Archived section
@@ -2863,9 +2891,97 @@ function renderClientsView() {
   content.innerHTML = html;
 }
 
+function _renderHalaxyOnlyDetail(content, hxId) {
+  var patients = (_halaxyData && _halaxyData.patients) || [];
+  var p = patients.find(function(x) { return String(x.id) === String(hxId); });
+  var name = (p && p.name) || ('Patient #' + hxId);
+  var halaxyInvoices = (_halaxyData && _halaxyData.invoices) || [];
+  var halaxyAppts    = (_halaxyData && _halaxyData.appointments) || [];
+
+  var initials = name.split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  var gradients = ['linear-gradient(145deg,#2A5850,#4A7A70)','linear-gradient(145deg,#3D6FA8,#5888C0)','linear-gradient(145deg,#7A7090,#9A90B0)','linear-gradient(145deg,#BE6E44,#D08A5C)','linear-gradient(145deg,#4A8060,#6AA070)','linear-gradient(145deg,#8A5058,#AA7078)'];
+  var grad = gradients[(name.toUpperCase().charCodeAt(0) || 65) % gradients.length];
+
+  var clientInvoices = halaxyInvoices.filter(function(i) { return String(i.patientId) === String(hxId); })
+    .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+  var clientAppts = halaxyAppts.filter(function(a) {
+    return (a.participant || []).some(function(pp) {
+      var ref = (pp.actor && pp.actor.reference) || '';
+      return ref === 'Patient/' + hxId;
+    });
+  }).sort(function(a, b) { return (b.start || '').localeCompare(a.start || ''); });
+
+  var totalPaid  = clientInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
+  var totalOwing = clientInvoices.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
+
+  var html = '<div class="cl-detail-view">';
+  html += '<button class="cl-detail-back" onclick="renderClientsView()">← Clients</button>';
+  html += '<div class="cl-detail-hd">'
+    + '<div class="cl-detail-av" style="background:' + grad + '">' + escHtml(initials) + '</div>'
+    + '<div class="cl-detail-hd-info">'
+    + '<div class="cl-detail-hd-name">' + escHtml(name) + '</div>'
+    + '<div class="cl-detail-hd-tags"><span class="cl-list-tag" style="background:#EBF1EF;color:#4A7A70">Halaxy</span>'
+    + '<a href="https://au.halaxy.com/app/clients/' + escHtml(String(hxId)) + '" target="_blank" rel="noopener"'
+    + ' style="font-size:10px;color:var(--teal);text-decoration:none;font-weight:600;padding:2px 7px;border-radius:99px;background:rgba(42,88,80,0.10)">Open in Halaxy ↗</a>'
+    + '</div></div></div>';
+
+  html += '<div class="cl-detail-body">';
+
+  // Summary row
+  html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Overview</div>'
+    + '<div class="cl-detail-row"><span class="cl-detail-row-label">Halaxy ID</span><span class="cl-detail-row-val">' + escHtml(String(hxId)) + '</span></div>';
+  if (totalPaid > 0) html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Total paid</span><span class="cl-detail-row-val">$' + totalPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
+  if (totalOwing > 0.005) html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Outstanding</span><span class="cl-detail-row-val" style="color:var(--amber)">$' + totalOwing.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
+  html += '</div>';
+
+  // Appointments
+  if (clientAppts.length) {
+    html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Appointments (' + clientAppts.length + ')</div>';
+    clientAppts.forEach(function(a) {
+      var dateStr = a.start ? new Date(a.start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Australia/Brisbane' }) : '—';
+      var timeStr = a.start ? new Date(a.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' }) : '';
+      var apptType = (a.appointmentType && a.appointmentType.text) || '';
+      var isCancelled = (a.status || '') === 'cancelled';
+      html += '<div class="cl-detail-appt-row"><span class="cl-detail-appt-date">' + escHtml(dateStr) + '</span>'
+        + '<span class="cl-detail-appt-time">' + escHtml(timeStr) + (apptType ? ' · ' + escHtml(apptType) : '') + '</span>'
+        + '<span class="cl-detail-appt-badge' + (isCancelled ? ' cancelled' : '') + '">' + escHtml(a.status || 'booked') + '</span></div>';
+    });
+    html += '</div>';
+  }
+
+  // Invoices
+  if (clientInvoices.length) {
+    html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Invoices (' + clientInvoices.length + ')</div>';
+    clientInvoices.forEach(function(inv) {
+      var dateStr = inv.date ? fmtDate(inv.date) : '—';
+      var amount  = parseFloat(inv.totalPrice || 0);
+      var owing   = parseFloat(inv.totalBalance || 0);
+      var status  = inv.status || 'active';
+      html += '<div class="cl-detail-inv-row">'
+        + '<span style="flex:1;font-size:12px;color:#7A948F">' + escHtml(dateStr) + '</span>'
+        + '<span style="font-weight:600;color:#1A2F2B">' + (amount > 0 ? '$' + amount.toFixed(2) : '—') + '</span>'
+        + (owing > 0.005 ? '<span style="font-size:11px;color:var(--amber)">$' + owing.toFixed(2) + ' owing</span>' : '')
+        + '<span class="cl-detail-inv-badge ' + escHtml(status) + '">' + escHtml(status) + '</span></div>';
+    });
+    html += '</div>';
+  }
+
+  // Import to dashboard CTA
+  html += '<div style="padding-top:4px"><button class="rdp-ghost-btn" style="width:auto;padding:9px 18px" onclick="_prefillImportPatient(\'' + escHtml(String(hxId)) + '\',\'' + escHtml(name) + '\')">+ Add to Dashboard</button></div>';
+
+  html += '</div></div>';
+  content.innerHTML = html;
+}
+
 function renderClientDetailView(clientId) {
   var content = document.getElementById('view-content');
   if (!content || !_pipelineData) return;
+
+  // Halaxy-only patient (Group C) — prefixed with "hx:"
+  if (String(clientId).indexOf('hx:') === 0) {
+    var hxId = String(clientId).slice(3);
+    return _renderHalaxyOnlyDetail(content, hxId);
+  }
 
   var c = (_pipelineData.clients || []).find(function(x) { return String(x.id) === String(clientId); });
   if (!c) {
@@ -4445,6 +4561,10 @@ async function saveCreateSession() {
 function openHalaxyLinkPicker(clientId) {
   // Open the detail panel for this client — it has Halaxy link functionality
   openDetailPanel('client', clientId);
+}
+
+function _prefillImportPatient(hxId, name) {
+  openAddClient(hxId);
 }
 
 function openAddClient(prefillHalaxyId) {
