@@ -250,7 +250,8 @@ function buildBookParameters(patientId, start, end, feeId, locationType, practit
         minutesDuration: duration,
         participant: [{
           actor: {
-            reference: `${HALAXY_FHIR_BASE_URL}/PractitionerRole/${practitionerRoleId}`,
+            // Halaxy $book expects relative references, not absolute URLs
+            reference: `PractitionerRole/${practitionerRoleId}`,
             type:      'PractitionerRole',
           },
         }],
@@ -259,7 +260,7 @@ function buildBookParameters(patientId, start, end, feeId, locationType, practit
     {
       name:           'patient-id',
       valueReference: {
-        reference: `${HALAXY_FHIR_BASE_URL}/Patient/${patientId}`,
+        reference: `Patient/${patientId}`,
         type:      'Patient',
       },
     },
@@ -274,7 +275,7 @@ function buildBookParameters(patientId, start, end, feeId, locationType, practit
     parameter.push({
       name:           'charge-item-definition-id',
       valueReference: {
-        reference: `${HALAXY_FHIR_BASE_URL}/ChargeItemDefinition/${feeId}`,
+        reference: `ChargeItemDefinition/${feeId}`,
         type:      'ChargeItemDefinition',
       },
     });
@@ -828,11 +829,15 @@ export default async function handler(req, res) {
       }
     }
 
-    // Auto-sync config from Halaxy if cache is empty (first run)
+    // Auto-sync config from Halaxy if cache is empty or older than 24 hours.
+    // This keeps funders + fees current without hammering Halaxy on every page view.
     let cachedFunders = fundersCached?.funders || [];
     let cachedFees    = feesCached?.fees       || [];
     let cachedFeeMap  = feeMapCached           || {};
-    if (process.env.HALAXY_CLIENT_ID && (!cachedFunders.length || !cachedFees.length)) {
+    const SYNC_TTL_MS = 24 * 60 * 60 * 1000;
+    const lastSyncedAt = fundersCached?.synced_at ? new Date(fundersCached.synced_at).getTime() : 0;
+    const syncStale = Date.now() - lastSyncedAt > SYNC_TTL_MS;
+    if (process.env.HALAXY_CLIENT_ID && (!cachedFunders.length || !cachedFees.length || syncStale)) {
       try {
         const synced  = await syncHalaxyConfig(db);
         cachedFunders = synced.funders;
@@ -858,8 +863,13 @@ export default async function handler(req, res) {
       try {
         const now           = new Date();
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        const [apptBundle, patientBundle, invoiceBundle] = await Promise.all([
+
+        // Australian financial year: 1 July – 30 June.
+        // fyStartStr is always July 1 of the FY that contains today.
+        const fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+        const fyStartStr  = `${fyStartYear}-07-01`;
+
+        const [apptBundle, patientBundle, fyInvoiceBundle, preFyInvoiceBundle] = await Promise.all([
           halaxyGet('/Appointment', {
             date:     `ge${thirtyDaysAgo.toISOString().slice(0, 10)}`, // past 30 days + future
             _sort:    'date',
@@ -867,13 +877,33 @@ export default async function handler(req, res) {
             _include: 'Appointment:patient',
           }),
           halaxyGet('/Patient', { _count: '200' }),
+          // FY invoices: paid + unpaid since July 1 (full financial year)
           halaxyGet('/Invoice', {
-            created: `ge${ninetyDaysAgo.toISOString().slice(0, 10)}`, // Halaxy uses "created", not "date"
-            _sort:   '-created',
-            _count:  '200',
-            _include: 'Invoice:recipient',                             // pull Patient alongside invoice
+            created:  `ge${fyStartStr}`,
+            _sort:    '-created',
+            _count:   '500',
+            _include: 'Invoice:recipient',
+          }).catch(() => ({ entry: [] })),
+          // Pre-FY invoices: older entries to catch any still-unpaid invoices from before this FY.
+          // We fetch up to 300 and the UI filters to show only unpaid ones.
+          halaxyGet('/Invoice', {
+            created:  `lt${fyStartStr}`,
+            _sort:    '-created',
+            _count:   '300',
+            _include: 'Invoice:recipient',
           }).catch(() => ({ entry: [] })),
         ]);
+
+        // Merge invoice bundles (FY + pre-FY), deduplicate by id
+        const invoiceBundle = {
+          entry: [
+            ...(fyInvoiceBundle.entry || []),
+            ...(preFyInvoiceBundle.entry || []),
+          ].filter((e, idx, arr) => {
+            const id = e?.resource?.id;
+            return id ? arr.findIndex(x => x?.resource?.id === id) === idx : true;
+          }),
+        };
         // _include=Appointment:patient adds Patient resources as extra entries —
         // split by resourceType so we don't treat Patient records as Appointments.
         const allBundleResources = (apptBundle.entry || []).map(e => e.resource).filter(Boolean);

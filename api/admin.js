@@ -2618,10 +2618,10 @@ body {
   </div>
 </div>
 
-<!-- Create Session modal (from Website Contact) -->
+<!-- Create Appointment modal (from Website Contact) -->
 <div class="cl-modal-ov" id="create-session-modal" onclick="if(event.target===this)closeCreateSessionModal()">
   <div class="cl-modal" style="max-width:480px">
-    <h2 class="cl-modal-title">Create <em>session</em></h2>
+    <h2 class="cl-modal-title">Create <em>appointment</em></h2>
 
     <!-- Contact info (read-only) -->
     <div id="cs-contact-card" style="background:rgba(42,88,80,0.05);border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:13px;line-height:1.5"></div>
@@ -2651,9 +2651,9 @@ body {
       <input class="cl-modal-input" id="cs-plan-manager" type="text" placeholder="e.g. In Choice Plan Management">
     </div>
 
-    <!-- Session date/time -->
+    <!-- Appointment date/time -->
     <div class="cl-modal-field">
-      <label for="cs-session-date">Session date / time</label>
+      <label for="cs-session-date">Appointment date / time</label>
       <input class="cl-modal-input" id="cs-session-date" type="datetime-local">
     </div>
 
@@ -2673,12 +2673,12 @@ body {
     <!-- Notes -->
     <div class="cl-modal-field">
       <label for="cs-notes">Notes (optional)</label>
-      <input class="cl-modal-input" id="cs-notes" type="text" placeholder="Session notes…">
+      <input class="cl-modal-input" id="cs-notes" type="text" placeholder="Appointment notes…">
     </div>
 
     <div class="cl-modal-actions">
       <button class="cl-modal-cancel" onclick="closeCreateSessionModal()">Cancel</button>
-      <button class="cl-modal-save" id="cs-save-btn" onclick="saveCreateSession()">Create session →</button>
+      <button class="cl-modal-save" id="cs-save-btn" onclick="saveCreateSession()">Create appointment →</button>
     </div>
   </div>
 </div>
