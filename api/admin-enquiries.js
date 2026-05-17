@@ -778,6 +778,50 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── POST ?new_appt=1 — book a new appointment directly in Halaxy (no Google Cal) ─────────
+   * Halaxy IS the calendar for client appointments. This endpoint books via $book and returns
+   * the created appointment ID. Passing a feeId triggers Halaxy to auto-create invoice + note.
+   *
+   * Body fields:
+   *   patientId     string   Halaxy Patient FHIR ID   (required)
+   *   start         ISO      Appointment start         (required)
+   *   end           ISO      Appointment end           (required)
+   *   feeId         string   ChargeItemDefinition ID   (optional — triggers auto-invoice)
+   *   locationType  string   clinic|telehealth|phone   (optional, default 'clinic')
+   * ─────────────────────────────────────────────────────────────────────────────────── */
+  if (req.method === 'POST' && (req.query?.new_appt || new URL(req.url, 'http://x').searchParams.get('new_appt'))) {
+    if (!process.env.HALAXY_CLIENT_ID) {
+      return res.status(400).json({ error: 'Halaxy not configured' });
+    }
+    const { patientId, start, end, feeId, locationType } = req.body || {};
+    if (!patientId || !start || !end) {
+      return res.status(400).json({ error: 'patientId, start and end are required' });
+    }
+    try {
+      const db3 = supabase();
+      const prCache = await readCache(db3, 'halaxy_practitioner_role');
+      const practitionerRoleId = prCache?.id;
+      if (!practitionerRoleId) {
+        return res.status(400).json({ error: 'No PractitionerRole cached — run a Halaxy sync first' });
+      }
+      console.log(`new_appt: $booking patient=${patientId} start=${start} pr=${practitionerRoleId} fee=${feeId || 'none'} location=${locationType || 'clinic'}`);
+      const booked = await halaxyPost('/Appointment/$book',
+        buildBookParameters(patientId, start, end, feeId || null, locationType || 'clinic', practitionerRoleId)
+      );
+      const halaxyApptId = booked.id
+        || booked.entry?.[0]?.resource?.id
+        || (booked.parameter || []).find(p => p.name === 'appointment')?.resource?.id;
+      if (!halaxyApptId) {
+        throw new Error('$book did not return an appointment ID. Response: ' + JSON.stringify(booked).slice(0, 300));
+      }
+      console.log(`new_appt: Halaxy appointment ${halaxyApptId} created — invoice auto-generated`);
+      return res.status(201).json({ ok: true, halaxyApptId });
+    } catch (err) {
+      console.error('new_appt error:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   /* ── POST ?reminder=1 — manually send a 48hr reminder email for a specific appointment ──
    * Body fields:
    *   clientEmail      string  (required)

@@ -464,7 +464,7 @@ var _halaxyFunders   = null; // cached Halaxy funder org list (null = not yet lo
 var _halaxyFeeMap    = {};   // funder ID → array of fee IDs (from halaxy_fee_funder_map setting)
 
 /* ── View routing ── */
-var _currentView = 'queue';
+var _currentView = 'home';
 
 function navigateTo(view) {
   _currentView = view;
@@ -474,12 +474,13 @@ function navigateTo(view) {
   });
   closeDetailPanel();
   if (!_pipelineData) return; // data not loaded yet — will render when loaded
-  if (view === 'queue')        renderQueueView();
-  else if (view === 'clients') renderClientsView();
-  else if (view === 'billing') renderBillingView();
+  if (view === 'home')          renderHomeView();
+  else if (view === 'queue')    renderQueueView();
+  else if (view === 'clients')  renderClientsView();
+  else if (view === 'billing')  renderBillingView();
   else if (view === 'settings') renderSettingsView();
-  else if (view === 'vendors') renderFundersView()
-  else if (view === 'reports') renderStubView('reports', 'Reports', 'Practice reports and insights coming soon.')
+  else if (view === 'vendors')  renderFundersView();
+  else if (view === 'reports')  renderStubView('reports', 'Reports', 'Practice reports and insights coming soon.')
 }
 
 function renderStubView(view, title, msg) {
@@ -519,9 +520,10 @@ function renderCmdResults() {
     // Default: quick navigation
     html += '<div class="cmd-section-label">Navigate</div>';
     var navItems = [
-      { icon: '≡', label: 'Queue', sub: 'Go to Queue', action: "navigateTo('queue');closeCmdBar()" },
-      { icon: '◎', label: 'Clients', sub: 'Go to Clients', action: "navigateTo('clients');closeCmdBar()" },
-      { icon: '$', label: 'Billing', sub: 'Go to Billing', action: "navigateTo('billing');closeCmdBar()" },
+      { icon: '⌂', label: 'Home',     sub: 'Go to Home',     action: "navigateTo('home');closeCmdBar()" },
+      { icon: '≡', label: 'Inbox',    sub: 'Go to Inbox',    action: "navigateTo('queue');closeCmdBar()" },
+      { icon: '◎', label: 'Clients',  sub: 'Go to Clients',  action: "navigateTo('clients');closeCmdBar()" },
+      { icon: '$', label: 'Billing',  sub: 'Go to Billing',  action: "navigateTo('billing');closeCmdBar()" },
       { icon: '⚙', label: 'Settings', sub: 'Go to Settings', action: "navigateTo('settings');closeCmdBar()" },
     ];
     navItems.forEach(function(item, i) {
@@ -2150,6 +2152,114 @@ async function deleteClient(id, name) {
   } catch (e) {
     toast('Could not remove: ' + e.message, 'err');
   }
+}
+
+/* ── Home dashboard view ── */
+function renderHomeView() {
+  var content = document.getElementById('view-content');
+  if (!content || !_pipelineData) return;
+
+  var enquiries  = (_pipelineData.enquiries  || []);
+  var clients    = (_pipelineData.clients    || []);
+  var invoices   = (_pipelineData.invoices   || []);
+  var appts      = (_halaxyData && _halaxyData.appointments) || [];
+
+  // Stat: active enquiries (not closed/converted)
+  var activeEnqCount = enquiries.filter(function(e) { return e.status !== 'closed' && e.status !== 'converted'; }).length;
+
+  // Stat: outstanding invoices ($)
+  var outstandingAmt = invoices.reduce(function(sum, inv) {
+    if (inv.status === 'active' || inv.status === 'overdue') sum += parseFloat(inv.totalPrice || 0);
+    return sum;
+  }, 0);
+
+  // Stat: next upcoming appointment
+  var now        = Date.now();
+  var upcoming   = appts
+    .filter(function(a) { return a.start && new Date(a.start).getTime() > now && a.status !== 'cancelled'; })
+    .sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
+  var nextAppt   = upcoming[0] || null;
+  var nextApptLabel = '—';
+  if (nextAppt) {
+    var diff = Math.round((new Date(nextAppt.start) - now) / 3600000);
+    if (diff < 1)       nextApptLabel = 'soon';
+    else if (diff < 24) nextApptLabel = 'in ' + diff + ' hr' + (diff !== 1 ? 's' : '');
+    else                nextApptLabel = 'in ' + Math.round(diff / 24) + ' day' + (Math.round(diff / 24) !== 1 ? 's' : '');
+  }
+
+  // Today's appointments
+  var todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  var todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  var todayAppts = appts
+    .filter(function(a) {
+      if (!a.start || a.status === 'cancelled') return false;
+      var t = new Date(a.start).getTime();
+      return t >= todayStart.getTime() && t <= todayEnd.getTime();
+    })
+    .sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
+
+  // Greeting
+  var hour = new Date().getHours();
+  var greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+  var html = '<div class="home-view">';
+
+  // Header
+  html += '<div class="home-hd">'
+    + '<div class="home-greeting">' + greet + ', <em>Cheree</em></div>'
+    + '</div>';
+
+  // Action buttons
+  html += '<div class="home-actions">'
+    + '<button class="home-action-btn primary" onclick="openNewSessionModal()">'
+    + '<span class="hab-icon">+</span> New Appointment</button>'
+    + '<button class="home-action-btn" onclick="openAddClient()">'
+    + '<span class="hab-icon">+</span> Add Client</button>'
+    + '<button class="home-action-btn" onclick="refreshPipeline()">'
+    + '<span class="hab-icon">⟳</span> Sync Halaxy</button>'
+    + '</div>';
+
+  // Stats
+  html += '<div class="home-section-title">Overview</div>';
+  html += '<div class="home-stats">'
+    + '<div class="home-stat">'
+    + '<div class="home-stat-val' + (activeEnqCount > 0 ? ' amber' : '') + '">' + activeEnqCount + '</div>'
+    + '<div class="home-stat-label">Active enquiries</div></div>'
+    + '<div class="home-stat">'
+    + '<div class="home-stat-val' + (outstandingAmt > 0 ? ' amber' : '') + '">'
+    + (outstandingAmt > 0 ? '$' + outstandingAmt.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '$0') + '</div>'
+    + '<div class="home-stat-label">Outstanding invoices</div></div>'
+    + '<div class="home-stat">'
+    + '<div class="home-stat-val teal">' + nextApptLabel + '</div>'
+    + '<div class="home-stat-label">Next appointment</div></div>'
+    + '</div>';
+
+  // Today's appointments
+  html += '<div class="home-section-title">Today — ' + new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }) + '</div>';
+  html += '<div class="home-appts">';
+  if (todayAppts.length === 0) {
+    html += '<div class="home-empty">No appointments scheduled for today</div>';
+  } else {
+    todayAppts.forEach(function(a) {
+      var timeStr = new Date(a.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' });
+      // Look up patient name
+      var pid = (a.participant || []).map(function(p) {
+        var ref = (p.actor && p.actor.reference) || '';
+        return ref.startsWith('Patient/') ? ref.replace('Patient/', '') : null;
+      }).filter(Boolean)[0] || '';
+      var patientName = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[pid]) || pid || '—';
+      var apptType = a.appointmentType && a.appointmentType.text || '';
+      html += '<div class="home-appt-item">'
+        + '<span class="home-appt-time">' + escHtml(timeStr) + '</span>'
+        + '<span class="home-appt-name">' + escHtml(patientName) + '</span>'
+        + (apptType ? '<span class="home-appt-type">' + escHtml(apptType) + '</span>' : '')
+        + '</div>';
+    });
+  }
+  html += '</div>';
+
+  html += '</div>'; // .home-view
+  content.innerHTML = html;
 }
 
 function renderQueueView() {
@@ -3962,13 +4072,16 @@ function openAddClient(prefillHalaxyId) {
   // Reset fields
   var ids = ['cl-display-name','cl-plan-manager','cl-halaxy-search','cl-halaxy-id','cl-notes',
              'cl-first-name','cl-last-name','cl-new-phone','cl-new-email','cl-new-dob','cl-new-notes','cl-new-plan-manager',
-             'cl-parent-search','cl-parent-id','cl-new-parent-search','cl-new-parent-id'];
+             'cl-parent-search','cl-parent-id','cl-new-parent-search','cl-new-parent-id',
+             'cl-dash-name','cl-dash-plan-manager','cl-dash-notes'];
   ids.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
   var newGender = document.getElementById('cl-new-gender'); if (newGender) newGender.value = '';
-  var ctFind = document.getElementById('cl-client-type');     if (ctFind) ctFind.value = 'individual';
-  var ctNew  = document.getElementById('cl-new-client-type'); if (ctNew)  ctNew.value  = 'individual';
+  var ctFind = document.getElementById('cl-client-type');      if (ctFind) ctFind.value   = 'individual';
+  var ctNew  = document.getElementById('cl-new-client-type'); if (ctNew)  ctNew.value    = 'individual';
+  var ctDash = document.getElementById('cl-dash-client-type');if (ctDash) ctDash.value   = 'individual';
   var icFind = document.getElementById('cl-is-contact');      if (icFind) icFind.checked = false;
-  var icNew  = document.getElementById('cl-new-is-contact');  if (icNew)  icNew.checked = false;
+  var icNew  = document.getElementById('cl-new-is-contact');  if (icNew)  icNew.checked  = false;
+  var icDash = document.getElementById('cl-dash-is-contact'); if (icDash) icDash.checked = false;
   var pfFind = document.getElementById('cl-parent-field');    if (pfFind) pfFind.style.display = 'none';
   var pfNew  = document.getElementById('cl-new-parent-field');if (pfNew)  pfNew.style.display  = 'none';
   var prFind = document.getElementById('cl-parent-results');  if (prFind) prFind.innerHTML = '';
@@ -4007,24 +4120,38 @@ function openAddClient(prefillHalaxyId) {
 }
 
 function setClientModalMode(mode) {
-  var findEl = document.getElementById('cl-find-mode');
-  var newEl  = document.getElementById('cl-new-mode');
+  var findEl    = document.getElementById('cl-find-mode');
+  var newEl     = document.getElementById('cl-new-mode');
+  var dashEl    = document.getElementById('cl-dash-mode');
   var searchBtn = document.getElementById('cl-mode-search-btn');
   var newBtn    = document.getElementById('cl-mode-new-btn');
+  var dashBtn   = document.getElementById('cl-mode-dash-btn');
   var saveBtn   = document.getElementById('cl-modal-save-btn');
+
+  // Hide all panels, deactivate all buttons
+  [findEl, newEl, dashEl].forEach(function(el) { if (el) el.style.display = 'none'; });
+  [searchBtn, newBtn, dashBtn].forEach(function(btn) { if (btn) btn.classList.remove('cl-mode-btn--active'); });
+
   if (mode === 'new') {
-    if (findEl) findEl.style.display = 'none';
-    if (newEl)  newEl.style.display  = '';
-    if (searchBtn) { searchBtn.classList.remove('cl-mode-btn--active'); }
-    if (newBtn)    { newBtn.classList.add('cl-mode-btn--active'); }
-    if (saveBtn)   saveBtn.textContent = 'Create in Halaxy →';
+    if (newEl)  newEl.style.display = '';
+    if (newBtn) newBtn.classList.add('cl-mode-btn--active');
+    if (saveBtn) saveBtn.textContent = 'Create in Halaxy →';
     setTimeout(function() { var f = document.getElementById('cl-first-name'); if (f) f.focus(); }, 80);
+  } else if (mode === 'dashboard') {
+    if (dashEl)   dashEl.style.display = '';
+    if (dashBtn)  dashBtn.classList.add('cl-mode-btn--active');
+    if (saveBtn)  saveBtn.textContent  = 'Add to dashboard';
+    // Populate dashboard funder dropdown
+    var dashFunderSel = document.getElementById('cl-dash-funder');
+    if (dashFunderSel && _halaxyFunders && _halaxyFunders.length) {
+      dashFunderSel.innerHTML = '<option value="">Select…</option>' + _buildFunderDropdownHtml(_halaxyFunders).replace('<option value="">Select…</option>', '');
+    }
+    setTimeout(function() { var n = document.getElementById('cl-dash-name'); if (n) n.focus(); }, 80);
   } else {
-    if (findEl) findEl.style.display = '';
-    if (newEl)  newEl.style.display  = 'none';
-    if (searchBtn) { searchBtn.classList.add('cl-mode-btn--active'); }
-    if (newBtn)    { newBtn.classList.remove('cl-mode-btn--active'); }
-    if (saveBtn)   saveBtn.textContent = 'Add client';
+    // Default: 'search' / find mode
+    if (findEl)    findEl.style.display = '';
+    if (searchBtn) searchBtn.classList.add('cl-mode-btn--active');
+    if (saveBtn)   saveBtn.textContent  = 'Add client';
     setTimeout(function() { var s = document.getElementById('cl-halaxy-search'); if (s) s.focus(); }, 80);
   }
   document.getElementById('add-client-modal').dataset.mode = mode;
@@ -4090,7 +4217,7 @@ function _populateFunderDropdown() {
   var loadingMsg   = '<option value="">Loading funders…</option>';
 
   function _setDropdowns(html) {
-    ['cl-funder', 'cl-new-funder'].forEach(function(id) {
+    ['cl-funder', 'cl-new-funder', 'cl-dash-funder'].forEach(function(id) {
       var sel = document.getElementById(id);
       if (sel) sel.innerHTML = html;
     });
@@ -4118,7 +4245,9 @@ function _populateFunderDropdown() {
 function onModalFunderChange(sel, mode) {
   var opt        = sel.options[sel.selectedIndex];
   var billingKey = (opt && opt.dataset.billing) || '';
-  var pmFieldId  = (mode === 'new') ? 'plan-manager-field-new' : 'plan-manager-field';
+  var pmFieldId  = (mode === 'new') ? 'plan-manager-field-new'
+                 : (mode === 'dash') ? 'plan-manager-field-dash'
+                 : 'plan-manager-field';
   var pmField    = document.getElementById(pmFieldId);
   if (pmField) pmField.style.display = billingKey === 'ndis_plan' ? '' : 'none';
   var funderId = sel.value;
@@ -4314,6 +4443,27 @@ async function saveNewClient() {
         await apiFetch('/api/admin-enquiries?id=' + pendingId, { method: 'PATCH', body: { status: 'in_halaxy' } }).catch(function() {});
       }
 
+    } else if (mode === 'dashboard') {
+      // ── DASHBOARD ONLY: Supabase record, no Halaxy ID ──────────────
+      var dashName    = (document.getElementById('cl-dash-name')        || {}).value.trim();
+      var dashFundSel = document.getElementById('cl-dash-funder');
+      var dashFundOpt = dashFundSel && dashFundSel.options[dashFundSel.selectedIndex];
+      var dashFunder  = (dashFundOpt && (dashFundOpt.dataset.billing || dashFundSel.value)) || '';
+      var dashPm      = (document.getElementById('cl-dash-plan-manager') || {}).value.trim();
+      var dashNotes   = (document.getElementById('cl-dash-notes')        || {}).value.trim();
+      var dashCtType  = (document.getElementById('cl-dash-client-type')  || {}).value || 'individual';
+      var dashContact = !!(document.getElementById('cl-dash-is-contact') || {}).checked;
+
+      if (!dashName) { showErr('Display name is required'); return; }
+
+      await apiFetch('/api/clients', {
+        method: 'POST',
+        body: { display_name: dashName, funder: dashFunder || null, plan_manager: dashPm || null,
+                halaxy_id: null, notes: dashNotes || null,
+                client_type: dashCtType || null, is_contact: dashContact || false },
+      });
+      toast('Client added to dashboard ✓ — ' + dashName);
+
     } else {
       // ── LINK EXISTING HALAXY PATIENT ───────────────────────────────
       var halaxyId    = (document.getElementById('cl-halaxy-id')      || {}).value.trim();
@@ -4346,7 +4496,7 @@ async function saveNewClient() {
   } catch (err) {
     showErr(err.message || 'Could not save client');
   } finally {
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = mode === 'new' ? 'Create in Halaxy →' : 'Add client'; }
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = mode === 'new' ? 'Create in Halaxy →' : mode === 'dashboard' ? 'Add to dashboard' : 'Add client'; }
   }
 }
 
@@ -5663,9 +5813,10 @@ async function _submitNewSession() {
 
   errEl.style.display = 'none';
 
-  if (!client)  { errEl.textContent = 'Please select a client'; errEl.style.display = ''; return; }
-  if (!date)    { errEl.textContent = 'Please pick a date';     errEl.style.display = ''; return; }
-  if (!startT)  { errEl.textContent = 'Please set a start time'; errEl.style.display = ''; return; }
+  if (!client)   { errEl.textContent = 'Please select a client';          errEl.style.display = ''; return; }
+  if (!halaxyId) { errEl.textContent = 'Selected client has no Halaxy ID — add them to Halaxy first'; errEl.style.display = ''; return; }
+  if (!date)     { errEl.textContent = 'Please pick a date';              errEl.style.display = ''; return; }
+  if (!startT)   { errEl.textContent = 'Please set a start time';         errEl.style.display = ''; return; }
 
   // Build ISO datetimes (assume Brisbane time +10:00)
   var TZ_OFFSET = '+10:00';
@@ -5677,40 +5828,28 @@ async function _submitNewSession() {
              + 'T' + pad(endD.getHours()) + ':' + pad(endD.getMinutes()) + ':00' + TZ_OFFSET;
 
   var feeId  = feeSel && feeSel.value ? feeSel.value : null;
-  var feeOpt = feeSel && feeSel.value ? feeSel.options[feeSel.selectedIndex] : null;
-  var feeName = feeOpt ? (feeOpt.dataset.name || '') : '';
-  var feeAmount = feeOpt ? parseFloat(feeOpt.dataset.amount || '0') : 0;
 
-  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Booking…'; }
 
   try {
-    var resp = await apiFetch('/api/admin-enquiries?new_session=1', {
+    // Book directly in Halaxy — Halaxy IS the calendar for client appointments
+    var resp = await apiFetch('/api/admin-enquiries?new_appt=1', {
       method: 'POST',
       body: {
-        clientName:    client,
+        patientId:   halaxyId,
         start,
         end,
-        notes:         notes   || undefined,
-        halaxyPatientId: halaxyId || undefined,
-        feeId:         feeId   || undefined,
-        locationType:  location,
+        feeId:       feeId    || undefined,
+        locationType: location,
       },
     });
 
     closeNewSessionModal();
-
-    if (resp.halaxyBooked) {
-      toast('Appointment created ✓ — Halaxy booking + invoice generated automatically', 'ok');
-    } else if (halaxyId && !resp.halaxyBooked) {
-      toast('Calendar event created ✓ — Halaxy booking skipped (run a sync first)', 'ok');
-    } else {
-      toast('Appointment added to calendar ✓', 'ok');
-    }
-
+    toast('Appointment booked in Halaxy ✓' + (feeId ? ' — invoice auto-generated' : ''), 'ok');
     setTimeout(function() { refreshPipeline(); }, 1500);
   } catch (err) {
     if (btn) { btn.disabled = false; btn.textContent = 'Create Appointment'; }
-    errEl.textContent = err.message || 'Failed to create appointment';
+    errEl.textContent = err.message || 'Failed to book appointment';
     errEl.style.display = '';
   }
 }

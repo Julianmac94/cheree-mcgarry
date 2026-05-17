@@ -454,6 +454,56 @@ body {
 .rdp-status-chip.invoiced { background: rgba(200,160,0,0.12); color: #7a6300; }
 .rdp-status-chip.paid     { background: rgba(39,174,96,0.12); color: #27ae60; }
 
+/* ── Home dashboard view ── */
+.home-view { padding: 28px 28px 80px; max-width: 860px; }
+@media (max-width: 900px) { .home-view { padding: 16px 14px 80px; } }
+.home-hd { margin-bottom: 26px; }
+.home-greeting {
+  font-family: var(--serif); font-size: 28px; font-weight: 300;
+  color: #1A2F2B; line-height: 1.2; margin-bottom: 8px;
+}
+.home-greeting em { font-style: italic; color: var(--teal); font-weight: 300; }
+.home-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 28px; }
+.home-action-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 18px; border-radius: 11px;
+  background: var(--surface); border: 1px solid var(--surface-border);
+  box-shadow: var(--surface-shadow);
+  font-family: var(--sans); font-size: 13px; font-weight: 500; color: #1A2F2B;
+  cursor: pointer; transition: all 0.14s;
+}
+.home-action-btn:hover { background: white; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.09); }
+.home-action-btn .hab-icon { font-size: 15px; color: var(--teal); }
+.home-action-btn.primary { background: var(--teal); color: white; border-color: var(--teal); }
+.home-action-btn.primary .hab-icon { color: rgba(255,255,255,0.8); }
+.home-action-btn.primary:hover { background: #224840; border-color: #224840; }
+.home-section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #9AABA8; margin-bottom: 10px;
+}
+.home-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 28px; }
+.home-stat {
+  flex: 1; min-width: 130px;
+  background: var(--surface); border: 1px solid var(--surface-border);
+  border-radius: 12px; padding: 16px 18px;
+  box-shadow: var(--surface-shadow);
+}
+.home-stat-val { font-size: 26px; font-weight: 700; color: #1A2F2B; line-height: 1; margin-bottom: 5px; font-variant-numeric: tabular-nums; }
+.home-stat-val.amber { color: var(--amber); }
+.home-stat-val.teal  { color: var(--teal); }
+.home-stat-label { font-size: 11px; color: #9AABA8; font-weight: 500; }
+.home-appts { background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; overflow: hidden; box-shadow: var(--surface-shadow); }
+.home-appt-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 16px; border-bottom: 1px solid rgba(0,0,0,0.04);
+  transition: background 0.1s; cursor: default;
+}
+.home-appt-item:last-child { border-bottom: none; }
+.home-appt-time { font-size: 12px; font-weight: 600; color: var(--teal); min-width: 48px; }
+.home-appt-name { font-size: 13px; font-weight: 500; color: #1A2F2B; flex: 1; }
+.home-appt-type { font-size: 10.5px; color: #9AABA8; }
+.home-empty { padding: 32px 20px; text-align: center; color: #9AABA8; font-size: 13px; }
+
 /* ── Queue view ── */
 .queue-view { padding: 22px 24px 80px; max-width: 860px; }
 @media (max-width: 900px) { .queue-view { padding: 14px 14px 80px; } }
@@ -2481,9 +2531,13 @@ body {
 
     <div class="sidebar-nav">
       <div class="sidebar-section-label">Workspace</div>
-      <button class="sidebar-item active" data-view="queue" onclick="navigateTo('queue')">
+      <button class="sidebar-item active" data-view="home" onclick="navigateTo('home')">
+        <span class="si-icon">⌂</span>
+        <span class="si-label">Home</span>
+      </button>
+      <button class="sidebar-item" data-view="queue" onclick="navigateTo('queue')">
         <span class="si-icon">≡</span>
-        <span class="si-label">Queue</span>
+        <span class="si-label">Inbox</span>
         <span class="si-badge" id="sib-queue"></span>
       </button>
       <button class="sidebar-item" data-view="clients" onclick="navigateTo('clients')">
@@ -2565,8 +2619,11 @@ body {
 
 <!-- ── Mobile bottom nav ── -->
 <nav class="bottom-nav">
-  <button class="bn-item active" data-view="queue" onclick="navigateTo('queue')">
-    <span class="bn-icon">≡</span><span>Queue</span>
+  <button class="bn-item active" data-view="home" onclick="navigateTo('home')">
+    <span class="bn-icon">⌂</span><span>Home</span>
+  </button>
+  <button class="bn-item" data-view="queue" onclick="navigateTo('queue')">
+    <span class="bn-icon">≡</span><span>Inbox</span>
   </button>
   <button class="bn-item" data-view="clients" onclick="navigateTo('clients')">
     <span class="bn-icon">◎</span><span>Clients</span>
@@ -2638,6 +2695,7 @@ body {
     <div class="cl-mode-toggle">
       <button class="cl-mode-btn cl-mode-btn--active" id="cl-mode-search-btn" onclick="setClientModalMode('search')">Find in Halaxy</button>
       <button class="cl-mode-btn" id="cl-mode-new-btn" onclick="setClientModalMode('new')">New patient</button>
+      <button class="cl-mode-btn" id="cl-mode-dash-btn" onclick="setClientModalMode('dashboard')">Dashboard only</button>
     </div>
 
     <!-- ── FIND MODE: search existing Halaxy patients ── -->
@@ -2767,6 +2825,48 @@ body {
       <div class="cl-modal-field">
         <label for="cl-new-notes">Notes (optional)</label>
         <input class="cl-modal-input" id="cl-new-notes" type="text" placeholder="Any useful context…">
+      </div>
+    </div>
+
+    <!-- ── DASHBOARD ONLY MODE: Supabase record only, no Halaxy ── -->
+    <div id="cl-dash-mode" style="display:none">
+      <p style="font-size:11.5px;color:#9AABA8;margin:0 0 12px;line-height:1.5">
+        Adds a client to the dashboard without creating or linking a Halaxy record.
+        Useful for contacts, referrers, or clients not yet in Halaxy.
+      </p>
+      <div class="cl-modal-field">
+        <label for="cl-dash-name">Display name <span style="color:var(--terra)">*</span></label>
+        <input class="cl-modal-input" id="cl-dash-name" type="text" placeholder="e.g. Alex T.">
+      </div>
+      <div class="cl-modal-field">
+        <label for="cl-dash-funder">Funder</label>
+        <select class="cl-modal-select" id="cl-dash-funder" onchange="onModalFunderChange(this,'dash')">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+      <div class="cl-modal-field" id="plan-manager-field-dash" style="display:none">
+        <label for="cl-dash-plan-manager">Plan manager name</label>
+        <input class="cl-modal-input" id="cl-dash-plan-manager" type="text" placeholder="e.g. ABC Plan Management">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="cl-modal-field">
+          <label for="cl-dash-client-type">Client type</label>
+          <select class="cl-modal-select" id="cl-dash-client-type">
+            <option value="individual">Individual</option>
+            <option value="couples">Couples</option>
+            <option value="child">Child</option>
+          </select>
+        </div>
+        <div class="cl-modal-field">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="cl-dash-is-contact" style="margin:0"> Contact only
+          </label>
+          <div style="font-size:10px;color:#9AABA8;margin-top:2px">Non-billable (referrer, parent etc.)</div>
+        </div>
+      </div>
+      <div class="cl-modal-field">
+        <label for="cl-dash-notes">Notes (optional)</label>
+        <input class="cl-modal-input" id="cl-dash-notes" type="text" placeholder="Any useful context…">
       </div>
     </div>
 
