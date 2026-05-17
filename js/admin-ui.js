@@ -5151,7 +5151,7 @@ async function _submitManualReminder() {
   if (errEl) errEl.style.display = 'none';
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
-    await apiFetch('/api/admin-reminder', {
+    await apiFetch('/api/admin-enquiries?reminder=1', {
       method: 'POST',
       body: {
         clientEmail:     email,
