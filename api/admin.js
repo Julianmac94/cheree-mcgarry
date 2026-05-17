@@ -2693,13 +2693,16 @@ body {
 
     <!-- Mode toggle -->
     <div class="cl-mode-toggle">
-      <button class="cl-mode-btn cl-mode-btn--active" id="cl-mode-search-btn" onclick="setClientModalMode('search')">Find in Halaxy</button>
-      <button class="cl-mode-btn" id="cl-mode-new-btn" onclick="setClientModalMode('new')">New patient</button>
+      <button class="cl-mode-btn cl-mode-btn--active" id="cl-mode-search-btn" onclick="setClientModalMode('search')">Import from Halaxy</button>
+      <button class="cl-mode-btn" id="cl-mode-new-btn" onclick="setClientModalMode('new')">New in Halaxy</button>
       <button class="cl-mode-btn" id="cl-mode-dash-btn" onclick="setClientModalMode('dashboard')">Dashboard only</button>
     </div>
 
     <!-- ── FIND MODE: search existing Halaxy patients ── -->
     <div id="cl-find-mode">
+      <p style="font-size:11.5px;color:#9AABA8;margin:0 0 12px;line-height:1.5">
+        Link an existing Halaxy patient to the dashboard — useful for clients who were in Halaxy before this dashboard existed.
+      </p>
       <div class="cl-modal-field">
         <label>Search Halaxy by name</label>
         <input class="cl-modal-input" id="cl-halaxy-search" type="text" placeholder="Start typing a name…"

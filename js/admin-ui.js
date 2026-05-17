@@ -2215,8 +2215,6 @@ function renderHomeView() {
     + '<span class="hab-icon">+</span> New Appointment</button>'
     + '<button class="home-action-btn" onclick="openAddClient()">'
     + '<span class="hab-icon">+</span> Add Client</button>'
-    + '<button class="home-action-btn" onclick="refreshPipeline()">'
-    + '<span class="hab-icon">⟳</span> Sync Halaxy</button>'
     + '</div>';
 
   // Stats
@@ -5689,13 +5687,13 @@ function openNewSessionModal() {
   var patients = (_halaxyData   && _halaxyData.patients)  || [];
   var fees     = _halaxyFees || [];
 
-  // Combine into a single searchable list
+  // Only include clients with a Halaxy ID — this is a Halaxy booking
   var allClients = [];
   clients.forEach(function(c) {
-    allClients.push({ label: c.display_name, halaxyId: c.halaxy_id || '', dashId: c.id });
+    if (c.halaxy_id) allClients.push({ label: c.display_name, halaxyId: c.halaxy_id, dashId: c.id });
   });
+  // Add Halaxy patients not yet on the dashboard
   patients.forEach(function(p) {
-    // Skip if already added from dashboard clients
     var already = allClients.some(function(c) { return String(c.halaxyId) === String(p.id); });
     if (!already) allClients.push({ label: p.name, halaxyId: p.id, dashId: null });
   });
@@ -5714,23 +5712,24 @@ function openNewSessionModal() {
       + escHtml(f.name) + ' — $' + Number(f.amount).toFixed(2) + '</option>';
   }).join('');
 
-  // Client options
+  // Client options — all have a Halaxy ID
   var clientOpts = allClients.map(function(c) {
-    return '<option value="' + escHtml(c.label) + '" data-halaxy-id="' + escHtml(String(c.halaxyId || '')) + '">'
-      + escHtml(c.label) + (c.halaxyId ? '' : ' (no Halaxy)') + '</option>';
+    return '<option value="' + escHtml(c.label) + '" data-halaxy-id="' + escHtml(String(c.halaxyId)) + '">'
+      + escHtml(c.label) + '</option>';
   }).join('');
 
   var modal = document.createElement('div');
   modal.id  = 'new-session-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
   modal.innerHTML = '<div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.18)">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
     + '<strong style="font-size:15px">New Appointment</strong>'
     + '<button onclick="closeNewSessionModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#666">&times;</button>'
     + '</div>'
+    + '<div style="font-size:11.5px;color:#9AABA8;margin-bottom:16px">Books directly into Halaxy — invoice auto-generated when a fee is selected</div>'
 
-    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Client</label>'
-    + '<input list="ns-client-list" id="ns-client-input" class="pl-link-input" placeholder="Search client…" style="margin-bottom:10px" oninput="_nsClientChange()">'
+    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Halaxy client</label>'
+    + '<input list="ns-client-list" id="ns-client-input" class="pl-link-input" placeholder="Search Halaxy clients…" style="margin-bottom:10px" oninput="_nsClientChange()">'
     + '<datalist id="ns-client-list">' + clientOpts + '</datalist>'
     + '<input type="hidden" id="ns-halaxy-id">'
 
@@ -5747,8 +5746,7 @@ function openNewSessionModal() {
     + '<option value="120">2 hours</option></select></div>'
     + '</div>'
 
-    + '<div id="ns-halaxy-fields">'
-    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Fee</label>'
+    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Fee <span style="color:#9AABA8;font-weight:400">(optional — triggers auto-invoice in Halaxy)</span></label>'
     + '<select id="ns-fee" class="pl-link-input" style="margin-bottom:10px">'
     + '<option value="">— select a fee —</option>' + feeOpts + '</select>'
 
@@ -5759,7 +5757,6 @@ function openNewSessionModal() {
     + '<option value="phone">Phone</option>'
     + '<option value="online">Online</option>'
     + '</select>'
-    + '</div>'
 
     + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Notes</label>'
     + '<input type="text" id="ns-notes" class="pl-link-input" placeholder="Appointment notes…" style="margin-bottom:16px">'
@@ -5788,10 +5785,6 @@ function _nsClientChange() {
   var hId  = '';
   opts.forEach(function(o) { if (o.value === val) hId = o.dataset.halaxyId || ''; });
   hiddenId.value = hId;
-
-  // Show/hide fee+location fields depending on whether client has Halaxy ID
-  var fields = document.getElementById('ns-halaxy-fields');
-  if (fields) fields.style.display = hId ? '' : 'none';
 }
 
 function closeNewSessionModal() {
