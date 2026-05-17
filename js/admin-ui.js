@@ -2771,14 +2771,18 @@ function renderClientsView() {
     return _avatarGradients[code % _avatarGradients.length];
   }
 
-  // 90-day cutoff
-  var _90dAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  // Current FY start — same window used for invoices and appointments.
+  // Anyone seen since 1 Jul is an "active" client; before that = inactive.
+  // This matches the practice billing cycle and avoids cutting off clients
+  // who come every 6–8 weeks (which would exceed a 90-day window).
+  var _fyYear    = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  var _fyStart   = _fyYear + '-07-01';
 
-  // Dashboard clients split: active (seen in last 90 days or no history yet), inactive (>90 days), archived
+  // Dashboard clients split: active (seen this FY or no history yet), inactive (pre-FY), archived
   var allActive = supabaseClients.filter(function(c) { return c.active !== false; });
   var archived  = supabaseClients.filter(function(c) { return c.active === false; });
-  var activeClients  = allActive.filter(function(c) { var ls = lastSeen(c); return !ls || ls >= _90dAgo; });
-  var inactiveClients = allActive.filter(function(c) { var ls = lastSeen(c); return ls && ls < _90dAgo; });
+  var activeClients   = allActive.filter(function(c) { var ls = lastSeen(c); return !ls || ls >= _fyStart; });
+  var inactiveClients = allActive.filter(function(c) { var ls = lastSeen(c); return ls && ls < _fyStart; });
 
   // Build Halaxy-only (Group C) — patients in Halaxy with no dashboard record
   var linkedHalaxyIds = new Set(
@@ -2786,11 +2790,9 @@ function renderClientsView() {
   );
   var halaxyPatients = (_halaxyData && _halaxyData.patients) || [];
   var allGroupC  = halaxyPatients.filter(function(p) { return p.id && !linkedHalaxyIds.has(String(p.id)); });
-  // Split Halaxy-only by 90-day activity.
-  // null lastSeen = no data in loaded window = old/inactive patient (not a new client).
-  // New clients come through the enquiry flow first so they'll have a dashboard record.
-  var groupC         = allGroupC.filter(function(p) { var ls = lastSeenHx(p.id); return ls && ls >= _90dAgo; });
-  var groupCInactive = allGroupC.filter(function(p) { var ls = lastSeenHx(p.id); return !ls || ls < _90dAgo; });
+  // Halaxy-only: active = seen this FY; null = no data in loaded window = pre-FY/old patient
+  var groupC         = allGroupC.filter(function(p) { var ls = lastSeenHx(p.id); return ls && ls >= _fyStart; });
+  var groupCInactive = allGroupC.filter(function(p) { var ls = lastSeenHx(p.id); return !ls || ls < _fyStart; });
 
   // Sort helpers
   function lastSeen(c) {
@@ -2910,14 +2912,14 @@ function renderClientsView() {
     }
   }
 
-  // Inactive section (dashboard clients not seen in 90 days + Halaxy-only old patients)
+  // Inactive section (dashboard + Halaxy-only clients with no activity this FY)
   var inactiveAll = inactiveClients.concat(groupCInactive);
   if (inactiveAll.length) {
     var inactOpen = window._clientsInactiveOpen;
     html += '<div style="margin-top:16px">';
     html += '<button class="q-section-toggle" style="font-size:11px;color:#9AABA8;background:none;border:none;cursor:pointer;padding:4px 2px"'
       + ' onclick="window._clientsInactiveOpen=!window._clientsInactiveOpen;renderClientsView()">'
-      + (inactOpen ? '▾' : '▸') + ' Inactive — no activity in 90+ days (' + inactiveAll.length + ')'
+      + (inactOpen ? '▾' : '▸') + ' Inactive — no activity this FY (' + inactiveAll.length + ')'
       + '</button>';
     if (inactOpen) {
       html += '<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">';
