@@ -215,33 +215,37 @@ export default async function handler(req, res) {
       }),
     ]);
 
-    // 3 — Save to Supabase (non-blocking — don't fail the request if DB is down)
-    const _db = supabase();
-    _db.from('enquiries').insert({
-      first_name: firstName,
-      last_name:  lastName,
-      email,
-      reason,
-      message,
-      source:  _source || 'contact',
-      status:  'new',
-    }).then(({ error }) => {
-      if (!error) return;
-      // If insert failed (e.g. 'source' column doesn't exist yet — run migration 008),
-      // fall back to inserting without the optional columns.
-      console.error('[api/contact] Supabase insert error (attempting fallback):', error.message);
-      _db.from('enquiries').insert({
+    // 3 — Save to Supabase (awaited so it completes before the function exits,
+    //     but errors are caught and never fail the 200 response to the client)
+    try {
+      const _db = supabase();
+      const { error: dbErr } = await _db.from('enquiries').insert({
         first_name: firstName,
         last_name:  lastName,
         email,
         reason,
         message,
+        source:  _source || 'contact',
         status:  'new',
-      }).then(({ error: err2 }) => {
-        if (err2) console.error('[api/contact] Supabase fallback insert also failed:', err2.message);
-        else console.log('[api/contact] Supabase fallback insert succeeded (run migration 008 to fix source column)');
       });
-    });
+      if (dbErr) {
+        // Likely the 'source' column doesn't exist yet — run migration 008.
+        // Fall back to inserting without optional columns.
+        console.error('[api/contact] Supabase insert error (trying fallback without source):', dbErr.message);
+        const { error: dbErr2 } = await _db.from('enquiries').insert({
+          first_name: firstName,
+          last_name:  lastName,
+          email,
+          reason,
+          message,
+          status:  'new',
+        });
+        if (dbErr2) console.error('[api/contact] Supabase fallback insert also failed:', dbErr2.message);
+        else        console.log('[api/contact] Supabase fallback insert succeeded (run migration 008)');
+      }
+    } catch (dbEx) {
+      console.error('[api/contact] Supabase exception:', dbEx.message);
+    }
 
     return res.status(200).json({ ok: true });
   } catch (err) {
