@@ -1419,6 +1419,33 @@ export default async function handler(req, res) {
           })
           .filter(Boolean);
 
+        // Second pass: for invoices where Halaxy FHIR doesn't include a patient reference
+        // (common with org-billed invoices — QFES, WorkCover), try to resolve the patient
+        // by matching the invoice date against appointment dates.
+        // Only assign if exactly ONE patient had an appointment on that date (unambiguous).
+        const apptDateToPatients = {};
+        appointments.forEach(appt => {
+          const apptDate = (appt.start || '').slice(0, 10);
+          if (!apptDate) return;
+          (appt.participant || []).forEach(pp => {
+            const ref = pp.actor?.reference || '';
+            if (!ref.toLowerCase().includes('patient/')) return;
+            const patId = ref.split('/').pop();
+            if (!patId) return;
+            if (!apptDateToPatients[apptDate]) apptDateToPatients[apptDate] = new Set();
+            apptDateToPatients[apptDate].add(patId);
+          });
+        });
+
+        invoices.forEach(inv => {
+          if (inv.patientId || !inv.date) return; // already resolved or no date
+          const candidates = apptDateToPatients[inv.date];
+          if (candidates && candidates.size === 1) {
+            inv.patientId = [...candidates][0];
+            console.log(`Invoice ${inv.id} (${inv.date}) linked to patient ${inv.patientId} via appointment date`);
+          }
+        });
+
         // Build patientId → payor name map from Coverage resources returned via
         // _revinclude=Coverage:beneficiary on the Patient fetch.
         // Storing resolved payor display name; client applies _mapCoverageToFunderKey().
