@@ -559,6 +559,8 @@ function openDbModal(type) {
     if (hxSearch)  { hxSearch.value = ''; }
     if (hxHidden)  { hxHidden.value = ''; }
     if (hxResults) { hxResults.innerHTML = ''; hxResults.style.display = 'none'; }
+    // Populate fee dropdown with all fees (narrows after patient selected)
+    _dbPopulateHxFees(null);
     // Populate onboarding clients dropdown
     var obSel = document.getElementById('db-ap-ob-client');
     if (obSel && _pipelineData && _pipelineData.clients) {
@@ -610,7 +612,7 @@ function dbGoStep(pfx, step) {
     // Update button label
     if (next) {
       if (dest === 'halaxy') {
-        next.textContent = pfx === 'ap' ? 'Open Halaxy Calendar →' : 'Open in Halaxy →';
+        next.textContent = pfx === 'ap' ? 'Book in Halaxy →' : 'Open in Halaxy →';
       } else {
         next.textContent = 'Save →';
       }
@@ -723,16 +725,10 @@ function _dbApptNextOrSave() {
     dbGoStep('ap', 2);
     return;
   }
-  // On step 2 — save or open Halaxy
+  // On step 2 — save or book in Halaxy
   var dest = _dbSelectedDest['ap'] || 'onboarding';
   if (dest === 'halaxy') {
-    var date = (document.getElementById('db-ap-hx-date') || {}).value || '';
-    var calUrl = _halaxyWebUrl
-      ? (_halaxyWebUrl + '/calendar' + (date ? '?date=' + date : ''))
-      : 'https://www.halaxy.com/practitioner';
-    window.open(calUrl, '_blank', 'noopener');
-    closeDbModal('db-modal-appt');
-    toast('Halaxy calendar opened — complete the booking there', 'ok');
+    dbBookHalaxyAppt();
   } else {
     dbSaveApptOnboarding();
   }
@@ -795,6 +791,89 @@ function dbHxPatientSelect(id, name) {
   if (hiddenInput) hiddenInput.value = id;
   if (searchInput) { searchInput.value = name; }
   if (res)         { res.innerHTML = ''; res.style.display = 'none'; }
+  // Narrow fee list to patient's known funder
+  var clients = (_pipelineData && _pipelineData.clients) || [];
+  var linked  = clients.find(function(c) { return String(c.halaxy_id) === String(id); });
+  _dbPopulateHxFees(linked ? linked.funder : null);
+}
+
+/** Populate (or repopulate) the Halaxy fee dropdown, optionally filtered by funder key */
+function _dbPopulateHxFees(funderKey) {
+  var feeSel = document.getElementById('db-ap-hx-fee');
+  if (!feeSel) return;
+  var fees = _halaxyFees || [];
+  var toShow = (funderKey && typeof _filterFeesForFunder === 'function')
+    ? _filterFeesForFunder(fees, funderKey, null)
+    : fees;
+  if (!toShow || !toShow.length) toShow = fees; // fall back to all fees
+  while (feeSel.options.length > 1) feeSel.remove(1);
+  toShow.forEach(function(f) {
+    var opt = document.createElement('option');
+    opt.value = f.id || '';
+    opt.dataset.amount = f.amount != null ? f.amount : '';
+    opt.dataset.name   = f.name || '';
+    var lbl = (f.name || ('Fee #' + f.id));
+    if (f.amount != null) lbl += ' — $' + Number(f.amount).toFixed(2);
+    opt.textContent = lbl;
+    feeSel.add(opt);
+  });
+  // Update hint to reflect funder context
+  var hint = document.getElementById('db-ap-hx-hint');
+  if (hint && funderKey) {
+    hint.childNodes[hint.childNodes.length - 1].textContent =
+      ' Fees filtered for ' + (FUNDER_LABELS[funderKey] || funderKey) + '. Selecting a fee auto-creates the invoice in Halaxy.';
+  }
+}
+
+/** Book an appointment directly in Halaxy via POST /Appointment/$book */
+async function dbBookHalaxyAppt() {
+  var patientId    = (document.getElementById('db-ap-hx-client')   || {}).value || '';
+  var date         = (document.getElementById('db-ap-hx-date')     || {}).value || '';
+  var time         = (document.getElementById('db-ap-hx-time')     || {}).value || '10:00';
+  var duration     = parseInt((document.getElementById('db-ap-hx-duration') || {}).value || '50', 10);
+  var locationSel  = document.getElementById('db-ap-hx-location');
+  var locationType = locationSel ? (locationSel.value || 'clinic') : 'clinic';
+  var feeSel       = document.getElementById('db-ap-hx-fee');
+  var feeId        = feeSel ? (feeSel.value || '') : '';
+  var feeOpt       = feeSel ? feeSel.options[feeSel.selectedIndex] : null;
+  var feeName      = feeOpt ? (feeOpt.dataset.name   || '') : '';
+  var feeAmount    = feeOpt ? parseFloat(feeOpt.dataset.amount || '0') : 0;
+
+  if (!patientId) { toast('Please select a patient', 'err'); return; }
+  if (!date)      { toast('Date is required', 'err'); return; }
+
+  // Build ISO start/end strings
+  var apptStart = date + 'T' + (time.length === 5 ? time : '10:00') + ':00';
+  var endMs     = new Date(apptStart).getTime() + duration * 60 * 1000;
+  var apptEnd   = new Date(endMs).toISOString().slice(0, 19);
+
+  var nextBtn = document.getElementById('db-ap-next');
+  if (nextBtn) { nextBtn.disabled = true; nextBtn.textContent = 'Booking…'; }
+
+  try {
+    await apiFetch('/api/admin-enquiries?halaxy_appt_action=1', {
+      method: 'POST',
+      body: {
+        action:      'book',
+        patientId,
+        apptStart,
+        apptEnd,
+        feeId:       feeId    || undefined,
+        feeName:     feeName  || undefined,
+        feeAmount:   feeAmount || undefined,
+        locationType,
+      }
+    });
+    closeDbModal('db-modal-appt');
+    var msg = feeId
+      ? 'Appointment booked — invoice auto-created in Halaxy'
+      : 'Appointment booked in Halaxy (no fee selected)';
+    toast(msg, 'ok');
+  } catch (err) {
+    toast('Booking failed: ' + err.message, 'err');
+  } finally {
+    if (nextBtn) { nextBtn.disabled = false; nextBtn.textContent = 'Book in Halaxy →'; }
+  }
 }
 
 /** Navigate to client detail from upcoming strip by Halaxy patient ID */

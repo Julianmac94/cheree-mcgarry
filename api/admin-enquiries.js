@@ -587,11 +587,13 @@ export default async function handler(req, res) {
     if (!action || !patientId) {
       return res.status(400).json({ error: 'action and patientId are required' });
     }
-    if (action === 'record' && feeAmount == null) {
+    // 'book' creates a new appointment via $book — feeAmount not required (fee via feeId only)
+    // 'record' patches an existing appointment — feeAmount required when apptId is known
+    if (action === 'record' && halaxyApptId && feeAmount == null) {
       return res.status(400).json({ error: 'feeAmount is required to record a session' });
     }
-    if (action !== 'record' && action !== 'cancel') {
-      return res.status(400).json({ error: 'action must be "record" or "cancel"' });
+    if (!['record', 'cancel', 'book'].includes(action)) {
+      return res.status(400).json({ error: 'action must be "record", "cancel", or "book"' });
     }
 
     try {

@@ -2955,13 +2955,6 @@ body {
             <div class="db-form-grp"><label class="db-form-lbl">Time</label><input class="db-form-input" id="db-ap-hx-time" type="time" value="10:00"></div>
           </div>
           <div class="db-form-row">
-            <div class="db-form-grp"><label class="db-form-lbl">Type</label>
-              <select class="db-form-input" id="db-ap-hx-type">
-                <option value="session">Session</option>
-                <option value="intake">Intake / First session</option>
-                <option value="admin">Admin / No charge</option>
-              </select>
-            </div>
             <div class="db-form-grp"><label class="db-form-lbl">Duration</label>
               <select class="db-form-input" id="db-ap-hx-duration">
                 <option value="50">50 min</option>
@@ -2970,10 +2963,23 @@ body {
                 <option value="30">30 min</option>
               </select>
             </div>
+            <div class="db-form-grp"><label class="db-form-lbl">Location</label>
+              <select class="db-form-input" id="db-ap-hx-location">
+                <option value="clinic">In-person</option>
+                <option value="telehealth">Telehealth</option>
+              </select>
+            </div>
           </div>
-          <div class="db-hint-box">
+          <div class="db-form-row">
+            <div class="db-form-grp full"><label class="db-form-lbl">Fee</label>
+              <select class="db-form-input" id="db-ap-hx-fee">
+                <option value="">No charge / select fee…</option>
+              </select>
+            </div>
+          </div>
+          <div class="db-hint-box" id="db-ap-hx-hint">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0;margin-top:1px"><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm.93-9.412l-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 110-2 1 1 0 010 2z"/></svg>
-            Halaxy calendar will open with the selected date. Complete the booking there — it will sync back here automatically.
+            Select a fee to auto-create the invoice in Halaxy. Leave blank to book without billing.
           </div>
         </div>
 
