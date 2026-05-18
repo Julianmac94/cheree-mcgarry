@@ -1840,9 +1840,7 @@ function renderBillingPanel() {
         var _invAmt = inv.totalBalance != null ? inv.totalBalance : inv.amount;
         var amt  = _invAmt ? '$' + Number(_invAmt).toFixed(2) : '';
         // Payor label — show org name for org-funded invoices (QFES, WorkCover, etc.)
-        var payorFunderKey = inv.payorOrg ? _guessFunderKey(inv.payorOrg) : null;
-        var payorLabel = payorFunderKey ? (FUNDER_LABELS[payorFunderKey] || inv.payorOrg)
-                                        : (inv.payorOrg || null);
+        var payorLabel = _resolvePayorLabel(inv.payorOrg);
         var sub  = _getSubStatus(inv.id);
         var subBadge = '', subAction = '';
         if (sub) {
@@ -2681,7 +2679,7 @@ function _qSessionItem(sess, barClass) {
   var hintMap = {
     'pending-invoice': 'No invoice yet — needs to be created in Halaxy',
     'needs-recording': 'Session not yet recorded — add notes and confirm',
-    'invoiced':        'Invoice in Halaxy — awaiting payment or Medicare',
+    'invoiced':        'Invoice in Halaxy — awaiting payment',
     'upcoming':        '',
     'paid':            '',
     'cancelled':       '',
@@ -3152,6 +3150,22 @@ async function _fetchHalaxyCoverage(hxId) {
   }
 }
 
+/* Resolve a payorOrg string (which may be a raw Halaxy ID like "OG-2358831")
+   to a human-readable label. Returns null if the invoice is patient-direct. */
+function _resolvePayorLabel(payorOrg) {
+  if (!payorOrg) return null;
+  // Try text-based funder key first (works when payorOrg = "QFES", "Medicare", etc.)
+  var fk = _guessFunderKey(payorOrg);
+  if (fk) return FUNDER_LABELS[fk] || payorOrg;
+  // Try direct ID lookup in _halaxyFunders (handles FD-xxxxx / OG-xxxxx stored with real IDs)
+  var funders = _halaxyFunders || [];
+  var byId = funders.find(function(f) { return f.id === payorOrg || f.halaxyId === payorOrg; });
+  if (byId) return FUNDER_LABELS[byId.billingKey] || byId.name || payorOrg;
+  // Looks like a raw org ID but couldn't resolve — show "Org invoice" rather than the ID
+  if (/^[A-Za-z]{2,4}-\d{3,}$/.test(payorOrg.trim())) return 'Org invoice';
+  return payorOrg; // some other string, show as-is
+}
+
 async function _fetchHalaxyInvoices(hxId) {
   var invEl    = document.getElementById('cl-hx-invoices-' + hxId);
   var totalsEl = document.getElementById('cl-hx-totals-' + hxId);
@@ -3167,6 +3181,18 @@ async function _fetchHalaxyInvoices(hxId) {
 
     var allInvs  = invoices.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
     var fyInvs   = allInvs.filter(function(i) { return (i.date || '') >= _fyStart; });
+
+    // If Halaxy's patient-filter didn't return org-billed invoices, fall back to the
+    // bulk invoice data (which uses appointment-date matching to link org invoices).
+    if (!fyInvs.length && _halaxyData && _halaxyData.invoices) {
+      var bulkForPatient = _halaxyData.invoices.filter(function(i) {
+        return String(i.patientId) === String(hxId) && (i.date || '') >= _fyStart;
+      });
+      if (bulkForPatient.length) {
+        fyInvs  = bulkForPatient;
+        allInvs = _halaxyData.invoices.filter(function(i) { return String(i.patientId) === String(hxId); });
+      }
+    }
     var totalPaid  = allInvs.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
     var totalOwing = allInvs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
     var fyPaid     = fyInvs.reduce(function(s, i)  { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
@@ -3197,10 +3223,9 @@ async function _fetchHalaxyInvoices(hxId) {
           var statusCls = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : 'active');
           // Show org payor if not patient-direct
           var payorBadge = '';
-          if (inv.payorOrg) {
-            var pk = _guessFunderKey(inv.payorOrg);
-            var pl = pk ? (FUNDER_LABELS[pk] || inv.payorOrg) : inv.payorOrg;
-            payorBadge = '<span style="font-size:10px;color:#7A50A0;margin-left:4px">' + escHtml(pl) + '</span>';
+          var payorLabel2 = _resolvePayorLabel(inv.payorOrg);
+          if (payorLabel2) {
+            payorBadge = '<span style="font-size:10px;color:#7A50A0;margin-left:4px">' + escHtml(payorLabel2) + '</span>';
           }
           return '<div class="cl-detail-inv-row">'
             + '<span style="flex:1;font-size:12px;color:#7A948F">' + escHtml(dateStr) + '</span>'
@@ -3221,9 +3246,9 @@ async function _fetchHalaxyInvoices(hxId) {
 function _guessFunderKey(payorStr) {
   var s = (payorStr || '').toLowerCase();
 
-  // If the string is a URL (Halaxy reference) or a bare org ID like "FD-765771",
+  // If the string is a URL (Halaxy reference) or a bare org ID like "FD-765771" / "OG-2358831",
   // try to resolve it via the loaded funders list before text-matching.
-  if (s.includes('halaxy.com/') || /^[a-z]{2,4}-\d{4,}$/.test((payorStr || '').trim())) {
+  if (s.includes('halaxy.com/') || /^[A-Za-z]{2,4}-\d{3,}$/i.test((payorStr || '').trim())) {
     var orgId = (payorStr || '').split('/').pop().trim();
     var funders = _halaxyFunders || [];
     var match = funders.find(function(f) { return f.id === orgId; });
@@ -3940,7 +3965,7 @@ function _renderSessionDetailPanel(sess) {
     html += '<p class="rdp-action-hint" style="margin-top:6px">Upcoming session — no action needed yet</p>';
   } else if (sess.status === 'invoiced') {
     html += '<span class="rdp-status-chip invoiced">Invoice raised ✓</span>';
-    html += '<p class="rdp-action-hint" style="margin-top:8px">Invoice is in Halaxy — awaiting payment or Medicare processing</p>';
+    html += '<p class="rdp-action-hint" style="margin-top:8px">Invoice is in Halaxy — awaiting payment</p>';
     html += '<a class="rdp-ghost-btn" style="margin-top:8px" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
   } else if (sess.status === 'paid') {
     html += '<span class="rdp-status-chip paid">Paid ✓</span>';
