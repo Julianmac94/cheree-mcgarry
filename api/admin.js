@@ -187,8 +187,9 @@ function adminPage({ enquiries = [], tasks = [], currentUser = null, activityByE
 <title>Admin · Cheree McGarry</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/admin-dashboard.css">
 <style>
 :root {
   /* Background */
@@ -2681,25 +2682,45 @@ body {
 
     <!-- Top bar -->
     <header class="app-topbar" id="app-topbar">
-      <div class="topbar-metrics" id="topbar-metrics">
-        <span style="color:#9AABA8">Loading…</span>
+      <div class="db-topbar-title" id="db-topbar-title">
+        Onboarding <span class="db-topbar-sub" id="db-topbar-sub"></span>
       </div>
-      <button class="topbar-cmd-btn" onclick="openCmdBar()">
-        <span>⌕ Search</span>
-        <span class="topbar-cmd-shortcut">⌘K</span>
+      <div class="db-search-wrap" style="display:none" id="db-search-wrap">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="var(--db-t3)"><path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398l3.85 3.85a1 1 0 001.415-1.415l-3.868-3.833zm-5.242 1.656a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"/></svg>
+        <input type="text" placeholder="Search clients…" id="db-search-input">
+      </div>
+      <button class="db-btn-ghost" id="db-btn-appt" onclick="openDbModal('appt')" style="display:none">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 0a.5.5 0 01.5.5V1h8V.5a.5.5 0 011 0V1h1a2 2 0 012 2v11a2 2 0 01-2 2H2a2 2 0 01-2-2V3a2 2 0 012-2h1V.5a.5.5 0 01.5-.5zM1 4v10a1 1 0 001 1h12a1 1 0 001-1V4H1z"/></svg>
+        Add Appointment
       </button>
+      <button class="db-btn-primary" id="db-btn-client" onclick="openDbModal('client')" style="display:none">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4a.5.5 0 01.5.5v3h3a.5.5 0 010 1h-3v3a.5.5 0 01-1 0v-3h-3a.5.5 0 010-1h3v-3A.5.5 0 018 4z"/><path d="M8 15A7 7 0 118 1a7 7 0 010 14zm0 1A8 8 0 108 0a8 8 0 000 16z"/></svg>
+        Add Client
+      </button>
+      <div id="topbar-metrics" style="display:none"></div>
     </header>
 
-    <!-- Content + right panel -->
+    <!-- Content + right detail panel -->
     <div class="app-content">
       <div class="view-content" id="view-content">
-        <!-- skeleton while loading -->
-        <div class="queue-view">
-          <div class="q-metrics">${[1,2,3].map(()=>'<div class="q-metric" style="opacity:0.4"><div style="width:32px;height:20px;background:rgba(0,0,0,0.08);border-radius:4px"></div><div style="width:70px;height:10px;background:rgba(0,0,0,0.06);border-radius:3px;margin-top:4px"></div></div>').join('')}</div>
-          <div style="display:flex;flex-direction:column;gap:6px">${[1,2,3].map(()=>'<div style="height:58px;background:rgba(255,255,255,0.6);border-radius:11px;border:1px solid rgba(0,0,0,0.05)"></div>').join('')}</div>
+        <!-- skeleton while JS loads -->
+        <div style="padding:20px">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+            ${[1,2,3,4].map(()=>'<div style="height:80px;background:rgba(255,255,255,0.38);border-radius:16px;border:1px solid rgba(255,255,255,0.72)"></div>').join('')}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${[1,2,3].map(()=>'<div style="height:72px;background:rgba(255,255,255,0.38);border-radius:12px;border:1px solid rgba(255,255,255,0.72)"></div>').join('')}
+          </div>
         </div>
       </div>
-
+      <!-- Detail panel (slide in from right) -->
+      <div class="db-detail-panel" id="dbDetailPanel">
+        <div class="db-dp-inner">
+          <div class="db-dp-head" id="dbDpHead"></div>
+          <div class="db-dp-tabs" id="dbDpTabs"></div>
+          <div class="db-dp-body" id="dbDpBody"></div>
+        </div>
+      </div>
     </div>
 
   </div><!-- /.app-main -->
@@ -2733,6 +2754,176 @@ body {
       <button class="modal-close" onclick="closeDetailPanel()">×</button>
     </div>
     <div class="rdp-body" id="rdp-body"></div>
+  </div>
+</div>
+
+<!-- ══ ADD CLIENT MODAL (two-step) ══ -->
+<div class="db-modal-overlay" id="db-modal-client" onclick="if(event.target===this)closeDbModal('db-modal-client')">
+  <div class="db-modal">
+    <div class="db-modal-hdr">
+      <div>
+        <div class="db-modal-title" id="db-modal-client-title">Add Client</div>
+        <div class="db-modal-sub">Enter details then choose where to save</div>
+      </div>
+      <button class="db-modal-close" onclick="closeDbModal('db-modal-client')">×</button>
+    </div>
+    <div class="db-step-indicator">
+      <div class="db-step active" id="db-cl-s1-ind" onclick="dbGoStep('cl',1)">
+        <div class="db-step-num">1</div>
+        <div class="db-step-label">Details</div>
+      </div>
+      <div class="db-step-line"></div>
+      <div class="db-step" id="db-cl-s2-ind" onclick="dbGoStep('cl',2)">
+        <div class="db-step-num">2</div>
+        <div class="db-step-label">Save to…</div>
+      </div>
+    </div>
+    <div class="db-modal-body">
+      <div class="db-step-body active" id="db-cl-s1">
+        <div class="db-form-row">
+          <div class="db-form-grp"><label class="db-form-lbl">First Name</label><input class="db-form-input" id="db-cl-fname" type="text" placeholder="Sarah"></div>
+          <div class="db-form-grp"><label class="db-form-lbl">Last Name</label><input class="db-form-input" id="db-cl-lname" type="text" placeholder="Bell"></div>
+        </div>
+        <div class="db-form-row">
+          <div class="db-form-grp"><label class="db-form-lbl">Email</label><input class="db-form-input" id="db-cl-email" type="email" placeholder="sarah@email.com"></div>
+          <div class="db-form-grp"><label class="db-form-lbl">Phone</label><input class="db-form-input" id="db-cl-phone" type="tel" placeholder="04xx xxx xxx"></div>
+        </div>
+        <div class="db-form-row">
+          <div class="db-form-grp"><label class="db-form-lbl">Source</label>
+            <select class="db-form-input" id="db-cl-source">
+              <option value="">How did they find us?</option>
+              <option value="website">Website form</option>
+              <option value="email">Direct email</option>
+              <option value="phone">Phone call</option>
+              <option value="gp_referral">GP referral</option>
+              <option value="eap">EAP referral</option>
+              <option value="word_of_mouth">Word of mouth</option>
+            </select>
+          </div>
+          <div class="db-form-grp"><label class="db-form-lbl">Funder Type</label>
+            <select class="db-form-input" id="db-cl-funder">
+              <option value="">Unknown / TBC</option>
+              <option value="private">Private</option>
+              <option value="medicare">Medicare</option>
+              <option value="ndis_plan">NDIS Plan Managed</option>
+              <option value="ndis_self">NDIS Self Managed</option>
+              <option value="qfes">QFES / EAP</option>
+              <option value="workcover">WorkCover</option>
+              <option value="dva">DVA</option>
+            </select>
+          </div>
+        </div>
+        <div class="db-form-row">
+          <div class="db-form-grp full"><label class="db-form-lbl">Notes</label><input class="db-form-input" id="db-cl-notes" type="text" placeholder="e.g. GP referral for anxiety — Dr Smith"></div>
+        </div>
+      </div>
+      <div class="db-step-body" id="db-cl-s2">
+        <div class="db-dest-cards">
+          <div class="db-dest-card" onclick="dbSelectDest(this,'onboarding')">
+            <div class="db-dest-card-icon">📋</div>
+            <div class="db-dest-card-title">Onboarding Queue</div>
+            <div class="db-dest-card-desc">Save to dashboard only. Assign a follow-up action. Move to Halaxy when ready.</div>
+          </div>
+          <div class="db-dest-card" onclick="dbSelectDest(this,'halaxy')">
+            <div class="db-dest-card-icon">🔗</div>
+            <div class="db-dest-card-title">Create in Halaxy</div>
+            <div class="db-dest-card-desc">Create patient in Halaxy and link here. Use for clients starting immediately.</div>
+          </div>
+        </div>
+        <div class="db-hint-box">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0;margin-top:1px"><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm.93-9.412l-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 110-2 1 1 0 010 2z"/></svg>
+          You can always move a client from Onboarding into Halaxy later using the "Link to Halaxy" action on their profile.
+        </div>
+      </div>
+    </div>
+    <div class="db-modal-ftr">
+      <button class="db-btn-ghost" id="db-cl-back" style="display:none" onclick="dbGoStep('cl',1)">← Back</button>
+      <button class="db-btn-ghost" onclick="closeDbModal('db-modal-client')">Cancel</button>
+      <button class="db-btn-primary" id="db-cl-next" onclick="_dbClientNextOrSave()">Next: Choose destination →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD APPOINTMENT MODAL (two-step) ══ -->
+<div class="db-modal-overlay" id="db-modal-appt" onclick="if(event.target===this)closeDbModal('db-modal-appt')">
+  <div class="db-modal">
+    <div class="db-modal-hdr">
+      <div>
+        <div class="db-modal-title">Add Appointment</div>
+        <div class="db-modal-sub">Schedule a session or intake, then sync to Halaxy or onboarding</div>
+      </div>
+      <button class="db-modal-close" onclick="closeDbModal('db-modal-appt')">×</button>
+    </div>
+    <div class="db-step-indicator">
+      <div class="db-step active" id="db-ap-s1-ind" onclick="dbGoStep('ap',1)">
+        <div class="db-step-num">1</div>
+        <div class="db-step-label">Details</div>
+      </div>
+      <div class="db-step-line"></div>
+      <div class="db-step" id="db-ap-s2-ind" onclick="dbGoStep('ap',2)">
+        <div class="db-step-num">2</div>
+        <div class="db-step-label">Save to…</div>
+      </div>
+    </div>
+    <div class="db-modal-body">
+      <div class="db-step-body active" id="db-ap-s1">
+        <div class="db-form-row">
+          <div class="db-form-grp full"><label class="db-form-lbl">Client</label>
+            <select class="db-form-input" id="db-ap-client">
+              <option value="">Search or select client…</option>
+              <option value="new">+ Add new client</option>
+            </select>
+          </div>
+        </div>
+        <div class="db-form-row">
+          <div class="db-form-grp"><label class="db-form-lbl">Date</label><input class="db-form-input" id="db-ap-date" type="date"></div>
+          <div class="db-form-grp"><label class="db-form-lbl">Time</label><input class="db-form-input" id="db-ap-time" type="time" value="10:00"></div>
+        </div>
+        <div class="db-form-row">
+          <div class="db-form-grp"><label class="db-form-lbl">Type</label>
+            <select class="db-form-input" id="db-ap-type">
+              <option value="session">Session</option>
+              <option value="intake">Intake / First session</option>
+              <option value="admin">Admin / No charge</option>
+            </select>
+          </div>
+          <div class="db-form-grp"><label class="db-form-lbl">Duration</label>
+            <select class="db-form-input" id="db-ap-duration">
+              <option value="50">50 min</option>
+              <option value="60">60 min</option>
+              <option value="80">80 min</option>
+              <option value="30">30 min</option>
+            </select>
+          </div>
+        </div>
+        <div class="db-form-row">
+          <div class="db-form-grp full"><label class="db-form-lbl">Notes</label><input class="db-form-input" id="db-ap-notes" type="text" placeholder="Optional session notes…"></div>
+        </div>
+      </div>
+      <div class="db-step-body" id="db-ap-s2">
+        <div class="db-dest-cards">
+          <div class="db-dest-card" onclick="dbSelectDest(this,'onboarding')">
+            <div class="db-dest-card-icon">📋</div>
+            <div class="db-dest-card-title">Onboarding / Admin</div>
+            <div class="db-dest-card-desc">Save to dashboard calendar only. No Halaxy billing. Link patient later.</div>
+          </div>
+          <div class="db-dest-card" onclick="dbSelectDest(this,'halaxy')">
+            <div class="db-dest-card-icon">🔗</div>
+            <div class="db-dest-card-title">Create in Halaxy</div>
+            <div class="db-dest-card-desc">Book appointment directly in Halaxy. Billing and invoicing handled automatically.</div>
+          </div>
+        </div>
+        <div class="db-hint-box">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0;margin-top:1px"><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm.93-9.412l-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 110-2 1 1 0 010 2z"/></svg>
+          Halaxy appointments auto-generate invoices. Admin appointments are for scheduling only — no charge created.
+        </div>
+      </div>
+    </div>
+    <div class="db-modal-ftr">
+      <button class="db-btn-ghost" id="db-ap-back" style="display:none" onclick="dbGoStep('ap',1)">← Back</button>
+      <button class="db-btn-ghost" onclick="closeDbModal('db-modal-appt')">Cancel</button>
+      <button class="db-btn-primary" id="db-ap-next" onclick="dbGoStep('ap',2)">Next: Choose destination →</button>
+    </div>
   </div>
 </div>
 

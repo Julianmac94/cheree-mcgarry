@@ -379,6 +379,7 @@ async function clearHalaxy(enquiryId) {
 
 document.addEventListener('DOMContentLoaded', function () {
   initSetup();
+  _dbUpdateTopbar('home'); // set topbar title immediately on load
 });
 
 /* ═══════════════════════════════════════════════════════════════
@@ -473,6 +474,7 @@ function navigateTo(view) {
     el.classList.toggle('active', el.dataset.view === view);
   });
   closeDetailPanel();
+  _dbUpdateTopbar(view);
   if (!_pipelineData) return; // data not loaded yet — will render when loaded
   if (view === 'home')          renderHomeView();
   else if (view === 'queue')    renderQueueView();
@@ -483,6 +485,38 @@ function navigateTo(view) {
   else if (view === 'reports')  renderStubView('reports', 'Reports', 'Practice reports and insights coming soon.')
 }
 
+/* ── Topbar: update title + action buttons per view ── */
+function _dbUpdateTopbar(view) {
+  var titleEl  = document.getElementById('db-topbar-title');
+  var subEl    = document.getElementById('db-topbar-sub');
+  var btnAppt  = document.getElementById('db-btn-appt');
+  var btnClient = document.getElementById('db-btn-client');
+  var srchWrap = document.getElementById('db-search-wrap');
+
+  var now = new Date();
+  var dateStr = now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  var titles = {
+    home:     'Onboarding',
+    queue:    'Inbox',
+    clients:  'Clients',
+    billing:  'Billing',
+    vendors:  'Funders',
+    settings: 'Settings',
+    reports:  'Reports',
+  };
+
+  if (titleEl) {
+    titleEl.innerHTML = (titles[view] || 'Practice Hub') + ' <span class="db-topbar-sub">' + dateStr + '</span>';
+  }
+
+  // Show/hide context buttons
+  var showActions = (view === 'home' || view === 'clients');
+  if (btnAppt)  btnAppt.style.display  = showActions ? 'flex' : 'none';
+  if (btnClient) btnClient.style.display = showActions ? 'flex' : 'none';
+  if (srchWrap) srchWrap.style.display = (view === 'clients') ? 'flex' : 'none';
+}
+
 function renderStubView(view, title, msg) {
   var content = document.getElementById('view-content');
   if (!content) return;
@@ -491,6 +525,181 @@ function renderStubView(view, title, msg) {
     + '<div style="font-size:16px;font-weight:600;color:#3A5550;margin-bottom:8px">' + title + '</div>'
     + '<div style="font-size:13px;max-width:320px;margin:0 auto;line-height:1.6">' + msg + '</div>'
     + '</div>';
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   NEW DESIGN SYSTEM — modal + detail panel helpers
+───────────────────────────────────────────────────────────────── */
+
+/** Open one of the two-step add modals: 'client' or 'appt' */
+function openDbModal(type) {
+  var id  = 'db-modal-' + type;
+  var pfx = type === 'client' ? 'cl' : 'ap';
+  _dbResetStep(pfx);
+  // Pre-populate appointment date to today
+  if (type === 'appt') {
+    var today = new Date().toISOString().slice(0, 10);
+    var dateEl = document.getElementById('db-ap-date');
+    if (dateEl) dateEl.value = today;
+    // Populate client list from live data
+    var sel = document.getElementById('db-ap-client');
+    if (sel && _halaxyData && _halaxyData.patients) {
+      while (sel.options.length > 1) sel.remove(1);
+      var patients = _halaxyData.patients || [];
+      patients.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id || '';
+        opt.textContent = p.name || ('Patient #' + p.id);
+        sel.add(opt);
+      });
+      var newOpt = document.createElement('option');
+      newOpt.value = 'new';
+      newOpt.textContent = '+ Add new client';
+      sel.add(newOpt);
+    }
+  }
+  var el = document.getElementById(id);
+  if (el) el.classList.add('open');
+}
+
+function closeDbModal(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
+function dbGoStep(pfx, step) {
+  var s1    = document.getElementById('db-' + pfx + '-s1');
+  var s2    = document.getElementById('db-' + pfx + '-s2');
+  var s1ind = document.getElementById('db-' + pfx + '-s1-ind');
+  var s2ind = document.getElementById('db-' + pfx + '-s2-ind');
+  var back  = document.getElementById('db-' + pfx + '-back');
+  var next  = document.getElementById('db-' + pfx + '-next');
+  if (!s1 || !s2) return;
+
+  s1.classList.toggle('active', step === 1);
+  s2.classList.toggle('active', step === 2);
+  if (s1ind) {
+    s1ind.classList.toggle('active', step === 1);
+    s1ind.classList.toggle('done', step === 2);
+    if (step === 2) s1ind.classList.remove('active');
+  }
+  if (s2ind) {
+    s2ind.classList.toggle('active', step === 2);
+    s2ind.classList.toggle('done', false);
+  }
+  if (back)  back.style.display  = step === 2 ? 'flex' : 'none';
+  if (next)  next.textContent    = step === 2 ? 'Save →' : 'Next: Choose destination →';
+}
+
+function _dbResetStep(pfx) {
+  dbGoStep(pfx, 1);
+  // Clear destination selection
+  var s2 = document.getElementById('db-' + pfx + '-s2');
+  if (s2) s2.querySelectorAll('.db-dest-card').forEach(function(c) { c.classList.remove('selected'); });
+}
+
+function dbSelectDest(el, dest) {
+  var cards = el.closest('.db-dest-cards');
+  if (cards) cards.querySelectorAll('.db-dest-card').forEach(function(c) { c.classList.remove('selected'); });
+  el.classList.add('selected');
+  el.dataset.dest = dest;
+}
+
+/** Handle Next / Save on the Add Client modal */
+function _dbClientNextOrSave() {
+  var s2 = document.getElementById('db-cl-s2');
+  var isOnStep2 = s2 && s2.classList.contains('active');
+  if (!isOnStep2) {
+    // Move to step 2
+    dbGoStep('cl', 2);
+    return;
+  }
+  // On step 2 — figure out selected destination and save
+  var selectedCard = s2 ? s2.querySelector('.db-dest-card.selected') : null;
+  if (!selectedCard) {
+    toast('Please choose a destination first', 'err');
+    return;
+  }
+  var dest = selectedCard.dataset.dest || 'onboarding';
+  if (dest === 'halaxy') {
+    // Open existing Halaxy add-client flow
+    var fname  = (document.getElementById('db-cl-fname')  || {}).value || '';
+    var lname  = (document.getElementById('db-cl-lname')  || {}).value || '';
+    var email  = (document.getElementById('db-cl-email')  || {}).value || '';
+    var funder = (document.getElementById('db-cl-funder') || {}).value || '';
+    closeDbModal('db-modal-client');
+    openAddClient();  // existing function — opens old Halaxy modal
+    // Pre-fill if possible
+    setTimeout(function() {
+      var nm = document.getElementById('cl-modal-name');
+      var em = document.getElementById('cl-modal-email');
+      if (nm) nm.value = [fname, lname].filter(Boolean).join(' ');
+      if (em) em.value = email;
+    }, 100);
+  } else {
+    dbSaveClientOnboarding();
+  }
+}
+
+/** Save the Add Client form — Onboarding queue destination */
+async function dbSaveClientOnboarding() {
+  var fname  = (document.getElementById('db-cl-fname')  || {}).value || '';
+  var lname  = (document.getElementById('db-cl-lname')  || {}).value || '';
+  var email  = (document.getElementById('db-cl-email')  || {}).value || '';
+  var phone  = (document.getElementById('db-cl-phone')  || {}).value || '';
+  var source = (document.getElementById('db-cl-source') || {}).value || '';
+  var funder = (document.getElementById('db-cl-funder') || {}).value || '';
+  var notes  = (document.getElementById('db-cl-notes')  || {}).value || '';
+
+  if (!fname.trim()) { toast('First name is required', 'err'); return; }
+  if (!email.trim()) { toast('Email is required', 'err'); return; }
+
+  try {
+    await apiFetch('/api/clients', {
+      method: 'POST',
+      body: {
+        first_name:  fname.trim(),
+        last_name:   lname.trim(),
+        email:       email.trim(),
+        phone:       phone.trim(),
+        source:      source,
+        funder_type: funder,
+        notes:       notes.trim(),
+        status:      'onboarding',
+      }
+    });
+    closeDbModal('db-modal-client');
+    toast('Client added to onboarding queue', 'ok');
+    if (_pipelineData) {
+      await _loadPipelineData();
+      renderClientsView();
+    }
+  } catch (err) {
+    toast('Could not save client: ' + err.message, 'err');
+  }
+}
+
+/** Navigate to client detail from upcoming strip by Halaxy patient ID */
+function _openClientFromAppt(hxPatientId) {
+  if (!hxPatientId) return;
+  // Check if there's a linked supabase client
+  var clients = (_pipelineData && _pipelineData.clients) || [];
+  var linked = clients.find(function(c) { return String(c.halaxy_id) === String(hxPatientId); });
+  if (linked) {
+    renderClientDetailView(linked.id);
+  } else {
+    renderClientDetailView('hx:' + hxPatientId);
+  }
+}
+
+/** Open the new-design detail panel for an enquiry (db prefix to avoid collision) */
+function dbOpenDetailPanel(id, type) {
+  // For now fall through to existing detail modal system
+  if (type === 'enquiry') {
+    openDetailPanel('enquiry', id);
+  } else {
+    renderClientDetailView(id);
+  }
 }
 
 /* ── Command bar ── */
@@ -2175,169 +2384,272 @@ function renderHomeView() {
   var tasks      = (_pipelineData.tasks      || []);
   var appts      = (_halaxyData && _halaxyData.appointments) || [];
   var invoices   = (_halaxyData && _halaxyData.invoices) || [];
+  var clients    = (_pipelineData.clients    || []);
 
-  // Stat: active enquiries (not closed/converted)
-  var activeEnqCount = enquiries.filter(function(e) { return e.status !== 'closed' && e.status !== 'converted'; }).length;
+  // ── Helpers ───────────────────────────────────────
+  function avColor(name) {
+    var colors = ['av-blue','av-teal','av-purple','av-amber','av-green','av-red'];
+    var idx = (name || '').charCodeAt(0) % colors.length;
+    return colors[idx];
+  }
+  function initials(name) {
+    if (!name) return '?';
+    var parts = name.trim().split(/\s+/);
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
+  function funderBadge(funder) {
+    var map = {
+      ndis_plan: ['db-badge-teal',   'NDIS'],
+      ndis_self: ['db-badge-teal',   'NDIS'],
+      medicare:  ['db-badge-blue',   'Medicare'],
+      private:   ['db-badge-grey',   'Private'],
+      qfes:      ['db-badge-purple', 'QFES'],
+      workcover: ['db-badge-amber',  'WorkCover'],
+      dva:       ['db-badge-purple', 'DVA'],
+    };
+    var m = map[funder] || ['db-badge-grey', funder || 'TBC'];
+    return '<span class="db-badge ' + m[0] + '">' + escHtml(m[1]) + '</span>';
+  }
+  function timeAgo(iso) {
+    if (!iso) return '';
+    var mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 60)    return mins + ' min' + (mins === 1 ? '' : 's') + ' ago';
+    var hrs = Math.round(mins / 60);
+    if (hrs < 24)     return hrs + ' hour' + (hrs === 1 ? '' : 's') + ' ago';
+    var days = Math.round(hrs / 24);
+    return days + ' day' + (days === 1 ? '' : 's') + ' ago';
+  }
+  function fmtApptDate(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    return d.toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'short' })
+      + ' · ' + d.toLocaleTimeString('en-AU', { hour:'numeric', minute:'2-digit', timeZone:'Australia/Brisbane' });
+  }
 
-  // Stat: outstanding invoices
+  // ── Stats ─────────────────────────────────────────
+  var activeEnqCount = enquiries.filter(function(e) {
+    return e.status !== 'closed' && e.status !== 'converted';
+  }).length;
+
   var outstandingAmt = invoices.reduce(function(sum, inv) {
     if (inv.status === 'active' || inv.status === 'overdue') sum += parseFloat(inv.totalPrice || 0);
     return sum;
   }, 0);
 
-  // Today's appointments
   var now        = new Date();
   var todayStart = new Date(now); todayStart.setHours(0,0,0,0);
-  var todayEnd   = new Date(now); todayEnd.setHours(23,59,59,999);
-  var todayAppts = appts
-    .filter(function(a) {
-      if (!a.start || a.status === 'cancelled') return false;
-      var t = new Date(a.start).getTime();
-      return t >= todayStart.getTime() && t <= todayEnd.getTime();
-    })
-    .sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
+  var weekEnd    = new Date(todayStart); weekEnd.setDate(weekEnd.getDate() + 7);
 
-  // Tomorrow's appointments
-  var tomStart = new Date(todayStart); tomStart.setDate(tomStart.getDate() + 1);
-  var tomEnd   = new Date(todayEnd);   tomEnd.setDate(tomEnd.getDate() + 1);
-  var tomAppts = appts
-    .filter(function(a) {
-      if (!a.start || a.status === 'cancelled') return false;
-      var t = new Date(a.start).getTime();
-      return t >= tomStart.getTime() && t <= tomEnd.getTime();
-    })
-    .sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
+  var weekAppts = appts.filter(function(a) {
+    if (!a.start || a.status === 'cancelled') return false;
+    var t = new Date(a.start).getTime();
+    return t >= todayStart.getTime() && t < weekEnd.getTime();
+  }).sort(function(a,b) { return new Date(a.start) - new Date(b.start); });
 
-  // Calendar render: pick today if has appts, else tomorrow, else today
-  var calAppts  = todayAppts.length ? todayAppts : tomAppts;
-  var calLabel  = todayAppts.length ? 'Today' : (tomAppts.length ? 'Tomorrow' : 'Today');
-  var calDate   = todayAppts.length ? now : (tomAppts.length ? tomStart : now);
+  var activeClientCount = clients.filter(function(c) {
+    return c.status !== 'archived' && c.status !== 'inactive';
+  }).length;
 
-  // Hour range: 8am–7pm (AEST)
-  var CAL_START = 8; // 8am
-  var CAL_END   = 19; // 7pm
-  var HOUR_PX   = 52;
+  // ── Needs Action ─────────────────────────────────
+  // 1. New enquiries (status === 'new')
+  var newEnquiries = enquiries.filter(function(e) { return (e.status || 'new') === 'new'; });
 
-  function _apptPatientName(a) {
-    var pid = '';
-    (a.participant || []).forEach(function(p) {
-      var ref = (p.actor && p.actor.reference) || '';
-      if (ref.startsWith('Patient/')) pid = ref.replace('Patient/', '');
+  // 2. Overdue invoices (Halaxy invoices with status overdue, or outstanding beyond threshold)
+  var FUNDER_DAYS = { ndis_plan: 12, ndis_self: 12, qfes: 25, workcover: 40, eap: 25 };
+  var overdueInvoices = invoices.filter(function(inv) {
+    if (inv.status !== 'active' && inv.status !== 'overdue') return false;
+    var daysOld = (Date.now() - new Date(inv.created_at || inv.invoiceDate || 0).getTime()) / 86400000;
+    var threshold = FUNDER_DAYS[inv.funder] || 3; // private/medicare flag quickly
+    return daysOld > threshold;
+  }).slice(0, 3);
+
+  // 3. Clients needing Halaxy setup (in onboarding, have upcoming appt, not linked)
+  var needsSetup = (clients || []).filter(function(c) {
+    return !c.halaxy_client_id && !c.halaxy_client_url && (c.status === 'onboarding' || c.status === 'active');
+  }).slice(0, 2);
+
+  var needsActionTotal = newEnquiries.length + overdueInvoices.length + needsSetup.length;
+
+  // ── In Progress ───────────────────────────────────
+  // Submitted invoices within window (not yet overdue, not yet paid)
+  var inProgress = invoices.filter(function(inv) {
+    if (inv.status !== 'active') return false;
+    var daysOld = (Date.now() - new Date(inv.created_at || inv.invoiceDate || 0).getTime()) / 86400000;
+    var threshold = FUNDER_DAYS[inv.funder] || 3;
+    return daysOld <= threshold;
+  }).slice(0, 5);
+
+  // ── Build HTML ────────────────────────────────────
+  var html = '';
+
+  // Stats row
+  html += '<div class="db-stats-row">';
+  html += '<div class="glass db-stat-card"><div class="db-stat-label">Active Clients</div><div class="db-stat-val">' + activeClientCount + '</div><div class="db-stat-sub">' + weekAppts.length + ' sessions this week</div></div>';
+  html += '<div class="glass db-stat-card"><div class="db-stat-label">Needs Action</div><div class="db-stat-val" style="color:var(--db-amber)">' + needsActionTotal + '</div><div class="db-stat-sub">Awaiting attention</div></div>';
+  var outStr = outstandingAmt > 0 ? ('$' + Math.round(outstandingAmt).toLocaleString('en-AU')) : '$0';
+  html += '<div class="glass db-stat-card"><div class="db-stat-label">Outstanding</div><div class="db-stat-val" style="color:var(--db-blue)">' + outStr + '</div><div class="db-stat-sub">' + overdueInvoices.length + ' overdue</div></div>';
+  html += '<div class="glass db-stat-card"><div class="db-stat-label">This Week</div><div class="db-stat-val" style="color:var(--db-teal)">' + weekAppts.length + '</div><div class="db-stat-sub">Sessions scheduled</div></div>';
+  html += '</div>';
+
+  // ── NEEDS ACTION section ──────────────────────────
+  if (needsActionTotal > 0) {
+    html += '<div class="db-sec-hdr"><div class="db-sec-title">Needs Action</div><div class="db-sec-count urgent">' + needsActionTotal + '</div><div class="db-sec-divider"></div></div>';
+    html += '<div class="action-folder">';
+
+    // New enquiry cards
+    newEnquiries.forEach(function(e) {
+      var name = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
+      var av   = avColor(name);
+      var ini  = initials(name);
+      var age  = timeAgo(e.created_at);
+      var src  = e.source ? '<span class="db-badge db-badge-grey" style="font-size:10px">' + escHtml(e.source) + '</span>' : '';
+      html += '<div class="ac" onclick="openDetailPanel(\'enquiry\',\'' + escHtml(e.id) + '\')">'
+        + '<div class="ac-head is-red"><div class="ac-pip red"></div><div class="ac-type red">New Enquiry</div><div class="ac-age">' + age + '</div></div>'
+        + '<div class="ac-body">'
+        + '<div class="ac-av ' + av + '">' + ini + '</div>'
+        + '<div class="ac-content">'
+        + '<div class="ac-name">' + escHtml(name) + ' ' + src + '</div>'
+        + '<div class="ac-detail">' + escHtml(e.email || '') + (e.reason ? '<br>Reason: ' + escHtml(e.reason) : '') + ' · No reply sent yet</div>'
+        + '</div>'
+        + '</div>'
+        + '<div class="ac-foot">'
+        + '<button class="btn-ac primary red" onclick="event.stopPropagation();window.location=\'mailto:' + encodeURIComponent(e.email || '') + '\'">Reply by email</button>'
+        + '<button class="btn-ac soft" onclick="event.stopPropagation()">Log note</button>'
+        + '<button class="btn-ac-link" onclick="event.stopPropagation();openDetailPanel(\'enquiry\',\'' + escHtml(e.id) + '\')">View profile →</button>'
+        + '</div>'
+        + '</div>';
     });
-    return (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[pid]) || pid || 'Patient';
+
+    // Overdue invoice cards
+    overdueInvoices.forEach(function(inv) {
+      var patientId = (inv.patient && inv.patient.reference) ? inv.patient.reference.replace('Patient/','') : '';
+      var patName   = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId]) || 'Client';
+      var av        = avColor(patName);
+      var ini       = initials(patName);
+      var amt       = '$' + parseFloat(inv.totalPrice || 0).toFixed(0);
+      var daysOld   = Math.round((Date.now() - new Date(inv.created_at || inv.invoiceDate || 0).getTime()) / 86400000);
+      var funder    = inv.funder || 'Unknown';
+      html += '<div class="ac" onclick="navigateTo(\'billing\')">'
+        + '<div class="ac-head is-amber"><div class="ac-pip amber"></div><div class="ac-type amber">' + escHtml(funder.toUpperCase()) + ' Invoice Outstanding</div><div class="ac-age">' + daysOld + ' days submitted</div></div>'
+        + '<div class="ac-body">'
+        + '<div class="ac-av ' + av + '">' + ini + '</div>'
+        + '<div class="ac-content">'
+        + '<div class="ac-name">' + escHtml(patName) + ' ' + funderBadge(funder) + '</div>'
+        + '<div class="ac-detail">Invoice #' + escHtml(inv.id || '') + ' · Expected payment window exceeded</div>'
+        + '</div>'
+        + '<div class="ac-amount">' + amt + '</div>'
+        + '</div>'
+        + '<div class="ac-foot">'
+        + '<button class="btn-ac primary amber" onclick="event.stopPropagation();navigateTo(\'billing\')">Chase funder</button>'
+        + '<button class="btn-ac soft" onclick="event.stopPropagation()">Mark as paid</button>'
+        + '<button class="btn-ac-link" onclick="event.stopPropagation();navigateTo(\'billing\')">View billing →</button>'
+        + '</div>'
+        + '</div>';
+    });
+
+    // Needs Halaxy setup cards
+    needsSetup.forEach(function(c) {
+      var name   = c.display_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Client';
+      var av     = avColor(name);
+      var ini    = initials(name);
+      var funder = c.funder_type || 'TBC';
+      html += '<div class="ac" onclick="renderClientDetailView(\'' + escHtml(c.id || '') + '\')">'
+        + '<div class="ac-head is-amber"><div class="ac-pip amber"></div><div class="ac-type amber">Intake — Halaxy Setup Required</div><div class="ac-age">Not yet linked</div></div>'
+        + '<div class="ac-body">'
+        + '<div class="ac-av ' + av + '">' + ini + '</div>'
+        + '<div class="ac-content">'
+        + '<div class="ac-name">' + escHtml(name) + ' <span class="db-badge db-badge-grey" style="font-size:10px">' + escHtml(funder) + '</span></div>'
+        + '<div class="ac-detail">Not yet created in Halaxy · Funder unknown — confirm at intake</div>'
+        + '</div>'
+        + '</div>'
+        + '<div class="ac-foot">'
+        + '<button class="btn-ac primary" onclick="event.stopPropagation();renderClientDetailView(\'' + escHtml(c.id || '') + '\')">Link to Halaxy</button>'
+        + '<button class="btn-ac soft" onclick="event.stopPropagation()">Create patient</button>'
+        + '<button class="btn-ac-link" onclick="event.stopPropagation();renderClientDetailView(\'' + escHtml(c.id || '') + '\')">View profile →</button>'
+        + '</div>'
+        + '</div>';
+    });
+
+    html += '</div>'; // action-folder
+
+    if (needsActionTotal === 0) {
+      html = html.replace('<div class="action-folder"></div>', '');
+    }
   }
 
-  var hour = now.getHours();
-  var greeting = hour < 12 ? 'Good morning' : (hour < 17 ? 'Good afternoon' : 'Good evening');
+  // ── IN PROGRESS section ───────────────────────────
+  if (inProgress.length > 0) {
+    html += '<div class="db-sec-hdr"><div class="db-sec-title">In Progress — Waiting on Others</div><div class="db-sec-count info">' + inProgress.length + '</div><div class="db-sec-divider"></div></div>';
+    html += '<div class="glass db-queue-card">';
 
-  var html = '<div class="home-view">';
+    inProgress.forEach(function(inv) {
+      var patientId = (inv.patient && inv.patient.reference) ? inv.patient.reference.replace('Patient/','') : '';
+      var patName   = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId]) || 'Client';
+      var av        = avColor(patName);
+      var ini       = initials(patName);
+      var funder    = inv.funder || 'unknown';
+      var amt       = '$' + parseFloat(inv.totalPrice || 0).toFixed(0);
+      var daysOld   = Math.round((Date.now() - new Date(inv.created_at || inv.invoiceDate || 0).getTime()) / 86400000);
+      var threshold = FUNDER_DAYS[funder] || 3;
+      var remaining = threshold - daysOld;
+      var isOk      = remaining > 2;
+      html += '<div class="db-q-item" onclick="navigateTo(\'billing\')">'
+        + '<div class="db-q-pip ' + (isOk ? 'pip-teal' : 'pip-amber') + '"></div>'
+        + '<div class="ac-av ' + av + '" style="width:32px;height:32px;border-radius:50%;font-size:10px;font-weight:700;flex-shrink:0;display:flex;align-items:center;justify-content:center">' + ini + '</div>'
+        + '<div class="db-q-body">'
+        + '<div class="db-q-name">' + escHtml(patName) + '</div>'
+        + '<div class="db-q-meta">' + escHtml(funder.toUpperCase()) + ' invoice ' + amt + ' <span class="db-q-dot">·</span> ' + daysOld + ' days submitted</div>'
+        + '</div>'
+        + '<div class="db-q-right">'
+        + '<span class="db-badge ' + (isOk ? 'db-badge-teal' : 'db-badge-amber') + '">' + (isOk ? 'Within window ✓' : remaining + 'd remaining') + '</span>'
+        + '<svg width="13" height="13" viewBox="0 0 16 16" fill="var(--db-t3)"><path d="M4.646 1.646a.5.5 0 01.708 0l6 6a.5.5 0 010 .708l-6 6a.5.5 0 01-.708-.708L10.293 8 4.646 2.354a.5.5 0 010-.708z"/></svg>'
+        + '</div>'
+        + '</div>';
+    });
 
-  // Header + actions
-  var userName = (window.ADMIN_USER && window.ADMIN_USER.trim()) ? window.ADMIN_USER.trim() : 'there';
-  html += '<div class="home-hd"><div class="home-greeting">' + greeting + ', <em>' + escHtml(userName) + '</em></div></div>';
-  html += '<div class="home-actions">'
-    + '<button class="home-action-btn primary" onclick="openNewSessionModal()"><span class="hab-icon">+</span> New Appointment</button>'
-    + '<button class="home-action-btn" onclick="openAddClient()"><span class="hab-icon">+</span> Add Client</button>'
-    + '</div>';
-
-  // Stats
-  html += '<div class="home-section-title">Overview</div>';
-  html += '<div class="home-stats">'
-    + '<div class="home-stat"><div class="home-stat-val' + (activeEnqCount > 0 ? ' amber' : '') + '">' + activeEnqCount + '</div><div class="home-stat-label">Active enquiries</div></div>'
-    + '<div class="home-stat"><div class="home-stat-val' + (outstandingAmt > 0 ? ' amber' : '') + '">' + (outstandingAmt > 0 ? '$' + Math.round(outstandingAmt).toLocaleString('en-AU') : '$0') + '</div><div class="home-stat-label">Outstanding</div></div>'
-    + '<div class="home-stat"><div class="home-stat-val teal">' + todayAppts.length + '</div><div class="home-stat-label">Today\'s appts</div></div>'
-    + '</div>';
-
-  // Two-column: calendar left, tasks right (on wide screens stack vertically on mobile)
-  html += '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">';
-
-  // ── Calendar column ──────────────────────────────
-  html += '<div style="flex:1;min-width:260px">';
-  html += '<div class="home-section-title">' + calLabel + ' — ' + calDate.toLocaleDateString('en-AU', {weekday:'long',day:'numeric',month:'long'}) + '</div>';
-  html += '<div class="home-cal-wrap">';
-
-  if (!calAppts.length) {
-    html += '<div class="home-cal-empty">No appointments scheduled' + (calLabel === 'Today' ? ' today' : ' tomorrow') + '</div>';
-  } else {
-    html += '<div class="home-cal-body">';
-    // Time labels
-    html += '<div class="home-cal-times">';
-    for (var hr = CAL_START; hr < CAL_END; hr++) {
-      var lbl = hr === 12 ? '12 pm' : (hr > 12 ? (hr-12) + ' pm' : hr + ' am');
-      html += '<div class="home-cal-hour-label">' + lbl + '</div>';
-    }
     html += '</div>';
+  }
 
-    // Grid
-    html += '<div class="home-cal-grid" style="height:' + ((CAL_END - CAL_START) * HOUR_PX) + 'px">';
-    for (var hr2 = CAL_START; hr2 < CAL_END; hr2++) {
-      html += '<div class="home-cal-hour-row"></div>';
-    }
+  // ── THIS WEEK section ─────────────────────────────
+  if (weekAppts.length > 0) {
+    html += '<div class="db-sec-hdr"><div class="db-sec-title">This Week</div><div class="db-sec-count">' + weekAppts.length + ' session' + (weekAppts.length > 1 ? 's' : '') + '</div><div class="db-sec-divider"></div></div>';
+    html += '<div class="db-sched-grid">';
 
-    // Now line
-    var nowHour = now.getHours() + now.getMinutes() / 60;
-    if (calLabel === 'Today' && nowHour >= CAL_START && nowHour < CAL_END) {
-      var nowTop = (nowHour - CAL_START) * HOUR_PX;
-      html += '<div class="home-cal-now-line" style="top:' + nowTop + 'px;background:var(--amber)">'
-        + '<div class="home-cal-now-dot" style="background:var(--amber)"></div></div>';
-    }
+    weekAppts.forEach(function(a) {
+      var d       = new Date(a.start);
+      var dayName = d.toLocaleDateString('en-AU', { weekday: 'short' });
+      var dayNum  = d.getDate();
+      var timeStr = d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' });
+      var patientId = '';
+      (a.participant || []).forEach(function(p) {
+        var ref = (p.actor && p.actor.reference) || '';
+        if (ref.startsWith('Patient/')) patientId = ref.replace('Patient/', '');
+      });
+      var patName = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId]) || 'Client';
+      var funder  = a.funder || '';
+      var isIntake = (a.appointmentType && a.appointmentType.toLowerCase().includes('intake')) || false;
 
-    // Appointment blocks
-    calAppts.forEach(function(a) {
-      var startH = new Date(a.start).getHours() + new Date(a.start).getMinutes() / 60;
-      var endH   = a.end ? (new Date(a.end).getHours() + new Date(a.end).getMinutes() / 60) : (startH + 1);
-      // Clamp to grid
-      var top    = Math.max(0, (startH - CAL_START)) * HOUR_PX;
-      var height = Math.max(24, (endH - startH) * HOUR_PX - 3);
-      var name   = _apptPatientName(a);
-      var timeStr = new Date(a.start).toLocaleTimeString('en-AU', { hour:'numeric', minute:'2-digit', timeZone:'Australia/Brisbane' });
-      // Color: upcoming=teal, past=soft
-      var isPast = new Date(a.end || a.start).getTime() < now.getTime();
-      var bg = isPast ? 'rgba(42,88,80,0.15)' : 'rgba(42,88,80,0.80)';
-      var fg = isPast ? 'var(--teal)' : 'white';
-      html += '<div class="home-cal-appt-block" style="top:' + top + 'px;height:' + height + 'px;background:' + bg + ';color:' + fg + '">'
-        + '<div class="home-cal-appt-name">' + escHtml(name) + '</div>'
-        + (height > 32 ? '<div class="home-cal-appt-time">' + escHtml(timeStr) + '</div>' : '')
+      html += '<div class="glass-sm db-sched-item">'
+        + '<div class="db-sched-day"><div class="db-sched-day-name">' + dayName + '</div><div class="db-sched-day-num">' + dayNum + '</div></div>'
+        + '<div class="db-sched-sep"></div>'
+        + '<div class="db-sched-time">' + timeStr + '</div>'
+        + '<div class="db-sched-name">' + escHtml(patName) + (isIntake ? '<span class="db-sched-star">★ Intake</span>' : '') + '</div>'
+        + (funder ? funderBadge(funder) : '')
         + '</div>';
     });
 
-    html += '</div>'; // grid
-    html += '</div>'; // cal-body
-  }
-  html += '</div>'; // cal-wrap
-  html += '</div>'; // calendar column
-
-  // ── Tasks column ──────────────────────────────────
-  html += '<div style="flex:1;min-width:220px">';
-  html += '<div class="home-section-title">Tasks</div>';
-  html += '<div class="home-tasks-wrap">';
-
-  var activeTasks = tasks.filter(function(t) { return !t.completed; });
-  var doneTasks   = tasks.filter(function(t) { return t.completed; });
-  var shownTasks  = activeTasks.concat(doneTasks.slice(0, 3));
-
-  if (!shownTasks.length) {
-    html += '<div style="padding:20px 14px;font-size:12.5px;color:#9AABA8;text-align:center">No tasks — all clear ✓</div>';
-  } else {
-    shownTasks.forEach(function(t) {
-      html += '<div class="home-task-item">'
-        + '<button class="home-task-check' + (t.completed ? ' done' : '') + '" onclick="toggleTask(\'' + t.id + '\',' + (!t.completed) + ');renderHomeView()" title="Toggle">✓</button>'
-        + '<span class="home-task-text' + (t.completed ? ' done' : '') + '">' + escHtml(t.title || '') + '</span>'
-        + '</div>';
-    });
+    html += '</div>';
   }
 
-  // Quick add task
-  html += '<div class="home-task-add">'
-    + '<input class="home-task-add-input" id="home-task-input" placeholder="Add a task…" onkeydown="if(event.key===\'Enter\')_homeAddTask()">'
-    + '<button class="home-task-add-btn" onclick="_homeAddTask()">Add</button>'
-    + '</div>';
+  // Empty state if nothing actionable
+  if (needsActionTotal === 0 && inProgress.length === 0 && weekAppts.length === 0) {
+    html += '<div class="db-dp-empty" style="margin-top:40px">'
+      + '<div style="font-size:32px;margin-bottom:14px;opacity:0.3">✓</div>'
+      + '<div style="font-size:15px;font-weight:700;color:var(--db-t2);margin-bottom:6px">All clear</div>'
+      + '<div style="font-size:13px">No pending actions, in-progress items, or sessions this week.</div>'
+      + '</div>';
+  }
 
-  html += '</div>'; // tasks-wrap
-  html += '</div>'; // tasks column
-
-  html += '</div>'; // two-column row
-  html += '</div>'; // home-view
   content.innerHTML = html;
 }
 
@@ -2982,18 +3294,82 @@ function renderClientsView() {
       + '</div>';
   }
 
-  var html = '<div class="cl-list-view">';
+  // ── Upcoming This Week strip ────────────────────────────────
+  var appts       = (_halaxyData && _halaxyData.appointments) || [];
+  var patientMap  = (_halaxyData && _halaxyData.patientMap) || {};
+  var nowUc       = new Date();
+  var ucStart     = new Date(nowUc); ucStart.setHours(0,0,0,0);
+  var ucEnd       = new Date(ucStart); ucEnd.setDate(ucEnd.getDate() + 7);
 
-  // Header
-  html += '<div class="cl-list-hd">'
-    + '<span class="cl-list-hd-title">Clients</span>'
-    + '<input class="cl-list-search" type="search" placeholder="Search…" value="' + escHtml(window._clientListSearch || '') + '"'
-    + ' oninput="window._clientListSearch=this.value;renderClientsView()">'
-    + '<button class="cl-list-add-btn" onclick="openAddClient()">+ Add Client</button>'
-    + '</div>';
+  var weekAppts = appts
+    .filter(function(a) {
+      if (!a.start || a.status === 'cancelled') return false;
+      var t = new Date(a.start).getTime();
+      return t >= ucStart.getTime() && t < ucEnd.getTime();
+    })
+    .sort(function(a, b) { return new Date(a.start) - new Date(b.start); })
+    .slice(0, 4);
+
+  function _ucAvColor(name) {
+    var colors = ['av-blue','av-teal','av-purple','av-amber','av-green','av-red'];
+    return colors[(name || '').charCodeAt(0) % colors.length];
+  }
+  function _ucInitials(name) {
+    if (!name) return '?';
+    var parts = name.trim().split(/\s+/);
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
+
+  var FUNDER_BADGE_MAP = {
+    ndis_plan: ['db-badge-teal','NDIS'],  ndis_self: ['db-badge-teal','NDIS'],
+    medicare:  ['db-badge-blue','Medicare'], private: ['db-badge-grey','Private'],
+    qfes:      ['db-badge-purple','QFES'], workcover: ['db-badge-amber','WorkCover'],
+    dva:       ['db-badge-purple','DVA'],
+  };
+
+  var html = '<div class="cl-list-view" style="padding:0">';
+
+  // Upcoming strip
+  if (weekAppts.length) {
+    html += '<div style="padding:8px 16px 0"><div class="db-sec-hdr"><div class="db-sec-title">Upcoming This Week</div><div class="db-sec-count info">' + weekAppts.length + '</div><div class="db-sec-divider"></div></div></div>';
+    html += '<div style="padding:0 16px"><div class="db-upcoming-strip">';
+    weekAppts.forEach(function(a) {
+      var d        = new Date(a.start);
+      var dayName  = d.toLocaleDateString('en-AU', { weekday: 'long' });
+      var dayNum   = d.getDate();
+      var timeStr  = d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' });
+      var patientId = '';
+      (a.participant || []).forEach(function(p) {
+        var ref = (p.actor && p.actor.reference) || '';
+        if (ref.startsWith('Patient/')) patientId = ref.replace('Patient/', '');
+      });
+      var name     = patientMap[patientId] || 'Client';
+      var av       = _ucAvColor(name);
+      var ini      = _ucInitials(name);
+      var funder   = a.funder || '';
+      var bMap     = FUNDER_BADGE_MAP[funder];
+      var fBadge   = bMap ? '<span class="db-badge ' + bMap[0] + '" style="font-size:10px">' + bMap[1] + '</span>' : '';
+      html += '<div class="glass db-uc-card" onclick="_openClientFromAppt(\'' + escHtml(patientId) + '\')">'
+        + '<div class="db-uc-day">' + dayName + '</div>'
+        + '<div class="db-uc-date">' + dayNum + '</div>'
+        + '<div class="db-uc-sep"></div>'
+        + '<div class="db-uc-av-row"><div class="db-uc-av ' + av + '">' + ini + '</div>'
+        + '<div><div class="db-uc-name">' + escHtml(name) + '</div><div class="db-uc-time">' + timeStr + '</div></div></div>'
+        + '<div class="db-uc-foot">' + fBadge + '</div>'
+        + '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // All clients section header
+  html += '<div style="padding:4px 16px 0"><div class="db-sec-hdr"><div class="db-sec-title">All Clients</div><div class="db-sec-count">' + (visibleActiveHx.length + visibleOnboarding.length) + '</div><div class="db-sec-divider"></div>'
+    + '<input type="search" placeholder="Search…" value="' + escHtml(window._clientListSearch || '') + '"'
+    + ' oninput="window._clientListSearch=this.value;renderClientsView()"'
+    + ' style="padding:6px 11px;background:var(--n-bg);border:none;border-radius:8px;font-family:inherit;font-size:12px;outline:none;box-shadow:inset 2px 2px 5px var(--n-sd),inset -2px -2px 5px var(--n-sl);color:var(--db-text);width:180px">'
+    + '</div></div>';
 
   // List
-  html += '<div class="cl-list">';
+  html += '<div class="cl-list" style="padding:4px 16px 80px;gap:4px;display:flex;flex-direction:column">';
   if (!visibleActiveHx.length && !visibleOnboarding.length) {
     html += '<div class="cl-list-empty">' + (searchQ ? 'No clients match your search' : 'No clients yet') + '</div>';
   } else {
