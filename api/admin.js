@@ -2763,166 +2763,224 @@ body {
     <div class="db-modal-hdr">
       <div>
         <div class="db-modal-title" id="db-modal-client-title">Add Client</div>
-        <div class="db-modal-sub">Enter details then choose where to save</div>
+        <div class="db-modal-sub">Choose where to save, then fill in the details</div>
       </div>
       <button class="db-modal-close" onclick="closeDbModal('db-modal-client')">×</button>
     </div>
     <div class="db-step-indicator">
       <div class="db-step active" id="db-cl-s1-ind" onclick="dbGoStep('cl',1)">
         <div class="db-step-num">1</div>
-        <div class="db-step-label">Details</div>
+        <div class="db-step-label">Save to…</div>
       </div>
       <div class="db-step-line"></div>
-      <div class="db-step" id="db-cl-s2-ind" onclick="dbGoStep('cl',2)">
+      <div class="db-step" id="db-cl-s2-ind">
         <div class="db-step-num">2</div>
-        <div class="db-step-label">Save to…</div>
+        <div class="db-step-label">Details</div>
       </div>
     </div>
     <div class="db-modal-body">
+
+      <!-- Step 1: Destination choice -->
       <div class="db-step-body active" id="db-cl-s1">
-        <div class="db-form-row">
-          <div class="db-form-grp"><label class="db-form-lbl">First Name</label><input class="db-form-input" id="db-cl-fname" type="text" placeholder="Sarah"></div>
-          <div class="db-form-grp"><label class="db-form-lbl">Last Name</label><input class="db-form-input" id="db-cl-lname" type="text" placeholder="Bell"></div>
-        </div>
-        <div class="db-form-row">
-          <div class="db-form-grp"><label class="db-form-lbl">Email</label><input class="db-form-input" id="db-cl-email" type="email" placeholder="sarah@email.com"></div>
-          <div class="db-form-grp"><label class="db-form-lbl">Phone</label><input class="db-form-input" id="db-cl-phone" type="tel" placeholder="04xx xxx xxx"></div>
-        </div>
-        <div class="db-form-row">
-          <div class="db-form-grp"><label class="db-form-lbl">Source</label>
-            <select class="db-form-input" id="db-cl-source">
-              <option value="">How did they find us?</option>
-              <option value="website">Website form</option>
-              <option value="email">Direct email</option>
-              <option value="phone">Phone call</option>
-              <option value="gp_referral">GP referral</option>
-              <option value="eap">EAP referral</option>
-              <option value="word_of_mouth">Word of mouth</option>
-            </select>
-          </div>
-          <div class="db-form-grp"><label class="db-form-lbl">Funder Type</label>
-            <select class="db-form-input" id="db-cl-funder">
-              <option value="">Unknown / TBC</option>
-              <option value="private">Private</option>
-              <option value="medicare">Medicare</option>
-              <option value="ndis_plan">NDIS Plan Managed</option>
-              <option value="ndis_self">NDIS Self Managed</option>
-              <option value="qfes">QFES / EAP</option>
-              <option value="workcover">WorkCover</option>
-              <option value="dva">DVA</option>
-            </select>
-          </div>
-        </div>
-        <div class="db-form-row">
-          <div class="db-form-grp full"><label class="db-form-lbl">Notes</label><input class="db-form-input" id="db-cl-notes" type="text" placeholder="e.g. GP referral for anxiety — Dr Smith"></div>
-        </div>
-      </div>
-      <div class="db-step-body" id="db-cl-s2">
+        <p style="font-size:13px;color:var(--db-txt-soft,#6b7a8d);margin:0 0 14px;">Where should this client be saved?</p>
         <div class="db-dest-cards">
-          <div class="db-dest-card" onclick="dbSelectDest(this,'onboarding')">
+          <div class="db-dest-card" onclick="dbSelectDest(this,'onboarding','cl')">
             <div class="db-dest-card-icon">📋</div>
             <div class="db-dest-card-title">Onboarding Queue</div>
-            <div class="db-dest-card-desc">Save to dashboard only. Assign a follow-up action. Move to Halaxy when ready.</div>
+            <div class="db-dest-card-desc">Save to dashboard only. Fill in contact + funder details. Move to Halaxy when ready.</div>
           </div>
-          <div class="db-dest-card" onclick="dbSelectDest(this,'halaxy')">
+          <div class="db-dest-card" onclick="dbSelectDest(this,'halaxy','cl')">
             <div class="db-dest-card-icon">🔗</div>
             <div class="db-dest-card-title">Create in Halaxy</div>
-            <div class="db-dest-card-desc">Create patient in Halaxy and link here. Use for clients starting immediately.</div>
+            <div class="db-dest-card-desc">Open the Halaxy patient form with details pre-filled. For clients starting immediately.</div>
           </div>
         </div>
-        <div class="db-hint-box">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0;margin-top:1px"><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm.93-9.412l-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 110-2 1 1 0 010 2z"/></svg>
-          You can always move a client from Onboarding into Halaxy later using the "Link to Halaxy" action on their profile.
+      </div>
+
+      <!-- Step 2: Context-aware form -->
+      <div class="db-step-body" id="db-cl-s2">
+
+        <!-- Onboarding fields -->
+        <div id="db-cl-s2-onboarding" style="display:none">
+          <div class="db-form-row">
+            <div class="db-form-grp"><label class="db-form-lbl">First Name</label><input class="db-form-input" id="db-cl-fname" type="text" placeholder="Sarah"></div>
+            <div class="db-form-grp"><label class="db-form-lbl">Last Name</label><input class="db-form-input" id="db-cl-lname" type="text" placeholder="Bell"></div>
+          </div>
+          <div class="db-form-row">
+            <div class="db-form-grp"><label class="db-form-lbl">Email</label><input class="db-form-input" id="db-cl-email" type="email" placeholder="sarah@email.com"></div>
+            <div class="db-form-grp"><label class="db-form-lbl">Phone</label><input class="db-form-input" id="db-cl-phone" type="tel" placeholder="04xx xxx xxx"></div>
+          </div>
+          <div class="db-form-row">
+            <div class="db-form-grp"><label class="db-form-lbl">Source</label>
+              <select class="db-form-input" id="db-cl-source">
+                <option value="">How did they find us?</option>
+                <option value="website">Website form</option>
+                <option value="email">Direct email</option>
+                <option value="phone">Phone call</option>
+                <option value="gp_referral">GP referral</option>
+                <option value="eap">EAP referral</option>
+                <option value="word_of_mouth">Word of mouth</option>
+              </select>
+            </div>
+            <div class="db-form-grp"><label class="db-form-lbl">Funder Type</label>
+              <select class="db-form-input" id="db-cl-funder">
+                <option value="">Unknown / TBC</option>
+                <option value="private">Private</option>
+                <option value="medicare">Medicare</option>
+                <option value="ndis_plan">NDIS Plan Managed</option>
+                <option value="ndis_self">NDIS Self Managed</option>
+                <option value="qfes">QFES / EAP</option>
+                <option value="workcover">WorkCover</option>
+                <option value="dva">DVA</option>
+              </select>
+            </div>
+          </div>
+          <div class="db-form-row">
+            <div class="db-form-grp full"><label class="db-form-lbl">Notes</label><input class="db-form-input" id="db-cl-notes" type="text" placeholder="e.g. GP referral for anxiety — Dr Smith"></div>
+          </div>
         </div>
+
+        <!-- Halaxy fields -->
+        <div id="db-cl-s2-halaxy" style="display:none">
+          <div class="db-form-row">
+            <div class="db-form-grp"><label class="db-form-lbl">First Name</label><input class="db-form-input" id="db-cl-hx-fname" type="text" placeholder="Sarah"></div>
+            <div class="db-form-grp"><label class="db-form-lbl">Last Name</label><input class="db-form-input" id="db-cl-hx-lname" type="text" placeholder="Bell"></div>
+          </div>
+          <div class="db-form-row">
+            <div class="db-form-grp"><label class="db-form-lbl">Date of Birth</label><input class="db-form-input" id="db-cl-hx-dob" type="date"></div>
+            <div class="db-form-grp"><label class="db-form-lbl">Phone</label><input class="db-form-input" id="db-cl-hx-phone" type="tel" placeholder="04xx xxx xxx"></div>
+          </div>
+          <div class="db-form-row">
+            <div class="db-form-grp full"><label class="db-form-lbl">Email</label><input class="db-form-input" id="db-cl-hx-email" type="email" placeholder="sarah@email.com"></div>
+          </div>
+          <div class="db-hint-box">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0;margin-top:1px"><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm.93-9.412l-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 110-2 1 1 0 010 2z"/></svg>
+            Details will be pre-filled in Halaxy — complete the patient record there to confirm.
+          </div>
+        </div>
+
       </div>
     </div>
     <div class="db-modal-ftr">
       <button class="db-btn-ghost" id="db-cl-back" style="display:none" onclick="dbGoStep('cl',1)">← Back</button>
       <button class="db-btn-ghost" onclick="closeDbModal('db-modal-client')">Cancel</button>
-      <button class="db-btn-primary" id="db-cl-next" onclick="_dbClientNextOrSave()">Next: Choose destination →</button>
+      <button class="db-btn-primary" id="db-cl-next" onclick="_dbClientNextOrSave()">Next: Add details →</button>
     </div>
   </div>
 </div>
 
-<!-- ══ ADD APPOINTMENT MODAL (two-step) ══ -->
+<!-- ══ ADD APPOINTMENT MODAL (destination-first) ══ -->
 <div class="db-modal-overlay" id="db-modal-appt" onclick="if(event.target===this)closeDbModal('db-modal-appt')">
   <div class="db-modal">
     <div class="db-modal-hdr">
       <div>
         <div class="db-modal-title">Add Appointment</div>
-        <div class="db-modal-sub">Schedule a session or intake, then sync to Halaxy or onboarding</div>
+        <div class="db-modal-sub">Choose where to save, then fill in the details</div>
       </div>
       <button class="db-modal-close" onclick="closeDbModal('db-modal-appt')">×</button>
     </div>
     <div class="db-step-indicator">
       <div class="db-step active" id="db-ap-s1-ind" onclick="dbGoStep('ap',1)">
         <div class="db-step-num">1</div>
-        <div class="db-step-label">Details</div>
+        <div class="db-step-label">Save to…</div>
       </div>
       <div class="db-step-line"></div>
-      <div class="db-step" id="db-ap-s2-ind" onclick="dbGoStep('ap',2)">
+      <div class="db-step" id="db-ap-s2-ind">
         <div class="db-step-num">2</div>
-        <div class="db-step-label">Save to…</div>
+        <div class="db-step-label">Details</div>
       </div>
     </div>
     <div class="db-modal-body">
+
+      <!-- Step 1: Destination choice -->
       <div class="db-step-body active" id="db-ap-s1">
-        <div class="db-form-row">
-          <div class="db-form-grp full"><label class="db-form-lbl">Client</label>
-            <select class="db-form-input" id="db-ap-client">
-              <option value="">Search or select client…</option>
-              <option value="new">+ Add new client</option>
-            </select>
-          </div>
-        </div>
-        <div class="db-form-row">
-          <div class="db-form-grp"><label class="db-form-lbl">Date</label><input class="db-form-input" id="db-ap-date" type="date"></div>
-          <div class="db-form-grp"><label class="db-form-lbl">Time</label><input class="db-form-input" id="db-ap-time" type="time" value="10:00"></div>
-        </div>
-        <div class="db-form-row">
-          <div class="db-form-grp"><label class="db-form-lbl">Type</label>
-            <select class="db-form-input" id="db-ap-type">
-              <option value="session">Session</option>
-              <option value="intake">Intake / First session</option>
-              <option value="admin">Admin / No charge</option>
-            </select>
-          </div>
-          <div class="db-form-grp"><label class="db-form-lbl">Duration</label>
-            <select class="db-form-input" id="db-ap-duration">
-              <option value="50">50 min</option>
-              <option value="60">60 min</option>
-              <option value="80">80 min</option>
-              <option value="30">30 min</option>
-            </select>
-          </div>
-        </div>
-        <div class="db-form-row">
-          <div class="db-form-grp full"><label class="db-form-lbl">Notes</label><input class="db-form-input" id="db-ap-notes" type="text" placeholder="Optional session notes…"></div>
-        </div>
-      </div>
-      <div class="db-step-body" id="db-ap-s2">
+        <p style="font-size:13px;color:var(--db-txt-soft,#6b7a8d);margin:0 0 14px;">Where should this appointment be saved?</p>
         <div class="db-dest-cards">
-          <div class="db-dest-card" onclick="dbSelectDest(this,'onboarding')">
+          <div class="db-dest-card" onclick="dbSelectDest(this,'onboarding','ap')">
             <div class="db-dest-card-icon">📋</div>
             <div class="db-dest-card-title">Onboarding / Admin</div>
-            <div class="db-dest-card-desc">Save to dashboard calendar only. No Halaxy billing. Link patient later.</div>
+            <div class="db-dest-card-desc">Log in dashboard only — no Halaxy booking. For pre-registered clients, intake calls, or admin time.</div>
           </div>
-          <div class="db-dest-card" onclick="dbSelectDest(this,'halaxy')">
+          <div class="db-dest-card" onclick="dbSelectDest(this,'halaxy','ap')">
             <div class="db-dest-card-icon">🔗</div>
-            <div class="db-dest-card-title">Create in Halaxy</div>
-            <div class="db-dest-card-desc">Book appointment directly in Halaxy. Billing and invoicing handled automatically.</div>
+            <div class="db-dest-card-title">Book in Halaxy</div>
+            <div class="db-dest-card-desc">Open Halaxy calendar with details ready. Invoicing and billing handled automatically.</div>
           </div>
         </div>
-        <div class="db-hint-box">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0;margin-top:1px"><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm.93-9.412l-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 110-2 1 1 0 010 2z"/></svg>
-          Halaxy appointments auto-generate invoices. Admin appointments are for scheduling only — no charge created.
+      </div>
+
+      <!-- Step 2: Context-aware form -->
+      <div class="db-step-body" id="db-ap-s2">
+
+        <!-- Onboarding appointment fields -->
+        <div id="db-ap-s2-onboarding" style="display:none">
+          <div class="db-form-row">
+            <div class="db-form-grp full"><label class="db-form-lbl">Client</label>
+              <select class="db-form-input" id="db-ap-ob-client">
+                <option value="">Select from queue…</option>
+              </select>
+            </div>
+          </div>
+          <div class="db-form-row">
+            <div class="db-form-grp"><label class="db-form-lbl">Date</label><input class="db-form-input" id="db-ap-ob-date" type="date"></div>
+            <div class="db-form-grp"><label class="db-form-lbl">Time</label><input class="db-form-input" id="db-ap-ob-time" type="time" value="10:00"></div>
+          </div>
+          <div class="db-form-row">
+            <div class="db-form-grp full"><label class="db-form-lbl">Type</label>
+              <select class="db-form-input" id="db-ap-ob-type">
+                <option value="intake">Intake / First call</option>
+                <option value="session">Session</option>
+                <option value="admin">Admin / No charge</option>
+              </select>
+            </div>
+          </div>
+          <div class="db-form-row">
+            <div class="db-form-grp full"><label class="db-form-lbl">Notes</label><input class="db-form-input" id="db-ap-ob-notes" type="text" placeholder="Optional notes…"></div>
+          </div>
         </div>
+
+        <!-- Halaxy appointment fields -->
+        <div id="db-ap-s2-halaxy" style="display:none">
+          <div class="db-form-row">
+            <div class="db-form-grp full"><label class="db-form-lbl">Client</label>
+              <select class="db-form-input" id="db-ap-hx-client">
+                <option value="">Search or select Halaxy patient…</option>
+              </select>
+            </div>
+          </div>
+          <div class="db-form-row">
+            <div class="db-form-grp"><label class="db-form-lbl">Date</label><input class="db-form-input" id="db-ap-hx-date" type="date"></div>
+            <div class="db-form-grp"><label class="db-form-lbl">Time</label><input class="db-form-input" id="db-ap-hx-time" type="time" value="10:00"></div>
+          </div>
+          <div class="db-form-row">
+            <div class="db-form-grp"><label class="db-form-lbl">Type</label>
+              <select class="db-form-input" id="db-ap-hx-type">
+                <option value="session">Session</option>
+                <option value="intake">Intake / First session</option>
+                <option value="admin">Admin / No charge</option>
+              </select>
+            </div>
+            <div class="db-form-grp"><label class="db-form-lbl">Duration</label>
+              <select class="db-form-input" id="db-ap-hx-duration">
+                <option value="50">50 min</option>
+                <option value="60">60 min</option>
+                <option value="80">80 min</option>
+                <option value="30">30 min</option>
+              </select>
+            </div>
+          </div>
+          <div class="db-hint-box">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0;margin-top:1px"><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm.93-9.412l-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 110-2 1 1 0 010 2z"/></svg>
+            Halaxy calendar will open with the selected date. Complete the booking there — it will sync back here automatically.
+          </div>
+        </div>
+
       </div>
     </div>
     <div class="db-modal-ftr">
       <button class="db-btn-ghost" id="db-ap-back" style="display:none" onclick="dbGoStep('ap',1)">← Back</button>
       <button class="db-btn-ghost" onclick="closeDbModal('db-modal-appt')">Cancel</button>
-      <button class="db-btn-primary" id="db-ap-next" onclick="dbGoStep('ap',2)">Next: Choose destination →</button>
+      <button class="db-btn-primary" id="db-ap-next" onclick="_dbApptNextOrSave()">Next: Add details →</button>
     </div>
   </div>
 </div>

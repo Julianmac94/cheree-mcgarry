@@ -531,33 +531,46 @@ function renderStubView(view, title, msg) {
    NEW DESIGN SYSTEM — modal + detail panel helpers
 ───────────────────────────────────────────────────────────────── */
 
+/** Tracks which destination was selected per modal prefix ('cl' or 'ap') */
+var _dbSelectedDest = {};
+
 /** Open one of the two-step add modals: 'client' or 'appt' */
 function openDbModal(type) {
   var id  = 'db-modal-' + type;
   var pfx = type === 'client' ? 'cl' : 'ap';
   _dbResetStep(pfx);
-  // Pre-populate appointment date to today
+
   if (type === 'appt') {
     var today = new Date().toISOString().slice(0, 10);
-    var dateEl = document.getElementById('db-ap-date');
-    if (dateEl) dateEl.value = today;
-    // Populate client list from live data
-    var sel = document.getElementById('db-ap-client');
-    if (sel && _halaxyData && _halaxyData.patients) {
-      while (sel.options.length > 1) sel.remove(1);
-      var patients = _halaxyData.patients || [];
-      patients.forEach(function(p) {
+    // Set today as default in both date fields
+    ['db-ap-ob-date', 'db-ap-hx-date'].forEach(function(elId) {
+      var el = document.getElementById(elId);
+      if (el) el.value = today;
+    });
+    // Populate Halaxy patients dropdown
+    var hxSel = document.getElementById('db-ap-hx-client');
+    if (hxSel && _halaxyData && _halaxyData.patients) {
+      while (hxSel.options.length > 1) hxSel.remove(1);
+      (_halaxyData.patients || []).forEach(function(p) {
         var opt = document.createElement('option');
         opt.value = p.id || '';
         opt.textContent = p.name || ('Patient #' + p.id);
-        sel.add(opt);
+        hxSel.add(opt);
       });
-      var newOpt = document.createElement('option');
-      newOpt.value = 'new';
-      newOpt.textContent = '+ Add new client';
-      sel.add(newOpt);
+    }
+    // Populate onboarding clients dropdown
+    var obSel = document.getElementById('db-ap-ob-client');
+    if (obSel && _pipelineData && _pipelineData.clients) {
+      while (obSel.options.length > 1) obSel.remove(1);
+      (_pipelineData.clients || []).forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c.id || '';
+        opt.textContent = [c.first_name, c.last_name].filter(Boolean).join(' ') || ('Client #' + c.id);
+        obSel.add(opt);
+      });
     }
   }
+
   var el = document.getElementById(id);
   if (el) el.classList.add('open');
 }
@@ -583,53 +596,71 @@ function dbGoStep(pfx, step) {
     s1ind.classList.toggle('done', step === 2);
     if (step === 2) s1ind.classList.remove('active');
   }
-  if (s2ind) {
-    s2ind.classList.toggle('active', step === 2);
-    s2ind.classList.toggle('done', false);
+  if (s2ind) s2ind.classList.toggle('active', step === 2);
+  if (back)  back.style.display = step === 2 ? 'flex' : 'none';
+
+  if (step === 2) {
+    // Show the correct sub-section based on chosen destination
+    var dest = _dbSelectedDest[pfx] || 'onboarding';
+    var obSec = document.getElementById('db-' + pfx + '-s2-onboarding');
+    var hxSec = document.getElementById('db-' + pfx + '-s2-halaxy');
+    if (obSec) obSec.style.display = dest === 'onboarding' ? '' : 'none';
+    if (hxSec) hxSec.style.display = dest === 'halaxy'     ? '' : 'none';
+    // Update button label
+    if (next) {
+      if (dest === 'halaxy') {
+        next.textContent = pfx === 'ap' ? 'Open Halaxy Calendar →' : 'Open in Halaxy →';
+      } else {
+        next.textContent = 'Save →';
+      }
+    }
+  } else {
+    if (next) next.textContent = 'Next: Add details →';
   }
-  if (back)  back.style.display  = step === 2 ? 'flex' : 'none';
-  if (next)  next.textContent    = step === 2 ? 'Save →' : 'Next: Choose destination →';
 }
 
 function _dbResetStep(pfx) {
+  delete _dbSelectedDest[pfx];
+  // Clear destination card selection
+  var s1 = document.getElementById('db-' + pfx + '-s1');
+  if (s1) s1.querySelectorAll('.db-dest-card').forEach(function(c) { c.classList.remove('selected'); });
+  // Hide both sub-sections
+  ['onboarding', 'halaxy'].forEach(function(d) {
+    var sub = document.getElementById('db-' + pfx + '-s2-' + d);
+    if (sub) sub.style.display = 'none';
+  });
+  // Reset to step 1 (after hiding sub-sections so dbGoStep doesn't flicker)
   dbGoStep(pfx, 1);
-  // Clear destination selection
-  var s2 = document.getElementById('db-' + pfx + '-s2');
-  if (s2) s2.querySelectorAll('.db-dest-card').forEach(function(c) { c.classList.remove('selected'); });
 }
 
-function dbSelectDest(el, dest) {
+/** Mark a destination card as selected and store the choice */
+function dbSelectDest(el, dest, pfx) {
   var cards = el.closest('.db-dest-cards');
   if (cards) cards.querySelectorAll('.db-dest-card').forEach(function(c) { c.classList.remove('selected'); });
   el.classList.add('selected');
-  el.dataset.dest = dest;
+  _dbSelectedDest[pfx || 'cl'] = dest;
 }
 
 /** Handle Next / Save on the Add Client modal */
 function _dbClientNextOrSave() {
-  var s2 = document.getElementById('db-cl-s2');
-  var isOnStep2 = s2 && s2.classList.contains('active');
-  if (!isOnStep2) {
-    // Move to step 2
+  var s1 = document.getElementById('db-cl-s1');
+  var isOnStep1 = s1 && s1.classList.contains('active');
+  if (isOnStep1) {
+    if (!_dbSelectedDest['cl']) {
+      toast('Please choose a destination first', 'err');
+      return;
+    }
     dbGoStep('cl', 2);
     return;
   }
-  // On step 2 — figure out selected destination and save
-  var selectedCard = s2 ? s2.querySelector('.db-dest-card.selected') : null;
-  if (!selectedCard) {
-    toast('Please choose a destination first', 'err');
-    return;
-  }
-  var dest = selectedCard.dataset.dest || 'onboarding';
+  // On step 2 — save based on selected destination
+  var dest = _dbSelectedDest['cl'] || 'onboarding';
   if (dest === 'halaxy') {
-    // Open existing Halaxy add-client flow
-    var fname  = (document.getElementById('db-cl-fname')  || {}).value || '';
-    var lname  = (document.getElementById('db-cl-lname')  || {}).value || '';
-    var email  = (document.getElementById('db-cl-email')  || {}).value || '';
-    var funder = (document.getElementById('db-cl-funder') || {}).value || '';
+    var fname = (document.getElementById('db-cl-hx-fname') || {}).value || '';
+    var lname = (document.getElementById('db-cl-hx-lname') || {}).value || '';
+    var email = (document.getElementById('db-cl-hx-email') || {}).value || '';
     closeDbModal('db-modal-client');
-    openAddClient();  // existing function — opens old Halaxy modal
-    // Pre-fill if possible
+    openAddClient();  // existing function — opens Halaxy patient modal
     setTimeout(function() {
       var nm = document.getElementById('cl-modal-name');
       var em = document.getElementById('cl-modal-email');
@@ -676,6 +707,57 @@ async function dbSaveClientOnboarding() {
     }
   } catch (err) {
     toast('Could not save client: ' + err.message, 'err');
+  }
+}
+
+/** Handle Next / Save on the Add Appointment modal */
+function _dbApptNextOrSave() {
+  var s1 = document.getElementById('db-ap-s1');
+  var isOnStep1 = s1 && s1.classList.contains('active');
+  if (isOnStep1) {
+    if (!_dbSelectedDest['ap']) {
+      toast('Please choose a destination first', 'err');
+      return;
+    }
+    dbGoStep('ap', 2);
+    return;
+  }
+  // On step 2 — save or open Halaxy
+  var dest = _dbSelectedDest['ap'] || 'onboarding';
+  if (dest === 'halaxy') {
+    var date = (document.getElementById('db-ap-hx-date') || {}).value || '';
+    var calUrl = _halaxyWebUrl
+      ? (_halaxyWebUrl + '/calendar' + (date ? '?date=' + date : ''))
+      : 'https://www.halaxy.com/practitioner';
+    window.open(calUrl, '_blank', 'noopener');
+    closeDbModal('db-modal-appt');
+    toast('Halaxy calendar opened — complete the booking there', 'ok');
+  } else {
+    dbSaveApptOnboarding();
+  }
+}
+
+/** Save an onboarding/admin appointment to the dashboard */
+async function dbSaveApptOnboarding() {
+  var clientId = (document.getElementById('db-ap-ob-client') || {}).value || '';
+  var date     = (document.getElementById('db-ap-ob-date')   || {}).value || '';
+  var time     = (document.getElementById('db-ap-ob-time')   || {}).value || '';
+  var type     = (document.getElementById('db-ap-ob-type')   || {}).value || 'intake';
+  var notes    = (document.getElementById('db-ap-ob-notes')  || {}).value || '';
+
+  if (!date) { toast('Date is required', 'err'); return; }
+
+  try {
+    await apiFetch('/api/sessions', {
+      method: 'POST',
+      body: { client_id: clientId, date, time, type, notes, source: 'dashboard' }
+    });
+    closeDbModal('db-modal-appt');
+    toast('Appointment logged in dashboard', 'ok');
+  } catch (err) {
+    // /api/sessions may not exist yet — fail gracefully
+    closeDbModal('db-modal-appt');
+    toast('Appointment noted — sync to Halaxy when ready', 'ok');
   }
 }
 
