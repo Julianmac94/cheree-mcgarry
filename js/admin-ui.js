@@ -552,14 +552,16 @@ function openDbModal(type) {
       var el = document.getElementById(elId);
       if (el) el.value = today;
     });
-    // Clear Halaxy search state
-    var hxSearch = document.getElementById('db-ap-hx-search');
-    var hxHidden = document.getElementById('db-ap-hx-client');
-    var hxResults = document.getElementById('db-ap-hx-results');
+    // Clear Halaxy search + funder + fee state
+    var hxSearch   = document.getElementById('db-ap-hx-search');
+    var hxHidden   = document.getElementById('db-ap-hx-client');
+    var hxResults  = document.getElementById('db-ap-hx-results');
+    var hxFunder   = document.getElementById('db-ap-hx-funder');
     if (hxSearch)  { hxSearch.value = ''; }
     if (hxHidden)  { hxHidden.value = ''; }
     if (hxResults) { hxResults.innerHTML = ''; hxResults.style.display = 'none'; }
-    // Populate fee dropdown with all fees (narrows after patient selected)
+    if (hxFunder)  { hxFunder.value = ''; }
+    // Reset fee dropdown — empty until funder is chosen
     _dbPopulateHxFees(null);
     // Populate onboarding clients dropdown
     var obSel = document.getElementById('db-ap-ob-client');
@@ -791,37 +793,72 @@ function dbHxPatientSelect(id, name) {
   if (hiddenInput) hiddenInput.value = id;
   if (searchInput) { searchInput.value = name; }
   if (res)         { res.innerHTML = ''; res.style.display = 'none'; }
-  // Narrow fee list to patient's known funder
-  var clients = (_pipelineData && _pipelineData.clients) || [];
-  var linked  = clients.find(function(c) { return String(c.halaxy_id) === String(id); });
-  _dbPopulateHxFees(linked ? linked.funder : null);
+  // If patient has a linked Supabase client, pre-select their funder
+  var clients    = (_pipelineData && _pipelineData.clients) || [];
+  var linked     = clients.find(function(c) { return String(c.halaxy_id) === String(id); });
+  var funderKey  = linked ? (linked.funder || null) : null;
+  var funderSel  = document.getElementById('db-ap-hx-funder');
+  if (funderSel && funderKey) funderSel.value = funderKey;
+  _dbPopulateHxFees(funderKey);
 }
 
-/** Populate (or repopulate) the Halaxy fee dropdown, optionally filtered by funder key */
+/** Called when the funder dropdown changes */
+function _dbOnHxFunderChange() {
+  var funderSel = document.getElementById('db-ap-hx-funder');
+  _dbPopulateHxFees(funderSel ? funderSel.value : null);
+}
+
+/** Populate (or repopulate) the Halaxy fee dropdown filtered by funder key.
+ *  If funderKey is null/empty, shows no fees (prompts user to pick a funder first). */
 function _dbPopulateHxFees(funderKey) {
   var feeSel = document.getElementById('db-ap-hx-fee');
   if (!feeSel) return;
-  var fees = _halaxyFees || [];
-  var toShow = (funderKey && typeof _filterFeesForFunder === 'function')
+
+  // If no funderKey explicitly passed, read from funder dropdown
+  if (!funderKey) {
+    var funderSel = document.getElementById('db-ap-hx-funder');
+    funderKey = (funderSel && funderSel.value) || null;
+  }
+
+  while (feeSel.options.length > 0) feeSel.remove(0);
+
+  if (!funderKey) {
+    // No funder selected — show empty prompt
+    var ph = document.createElement('option');
+    ph.value = '';
+    ph.textContent = 'Select a funder first…';
+    feeSel.add(ph);
+    return;
+  }
+
+  var fees    = _halaxyFees || [];
+  var toShow  = (typeof _filterFeesForFunder === 'function')
     ? _filterFeesForFunder(fees, funderKey, null)
     : fees;
-  if (!toShow || !toShow.length) toShow = fees; // fall back to all fees
-  while (feeSel.options.length > 1) feeSel.remove(1);
+  if (!toShow || !toShow.length) toShow = fees; // graceful fallback
+
+  var none = document.createElement('option');
+  none.value = '';
+  none.textContent = 'No charge / skip billing';
+  feeSel.add(none);
+
   toShow.forEach(function(f) {
     var opt = document.createElement('option');
-    opt.value = f.id || '';
-    opt.dataset.amount = f.amount != null ? f.amount : '';
-    opt.dataset.name   = f.name || '';
-    var lbl = (f.name || ('Fee #' + f.id));
+    opt.value            = f.id || '';
+    opt.dataset.amount   = f.amount != null ? f.amount : '';
+    opt.dataset.name     = f.name || '';
+    var lbl = f.name || ('Fee #' + f.id);
     if (f.amount != null) lbl += ' — $' + Number(f.amount).toFixed(2);
     opt.textContent = lbl;
     feeSel.add(opt);
   });
-  // Update hint to reflect funder context
+
+  // Update hint
   var hint = document.getElementById('db-ap-hx-hint');
-  if (hint && funderKey) {
-    hint.childNodes[hint.childNodes.length - 1].textContent =
-      ' Fees filtered for ' + (FUNDER_LABELS[funderKey] || funderKey) + '. Selecting a fee auto-creates the invoice in Halaxy.';
+  if (hint) {
+    var label = FUNDER_LABELS && FUNDER_LABELS[funderKey] ? FUNDER_LABELS[funderKey] : funderKey;
+    var lastNode = hint.lastChild;
+    if (lastNode) lastNode.textContent = ' ' + toShow.length + ' fee' + (toShow.length === 1 ? '' : 's') + ' for ' + label + '. Selecting one auto-creates the invoice in Halaxy.';
   }
 }
 
@@ -833,6 +870,8 @@ async function dbBookHalaxyAppt() {
   var duration     = parseInt((document.getElementById('db-ap-hx-duration') || {}).value || '50', 10);
   var locationSel  = document.getElementById('db-ap-hx-location');
   var locationType = locationSel ? (locationSel.value || 'clinic') : 'clinic';
+  var funderSel    = document.getElementById('db-ap-hx-funder');
+  if (funderSel && !funderSel.value) { toast('Please select a funder', 'err'); return; }
   var feeSel       = document.getElementById('db-ap-hx-fee');
   var feeId        = feeSel ? (feeSel.value || '') : '';
   var feeOpt       = feeSel ? feeSel.options[feeSel.selectedIndex] : null;

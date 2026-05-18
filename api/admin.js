@@ -2971,15 +2971,29 @@ body {
             </div>
           </div>
           <div class="db-form-row">
+            <div class="db-form-grp full"><label class="db-form-lbl">Funder</label>
+              <select class="db-form-input" id="db-ap-hx-funder" onchange="_dbOnHxFunderChange()">
+                <option value="">Select funder…</option>
+                <option value="private">Private</option>
+                <option value="medicare">Medicare / Better Access</option>
+                <option value="ndis_plan">NDIS — Plan Managed</option>
+                <option value="ndis_self">NDIS — Self Managed</option>
+                <option value="qfes">QFES / EAP</option>
+                <option value="workcover">WorkCover</option>
+                <option value="dva">DVA / ADF</option>
+              </select>
+            </div>
+          </div>
+          <div class="db-form-row">
             <div class="db-form-grp full"><label class="db-form-lbl">Fee</label>
               <select class="db-form-input" id="db-ap-hx-fee">
-                <option value="">No charge / select fee…</option>
+                <option value="">Select a funder first…</option>
               </select>
             </div>
           </div>
           <div class="db-hint-box" id="db-ap-hx-hint">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0;margin-top:1px"><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm.93-9.412l-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 110-2 1 1 0 010 2z"/></svg>
-            Select a fee to auto-create the invoice in Halaxy. Leave blank to book without billing.
+            Select a funder to see matching fees. Picking a fee auto-creates the invoice in Halaxy.
           </div>
         </div>
 
