@@ -3219,9 +3219,10 @@ async function _fetchHalaxyInvoices(hxId) {
           var amount   = parseFloat(inv.amount || 0);
           var owing    = parseFloat(inv.totalBalance || 0);
           var isPaid   = owing === 0 && parseFloat(inv.totalPaid || 0) > 0;
-          var statusLbl = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : (inv.status || 'active'));
+          // Fold owing amount into badge — avoids "$1000.00  $1000.00 owing  owing"
+          var statusLbl = isPaid ? 'paid' : (owing > 0.005 ? '$' + owing.toFixed(2) + ' owing' : (inv.status || 'active'));
           var statusCls = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : 'active');
-          // Show org payor if not patient-direct
+          // Show org payor label if not patient-direct
           var payorBadge = '';
           var payorLabel2 = _resolvePayorLabel(inv.payorOrg);
           if (payorLabel2) {
@@ -3231,7 +3232,6 @@ async function _fetchHalaxyInvoices(hxId) {
             + '<span style="flex:1;font-size:12px;color:#7A948F">' + escHtml(dateStr) + '</span>'
             + '<span style="font-weight:600;color:#1A2F2B">' + (amount > 0 ? '$' + amount.toFixed(2) : '—') + '</span>'
             + payorBadge
-            + (owing > 0.005 ? '<span style="font-size:11px;color:var(--amber)">$' + owing.toFixed(2) + ' owing</span>' : '')
             + '<span class="cl-detail-inv-badge ' + statusCls + '">' + escHtml(statusLbl) + '</span></div>';
         }).join('');
         invEl.innerHTML = title + rows;

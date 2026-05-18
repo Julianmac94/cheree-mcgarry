@@ -160,23 +160,37 @@ async function syncHalaxyConfig(db) {
     return kf;
   });
 
-  // Add Halaxy orgs not in KNOWN_FUNDERS ONLY if their type clearly marks them as a funder
-  const knownNames = new Set(KNOWN_FUNDERS.map(kf => normalise(kf.name)));
-  const EXPLICIT_FUNDER_TYPE_PATTERNS = [
-    'medicare', 'ndis', 'plan management', 'plan manager',
-    'insurance', 'insurer', 'workers comp', "worker's comp",
-    'dva', 'defence', 'adf', 'eap', 'third.party', 'government fund',
-  ];
+  // Pass 2: Add Halaxy orgs not already in funders by ID.
+  // Primary gate: mapOrgToFunder already assigned a non-private billingKey via name/type matching
+  // (e.g. "Queensland Fire and Emergency Services" → billingKey='qfes').  We include these
+  // regardless of whether their type text matches explicit patterns — the name match in
+  // mapOrgToFunder is more comprehensive.  This ensures real Halaxy org IDs (OG-xxxxx) are
+  // stored in the cache so invoice payorOrg fields can be resolved client-side.
+  const coveredIds  = new Set(funders.map(f => f.id).filter(Boolean));
+  const knownNames  = new Set(KNOWN_FUNDERS.map(kf => normalise(kf.name)));
   halaxyOrgs.forEach(o => {
-    if (knownNames.has(normalise(o.name))) return; // already included via KNOWN_FUNDERS
-    const t = (o.type || '').toLowerCase(), n = normalise(o.name);
-    const looksLikeFunder = EXPLICIT_FUNDER_TYPE_PATTERNS.some(p => t.includes(p) || n.includes(p));
-    if (looksLikeFunder) {
-      console.log(`Adding unlisted funder from Halaxy: ${o.name} (${o.type})`);
-      funders.push(o);
-    } else {
-      console.log(`Skipping Halaxy org (not a known funder): ${o.name} (${o.type})`);
+    if (!o.id) return;
+    if (coveredIds.has(o.id)) return; // already included with this Halaxy ID
+    if (!o.billingKey || o.billingKey === 'private') {
+      // Generic/private — only add if type text explicitly marks it as a funder
+      const t = (o.type || '').toLowerCase(), n = normalise(o.name);
+      const EXPLICIT_FUNDER_TYPE_PATTERNS = [
+        'medicare', 'ndis', 'plan management', 'plan manager',
+        'insurance', 'insurer', 'workers comp', "worker's comp",
+        'dva', 'defence', 'adf', 'eap', 'third.party', 'government fund',
+      ];
+      if (EXPLICIT_FUNDER_TYPE_PATTERNS.some(p => t.includes(p) || n.includes(p))) {
+        console.log(`Adding private-typed funder from Halaxy: ${o.name} (${o.type})`);
+        funders.push({ ...o, halaxyId: o.id });
+      } else {
+        console.log(`Skipping Halaxy org (not a known funder): ${o.name} (${o.type})`);
+      }
+      return;
     }
+    // Non-private billingKey assigned by mapOrgToFunder name matching — always include
+    console.log(`Adding funder org by billingKey from Halaxy: ${o.name} (ID: ${o.id}) → ${o.billingKey}`);
+    funders.push({ ...o, halaxyId: o.id });
+    coveredIds.add(o.id);
   });
 
   const funderSource = halaxyOrgs.length > 0 ? 'halaxy+seed' : 'seed';
