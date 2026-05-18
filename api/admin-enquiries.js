@@ -715,6 +715,65 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── POST ?halaxy_create_and_map=1 — create patient in Halaxy, patch existing Supabase client ──
+   * Unlike halaxy_create_patient (which inserts a new Supabase record), this endpoint
+   * maps an EXISTING Supabase onboarding record to a freshly-created Halaxy patient.
+   * The Supabase client already exists (onboarding stage); we just update its halaxy_id.
+   *
+   * Body fields:
+   *   clientId      string   Supabase client UUID  (required)
+   *   firstName     string   (required)
+   *   lastName      string   (required)
+   *   phone         string   (optional)
+   *   email         string   (optional)
+   *   dob           string   YYYY-MM-DD (optional)
+   * ──────────────────────────────────────────────────────────────────────────────────── */
+  if (req.method === 'POST' && (req.query?.halaxy_create_and_map || new URL(req.url, 'http://x').searchParams.get('halaxy_create_and_map'))) {
+    if (!process.env.HALAXY_CLIENT_ID) {
+      return res.status(400).json({ error: 'Halaxy not configured' });
+    }
+
+    const { clientId, firstName, lastName, phone, email, dob } = req.body || {};
+    if (!clientId)              return res.status(400).json({ error: 'clientId is required' });
+    if (!firstName || !lastName) return res.status(400).json({ error: 'firstName and lastName are required' });
+
+    try {
+      // Build FHIR R4 Patient resource
+      const patientResource = {
+        resourceType: 'Patient',
+        name: [{ use: 'official', given: [firstName.trim()], family: lastName.trim() }],
+      };
+      if (dob) patientResource.birthDate = dob;
+      const telecom = [];
+      if (phone) telecom.push({ system: 'phone', value: phone.trim(), use: 'mobile' });
+      if (email) telecom.push({ system: 'email', value: email.trim() });
+      if (telecom.length) patientResource.telecom = telecom;
+
+      console.log('Creating Halaxy patient (create-and-map):', firstName, lastName);
+      const created  = await halaxyPost('/Patient', patientResource);
+      const halaxyId = created.id;
+      if (!halaxyId) throw new Error('Halaxy did not return a patient ID. Response: ' + JSON.stringify(created).slice(0, 300));
+      console.log('Halaxy patient created:', halaxyId, '— patching Supabase client', clientId);
+
+      // PATCH the existing Supabase client record with the new halaxy_id
+      const db2 = supabase();
+      const { data: client, error: patchErr } = await db2
+        .from('clients')
+        .update({ halaxy_id: halaxyId })
+        .eq('id', clientId)
+        .select()
+        .single();
+
+      if (patchErr) throw new Error('Supabase client patch failed: ' + patchErr.message);
+      console.log('Supabase client', clientId, 'linked to Halaxy', halaxyId);
+
+      return res.status(200).json({ ok: true, client, halaxyId });
+    } catch (err) {
+      console.error('halaxy_create_and_map error:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   /* ── POST ?new_session=1 — create a session from the dashboard ──────────────────────
    * Creates a Google Calendar event and, for Halaxy clients, $books the appointment
    * in Halaxy (which auto-creates invoice + clinical note + reminder).
@@ -1050,13 +1109,29 @@ export default async function handler(req, res) {
     const patientId = params.get('halaxy_coverage').trim();
     if (!patientId || !process.env.HALAXY_CLIENT_ID) return res.status(200).json({ coverage: [] });
     try {
+      // Load cached funders so we can resolve org reference URLs to display names
+      const db4      = supabase();
+      const fCached  = await readCache(db4, 'halaxy_funders_cache').catch(() => null);
+      const funders  = (fCached?.funders || []);
+      const orgIdToName = {};
+      funders.forEach(f => { if (f.id) orgIdToName[f.id] = f.name; });
+
       const bundle   = await halaxyGet('/Coverage', { patient: patientId, _count: '5' });
-      const coverage = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(c => ({
-        id:       c.id,
-        payor:    c.payor?.[0]?.display || c.payor?.[0]?.reference || '',
-        typeText: c.type?.text || c.type?.coding?.[0]?.display || '',
-        status:   c.status,
-      }));
+      const coverage = (bundle.entry || []).map(e => e.resource).filter(Boolean).map(c => {
+        let payor = c.payor?.[0]?.display || '';
+        if (!payor && c.payor?.[0]?.reference) {
+          // Reference is often a full URL: https://au-api.halaxy.com/main/Organization/FD-765771
+          // Extract the last path segment (org ID) and resolve to a display name
+          const orgId = c.payor[0].reference.split('/').pop();
+          payor = orgIdToName[orgId] || orgId; // fall back to bare ID if not in cache
+        }
+        return {
+          id:       c.id,
+          payor,
+          typeText: c.type?.text || c.type?.coding?.[0]?.display || '',
+          status:   c.status,
+        };
+      });
       return res.status(200).json({ coverage });
     } catch (err) {
       return res.status(200).json({ coverage: [], error: err.message });
@@ -1247,6 +1322,11 @@ export default async function handler(req, res) {
           }
         });
 
+        // Org ID → display name lookup — built from cachedFunders so both invoice
+        // payor resolution and Coverage payor URL resolution can use it.
+        const orgIdToName = {};
+        cachedFunders.forEach(f => { if (f.id) orgIdToName[f.id] = f.name; });
+
         // Map Invoice resources → clean billing objects.
         // Halaxy uses "recipient" (not "subject") for the patient reference,
         // and "created" (not "date") for the invoice date.
@@ -1265,10 +1345,23 @@ export default async function handler(req, res) {
                 break;
               }
             }
-            // Also check subject as a fallback (standard FHIR field)
+            // subject: standard FHIR — only use if it's a Patient reference
+            // (org-billed invoices may have subject = Organization/xxx — skip those)
             if (!patientId) {
               const subjectRef = inv.subject?.reference || '';
-              if (subjectRef.includes('/')) patientId = subjectRef.split('/').pop();
+              if (subjectRef.toLowerCase().includes('patient/')) {
+                patientId = subjectRef.split('/').pop();
+              }
+            }
+            // participant: Halaxy org invoices often link the patient here
+            if (!patientId && Array.isArray(inv.participant)) {
+              for (const p of inv.participant) {
+                const ref = p.actor?.reference || '';
+                if (ref.toLowerCase().includes('patient/')) {
+                  patientId = ref.split('/').pop();
+                  break;
+                }
+              }
             }
             // Keep invoices even without a resolvable patientId so the date-based
             // fallback in the dashboard can still detect that billing happened on a day.
@@ -1290,6 +1383,26 @@ export default async function handler(req, res) {
                           || lineItem?.chargeItemCodeableConcept?.text
                           || '';
 
+            // Track who is actually paying — patient-direct or an org funder
+            // For org invoices the recipient reference is an Organization
+            let payorOrg = null;
+            for (const r of recipientList) {
+              const ref = r?.reference || '';
+              if (ref.toLowerCase().includes('organization/') || ref.toLowerCase().includes('organisation/')) {
+                const orgId = ref.split('/').pop();
+                payorOrg = r?.display || orgIdToName[orgId] || orgId;
+                break;
+              }
+            }
+            // Also check subject for org reference if no org recipient found
+            if (!payorOrg) {
+              const subjectRef = inv.subject?.reference || '';
+              if (subjectRef.toLowerCase().includes('organization/') || subjectRef.toLowerCase().includes('organisation/')) {
+                const orgId = subjectRef.split('/').pop();
+                payorOrg = orgIdToName[orgId] || orgId;
+              }
+            }
+
             return {
               id:           inv.id,
               status,
@@ -1299,6 +1412,7 @@ export default async function handler(req, res) {
               totalBalance,
               totalPaid,
               feeName,
+              payorOrg,     // null for patient-funded; org name for org/funder-billed invoices
               currency:     inv.totalGross?.currency || inv.totalNet?.currency || 'AUD',
               ref:          inv.identifier?.[0]?.value || inv.id,
             };
@@ -1307,14 +1421,20 @@ export default async function handler(req, res) {
 
         // Build patientId → payor name map from Coverage resources returned via
         // _revinclude=Coverage:beneficiary on the Patient fetch.
-        // Storing raw payor display name; client applies _mapCoverageToFunderKey().
+        // Storing resolved payor display name; client applies _mapCoverageToFunderKey().
+        // When payor[0].display is empty, Halaxy returns a full URL reference like
+        // "https://au-api.halaxy.com/main/Organization/FD-765771" — resolve using orgIdToName.
         const patientFunderMap = {};
         coverageResources.forEach(cov => {
           // beneficiary.reference: "Patient/123" or absolute URL
           const benefRef = cov.beneficiary?.reference || '';
           const patId    = benefRef.split('/').pop();
           if (!patId) return;
-          const payor = cov.payor?.[0]?.display || cov.payor?.[0]?.reference || '';
+          let payor = cov.payor?.[0]?.display || '';
+          if (!payor && cov.payor?.[0]?.reference) {
+            const orgId = cov.payor[0].reference.split('/').pop();
+            payor = orgIdToName[orgId] || orgId; // bare ID is better than a full URL
+          }
           if (payor) patientFunderMap[patId] = payor;
         });
 

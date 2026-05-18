@@ -1839,6 +1839,10 @@ function renderBillingPanel() {
         var dt   = inv.date ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
         var _invAmt = inv.totalBalance != null ? inv.totalBalance : inv.amount;
         var amt  = _invAmt ? '$' + Number(_invAmt).toFixed(2) : '';
+        // Payor label — show org name for org-funded invoices (QFES, WorkCover, etc.)
+        var payorFunderKey = inv.payorOrg ? _guessFunderKey(inv.payorOrg) : null;
+        var payorLabel = payorFunderKey ? (FUNDER_LABELS[payorFunderKey] || inv.payorOrg)
+                                        : (inv.payorOrg || null);
         var sub  = _getSubStatus(inv.id);
         var subBadge = '', subAction = '';
         if (sub) {
@@ -1856,7 +1860,9 @@ function renderBillingPanel() {
           + '</div>'
           + '<div class="bill-card-meta">'
           + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
-          + '<span class="dp-badge dp-badge--status-invoiced">Awaiting payment</span>'
+          + (payorLabel
+              ? '<span class="dp-badge dp-badge--status-invoiced" style="background:rgba(154,110,180,0.1);color:#7A50A0">' + escHtml(payorLabel) + '</span>'
+              : '<span class="dp-badge dp-badge--status-invoiced">Awaiting payment</span>')
           + subBadge
           + '</div>'
           + '<div class="dp-card-actions" style="display:flex;align-items:center;gap:6px">'
@@ -3165,6 +3171,18 @@ async function _fetchHalaxyCoverage(hxId) {
 
 function _guessFunderKey(payorStr) {
   var s = (payorStr || '').toLowerCase();
+
+  // If the string is a URL (Halaxy reference) or a bare org ID like "FD-765771",
+  // try to resolve it via the loaded funders list before text-matching.
+  if (s.includes('halaxy.com/') || /^[a-z]{2,4}-\d{4,}$/.test((payorStr || '').trim())) {
+    var orgId = (payorStr || '').split('/').pop().trim();
+    var funders = _halaxyFunders || [];
+    var match = funders.find(function(f) { return f.id === orgId; });
+    if (match && match.billingKey) return match.billingKey;
+    // Couldn't resolve — extract just the ID and fall through to text matching
+    s = orgId.toLowerCase();
+  }
+
   if (s.includes('medicare'))                                                                             return 'medicare';
   // Bupa in Halaxy = DVA/ADFHSC for this practice
   if (s.includes('dva') || s.includes('defence') || s.includes('veteran') || s.includes('adfhcs') || s.includes('bupa')) return 'dva';
@@ -4852,13 +4870,17 @@ function openMapToHalaxy(clientId) {
   var modal = document.getElementById('add-client-modal');
   if (!modal) return;
 
-  // Reuse the modal but show the Map-to-Halaxy UI
   modal.style.display = 'flex';
+  _renderMapToHalaxySearch(modal, clientId, c);
+}
+
+function _renderMapToHalaxySearch(modal, clientId, c) {
   var inner = modal.querySelector('.cl-modal-inner') || modal;
+  var displayName = escHtml(c.display_name || '');
 
   inner.innerHTML = '<div style="padding:28px 24px;max-width:480px;width:100%">'
     + '<div style="font-size:22px;font-weight:600;color:#1A2F2B;margin-bottom:6px">Map to Halaxy</div>'
-    + '<div style="font-size:13px;color:#7A948F;margin-bottom:24px">Link <strong>' + escHtml(c.display_name) + '</strong> to their Halaxy patient record.</div>'
+    + '<div style="font-size:13px;color:#7A948F;margin-bottom:24px">Link <strong>' + displayName + '</strong> to their Halaxy patient record.</div>'
 
     // Option 1 — Search existing
     + '<div style="margin-bottom:20px">'
@@ -4875,15 +4897,99 @@ function openMapToHalaxy(clientId) {
     + '<div style="flex:1;height:1px;background:#E8E4DF"></div>'
     + '</div>'
 
-    // Option 2 — Create new
+    // Option 2 — Create new (button shows the form)
     + '<div style="margin-bottom:24px">'
     + '<div style="font-size:11px;font-weight:600;color:#9AABA8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Not yet in Halaxy?</div>'
-    + '<div style="font-size:12.5px;color:#4A5A58;margin-bottom:12px">Create a new patient in Halaxy and link them automatically.</div>'
-    + '<button class="cl-modal-save-btn" onclick="_createAndMapHalaxyPatient(\'' + escHtml(clientId) + '\')" style="width:100%">Create in Halaxy + Link →</button>'
+    + '<div style="font-size:12.5px;color:#4A5A58;margin-bottom:12px">Enter their details to create a new patient in Halaxy and link them automatically.</div>'
+    + '<button class="cl-modal-save-btn" onclick="_showCreateHalaxyForm(\'' + escHtml(clientId) + '\')" style="width:100%;background:transparent;color:var(--teal);border:1.5px solid var(--teal)">Create new in Halaxy →</button>'
     + '</div>'
 
     + '<button onclick="closeAddClient()" style="background:none;border:none;color:#9AABA8;font-size:12px;cursor:pointer;padding:0">Cancel</button>'
     + '</div>';
+}
+
+function _showCreateHalaxyForm(clientId) {
+  var clients = (_pipelineData && _pipelineData.clients) || [];
+  var c = clients.find(function(x) { return x.id === clientId; });
+  if (!c) return;
+  var modal = document.getElementById('add-client-modal');
+  if (!modal) return;
+
+  // Try to pre-split display_name into first/last
+  var parts = (c.display_name || '').trim().split(/\s+/);
+  var prefillFirst = parts.length > 1 ? parts.slice(0, -1).join(' ') : (parts[0] || '');
+  var prefillLast  = parts.length > 1 ? parts[parts.length - 1] : '';
+  // If last name looks like an initial (single char), clear it so user fills properly
+  if (prefillLast.length === 1) prefillLast = '';
+
+  var inner = modal.querySelector('.cl-modal-inner') || modal;
+  inner.innerHTML = '<div style="padding:28px 24px;max-width:480px;width:100%">'
+    + '<div style="font-size:22px;font-weight:600;color:#1A2F2B;margin-bottom:6px">Create in Halaxy</div>'
+    + '<div style="font-size:13px;color:#7A948F;margin-bottom:24px">A new patient record will be created in Halaxy and linked to this onboarding record.</div>'
+
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">'
+    + '<div><label style="font-size:11px;font-weight:600;color:#9AABA8;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">First name <span style="color:#BE6E44">*</span></label>'
+    + '<input type="text" id="hx-create-first" class="cl-modal-input" value="' + escHtml(prefillFirst) + '" placeholder="First name" autocomplete="off"></div>'
+    + '<div><label style="font-size:11px;font-weight:600;color:#9AABA8;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Last name <span style="color:#BE6E44">*</span></label>'
+    + '<input type="text" id="hx-create-last" class="cl-modal-input" value="' + escHtml(prefillLast) + '" placeholder="Last name" autocomplete="off"></div>'
+    + '</div>'
+
+    + '<div style="margin-bottom:12px">'
+    + '<label style="font-size:11px;font-weight:600;color:#9AABA8;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Date of birth</label>'
+    + '<input type="date" id="hx-create-dob" class="cl-modal-input">'
+    + '</div>'
+
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">'
+    + '<div><label style="font-size:11px;font-weight:600;color:#9AABA8;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Phone</label>'
+    + '<input type="tel" id="hx-create-phone" class="cl-modal-input" placeholder="04xx xxx xxx"></div>'
+    + '<div><label style="font-size:11px;font-weight:600;color:#9AABA8;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Email</label>'
+    + '<input type="email" id="hx-create-email" class="cl-modal-input" placeholder=""></div>'
+    + '</div>'
+
+    + '<div id="hx-create-error" style="display:none;color:#BE6E44;font-size:12px;margin-bottom:10px"></div>'
+
+    + '<button id="hx-create-submit" class="cl-modal-save-btn" onclick="_submitCreateAndMap(\'' + escHtml(clientId) + '\')" style="width:100%;margin-bottom:10px">Create in Halaxy + Link →</button>'
+    + '<button onclick="openMapToHalaxy(\'' + escHtml(clientId) + '\')" style="background:none;border:none;color:#9AABA8;font-size:12px;cursor:pointer;padding:0">← Back</button>'
+    + '</div>';
+}
+
+async function _submitCreateAndMap(clientId) {
+  var firstEl  = document.getElementById('hx-create-first');
+  var lastEl   = document.getElementById('hx-create-last');
+  var dobEl    = document.getElementById('hx-create-dob');
+  var phoneEl  = document.getElementById('hx-create-phone');
+  var emailEl  = document.getElementById('hx-create-email');
+  var errEl    = document.getElementById('hx-create-error');
+  var btn      = document.getElementById('hx-create-submit');
+
+  var firstName = (firstEl && firstEl.value.trim()) || '';
+  var lastName  = (lastEl  && lastEl.value.trim())  || '';
+  if (!firstName || !lastName) {
+    if (errEl) { errEl.textContent = 'First name and last name are required.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (errEl) errEl.style.display = 'none';
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+  try {
+    var body = { clientId: clientId, firstName: firstName, lastName: lastName };
+    if (dobEl   && dobEl.value)   body.dob   = dobEl.value;
+    if (phoneEl && phoneEl.value.trim()) body.phone = phoneEl.value.trim();
+    if (emailEl && emailEl.value.trim()) body.email = emailEl.value.trim();
+
+    await apiFetch('/api/admin-enquiries?halaxy_create_and_map=1', { method: 'POST', body: body });
+    closeAddClient();
+    toast(firstName + ' ' + lastName + ' created in Halaxy and linked');
+    refreshPipeline();
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Create in Halaxy + Link →'; }
+    if (errEl) { errEl.textContent = e.message || 'Something went wrong — please try again.'; errEl.style.display = 'block'; }
+  }
+}
+
+async function _createAndMapHalaxyPatient(clientId) {
+  // Kept for backwards-compat — now delegates to the form flow
+  _showCreateHalaxyForm(clientId);
 }
 
 async function _mapHxSearch(q, clientId) {
@@ -4922,22 +5028,6 @@ async function _confirmMapHalaxy(clientId, hxId, hxName) {
   }
 }
 
-async function _createAndMapHalaxyPatient(clientId) {
-  var clients = (_pipelineData && _pipelineData.clients) || [];
-  var c = clients.find(function(x) { return x.id === clientId; });
-  if (!c) return;
-  // For now, open the new-patient form in Halaxy and let Cheree create them there,
-  // then come back and use Search to link. Full push-to-Halaxy API coming next.
-  var halaxyNewUrl = (_halaxyData && _halaxyData.webUrl)
-    ? _halaxyData.webUrl + '/app/clients/new'
-    : 'https://au.halaxy.com/app/clients/new';
-  window.open(halaxyNewUrl, '_blank');
-  var el = document.getElementById('map-hx-results');
-  if (el) el.innerHTML = '';
-  var inp = document.getElementById('map-hx-search');
-  if (inp) { inp.value = c.display_name || ''; _mapHxSearch(inp.value, clientId); }
-  toast('Halaxy opened — create the patient, then search above to link');
-}
 
 function openAddClient(prefillHalaxyId) {
   // Reset fields
