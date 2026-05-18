@@ -216,7 +216,8 @@ export default async function handler(req, res) {
     ]);
 
     // 3 — Save to Supabase (non-blocking — don't fail the request if DB is down)
-    supabase().from('enquiries').insert({
+    const _db = supabase();
+    _db.from('enquiries').insert({
       first_name: firstName,
       last_name:  lastName,
       email,
@@ -225,7 +226,21 @@ export default async function handler(req, res) {
       source:  _source || 'contact',
       status:  'new',
     }).then(({ error }) => {
-      if (error) console.error('[api/contact] Supabase insert error:', error.message);
+      if (!error) return;
+      // If insert failed (e.g. 'source' column doesn't exist yet — run migration 008),
+      // fall back to inserting without the optional columns.
+      console.error('[api/contact] Supabase insert error (attempting fallback):', error.message);
+      _db.from('enquiries').insert({
+        first_name: firstName,
+        last_name:  lastName,
+        email,
+        reason,
+        message,
+        status:  'new',
+      }).then(({ error: err2 }) => {
+        if (err2) console.error('[api/contact] Supabase fallback insert also failed:', err2.message);
+        else console.log('[api/contact] Supabase fallback insert succeeded (run migration 008 to fix source column)');
+      });
     });
 
     return res.status(200).json({ ok: true });
