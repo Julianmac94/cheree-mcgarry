@@ -3091,8 +3091,10 @@ function _renderHalaxyOnlyDetail(content, hxId) {
   // Summary row
   html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Overview</div>'
     + '<div class="cl-detail-row"><span class="cl-detail-row-label">Halaxy ID</span><span class="cl-detail-row-val">' + escHtml(String(hxId)) + '</span></div>';
-  if (totalPaid > 0) html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Total paid</span><span class="cl-detail-row-val">$' + totalPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
-  if (totalOwing > 0.005) html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Outstanding</span><span class="cl-detail-row-val" style="color:var(--amber)">$' + totalOwing.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
+  html += '<div id="cl-hx-totals-' + escHtml(String(hxId)) + '">'
+    + (totalPaid > 0 ? '<div class="cl-detail-row"><span class="cl-detail-row-label">Total paid</span><span class="cl-detail-row-val">$' + totalPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>' : '')
+    + (totalOwing > 0.005 ? '<div class="cl-detail-row"><span class="cl-detail-row-label">Outstanding</span><span class="cl-detail-row-val" style="color:var(--amber)">$' + totalOwing.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>' : '')
+    + '</div>';
   html += '</div>';
 
   // Appointments — independent from invoices; always show section
@@ -3116,34 +3118,15 @@ function _renderHalaxyOnlyDetail(content, hxId) {
   }
   html += '</div>';
 
-  // Invoices — current FY only
-  if (clientInvoices.length) {
-    html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Invoices this FY (' + clientInvoices.length + ')'
-      + (fyPaid2 > 0 ? ' <span style="font-size:11px;color:#7A948F;font-weight:400;margin-left:8px">$' + fyPaid2.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' paid</span>' : '')
-      + '</div>';
-    clientInvoices.forEach(function(inv) {
-      var dateStr  = inv.date ? fmtDate(inv.date) : '—';
-      var amount   = parseFloat(inv.amount || 0);
-      var owing    = parseFloat(inv.totalBalance || 0);
-      var isPaid   = owing === 0 && parseFloat(inv.totalPaid || 0) > 0;
-      var statusLbl = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : (inv.status || 'active'));
-      var statusCls = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : 'active');
-      html += '<div class="cl-detail-inv-row">'
-        + '<span style="flex:1;font-size:12px;color:#7A948F">' + escHtml(dateStr) + '</span>'
-        + '<span style="font-weight:600;color:#1A2F2B">' + (amount > 0 ? '$' + amount.toFixed(2) : '—') + '</span>'
-        + (owing > 0.005 ? '<span style="font-size:11px;color:var(--amber)">$' + owing.toFixed(2) + ' owing</span>' : '')
-        + '<span class="cl-detail-inv-badge ' + statusCls + '">' + statusLbl + '</span></div>';
-    });
-    html += '</div>';
-  } else {
-    html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Invoices this FY</div>'
-      + '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">No invoices in the current financial year</div></div>';
-  }
-
-  // No CTA needed — this is an active Halaxy client, they don't need importing
+  // Invoices — lazy-loaded per-patient so org-billed invoices (QFES, WorkCover) are included
+  html += '<div id="cl-hx-invoices-' + escHtml(String(hxId)) + '" class="cl-detail-section">'
+    + '<div class="cl-detail-sec-title">Invoices this FY</div>'
+    + '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">Loading…</div>'
+    + '</div>';
 
   html += '</div></div>';
   content.innerHTML = html;
+  _fetchHalaxyInvoices(String(hxId));
 }
 
 async function _fetchHalaxyCoverage(hxId) {
@@ -3166,6 +3149,72 @@ async function _fetchHalaxyCoverage(hxId) {
     }
   } catch (e) {
     el.innerHTML = '<span style="color:#9AABA8">Could not load</span>';
+  }
+}
+
+async function _fetchHalaxyInvoices(hxId) {
+  var invEl    = document.getElementById('cl-hx-invoices-' + hxId);
+  var totalsEl = document.getElementById('cl-hx-totals-' + hxId);
+  if (!invEl && !totalsEl) return;
+
+  try {
+    var data     = await apiFetch('/api/admin-enquiries?halaxy_patient_invoices=' + encodeURIComponent(hxId));
+    var invoices = (data && data.invoices) || [];
+
+    // FY boundary
+    var _tod = new Date();
+    var _fyStart = (_tod.getMonth() >= 6 ? _tod.getFullYear() : _tod.getFullYear() - 1) + '-07-01';
+
+    var allInvs  = invoices.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    var fyInvs   = allInvs.filter(function(i) { return (i.date || '') >= _fyStart; });
+    var totalPaid  = allInvs.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
+    var totalOwing = allInvs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
+    var fyPaid     = fyInvs.reduce(function(s, i)  { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
+
+    // Update totals block
+    if (totalsEl) {
+      var totHtml = '';
+      if (totalPaid > 0)     totHtml += '<div class="cl-detail-row"><span class="cl-detail-row-label">Total paid</span><span class="cl-detail-row-val">$' + totalPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
+      if (totalOwing > 0.005) totHtml += '<div class="cl-detail-row"><span class="cl-detail-row-label">Outstanding</span><span class="cl-detail-row-val" style="color:var(--amber)">$' + totalOwing.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
+      totalsEl.innerHTML = totHtml;
+    }
+
+    // Update invoice list
+    if (invEl) {
+      var title = '<div class="cl-detail-sec-title">Invoices this FY'
+        + (fyInvs.length ? ' (' + fyInvs.length + ')' : '')
+        + (fyPaid > 0 ? ' <span style="font-size:11px;color:#7A948F;font-weight:400;margin-left:8px">$' + fyPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' paid</span>' : '')
+        + '</div>';
+      if (!fyInvs.length) {
+        invEl.innerHTML = title + '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">No invoices in the current financial year</div>';
+      } else {
+        var rows = fyInvs.map(function(inv) {
+          var dateStr  = inv.date ? fmtDate(inv.date) : '—';
+          var amount   = parseFloat(inv.amount || 0);
+          var owing    = parseFloat(inv.totalBalance || 0);
+          var isPaid   = owing === 0 && parseFloat(inv.totalPaid || 0) > 0;
+          var statusLbl = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : (inv.status || 'active'));
+          var statusCls = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : 'active');
+          // Show org payor if not patient-direct
+          var payorBadge = '';
+          if (inv.payorOrg) {
+            var pk = _guessFunderKey(inv.payorOrg);
+            var pl = pk ? (FUNDER_LABELS[pk] || inv.payorOrg) : inv.payorOrg;
+            payorBadge = '<span style="font-size:10px;color:#7A50A0;margin-left:4px">' + escHtml(pl) + '</span>';
+          }
+          return '<div class="cl-detail-inv-row">'
+            + '<span style="flex:1;font-size:12px;color:#7A948F">' + escHtml(dateStr) + '</span>'
+            + '<span style="font-weight:600;color:#1A2F2B">' + (amount > 0 ? '$' + amount.toFixed(2) : '—') + '</span>'
+            + payorBadge
+            + (owing > 0.005 ? '<span style="font-size:11px;color:var(--amber)">$' + owing.toFixed(2) + ' owing</span>' : '')
+            + '<span class="cl-detail-inv-badge ' + statusCls + '">' + escHtml(statusLbl) + '</span></div>';
+        }).join('');
+        invEl.innerHTML = title + rows;
+      }
+    }
+  } catch (e) {
+    if (invEl) invEl.innerHTML = '<div class="cl-detail-sec-title">Invoices this FY</div>'
+      + '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">Could not load</div>';
   }
 }
 
@@ -3336,11 +3385,15 @@ function renderClientDetailView(clientId) {
   if (c.created_at) {
     html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Client since</span><span class="cl-detail-row-val">' + fmtDate(c.created_at) + '</span></div>';
   }
-  if (totalPaid > 0) {
-    html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Total paid</span><span class="cl-detail-row-val">$' + totalPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
-  }
-  if (totalOwing > 0.005) {
-    html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Outstanding</span><span class="cl-detail-row-val" style="color:var(--amber)">$' + totalOwing.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
+  if (c.halaxy_id) {
+    // Totals are lazy-loaded — placeholder shows bulk-data estimate (updated by _fetchHalaxyInvoices)
+    html += '<div id="cl-hx-totals-' + escHtml(String(c.halaxy_id)) + '">'
+      + (totalPaid > 0 ? '<div class="cl-detail-row"><span class="cl-detail-row-label">Total paid</span><span class="cl-detail-row-val">$' + totalPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>' : '')
+      + (totalOwing > 0.005 ? '<div class="cl-detail-row"><span class="cl-detail-row-label">Outstanding</span><span class="cl-detail-row-val" style="color:var(--amber)">$' + totalOwing.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>' : '')
+      + '</div>';
+  } else {
+    if (totalPaid > 0) html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Total paid</span><span class="cl-detail-row-val">$' + totalPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
+    if (totalOwing > 0.005) html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Outstanding</span><span class="cl-detail-row-val" style="color:var(--amber)">$' + totalOwing.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>';
   }
   if (c.notes) {
     html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Notes</span><span class="cl-detail-row-val" style="text-align:left;max-width:70%">' + escHtml(c.notes) + '</span></div>';
@@ -3396,31 +3449,11 @@ function renderClientDetailView(clientId) {
     html += '</div>';
   }
 
-  // Invoices section — current FY only
-  if (clientInvoices.length) {
-    html += '<div class="cl-detail-section">'
-      + '<div class="cl-detail-sec-title">Invoices this FY (' + clientInvoices.length + ')'
-      + (fyPaid > 0 ? ' <span style="font-size:11px;color:#7A948F;font-weight:400;margin-left:8px">$' + fyPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' paid</span>' : '')
-      + '</div>';
-    clientInvoices.forEach(function(inv) {
-      var dateStr  = inv.date ? fmtDate(inv.date) : '—';
-      var amount   = parseFloat(inv.amount || 0);
-      var owing    = parseFloat(inv.totalBalance || 0);
-      // Halaxy keeps status "active" even when paid — derive from balance
-      var isPaid   = owing === 0 && parseFloat(inv.totalPaid || 0) > 0;
-      var statusLbl = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : (inv.status || 'active'));
-      var statusCls = isPaid ? 'paid' : (owing > 0.005 ? 'owing' : 'active');
-      html += '<div class="cl-detail-inv-row">'
-        + '<span style="flex:1;font-size:12px;color:#7A948F">' + escHtml(dateStr) + '</span>'
-        + '<span style="font-weight:600;color:#1A2F2B">' + (amount > 0 ? '$' + amount.toFixed(2) : '—') + '</span>'
-        + (owing > 0.005 ? '<span style="font-size:11px;color:var(--amber)">$' + owing.toFixed(2) + ' owing</span>' : '')
-        + '<span class="cl-detail-inv-badge ' + statusCls + '">' + statusLbl + '</span>'
-        + '</div>';
-    });
-    html += '</div>';
-  } else if (c.halaxy_id) {
-    html += '<div class="cl-detail-section"><div class="cl-detail-sec-title">Invoices this FY</div>'
-      + '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">No invoices in the current financial year</div>'
+  // Invoices section — lazy-loaded per patient so org-billed invoices are included
+  if (c.halaxy_id) {
+    html += '<div id="cl-hx-invoices-' + escHtml(String(c.halaxy_id)) + '" class="cl-detail-section">'
+      + '<div class="cl-detail-sec-title">Invoices this FY</div>'
+      + '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">Loading…</div>'
       + '</div>';
   }
 
@@ -3442,8 +3475,11 @@ function renderClientDetailView(clientId) {
   html += '</div>'; // cl-detail-view
   content.innerHTML = html;
 
-  // Fetch Halaxy Coverage for linked clients
-  if (c.halaxy_id) _fetchHalaxyCoverage(c.halaxy_id);
+  // Fetch Halaxy Coverage + accurate invoices for linked clients
+  if (c.halaxy_id) {
+    _fetchHalaxyCoverage(c.halaxy_id);
+    _fetchHalaxyInvoices(String(c.halaxy_id));
+  }
 }
 
 // ── Legacy renderClientsView data setup (kept for backward compatibility with the old card-based view) ──

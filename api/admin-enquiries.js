@@ -1104,6 +1104,72 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── GET ?halaxy_patient_invoices=<patientId> — fetch all invoices for one patient ──
+   * Queries Halaxy with patient=Patient/<id> which returns org-billed invoices too
+   * (QFES, WorkCover) — something the bulk Invoice fetch can miss due to missing patient
+   * references in org-billed FHIR Invoice resources.
+   * ──────────────────────────────────────────────────────────────────────────────────── */
+  if (req.method === 'GET' && params.get('halaxy_patient_invoices')) {
+    const patientId = params.get('halaxy_patient_invoices').trim();
+    if (!patientId || !process.env.HALAXY_CLIENT_ID) return res.status(200).json({ invoices: [] });
+    try {
+      const db5       = supabase();
+      const fCached2  = await readCache(db5, 'halaxy_funders_cache').catch(() => null);
+      const funders2  = (fCached2?.funders || []);
+      const orgNames  = {};
+      funders2.forEach(f => { if (f.id) orgNames[f.id] = f.name; });
+
+      const bundle = await halaxyGet('/Invoice', {
+        patient:  `Patient/${patientId}`,
+        _sort:    '-created',
+        _count:   '100',
+      });
+
+      const invoices = (bundle.entry || [])
+        .map(e => e.resource).filter(r => r?.resourceType === 'Invoice')
+        .filter(inv => inv.status && inv.status !== 'cancelled')
+        .map(inv => {
+          const invoiceDate  = (inv.created || inv.date || '').slice(0, 10) || null;
+          if (!invoiceDate) return null;
+          const totalBalance = inv.totalBalance?.value ?? null;
+          const totalPaid    = inv.totalPaid?.value    ?? null;
+          const totalAmount  = inv.totalGross?.value   ?? inv.totalNet?.value ?? null;
+          const lineItem     = (inv.lineItem || [])[0];
+          const feeName      = lineItem?.chargeItemReference?.display
+                            || lineItem?.chargeItemCodeableConcept?.text || '';
+          // Resolve org payor
+          const recipientList = Array.isArray(inv.recipient) ? inv.recipient : (inv.recipient ? [inv.recipient] : []);
+          let payorOrg = null;
+          for (const r of recipientList) {
+            const ref = r?.reference || '';
+            if (ref.toLowerCase().includes('organization/') || ref.toLowerCase().includes('organisation/')) {
+              const orgId = ref.split('/').pop();
+              payorOrg = r?.display || orgNames[orgId] || orgId;
+              break;
+            }
+          }
+          return {
+            id:           inv.id,
+            status:       inv.status,
+            patientId,
+            date:         invoiceDate,
+            amount:       totalAmount,
+            totalBalance,
+            totalPaid,
+            feeName,
+            payorOrg,
+            currency:     inv.totalGross?.currency || inv.totalNet?.currency || 'AUD',
+            ref:          inv.identifier?.[0]?.value || inv.id,
+          };
+        }).filter(Boolean);
+
+      return res.status(200).json({ invoices });
+    } catch (err) {
+      console.error('halaxy_patient_invoices error:', err.message);
+      return res.status(200).json({ invoices: [], error: err.message });
+    }
+  }
+
   /* ── GET ?halaxy_coverage=<patientId> — fetch patient's Coverage (funder) ── */
   if (req.method === 'GET' && params.get('halaxy_coverage')) {
     const patientId = params.get('halaxy_coverage').trim();
