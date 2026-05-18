@@ -2943,9 +2943,11 @@ body {
         <div id="db-ap-s2-halaxy" style="display:none">
           <div class="db-form-row">
             <div class="db-form-grp full"><label class="db-form-lbl">Client</label>
-              <select class="db-form-input" id="db-ap-hx-client">
-                <option value="">Search or select Halaxy patient…</option>
-              </select>
+              <div class="db-patient-search">
+                <input class="db-form-input" type="text" id="db-ap-hx-search" placeholder="Type patient name…" oninput="dbHxPatientSearch(this.value)" autocomplete="off" autocorrect="off" spellcheck="false">
+                <input type="hidden" id="db-ap-hx-client">
+                <div class="db-patient-results" id="db-ap-hx-results"></div>
+              </div>
             </div>
           </div>
           <div class="db-form-row">

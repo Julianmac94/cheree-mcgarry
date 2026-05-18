@@ -415,6 +415,11 @@ document.addEventListener('click', function(e) {
     document.querySelectorAll('.pl-card-dropdown.is-open').forEach(function(d) { d.classList.remove('is-open'); });
     document.querySelectorAll('.pl-card-menu-btn.is-open').forEach(function(b) { b.classList.remove('is-open'); });
   }
+  // Close patient search results if clicking outside
+  if (!e.target.closest('.db-patient-search')) {
+    var res = document.getElementById('db-ap-hx-results');
+    if (res) { res.innerHTML = ''; res.style.display = 'none'; }
+  }
 });
 
 var FUNDER_LABELS = {
@@ -547,17 +552,13 @@ function openDbModal(type) {
       var el = document.getElementById(elId);
       if (el) el.value = today;
     });
-    // Populate Halaxy patients dropdown
-    var hxSel = document.getElementById('db-ap-hx-client');
-    if (hxSel && _halaxyData && _halaxyData.patients) {
-      while (hxSel.options.length > 1) hxSel.remove(1);
-      (_halaxyData.patients || []).forEach(function(p) {
-        var opt = document.createElement('option');
-        opt.value = p.id || '';
-        opt.textContent = p.name || ('Patient #' + p.id);
-        hxSel.add(opt);
-      });
-    }
+    // Clear Halaxy search state
+    var hxSearch = document.getElementById('db-ap-hx-search');
+    var hxHidden = document.getElementById('db-ap-hx-client');
+    var hxResults = document.getElementById('db-ap-hx-results');
+    if (hxSearch)  { hxSearch.value = ''; }
+    if (hxHidden)  { hxHidden.value = ''; }
+    if (hxResults) { hxResults.innerHTML = ''; hxResults.style.display = 'none'; }
     // Populate onboarding clients dropdown
     var obSel = document.getElementById('db-ap-ob-client');
     if (obSel && _pipelineData && _pipelineData.clients) {
@@ -565,7 +566,7 @@ function openDbModal(type) {
       (_pipelineData.clients || []).forEach(function(c) {
         var opt = document.createElement('option');
         opt.value = c.id || '';
-        opt.textContent = [c.first_name, c.last_name].filter(Boolean).join(' ') || ('Client #' + c.id);
+        opt.textContent = c.display_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || ('Client #' + c.id);
         obSel.add(opt);
       });
     }
@@ -759,6 +760,41 @@ async function dbSaveApptOnboarding() {
     closeDbModal('db-modal-appt');
     toast('Appointment noted — sync to Halaxy when ready', 'ok');
   }
+}
+
+/** Halaxy patient typeahead search */
+function dbHxPatientSearch(query) {
+  var patients = (_halaxyData && _halaxyData.patients) || [];
+  var res = document.getElementById('db-ap-hx-results');
+  var hidden = document.getElementById('db-ap-hx-client');
+  if (!res) return;
+  // Clear previous selection when user types
+  if (hidden) hidden.value = '';
+  var q = (query || '').toLowerCase().trim();
+  if (!q) { res.innerHTML = ''; res.style.display = 'none'; return; }
+  var matches = patients.filter(function(p) {
+    return (p.name || '').toLowerCase().includes(q);
+  }).slice(0, 10);
+  if (!matches.length) {
+    res.innerHTML = '<div class="db-patient-result db-patient-result--empty">No patients found</div>';
+  } else {
+    res.innerHTML = matches.map(function(p) {
+      var safeName = escHtml(p.name || ('Patient #' + p.id));
+      var safeId   = escHtml(String(p.id || ''));
+      return '<div class="db-patient-result" onclick="dbHxPatientSelect(\'' + safeId + '\',\'' + safeName.replace(/'/g, '&#39;') + '\')">' + safeName + '</div>';
+    }).join('');
+  }
+  res.style.display = 'block';
+}
+
+/** Called when user clicks a result in the Halaxy patient search */
+function dbHxPatientSelect(id, name) {
+  var hiddenInput  = document.getElementById('db-ap-hx-client');
+  var searchInput  = document.getElementById('db-ap-hx-search');
+  var res          = document.getElementById('db-ap-hx-results');
+  if (hiddenInput) hiddenInput.value = id;
+  if (searchInput) { searchInput.value = name; }
+  if (res)         { res.innerHTML = ''; res.style.display = 'none'; }
 }
 
 /** Navigate to client detail from upcoming strip by Halaxy patient ID */
