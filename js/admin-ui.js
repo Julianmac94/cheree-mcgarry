@@ -694,14 +694,13 @@ async function dbSaveClientOnboarding() {
     await apiFetch('/api/clients', {
       method: 'POST',
       body: {
-        first_name:  fname.trim(),
-        last_name:   lname.trim(),
-        email:       email.trim(),
-        phone:       phone.trim(),
-        source:      source,
-        funder_type: funder,
-        notes:       notes.trim(),
-        status:      'onboarding',
+        display_name: [fname.trim(), lname.trim()].filter(Boolean).join(' '),
+        email:        email.trim(),
+        phone:        phone.trim(),
+        source:       source,
+        funder:       funder,   // API column is 'funder', not 'funder_type'
+        notes:        notes.trim(),
+        status:       'onboarding',
       }
     });
     closeDbModal('db-modal-client');
@@ -798,7 +797,16 @@ function dbHxPatientSelect(id, name) {
   var linked     = clients.find(function(c) { return String(c.halaxy_id) === String(id); });
   var funderKey  = linked ? (linked.funder || null) : null;
   var funderSel  = document.getElementById('db-ap-hx-funder');
-  if (funderSel && funderKey) funderSel.value = funderKey;
+  var funderLbl  = document.getElementById('db-ap-hx-funder-lbl');
+  if (funderSel) {
+    if (funderKey) {
+      funderSel.value = funderKey;
+      if (funderLbl) funderLbl.innerHTML = 'Funder <span style="font-weight:400;font-style:italic;color:var(--db-t2);letter-spacing:0">(auto-detected — change if wrong)</span>';
+    } else {
+      funderSel.value = '';
+      if (funderLbl) funderLbl.textContent = 'Funder';
+    }
+  }
   _dbPopulateHxFees(funderKey);
 }
 
@@ -6598,7 +6606,26 @@ function _filterFeesForFunder(fees, funderKey, funderId) {
     if (byFunderName.length) return byFunderName;
   }
 
-  // 3. Keyword match on fee name itself
+  // 3. Special case for 'private': use EXCLUSION rather than inclusion.
+  //    Private fees have no distinctive naming — they're identified by the absence
+  //    of other funders' specific keywords. A fee named "Face to Face" is private,
+  //    but "Face to face | Social Worker AMHSW (AASW)" is NDIS because it contains
+  //    NDIS-specific keywords even though "face to face" matches private keywords too.
+  if (funderKey === 'private') {
+    var excludeKws = [];
+    ['medicare', 'ndis_plan', 'qfes', 'dva', 'workcover'].forEach(function(k) {
+      (FUNDER_KEYWORDS[k] || []).forEach(function(kw2) {
+        if (excludeKws.indexOf(kw2) === -1) excludeKws.push(kw2);
+      });
+    });
+    var privateFees = fees.filter(function(f) {
+      var n = (f.name || '').toLowerCase();
+      return !excludeKws.some(function(kw2) { return n.indexOf(kw2) !== -1; });
+    });
+    return privateFees.length ? privateFees : fees;
+  }
+
+  // 3b. Keyword match on fee name itself (for all other funder types)
   if (kw.length) {
     var byName = fees.filter(function(f) {
       var n = (f.name || '').toLowerCase();

@@ -2942,12 +2942,36 @@ body {
         <!-- Halaxy appointment fields -->
         <div id="db-ap-s2-halaxy" style="display:none">
           <div class="db-form-row">
-            <div class="db-form-grp full"><label class="db-form-lbl">Client</label>
+            <div class="db-form-grp full">
+              <label class="db-form-lbl">Client</label>
               <div class="db-patient-search">
                 <input class="db-form-input" type="text" id="db-ap-hx-search" placeholder="Type patient name…" oninput="dbHxPatientSearch(this.value)" autocomplete="off" autocorrect="off" spellcheck="false">
                 <input type="hidden" id="db-ap-hx-client">
                 <div class="db-patient-results" id="db-ap-hx-results"></div>
               </div>
+            </div>
+          </div>
+          <div class="db-form-row">
+            <div class="db-form-grp full">
+              <label class="db-form-lbl" id="db-ap-hx-funder-lbl">Funder</label>
+              <select class="db-form-input" id="db-ap-hx-funder" onchange="_dbOnHxFunderChange()">
+                <option value="">Select funder…</option>
+                <option value="private">Private</option>
+                <option value="medicare">Medicare / Better Access</option>
+                <option value="ndis_plan">NDIS — Plan Managed</option>
+                <option value="ndis_self">NDIS — Self Managed</option>
+                <option value="qfes">QFES / EAP</option>
+                <option value="workcover">WorkCover</option>
+                <option value="dva">DVA / ADF</option>
+              </select>
+            </div>
+          </div>
+          <div class="db-form-row">
+            <div class="db-form-grp full">
+              <label class="db-form-lbl">Fee</label>
+              <select class="db-form-input" id="db-ap-hx-fee">
+                <option value="">Select a funder first…</option>
+              </select>
             </div>
           </div>
           <div class="db-form-row">
@@ -2967,27 +2991,6 @@ body {
               <select class="db-form-input" id="db-ap-hx-location">
                 <option value="clinic">In-person</option>
                 <option value="telehealth">Telehealth</option>
-              </select>
-            </div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp full"><label class="db-form-lbl">Funder</label>
-              <select class="db-form-input" id="db-ap-hx-funder" onchange="_dbOnHxFunderChange()">
-                <option value="">Select funder…</option>
-                <option value="private">Private</option>
-                <option value="medicare">Medicare / Better Access</option>
-                <option value="ndis_plan">NDIS — Plan Managed</option>
-                <option value="ndis_self">NDIS — Self Managed</option>
-                <option value="qfes">QFES / EAP</option>
-                <option value="workcover">WorkCover</option>
-                <option value="dva">DVA / ADF</option>
-              </select>
-            </div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp full"><label class="db-form-lbl">Fee</label>
-              <select class="db-form-input" id="db-ap-hx-fee">
-                <option value="">Select a funder first…</option>
               </select>
             </div>
           </div>
