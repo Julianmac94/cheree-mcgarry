@@ -155,39 +155,60 @@ body::after {
   from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.hero-logo     { animation: hUp 0.9s var(--ease) 0.08s both; }
-.hero-name     { animation: hUp 0.9s var(--ease) 0.22s both; }
-.hero-biz      { animation: hUp 0.9s var(--ease) 0.32s both; }
-.hero-rule     { animation: hUp 0.9s var(--ease) 0.40s both; }
-.hero-tagline  { animation: hUp 0.9s var(--ease) 0.48s both; }
-.hero-ctas     { animation: hUp 0.9s var(--ease) 0.56s both; }
-.hero-meta     { animation: hUp 0.9s var(--ease) 0.64s both; }
-.hero-location { animation: hUp 0.9s var(--ease) 0.70s both; }
+/* Staggered entrance — eyebrow → first name → surname → rule → content */
+.hero-eyebrow    { animation: hUp 0.9s var(--ease) 0.06s both; }
+.hero-name em    { animation: hUp 0.9s var(--ease) 0.18s both; }
+.hero-name span  { animation: hUp 0.9s var(--ease) 0.28s both; }
+.hero-rule       { animation: hUp 0.9s var(--ease) 0.38s both; }
+.hero-tagline    { animation: hUp 0.9s var(--ease) 0.48s both; }
+.hero-ctas       { animation: hUp 0.9s var(--ease) 0.56s both; }
+.hero-credentials { animation: hUp 0.9s var(--ease) 0.64s both; }
 
-.hero-logo {
-  width: 172px; height: 172px;
-  margin-bottom: 28px;
-  margin-top: -6vh;
+/* Brand watermark — large logo behind the name at atmospheric opacity */
+.hero-watermark {
+  position: absolute;
+  width: min(460px, 70vw);
+  height: auto;
+  opacity: 0.055;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none; z-index: 0;
+  user-select: none;
 }
-.hero-logo svg, .hero-logo img { width: 100%; height: 100%; object-fit: contain; }
 
-.hero-name {
-  font-family: var(--serif);
-  font-size: clamp(56px, 8.5vw, 108px);
-  font-weight: 300; line-height: 1;
-  color: var(--ink);
-  letter-spacing: -0.03em;
-  white-space: nowrap;
-  margin-bottom: 12px;
-}
-/* Cheree — italic teal, the focal point */
-.hero-name em { font-style: italic; color: var(--teal); font-weight: 300; }
-
-.hero-biz {
-  font-size: 15px; font-weight: 300;
+/* Eyebrow label — sits above the name */
+.hero-eyebrow {
+  font-size: 11px; font-weight: 400;
   letter-spacing: 0.28em; text-transform: uppercase;
   color: var(--soft);
-  margin-bottom: 36px;
+  margin-bottom: 16px;
+}
+
+/* Name: stacked two-line editorial treatment */
+.hero-name {
+  font-family: var(--serif);
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0; margin-bottom: 0;
+}
+/* "Cheree" — first name, italic, teal, dominant */
+.hero-name em {
+  display: block;
+  font-style: italic; font-weight: 300;
+  font-size: clamp(88px, 14vw, 168px);
+  line-height: 0.88;
+  letter-spacing: -0.02em;
+  color: var(--teal);
+}
+/* "McGarry" — surname, upright, spaced, anchoring */
+.hero-name span {
+  display: block;
+  font-family: var(--serif);
+  font-size: clamp(38px, 5.8vw, 68px);
+  font-weight: 300; font-style: normal;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink);
+  line-height: 1.1;
+  margin-top: 4px;
 }
 
 .hero-rule {
@@ -215,11 +236,13 @@ body::after {
 .hero-rule-line { width: 52px; height: 1px; background: var(--cream-3); }
 .hero-rule-dot  { width: 5px; height: 5px; border-radius: 50%; background: var(--terra); opacity: 0.7; flex-shrink: 0; }
 
-.hero-meta {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
+/* Single condensed credentials line */
+.hero-credentials {
+  font-size: 11.5px; font-weight: 300;
+  letter-spacing: 0.06em;
+  color: var(--soft); opacity: 0.75;
+  margin-top: 22px;
 }
-.hero-meta-line { font-size: 13px; font-weight: 300; color: var(--soft); letter-spacing: 0.03em; }
-.hero-sep { color: var(--terra); margin: 0 10px; opacity: 0.8; }
 
 /* ── HERO CTAs, TAGLINE & LOCATION ── */
 .hero-tagline {
@@ -235,14 +258,6 @@ body::after {
   display: flex; align-items: center; justify-content: center;
   gap: 12px;
   margin-top: 26px;
-}
-.hero-meta { margin-top: 24px; }
-.hero-location {
-  font-size: 11px; font-weight: 400;
-  letter-spacing: 0.16em; text-transform: uppercase;
-  color: var(--soft);
-  opacity: 0.7;
-  margin-top: 8px;
 }
 
 /* Scroll indicator floats at the bottom, out of flex flow so content centres cleanly */
@@ -1256,8 +1271,8 @@ footer { background: var(--teal-deep); position: relative; overflow: hidden; }
 
   /* Hero */
   .hero { padding: 56px 20px 72px; }
-  .hero-name { white-space: normal; font-size: clamp(44px,11vw,72px); }
-  .hero-logo { width: 130px; height: 130px; margin-top: 0; margin-bottom: 20px; }
+  .hero-name em  { letter-spacing: -0.01em; }
+  .hero-name span { letter-spacing: 0.10em; }
   .hero-scroll { bottom: 28px; }
   .hero-tagline { font-size: 16px; max-width: 340px; }
 
@@ -1291,10 +1306,11 @@ footer { background: var(--teal-deep); position: relative; overflow: hidden; }
   .nav-link:not(.nav-cta) { display: none; }
   .ft-cols-inner { grid-template-columns: 1fr; }
 
-  /* Hero: stack CTAs on phone */
+  /* Hero: tighten on phone */
   .hero-ctas { flex-direction: column; gap: 10px; margin-top: 20px; }
   .hero-tagline { font-size: 15px; }
   .hero-scroll { bottom: 20px; }
+  .hero-watermark { width: min(280px, 80vw); }
 
   /* Footer CTA: stack on mobile */
   .ft-cta { padding: 64px 20px; }
