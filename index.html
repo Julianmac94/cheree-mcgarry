@@ -244,71 +244,114 @@
   .ab-bridge-text { grid-template-columns: 1fr; gap: 28px; }
 }
 
-/* Getting started CTA band */
+/* ════ Getting started — dark forest band with glass cards ════ */
 .ab-gs-band {
   margin-top: 24px;
-  background: rgba(42,88,80,0.05);
-  border-radius: 18px;
-  padding: 40px 44px 36px;
-  display: flex;
+  background: #1a3830;
+  border-radius: 20px;
+  padding: 52px 48px;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 36px;
+  gap: 48px;
+  position: relative;
+  overflow: hidden;
 }
-.ab-gs-copy {}
+/* Botanical art layer */
+.ab-gs-art { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.ab-gs-art-fern {
+  position: absolute;
+  bottom: -30px; left: -18px;
+  width: 210px; opacity: 0.14;
+}
+.ab-gs-art-branch {
+  position: absolute;
+  top: -24px; left: 180px;
+  width: 190px; opacity: 0.09;
+  transform: rotate(-8deg);
+}
+/* Left copy */
+.ab-gs-left { position: relative; z-index: 1; }
 .ab-gs-eyebrow {
-  font-family: var(--sans);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--teal);
-  margin: 0 0 10px;
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(119,207,189,0.7); margin: 0 0 10px;
 }
 .ab-gs-title {
   font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(26px, 2.8vw, 34px);
-  font-weight: 300;
-  color: #192E2A;
-  line-height: 1.2;
-  margin: 0 0 10px;
+  font-size: clamp(28px, 2.8vw, 38px);
+  font-weight: 300; color: white; line-height: 1.15; margin: 0 0 12px;
 }
-.ab-gs-title em { font-style: italic; color: var(--teal); }
+.ab-gs-title em { font-style: italic; color: #77CFBD; }
 .ab-gs-sub {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 17px;
-  font-weight: 300;
-  color: #3a5a54;
-  line-height: 1.6;
-  margin: 0;
-  max-width: 360px;
-}
-.ab-gs-actions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-shrink: 0;
-  flex-wrap: wrap;
+  font-size: 17px; font-weight: 300;
+  color: rgba(255,255,255,0.6); line-height: 1.65;
+  margin: 0 0 22px; max-width: 360px;
 }
 .ab-gs-sessions-link {
-  font-family: var(--sans);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--teal);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  opacity: 0.7;
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.07em; color: rgba(119,207,189,0.7);
+  text-decoration: none; display: inline-flex; align-items: center;
+  gap: 5px; transition: color 0.18s;
+}
+.ab-gs-sessions-link:hover { color: #77CFBD; }
+.ab-gs-sessions-link svg { width: 13px; height: 13px; }
+/* Right: two frosted glass cards */
+.ab-gs-cards {
+  display: flex; gap: 14px; flex-shrink: 0;
+  position: relative; z-index: 1;
+}
+.ab-gs-card {
+  border-radius: 16px; padding: 26px 22px 22px;
+  width: 186px; display: flex; flex-direction: column;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.ab-gs-card--mint {
+  background: rgba(119,207,189,0.18);
+  border: 1px solid rgba(119,207,189,0.38);
+}
+.ab-gs-card--forest {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.16);
+}
+.ab-gs-card-label {
+  font-family: var(--sans); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(255,255,255,0.45); margin: 0 0 10px;
+}
+.ab-gs-card-heading {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px; font-weight: 300; color: white;
+  line-height: 1.3; margin: 0 0 18px; flex: 1;
+}
+.ab-gs-card-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; padding: 11px 16px; border-radius: 9px;
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  text-decoration: none; border: none; cursor: pointer;
   transition: opacity 0.18s;
 }
-.ab-gs-sessions-link:hover { opacity: 1; }
-.ab-gs-sessions-link svg { width: 13px; height: 13px; }
-@media (max-width: 700px) {
-  .ab-gs-band { flex-direction: column; align-items: flex-start; padding: 32px 28px 28px; }
-  .ab-gs-actions { width: 100%; }
+.ab-gs-card-btn--forest { background: #1a3830; color: #77CFBD; }
+.ab-gs-card-btn--mint   { background: #77CFBD; color: #1a3830; }
+.ab-gs-card-btn:hover { opacity: 0.82; }
+@media (max-width: 840px) {
+  .ab-gs-band { grid-template-columns: 1fr; padding: 40px 32px; }
+  .ab-gs-cards { width: 100%; }
+  .ab-gs-card { flex: 1; width: auto; }
+  .ab-gs-art-branch { display: none; }
 }
+@media (max-width: 480px) {
+  .ab-gs-cards { flex-direction: column; }
+  .ab-gs-band { padding: 36px 24px; }
+}
+
+/* ════ Page-wide botanical accent system ════ */
+.sec-botanical {
+  position: absolute; pointer-events: none; z-index: 0;
+}
+.sec-botanical svg { display: block; }
 
 /* ════════════════════════════════════════════════
    ABOUT — What clients tell me (surprise grid)
@@ -562,7 +605,20 @@
 
 
 <!-- ══ 1. QUOTE BANNER — transitions from hero into about ════════════ -->
-<div class="ab-pullquote-band" id="about-section">
+<div class="ab-pullquote-band" id="about-section" style="overflow:hidden;">
+  <div class="sec-botanical" style="top:-30px;right:5%;width:170px;opacity:0.06;transform:rotate(15deg);" aria-hidden="true">
+    <svg viewBox="0 0 120 200" fill="none" stroke="#2A5850" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M26 196 C24 168 30 142 40 118 C50 94 55 68 58 42 C59 30 60 18 60 8" stroke-width="1.4"/>
+      <path d="M94 196 C96 168 90 142 80 118 C70 94 65 68 62 42 C61 30 60 18 60 8" stroke-width="1.4"/>
+      <path d="M28 168 C17 156 10 140 12 124 C22 128 29 144 28 168Z" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+      <path d="M36 130 C24 118 18 100 20 84 C32 90 38 108 36 130Z" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+      <path d="M46 92 C36 78 34 62 38 48 C48 56 50 72 46 92Z" stroke-width="0.8" fill="rgba(42,88,80,0.05)"/>
+      <path d="M92 168 C103 156 110 140 108 124 C98 128 91 144 92 168Z" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+      <path d="M84 130 C96 118 102 100 100 84 C88 90 82 108 84 130Z" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+      <path d="M74 92 C84 78 86 62 82 48 C72 56 70 72 74 92Z" stroke-width="0.8" fill="rgba(42,88,80,0.05)"/>
+      <path d="M60 32 C54 20 53 12 60 7 C67 12 66 20 60 32Z" stroke-width="1" fill="rgba(42,88,80,0.09)"/>
+    </svg>
+  </div>
   <div class="ab-pullquote-wrap">
     <span class="ab-pq-open" aria-hidden="true">&ldquo;</span>
     <p class="ab-pullquote-text">Together we will decide what you need at a pace that works for you.</p>
@@ -583,6 +639,19 @@
 
 <!-- ══ 2. EDITORIAL SPLIT — copy left, photo right ══════════════════ -->
 <section class="section ab-editorial-section" id="about-who">
+  <div class="sec-botanical" style="bottom:-20px;right:-20px;width:220px;opacity:0.055;" aria-hidden="true">
+    <svg viewBox="0 0 130 200" fill="none" stroke="#2A5850" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 192 C36 168 52 142 66 116 C80 90 96 64 108 40 C112 32 116 22 116 14" stroke-width="1.5"/>
+      <path d="M28 178 C18 164 12 148 14 132 C24 138 30 154 28 178Z" stroke-width="0.9" fill="rgba(42,88,80,0.06)"/>
+      <path d="M36 172 C46 158 52 142 50 126 C40 132 34 148 36 172Z" stroke-width="0.9" fill="rgba(42,88,80,0.06)"/>
+      <path d="M46 148 C34 136 28 118 32 102 C42 110 48 128 46 148Z" stroke-width="0.85" fill="rgba(42,88,80,0.06)"/>
+      <path d="M58 140 C70 128 76 110 72 94 C62 102 56 120 58 140Z" stroke-width="0.85" fill="rgba(42,88,80,0.06)"/>
+      <path d="M66 114 C54 102 50 84 56 70 C65 78 68 96 66 114Z" stroke-width="0.8" fill="rgba(42,88,80,0.05)"/>
+      <path d="M76 106 C88 94 92 76 86 62 C77 70 74 88 76 106Z" stroke-width="0.8" fill="rgba(42,88,80,0.05)"/>
+      <path d="M106 42 C100 30 98 20 104 12 C110 20 110 30 106 42Z" stroke-width="0.9" fill="rgba(42,88,80,0.07)"/>
+      <path d="M114 36 C108 24 108 14 114 7 C120 14 120 24 114 36Z" stroke-width="0.9" fill="rgba(42,88,80,0.07)"/>
+    </svg>
+  </div>
   <div class="wrap ab-editorial-wrap">
 
     <!-- Copy -->
@@ -750,24 +819,62 @@
 
     <!-- Getting started CTA -->
     <div class="ab-gs-band">
-      <div class="ab-gs-copy">
+
+      <!-- Botanical background art -->
+      <div class="ab-gs-art" aria-hidden="true">
+        <!-- Fern: bottom-left -->
+        <svg class="ab-gs-art-fern" viewBox="0 0 100 200" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M50 196 C49 172 52 148 47 122 C42 96 51 68 50 38 C50 26 50 16 50 8" stroke-width="1.5"/>
+          <path d="M47 165 C33 157 20 145 18 128 C28 130 40 143 47 165Z" stroke-width="0.9" fill="rgba(255,255,255,0.04)"/>
+          <path d="M47 167 C61 157 74 145 76 128 C66 130 54 143 47 167Z" stroke-width="0.9" fill="rgba(255,255,255,0.04)"/>
+          <path d="M47 140 C34 130 22 116 20 100 C31 103 43 117 47 140Z" stroke-width="0.85" fill="rgba(255,255,255,0.04)"/>
+          <path d="M47 140 C60 130 72 116 74 100 C63 103 51 117 47 140Z" stroke-width="0.85" fill="rgba(255,255,255,0.04)"/>
+          <path d="M48 112 C37 101 28 86 26 70 C37 74 47 88 48 112Z" stroke-width="0.85" fill="rgba(255,255,255,0.03)"/>
+          <path d="M48 112 C59 101 70 86 72 70 C61 74 49 88 48 112Z" stroke-width="0.85" fill="rgba(255,255,255,0.03)"/>
+          <path d="M49 82 C41 70 36 55 38 42 C47 47 51 62 49 82Z" stroke-width="0.8" fill="rgba(255,255,255,0.03)"/>
+          <path d="M49 82 C57 70 64 55 62 42 C53 47 49 62 49 82Z" stroke-width="0.8" fill="rgba(255,255,255,0.03)"/>
+          <path d="M50 38 C45 26 45 16 50 10 C55 16 55 26 50 38Z" stroke-width="0.9" fill="rgba(255,255,255,0.05)"/>
+        </svg>
+        <!-- Olive branch: upper-left area -->
+        <svg class="ab-gs-art-branch" viewBox="0 0 130 200" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 192 C36 168 52 142 66 116 C80 90 96 64 108 40 C112 32 116 22 116 14" stroke-width="1.5"/>
+          <path d="M28 178 C18 164 12 148 14 132 C24 138 30 154 28 178Z" stroke-width="0.85" fill="rgba(255,255,255,0.03)"/>
+          <path d="M36 172 C46 158 52 142 50 126 C40 132 34 148 36 172Z" stroke-width="0.85" fill="rgba(255,255,255,0.03)"/>
+          <path d="M46 148 C34 136 28 118 32 102 C42 110 48 128 46 148Z" stroke-width="0.85" fill="rgba(255,255,255,0.03)"/>
+          <path d="M58 140 C70 128 76 110 72 94 C62 102 56 120 58 140Z" stroke-width="0.85" fill="rgba(255,255,255,0.03)"/>
+          <path d="M66 114 C54 102 50 84 56 70 C65 78 68 96 66 114Z" stroke-width="0.8" fill="rgba(255,255,255,0.03)"/>
+          <path d="M76 106 C88 94 92 76 86 62 C77 70 74 88 76 106Z" stroke-width="0.8" fill="rgba(255,255,255,0.03)"/>
+          <path d="M106 42 C100 30 98 20 104 12 C110 20 110 30 106 42Z" stroke-width="0.9" fill="rgba(255,255,255,0.04)"/>
+          <path d="M114 36 C108 24 108 14 114 7 C120 14 120 24 114 36Z" stroke-width="0.9" fill="rgba(255,255,255,0.04)"/>
+        </svg>
+      </div>
+
+      <!-- Left: copy -->
+      <div class="ab-gs-left">
         <p class="ab-gs-eyebrow">Getting started</p>
         <h3 class="ab-gs-title">Ready to take<br><em>the next step?</em></h3>
         <p class="ab-gs-sub">Whether you&rsquo;re just exploring or ready to book &mdash; reach out and we&rsquo;ll go from there.</p>
-      </div>
-      <div class="ab-gs-actions">
-        <a href="request-session.html" class="btn btn-mint">
-          Book a session
-          <svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </a>
-        <a href="#reach-out" class="btn btn-outline" onclick="openReachOut()">
-          Reach out first
-          <svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </a>
         <a href="sessions.html" class="ab-gs-sessions-link">
           How sessions work
           <svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </a>
+      </div>
+
+      <!-- Right: two frosted glass cards -->
+      <div class="ab-gs-cards">
+
+        <div class="ab-gs-card ab-gs-card--mint">
+          <p class="ab-gs-card-label">Book a session</p>
+          <p class="ab-gs-card-heading">Ready to book<br>with Cheree?</p>
+          <a href="request-session.html" class="ab-gs-card-btn ab-gs-card-btn--forest">Book a session</a>
+        </div>
+
+        <div class="ab-gs-card ab-gs-card--forest">
+          <p class="ab-gs-card-label">Get in touch</p>
+          <p class="ab-gs-card-heading">I&rsquo;m here when<br>you&rsquo;re ready.</p>
+          <button class="ab-gs-card-btn ab-gs-card-btn--mint" onclick="openReachOut()">Reach out</button>
+        </div>
+
       </div>
     </div>
 
@@ -776,6 +883,18 @@
 
 <!-- ══ 5. WHAT CLIENTS TELL ME ══════════════════════════════════════ -->
 <section class="section" id="surprise-section">
+  <div class="sec-botanical" style="top:-10px;right:-10px;width:200px;opacity:0.06;" aria-hidden="true">
+    <svg viewBox="0 0 100 200" fill="none" stroke="#2A5850" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M50 196 C49 172 52 148 47 122 C42 96 51 68 50 38 C50 26 50 16 50 8" stroke-width="1.5"/>
+      <path d="M47 165 C33 157 20 145 18 128 C28 130 40 143 47 165Z" stroke-width="0.9" fill="rgba(42,88,80,0.07)"/>
+      <path d="M47 167 C61 157 74 145 76 128 C66 130 54 143 47 167Z" stroke-width="0.9" fill="rgba(42,88,80,0.07)"/>
+      <path d="M47 140 C34 130 22 116 20 100 C31 103 43 117 47 140Z" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+      <path d="M47 140 C60 130 72 116 74 100 C63 103 51 117 47 140Z" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+      <path d="M49 82 C41 70 36 55 38 42 C47 47 51 62 49 82Z" stroke-width="0.8" fill="rgba(42,88,80,0.06)"/>
+      <path d="M49 82 C57 70 64 55 62 42 C53 47 49 62 49 82Z" stroke-width="0.8" fill="rgba(42,88,80,0.06)"/>
+      <path d="M50 38 C45 26 45 16 50 10 C55 16 55 26 50 38Z" stroke-width="0.9" fill="rgba(42,88,80,0.08)"/>
+    </svg>
+  </div>
   <div class="wrap" style="max-width:1040px;">
     <div class="eyebrow eyebrow--centre" style="margin-bottom:10px;">
       <div class="eyebrow-bar"></div>
@@ -818,6 +937,17 @@
 
 <!-- ══ 6. QUALIFICATIONS ══════════════════════════════════════════════ -->
 <section class="section section-alt" id="about-experience">
+  <div class="sec-botanical" style="bottom:-10px;left:-15px;width:190px;opacity:0.05;" aria-hidden="true">
+    <svg viewBox="0 0 120 200" fill="none" stroke="#2A5850" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M26 196 C24 168 30 142 40 118 C50 94 55 68 58 42 C59 30 60 18 60 8" stroke-width="1.4"/>
+      <path d="M94 196 C96 168 90 142 80 118 C70 94 65 68 62 42 C61 30 60 18 60 8" stroke-width="1.4"/>
+      <path d="M28 168 C17 156 10 140 12 124 C22 128 29 144 28 168Z" stroke-width="0.85" fill="rgba(42,88,80,0.06)"/>
+      <path d="M36 130 C24 118 18 100 20 84 C32 90 38 108 36 130Z" stroke-width="0.85" fill="rgba(42,88,80,0.06)"/>
+      <path d="M92 168 C103 156 110 140 108 124 C98 128 91 144 92 168Z" stroke-width="0.85" fill="rgba(42,88,80,0.06)"/>
+      <path d="M84 130 C96 118 102 100 100 84 C88 90 82 108 84 130Z" stroke-width="0.85" fill="rgba(42,88,80,0.06)"/>
+      <path d="M60 32 C54 20 53 12 60 7 C67 12 66 20 60 32Z" stroke-width="1" fill="rgba(42,88,80,0.08)"/>
+    </svg>
+  </div>
   <div class="wrap" style="max-width:1040px;">
     <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">Background &amp; experience</span></div>
     <div class="ab-quals-grid">
