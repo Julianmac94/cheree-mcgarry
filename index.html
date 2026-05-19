@@ -8,40 +8,103 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Raleway:wght@200;300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <style>
-/* ── Homepage: surprise grid ── */
+/* ══════════════════════════════════════════════
+   About section — redesigned layout
+   ══════════════════════════════════════════════ */
+.ab-head { margin-bottom: 44px; }
+.ab-body-row {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 56px;
+  align-items: start;
+  margin-bottom: 52px;
+}
+.ab-body-text { display: flex; flex-direction: column; }
+
+/* Cheree photo column */
+.ab-cheree-wrap { display: flex; flex-direction: column; gap: 14px; }
+.ab-cheree-placeholder {
+  width: 100%; aspect-ratio: 3/4;
+  background: rgba(42,88,80,0.05);
+  border: 1px solid rgba(42,88,80,0.1);
+  border-radius: 18px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px;
+  color: rgba(42,88,80,0.28);
+}
+.ab-cheree-placeholder svg { width: 52px; height: 52px; }
+.ab-cheree-placeholder-lbl {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(42,88,80,0.28);
+}
+.ab-cheree-caption {
+  font-size: 12.5px; color: #7A948F; line-height: 1.55;
+}
+.ab-cheree-caption strong { display: block; color: #192E2A; font-weight: 500; font-size: 14px; }
+
+/* Values strip — 3 col, no boxes */
+.ab-values {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid rgba(42,88,80,0.1);
+  padding-top: 40px;
+}
+.ab-val-item {
+  display: flex; flex-direction: column; gap: 12px;
+  padding-right: 40px;
+}
+.ab-val-item + .ab-val-item {
+  padding-left: 40px;
+  border-left: 1px solid rgba(42,88,80,0.08);
+}
+.ab-val-item:last-child { padding-right: 0; }
+.ab-val-icon {
+  width: 40px; height: 40px;
+  background: rgba(42,88,80,0.08);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: #2A5850;
+}
+.ab-val-icon svg { width: 18px; height: 18px; }
+.ab-val-title { font-size: 15px; font-weight: 500; color: #192E2A; margin: 0; line-height: 1.3; }
+.ab-val-body  { font-size: 13.5px; color: #3E5C56; line-height: 1.72; margin: 0; }
+
+@media (max-width: 860px) {
+  .ab-body-row { grid-template-columns: 1fr; gap: 36px; }
+  .ab-cheree-wrap { flex-direction: row; align-items: flex-start; gap: 20px; }
+  .ab-cheree-placeholder { width: 130px; flex-shrink: 0; }
+  .ab-values { grid-template-columns: 1fr; gap: 0; }
+  .ab-val-item { padding: 28px 0 0 !important; border-left: none !important; border-top: 1px solid rgba(42,88,80,0.08); }
+  .ab-val-item:first-child { padding-top: 0 !important; border-top: none; }
+}
+
+/* ══════════════════════════════════════════════
+   "What clients tell me" surprise grid
+   ══════════════════════════════════════════════ */
 .surprise-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 28px;
 }
-.surprise-item {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
+.surprise-item { display: flex; flex-direction: column; gap: 14px; }
 .surprise-icon {
   width: 46px; height: 46px;
   background: rgba(42,88,80,0.08);
   border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
-  color: #2A5850; flex-shrink: 0;
+  color: #2A5850;
 }
 .surprise-icon svg { width: 22px; height: 22px; }
-.surprise-label {
-  font-size: 15px; font-weight: 500;
-  color: #192E2A; margin: 0; line-height: 1.3;
-}
-.surprise-body {
-  font-size: 13.5px; color: #3E5C56;
-  line-height: 1.72; margin: 0;
-}
+.surprise-label { font-size: 15px; font-weight: 500; color: #192E2A; margin: 0; line-height: 1.3; }
+.surprise-body  { font-size: 13.5px; color: #3E5C56; line-height: 1.72; margin: 0; }
 @media (max-width: 900px) {
   .surprise-grid { grid-template-columns: 1fr 1fr; gap: 24px; }
 }
 @media (max-width: 540px) {
   .surprise-grid { grid-template-columns: 1fr; gap: 20px; }
 }
-/* ── centre the eyebrow on the surprise section ── */
 .eyebrow--centre { justify-content: center; }
 </style>
 </head>
@@ -223,43 +286,79 @@
 
 <!-- ── About Cheree ─────────────────────────────────────────────── -->
 <section class="section section-alt" id="about-section">
-  <div class="wrap">
-    <div class="about-photo-wrap">
-      <img class="about-photo" src="assets/house.jpg" alt="Cheree McGarry practice, Karalee QLD" loading="lazy">
-      <div class="about-photo-caption">Karalee, QLD</div>
+  <div class="wrap" style="max-width:1040px;">
+
+    <!-- Heading -->
+    <div class="ab-head">
+      <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">About Cheree</span></div>
+      <h2 class="sec-heading">Here for the big things &mdash;<br><em>and the ones you can&rsquo;t name yet.</em></h2>
     </div>
-    <div class="about-grid">
-      <div>
-        <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">About Cheree</span></div>
-        <h2 class="sec-heading">Here for the big things &mdash;<br><em>and the ones you can&rsquo;t name yet.</em></h2>
+
+    <!-- Body: copy left, photo placeholder right -->
+    <div class="ab-body-row">
+      <div class="ab-body-text">
         <div class="about-quote-block">
           <p class="about-quote">&ldquo;When someone truly feels heard &mdash; that&rsquo;s when things begin to shift. Not fixed. Just met.&rdquo;</p>
           <p class="about-quote-attr">Cheree McGarry</p>
         </div>
-        <p class="about-body">I&rsquo;m an Accredited Mental Health Social Worker with over 25 years of experience. I work with everyone &mdash; all ages, all kinds of circumstances. Relationships, family, anxiety, grief, burnout, big life changes &mdash; or just something that doesn&rsquo;t feel right and you can&rsquo;t quite put your finger on it yet. Both are completely valid reasons to reach out.</p>
-        <p class="about-body" style="margin-top:12px;">My approach is warm, genuine and flexible. I follow your lead. Sessions feel more like a real conversation than anything clinical &mdash; which catches people off guard more often than you&rsquo;d think.</p>
-        <div class="about-stats">
+        <p class="about-body">I&rsquo;m an Accredited Mental Health Social Worker with over 25 years of experience. I work with everyone &mdash; all ages, all kinds of circumstances. Relationships, family, anxiety, grief, burnout, big life changes &mdash; or just something that doesn&rsquo;t feel right and you can&rsquo;t quite put your finger on it yet.</p>
+        <p class="about-body" style="margin-top:14px;">My approach is warm, genuine and flexible. I follow your lead. Sessions tend to feel more like a real conversation than anything clinical &mdash; which catches people off guard more often than you&rsquo;d think.</p>
+        <div class="about-stats" style="margin-top:28px;">
           <div class="astat"><div class="astat-n">25+</div><div class="astat-l">Years experience</div></div>
           <div class="astat"><div class="astat-n">AASW</div><div class="astat-l">Registered member</div></div>
         </div>
       </div>
-      <div class="val-cards">
-        <div class="val-card">
-          <div class="val-num">01</div>
-          <h3 class="val-title">Personal. Real.</h3>
-          <p class="val-body">No templates, no rigid methods. I adapt to what&rsquo;s actually useful for you &mdash; not the other way around.</p>
+
+      <!-- Photo placeholder — swap src when photo is ready -->
+      <div class="ab-cheree-wrap">
+        <div class="ab-cheree-placeholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="5"/>
+            <path d="M2 22c0-5.523 4.477-10 10-10s10 4.477 10 10"/>
+          </svg>
+          <span class="ab-cheree-placeholder-lbl">Photo coming soon</span>
         </div>
-        <div class="val-card">
-          <div class="val-num">02</div>
-          <h3 class="val-title">The relationship is the work.</h3>
-          <p class="val-body">Real change happens when someone truly feels heard. I&rsquo;m not here to fix you &mdash; I&rsquo;m here to be genuinely present with you.</p>
-        </div>
-        <div class="val-card">
-          <div class="val-num">03</div>
-          <h3 class="val-title">No pressure. No threshold.</h3>
-          <p class="val-body">A free 15-minute conversation is available so you can get a sense of it &mdash; before you commit to anything.</p>
+        <div class="ab-cheree-caption">
+          <strong>Cheree McGarry</strong>
+          Accredited Mental Health Social Worker &middot; Karalee, QLD
         </div>
       </div>
+    </div>
+
+    <!-- Values strip — no borders, no numbers -->
+    <div class="ab-values">
+
+      <div class="ab-val-item">
+        <div class="ab-val-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+          </svg>
+        </div>
+        <h3 class="ab-val-title">Personal. Real.</h3>
+        <p class="ab-val-body">No templates, no rigid methods. I adapt to what&rsquo;s actually useful for you &mdash; not the other way around.</p>
+      </div>
+
+      <div class="ab-val-item">
+        <div class="ab-val-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+          </svg>
+        </div>
+        <h3 class="ab-val-title">The relationship is the work.</h3>
+        <p class="ab-val-body">Real change happens when someone truly feels heard. I&rsquo;m not here to fix you &mdash; I&rsquo;m here to be genuinely present with you.</p>
+      </div>
+
+      <div class="ab-val-item">
+        <div class="ab-val-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v4l3 3"/>
+          </svg>
+        </div>
+        <h3 class="ab-val-title">No pressure. No threshold.</h3>
+        <p class="ab-val-body">A free 15-minute conversation is available so you can get a sense of it &mdash; before you commit to anything.</p>
+      </div>
+
     </div>
   </div>
 </section>
