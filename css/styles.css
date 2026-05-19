@@ -108,15 +108,15 @@ body::after {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   text-align: center;
-  padding: 60px 40px 80px;
-  background: var(--teal-deep);
+  padding: 60px 40px 100px; /* bottom pad reserves space for absolute scroll indicator */
+  background: var(--cream);
   position: relative;
   overflow: hidden;
   transform: translateZ(0);
   isolation: isolate;
 }
 
-/* Background rings — concentric mint/terra/cream on dark teal */
+/* Background rings — concentric teal/terra, centred lower */
 .hero::before {
   content: '';
   position: absolute;
@@ -125,24 +125,25 @@ body::after {
   width: 1px; height: 1px;
   border-radius: 50%;
   box-shadow:
-    0 0 0 26vh  rgba(119,207,189,0.07),
-    0 0 0 40vh  rgba(119,207,189,0.05),
-    0 0 0 56vh  rgba(243,239,230,0.04),
-    0 0 0 72vh  rgba(190,110,68,0.10),
-    0 0 0 90vh  rgba(190,110,68,0.07),
+    0 0 0 26vh  rgba(42,88,80,0.13),
+    0 0 0 40vh  rgba(42,88,80,0.09),
+    0 0 0 56vh  rgba(42,88,80,0.07),
+    0 0 0 72vh  rgba(190,110,68,0.09),
+    0 0 0 90vh  rgba(190,110,68,0.065),
     0 0 0 110vh rgba(190,110,68,0.04),
-    0 0 0 132vh rgba(243,239,230,0.02);
+    0 0 0 132vh rgba(42,88,80,0.025);
   pointer-events: none; z-index: 0;
 }
 
-/* Warm glow — centred behind logo + cream fade at bottom */
+/* Warm glow — centred behind logo */
 .hero::after {
   content: '';
   position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 50% 20%, rgba(190,110,68,0.11) 0%, rgba(119,207,189,0.05) 38%, transparent 62%),
-    linear-gradient(to bottom, transparent 55%, rgba(25,46,42,0.0) 72%, var(--cream) 100%);
+  top: 40px; left: 50%;
+  transform: translateX(-50%);
+  width: 560px; height: 560px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(190,110,68,0.07) 0%, rgba(42,88,80,0.04) 45%, transparent 72%);
   pointer-events: none; z-index: 0;
 }
 
@@ -174,18 +175,18 @@ body::after {
   font-family: var(--serif);
   font-size: clamp(56px, 8.5vw, 108px);
   font-weight: 300; line-height: 1;
-  color: rgba(243,239,230,0.95);
+  color: var(--ink);
   letter-spacing: -0.03em;
   white-space: nowrap;
   margin-bottom: 12px;
 }
-/* Cheree — italic, mint on dark, the focal point */
-.hero-name em { font-style: italic; color: var(--mint); font-weight: 300; }
+/* Cheree — italic teal, the focal point */
+.hero-name em { font-style: italic; color: var(--teal); font-weight: 300; }
 
 .hero-biz {
   font-size: 15px; font-weight: 300;
   letter-spacing: 0.28em; text-transform: uppercase;
-  color: rgba(243,239,230,0.42);
+  color: var(--soft);
   margin-bottom: 36px;
 }
 
@@ -211,60 +212,58 @@ body::after {
   0%, 100% { opacity: 1;    transform: translate(-50%, -50%) scaleX(1); }
   50%       { opacity: 0.6; transform: translate(-50%, -50%) scaleX(1.04); }
 }
-.hero-rule-line { width: 52px; height: 1px; background: rgba(243,239,230,0.18); }
-.hero-rule-dot  { width: 5px; height: 5px; border-radius: 50%; background: var(--mint); opacity: 0.6; flex-shrink: 0; }
+.hero-rule-line { width: 52px; height: 1px; background: var(--cream-3); }
+.hero-rule-dot  { width: 5px; height: 5px; border-radius: 50%; background: var(--terra); opacity: 0.7; flex-shrink: 0; }
 
 .hero-meta {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
-.hero-meta-line { font-size: 14px; font-weight: 300; color: rgba(243,239,230,0.42); letter-spacing: 0.03em; }
-.hero-sep { color: var(--mint); margin: 0 10px; opacity: 0.5; }
+.hero-meta-line { font-size: 13px; font-weight: 300; color: var(--soft); letter-spacing: 0.03em; }
+.hero-sep { color: var(--terra); margin: 0 10px; opacity: 0.8; }
 
-/* ── HERO CTAs, TAGLINE & LOCATION (replaces hero-cards) ── */
+/* ── HERO CTAs, TAGLINE & LOCATION ── */
 .hero-tagline {
   font-family: var(--serif);
-  font-size: 18px; font-weight: 300; font-style: italic;
-  color: rgba(243,239,230,0.75);
+  font-size: 19px; font-weight: 300; font-style: italic;
+  color: var(--mid);
   letter-spacing: 0.01em;
   margin-top: 24px;
-  max-width: 460px;
+  max-width: 500px;
   line-height: 1.55;
 }
 .hero-ctas {
   display: flex; align-items: center; justify-content: center;
   gap: 12px;
-  margin-top: 22px;
+  margin-top: 26px;
 }
-/* Ghost style for Explore Sessions on dark hero bg */
-.hero-ctas .hc-btn:not(.hc-btn--mint) {
-  background: rgba(243,239,230,0.08);
-  border-color: rgba(243,239,230,0.22);
-  color: rgba(243,239,230,0.88);
-}
-.hero-ctas .hc-btn:not(.hc-btn--mint):hover {
-  background: rgba(243,239,230,0.15);
-  border-color: rgba(243,239,230,0.38);
-}
-.hero-meta { margin-top: 22px; }
+.hero-meta { margin-top: 24px; }
 .hero-location {
   font-size: 11px; font-weight: 400;
-  letter-spacing: 0.18em; text-transform: uppercase;
-  color: rgba(243,239,230,0.38);
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--soft);
+  opacity: 0.7;
   margin-top: 8px;
 }
 
+/* Scroll indicator floats at the bottom, out of flex flow so content centres cleanly */
+@keyframes scrollIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 .hero-scroll {
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
-  margin-top: 36px; margin-bottom: 0;
-  animation: hUp 0.9s var(--ease) 0.78s both;
+  position: absolute;
+  bottom: 38px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  animation: scrollIn 0.9s var(--ease) 0.78s both;
 }
 .hero-scroll-label {
-  font-family: var(--sans); font-size: 11px; font-weight: 400;
+  font-family: var(--sans); font-size: 10.5px; font-weight: 400;
   letter-spacing: 0.2em; text-transform: uppercase;
-  color: rgba(243,239,230,0.42); opacity: 1;
+  color: var(--soft); opacity: 0.75;
 }
 .hero-scroll-arrow {
-  color: rgba(243,239,230,0.35); opacity: 1;
+  color: var(--soft); opacity: 0.55;
   animation: scrollBob 2.6s ease-in-out 1.4s infinite;
 }
 @keyframes scrollBob {
@@ -1256,12 +1255,11 @@ footer { background: var(--teal-deep); position: relative; overflow: hidden; }
   .nav-sub { display: none; }
 
   /* Hero */
-  .hero { padding: 56px 20px 48px; }
+  .hero { padding: 56px 20px 72px; }
   .hero-name { white-space: normal; font-size: clamp(44px,11vw,72px); }
   .hero-logo { width: 130px; height: 130px; margin-top: 0; margin-bottom: 20px; }
-  .hero-scroll { display: none; }
+  .hero-scroll { bottom: 28px; }
   .hero-tagline { font-size: 16px; max-width: 340px; }
-  .hero-meta { margin-top: 18px; }
 
   .about-grid { grid-template-columns: 1fr; gap: 48px; }
   .about-photo-wrap { height: 260px; border-radius: 14px; }
@@ -1294,8 +1292,9 @@ footer { background: var(--teal-deep); position: relative; overflow: hidden; }
   .ft-cols-inner { grid-template-columns: 1fr; }
 
   /* Hero: stack CTAs on phone */
-  .hero-ctas { flex-direction: column; gap: 10px; margin-top: 24px; }
+  .hero-ctas { flex-direction: column; gap: 10px; margin-top: 20px; }
   .hero-tagline { font-size: 15px; }
+  .hero-scroll { bottom: 20px; }
 
   /* Footer CTA: stack on mobile */
   .ft-cta { padding: 64px 20px; }
