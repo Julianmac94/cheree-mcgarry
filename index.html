@@ -134,33 +134,41 @@
 }
 
 /* ════════════════════════════════════════════════
-   ABOUT — Why people come (icon cards + process)
+   ABOUT — Why people come (botanical art cards)
    ════════════════════════════════════════════════ */
 .ab-why-hd { max-width: 560px; margin-bottom: 52px; }
 
-/* 4-up icon cards */
+/* 2×2 card grid */
 .ab-why-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
 }
 .ab-why-card {
   background: white;
   border-radius: 18px;
-  padding: 30px 26px 26px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  min-height: 220px;
+}
+.ab-why-card-body {
+  padding: 30px 16px 28px 30px;
   display: flex;
   flex-direction: column;
 }
-.ab-why-icon {
-  width: 48px; height: 48px;
-  background: rgba(42,88,80,0.08);
-  border-radius: 14px;
-  display: flex; align-items: center; justify-content: center;
-  color: #2A5850;
-  margin-bottom: 20px;
-  flex-shrink: 0;
+.ab-why-card-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 18px 20px 0;
+  opacity: 0.9;
 }
-.ab-why-icon svg { width: 22px; height: 22px; }
+.ab-why-card-art svg {
+  width: 100%;
+  height: 100%;
+  max-height: 230px;
+}
 .ab-why-card-label {
   font-family: var(--sans);
   font-size: 11px;
@@ -168,38 +176,40 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--teal);
-  margin: 0 0 14px;
+  margin: 0 0 15px;
 }
 .ab-why-card-list {
   list-style: none;
   padding: 0; margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
   flex: 1;
 }
 .ab-why-card-list li {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 300;
-  color: #3a5a54;
+  color: #2e4a45;
   line-height: 1.55;
-  padding-left: 14px;
+  padding-left: 15px;
   position: relative;
 }
 .ab-why-card-list li::before {
   content: '';
   position: absolute;
-  left: 0; top: 9px;
+  left: 0; top: 10px;
   width: 4px; height: 4px;
   border-radius: 50%;
   background: #77CFBD;
 }
-@media (max-width: 900px) {
-  .ab-why-cards { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .ab-why-cards { grid-template-columns: 1fr; }
+}
+@media (max-width: 440px) {
+  .ab-why-card { grid-template-columns: 1fr; }
+  .ab-why-card-art { padding: 0 24px 20px; height: 80px; justify-content: flex-start; align-items: flex-end; }
+  .ab-why-card-art svg { height: 100%; width: auto; max-height: none; }
 }
 
 /* Numbered process steps */
@@ -588,69 +598,139 @@
       <p class="about-body">Below is a sense of them. You don&rsquo;t need to fit neatly into one of these &mdash; and this isn&rsquo;t a complete list. If something is going on, reach out.</p>
     </div>
 
-    <!-- 4 icon cards -->
+    <!-- 2×2 botanical art cards -->
     <div class="ab-why-cards">
 
+      <!-- Card 1: Personal & mental health — fern frond -->
       <div class="ab-why-card">
-        <div class="ab-why-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="8" r="4"/>
-            <path d="M5 20a7 7 0 0114 0"/>
+        <div class="ab-why-card-body">
+          <p class="ab-why-card-label">Personal &amp; mental health</p>
+          <ul class="ab-why-card-list">
+            <li>Need help to cope and change</li>
+            <li>An individual struggle related to anything and everything</li>
+            <li>Any mental health or developmental struggle regardless of informal or formal diagnosis</li>
+            <li>Past, present or future concerns</li>
+          </ul>
+        </div>
+        <div class="ab-why-card-art">
+          <svg viewBox="0 0 100 200" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Main stem -->
+            <path d="M50 196 C49 172 52 148 47 122 C42 96 51 68 50 38 C50 26 50 16 50 8" stroke="#2A5850" stroke-width="1.5"/>
+            <!-- Leaflet pair 1 -->
+            <path d="M47 165 C33 157 20 145 18 128 C28 130 40 143 47 165Z" stroke="#2A5850" stroke-width="0.9" fill="rgba(42,88,80,0.07)"/>
+            <path d="M47 167 C61 157 74 145 76 128 C66 130 54 143 47 167Z" stroke="#2A5850" stroke-width="0.9" fill="rgba(42,88,80,0.07)"/>
+            <!-- Leaflet pair 2 -->
+            <path d="M47 140 C34 130 22 116 20 100 C31 103 43 117 47 140Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+            <path d="M47 140 C60 130 72 116 74 100 C63 103 51 117 47 140Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+            <!-- Leaflet pair 3 -->
+            <path d="M48 112 C37 101 28 86 26 70 C37 74 47 88 48 112Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.08)"/>
+            <path d="M48 112 C59 101 70 86 72 70 C61 74 49 88 48 112Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.08)"/>
+            <!-- Leaflet pair 4 -->
+            <path d="M49 82 C41 70 36 55 38 42 C47 47 51 62 49 82Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.08)"/>
+            <path d="M49 82 C57 70 64 55 62 42 C53 47 49 62 49 82Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.08)"/>
+            <!-- Terminal leaflet -->
+            <path d="M50 38 C45 26 45 16 50 10 C55 16 55 26 50 38Z" stroke="#2A5850" stroke-width="0.9" fill="rgba(42,88,80,0.11)"/>
+            <line x1="50" y1="36" x2="50" y2="12" stroke="#2A5850" stroke-width="0.4"/>
           </svg>
         </div>
-        <p class="ab-why-card-label">Personal &amp; mental health</p>
-        <ul class="ab-why-card-list">
-          <li>Need help to cope and change</li>
-          <li>An individual struggle related to anything and everything</li>
-          <li>Any mental health or developmental struggle regardless of informal or formal diagnosis</li>
-          <li>Past, present or future concerns</li>
-        </ul>
       </div>
 
+      <!-- Card 2: Relationships — two stems meeting -->
       <div class="ab-why-card">
-        <div class="ab-why-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="8" cy="8" r="3.5"/>
-            <path d="M2 20a6.5 6.5 0 0111 0"/>
-            <circle cx="17" cy="8" r="3.5"/>
-            <path d="M11 20a6.5 6.5 0 0111 0"/>
+        <div class="ab-why-card-body">
+          <p class="ab-why-card-label">Relationships</p>
+          <ul class="ab-why-card-list">
+            <li>A relationship that needs a tune up &mdash; is ending or ended &mdash; partner, friends, family or work</li>
+          </ul>
+        </div>
+        <div class="ab-why-card-art">
+          <svg viewBox="0 0 120 200" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Left stem -->
+            <path d="M26 196 C24 168 30 142 40 118 C50 94 55 68 58 42 C59 30 60 18 60 8" stroke="#2A5850" stroke-width="1.4"/>
+            <!-- Right stem -->
+            <path d="M94 196 C96 168 90 142 80 118 C70 94 65 68 62 42 C61 30 60 18 60 8" stroke="#2A5850" stroke-width="1.4"/>
+            <!-- Left stem leaves -->
+            <path d="M28 168 C17 156 10 140 12 124 C22 128 29 144 28 168Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+            <path d="M36 130 C24 118 18 100 20 84 C32 90 38 108 36 130Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+            <path d="M46 92 C36 78 34 62 38 48 C48 56 50 72 46 92Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.06)"/>
+            <!-- Right stem leaves -->
+            <path d="M92 168 C103 156 110 140 108 124 C98 128 91 144 92 168Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+            <path d="M84 130 C96 118 102 100 100 84 C88 90 82 108 84 130Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+            <path d="M74 92 C84 78 86 62 82 48 C72 56 70 72 74 92Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.06)"/>
+            <!-- Shared terminal bud -->
+            <path d="M60 32 C54 20 53 12 60 7 C67 12 66 20 60 32Z" stroke="#2A5850" stroke-width="1" fill="rgba(42,88,80,0.12)"/>
+            <path d="M58 24 C50 18 44 12 42 6 C48 8 55 14 58 24Z" stroke="#2A5850" stroke-width="0.7" fill="rgba(42,88,80,0.06)"/>
+            <path d="M62 24 C70 18 76 12 78 6 C72 8 65 14 62 24Z" stroke="#2A5850" stroke-width="0.7" fill="rgba(42,88,80,0.06)"/>
           </svg>
         </div>
-        <p class="ab-why-card-label">Relationships</p>
-        <ul class="ab-why-card-list">
-          <li>A relationship that needs a tune up &mdash; is ending or ended &mdash; partner, friends, family or work</li>
-        </ul>
       </div>
 
+      <!-- Card 3: Types of support — olive branch -->
       <div class="ab-why-card">
-        <div class="ab-why-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 00-3-3.87"/>
-            <path d="M16 3.13a4 4 0 010 7.75"/>
+        <div class="ab-why-card-body">
+          <p class="ab-why-card-label">Types of support</p>
+          <ul class="ab-why-card-list">
+            <li>Therapeutic support for a child, adolescent or adult</li>
+            <li>Professional supervision</li>
+          </ul>
+        </div>
+        <div class="ab-why-card-art">
+          <svg viewBox="0 0 130 200" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Main branch diagonal lower-left to upper-right -->
+            <path d="M22 192 C36 168 52 142 66 116 C80 90 96 64 108 40 C112 32 116 22 116 14" stroke="#2A5850" stroke-width="1.5"/>
+            <!-- Leaf pairs along the branch -->
+            <!-- Pair 1 bottom -->
+            <path d="M28 178 C18 164 12 148 14 132 C24 138 30 154 28 178Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+            <path d="M36 172 C46 158 52 142 50 126 C40 132 34 148 36 172Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
+            <!-- Pair 2 -->
+            <path d="M46 148 C34 136 28 118 32 102 C42 110 48 128 46 148Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.08)"/>
+            <path d="M58 140 C70 128 76 110 72 94 C62 102 56 120 58 140Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.08)"/>
+            <!-- Pair 3 -->
+            <path d="M66 114 C54 102 50 84 56 70 C65 78 68 96 66 114Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.07)"/>
+            <path d="M76 106 C88 94 92 76 86 62 C77 70 74 88 76 106Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.07)"/>
+            <!-- Pair 4 -->
+            <path d="M88 80 C78 68 76 50 82 38 C90 46 92 64 88 80Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.08)"/>
+            <path d="M100 70 C110 58 112 40 106 28 C98 36 96 54 100 70Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.08)"/>
+            <!-- Terminal tips -->
+            <path d="M106 42 C100 30 98 20 104 12 C110 20 110 30 106 42Z" stroke="#2A5850" stroke-width="0.9" fill="rgba(42,88,80,0.1)"/>
+            <path d="M114 36 C108 24 108 14 114 7 C120 14 120 24 114 36Z" stroke="#2A5850" stroke-width="0.9" fill="rgba(42,88,80,0.1)"/>
           </svg>
         </div>
-        <p class="ab-why-card-label">Types of support</p>
-        <ul class="ab-why-card-list">
-          <li>Therapeutic support for a child, adolescent or adult</li>
-          <li>Professional supervision</li>
-        </ul>
       </div>
 
+      <!-- Card 4: Getting started — seedling -->
       <div class="ab-why-card">
-        <div class="ab-why-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15 3H5a2 2 0 00-2 2v14a2 2 0 002 2h10"/>
-            <polyline points="10 17 15 12 10 7"/>
-            <line x1="5" y1="12" x2="15" y2="12"/>
+        <div class="ab-why-card-body">
+          <p class="ab-why-card-label">Getting started</p>
+          <ul class="ab-why-card-list">
+            <li>Whether you&rsquo;ve been for counselling before or not, whether it&rsquo;s for one session or many</li>
+            <li>Private or third party funding</li>
+          </ul>
+        </div>
+        <div class="ab-why-card-art">
+          <svg viewBox="0 0 100 200" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Ground line -->
+            <path d="M12 172 C32 165 68 165 88 172" stroke="#2A5850" stroke-width="0.8" opacity="0.4"/>
+            <!-- Main stem -->
+            <path d="M50 172 C50 155 50 138 50 120 C50 102 50 82 50 62 C50 48 50 36 50 22" stroke="#2A5850" stroke-width="1.6"/>
+            <!-- Left leaf -->
+            <path d="M50 105 C40 92 28 76 20 60 C18 54 20 46 24 44 C30 52 38 70 50 105Z" stroke="#2A5850" stroke-width="1" fill="rgba(42,88,80,0.08)"/>
+            <path d="M50 102 C40 88 30 72 24 58" stroke="#2A5850" stroke-width="0.45"/>
+            <!-- Right leaf -->
+            <path d="M50 105 C60 92 72 76 80 60 C82 54 80 46 76 44 C70 52 62 70 50 105Z" stroke="#2A5850" stroke-width="1" fill="rgba(42,88,80,0.08)"/>
+            <path d="M50 102 C60 88 70 72 76 58" stroke="#2A5850" stroke-width="0.45"/>
+            <!-- Small side buds on stem -->
+            <path d="M49 65 C42 58 37 48 40 40 C46 44 49 54 49 65Z" stroke="#2A5850" stroke-width="0.75" fill="rgba(42,88,80,0.06)"/>
+            <path d="M51 65 C58 58 63 48 60 40 C54 44 51 54 51 65Z" stroke="#2A5850" stroke-width="0.75" fill="rgba(42,88,80,0.06)"/>
+            <!-- Terminal bud -->
+            <path d="M50 36 C45 25 44 14 50 8 C56 14 55 25 50 36Z" stroke="#2A5850" stroke-width="1" fill="rgba(42,88,80,0.12)"/>
+            <line x1="50" y1="34" x2="50" y2="10" stroke="#2A5850" stroke-width="0.45"/>
+            <!-- Roots -->
+            <path d="M50 172 C46 182 40 192 36 198" stroke="#2A5850" stroke-width="0.8" opacity="0.35"/>
+            <path d="M50 172 C54 182 60 192 64 198" stroke="#2A5850" stroke-width="0.8" opacity="0.35"/>
+            <path d="M49 176 C44 186 42 194 40 200" stroke="#2A5850" stroke-width="0.55" opacity="0.25"/>
           </svg>
         </div>
-        <p class="ab-why-card-label">Getting started</p>
-        <ul class="ab-why-card-list">
-          <li>Whether you&rsquo;ve been for counselling before or not, whether it&rsquo;s for one session or many</li>
-          <li>Private or third party funding</li>
-        </ul>
       </div>
 
     </div>
