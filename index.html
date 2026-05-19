@@ -94,6 +94,13 @@
   letter-spacing: 0.1em; text-transform: uppercase;
   color: rgba(42,88,80,0.22); text-align: center; line-height: 1.6;
 }
+.ab-cheree-photo {
+  width: 100%; aspect-ratio: 3/4;
+  object-fit: cover; object-position: center top;
+  border-radius: 20px;
+  position: sticky; top: 96px;
+  display: block;
+}
 
 /* ════════════════════════════════════════════════
    ABOUT — Pull-quote band
@@ -378,13 +385,13 @@
   </svg>
 </div>
 
-<!-- ══ 1. OPENING STATEMENT ══════════════════════════════════════════ -->
+<!-- ══ 1. OPENING — picker + pull quote banner ════════════════════════ -->
 <section class="section section-alt ab-opening-section" id="about-section">
   <div class="wrap" style="max-width:760px;">
 
     <!-- Section picker -->
     <nav class="ab-picker" aria-label="About sections">
-      <button class="ab-picker-item active" onclick="easeScrollTo('about-who')">Who</button>
+      <button class="ab-picker-item active" onclick="easeScrollTo('about-who')">About Cheree</button>
       <div class="ab-picker-dot" aria-hidden="true"></div>
       <button class="ab-picker-item" onclick="easeScrollTo('about-why')">Why people come</button>
       <div class="ab-picker-dot" aria-hidden="true"></div>
@@ -393,10 +400,17 @@
       <button class="ab-picker-item" onclick="easeScrollTo('about-experience')">Experience</button>
     </nav>
 
-    <h2 class="ab-opening-heading">You don&rsquo;t have to have it figured out<br><em>before you reach out.</em></h2>
-    <p class="ab-opening-sub">No problem is too small if it matters to you. And there&rsquo;s no wrong reason to be here.</p>
   </div>
 </section>
+
+<!-- ══ PULL QUOTE BANNER — top of about ══════════════════════════════ -->
+<div class="ab-pullquote-band">
+  <div class="ab-pullquote-wrap">
+    <span class="ab-pq-open" aria-hidden="true">&ldquo;</span>
+    <p class="ab-pullquote-text">Together we will decide what you need at a pace that works for you.</p>
+    <p class="ab-pullquote-attr">Cheree McGarry</p>
+  </div>
+</div>
 
 <!-- ══ 2. EDITORIAL SPLIT — copy left, photo right ══════════════════ -->
 <section class="section ab-editorial-section" id="about-who">
@@ -405,15 +419,15 @@
     <!-- Copy -->
     <div class="ab-editorial-copy">
       <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">About Cheree</span></div>
-      <h2 class="sec-heading" style="margin-bottom:28px;">25 years.<br><em>Still finding it meaningful.</em></h2>
+      <h2 class="sec-heading" style="margin-bottom:28px;">Lived &amp; Professional<br><em>Experience.</em></h2>
 
-      <p class="about-body">I&rsquo;m an Accredited Mental Health Social Worker. I&rsquo;ve been doing this work for over 25 years &mdash; not because I followed a straight line to get here, but because it genuinely matters to me.</p>
+      <p class="about-body">I am an Accredited Mental Health Social Worker with over 25 years experience.</p>
 
-      <p class="about-body" style="margin-top:16px;">I work with people the way I&rsquo;d want someone to work with me. No script, no formula. I listen to what you&rsquo;re actually saying, and I meet you where you are &mdash; not where I think you should be.</p>
+      <p class="about-body" style="margin-top:16px;">I am interested in people and accept you where you are. I continue to learn about my work and myself. I understand that our ability to connect with each other is what will make a difference. Our relationship along with my experience and knowledge can help you work out how to understand your story &mdash; how to cope and make the changes you want or need.</p>
 
-      <p class="about-body" style="margin-top:16px;">My background is in social work, which shapes everything. I don&rsquo;t see people as problems to solve. I see people shaped by relationships, families, workplaces, culture, life. What&rsquo;s happening around you matters as much as what&rsquo;s happening inside you.</p>
+      <p class="about-body" style="margin-top:16px;">If you want to be heard, seen, respected and valued &mdash; then this could work for you.</p>
 
-      <p class="about-body" style="margin-top:16px;">I&rsquo;ve also lived a full life. That shapes how I work &mdash; with realism, warmth, and without judgement.</p>
+      <p class="about-body" style="margin-top:16px;">I am a partner, mother, grandmother, family member and friend &mdash; someone who loves the simple things in life, my dogs, the garden &mdash; but also sits with and appreciates the complexities that turn up.</p>
 
       <div class="about-stats" style="margin-top:32px;">
         <div class="astat"><div class="astat-n">25+</div><div class="astat-l">Years experience</div></div>
@@ -421,28 +435,13 @@
       </div>
     </div>
 
-    <!-- Photo placeholder — replace with <img> when ready -->
+    <!-- Cheree's photo -->
     <div class="ab-editorial-photo">
-      <div class="ab-photo-placeholder">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="8" r="5"/>
-          <path d="M2 22c0-5.523 4.477-10 10-10s10 4.477 10 10"/>
-        </svg>
-        <span class="ab-photo-placeholder-lbl">Cheree&rsquo;s photo<br>coming soon</span>
-      </div>
+      <img src="assets/cheree.jpg" alt="Cheree McGarry" class="ab-cheree-photo">
     </div>
 
   </div>
 </section>
-
-<!-- ══ 3. PULL QUOTE BAND ═════════════════════════════════════════════ -->
-<div class="ab-pullquote-band">
-  <div class="ab-pullquote-wrap">
-    <span class="ab-pq-open" aria-hidden="true">&ldquo;</span>
-    <p class="ab-pullquote-text">Together we will decide what you need at a pace that works for you.</p>
-    <p class="ab-pullquote-attr">Cheree McGarry</p>
-  </div>
-</div>
 
 <!-- ══ 4. WHY PEOPLE COME ════════════════════════════════════════════ -->
 <section class="section section-alt" id="about-why">
