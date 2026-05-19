@@ -1189,15 +1189,20 @@ footer { background: var(--teal-deep); position: relative; overflow: hidden; }
 .ft-biz-note em { font-style: normal; color: rgba(255,255,255,0.5); }
 .ftc-email { font-size: 13px; font-weight: 300; color: rgba(255,255,255,0.55); word-break: break-all; }
 
-/* Copyright bar — copyright left, links right */
+/* Copyright bar — full-width band, inner wrapper centres content */
 .ft-base {
+  padding: 20px 0;
+  background: rgba(0,0,0,0.25);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.ft-base-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 72px;
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 24px;
-  padding: 20px 72px;
-  background: rgba(0,0,0,0.25);
-  border-top: 1px solid rgba(255,255,255,0.06);
 }
 .ft-base p { font-size: 11px; font-weight: 300; color: rgba(255,255,255,0.22); text-align: center; }
 .ft-base-lnks { display: flex; gap: 20px; }
@@ -1255,7 +1260,8 @@ footer { background: var(--teal-deep); position: relative; overflow: hidden; }
   /* Footer */
   .ft-cols { padding: 52px 0 44px; }
   .ft-cols-inner { padding: 0 32px; }
-  .ft-base { padding: 16px 32px; }
+  .ft-base { padding: 16px 0; }
+  .ft-base-inner { padding: 0 32px; }
   /* Sessions launcher / guide */
   .sw-sg-hd { padding: 52px 32px 40px; }
   .sw-launcher { padding: 40px 32px 36px; }
@@ -1290,7 +1296,8 @@ footer { background: var(--teal-deep); position: relative; overflow: hidden; }
   .ft-cols { padding: 44px 0 36px; }
   .ft-cols-inner { padding: 0 20px; }
   /* Copyright bar: stack on phone */
-  .ft-base { grid-template-columns: 1fr; text-align: center; gap: 8px; padding: 20px; }
+  .ft-base { padding: 16px 0; }
+  .ft-base-inner { grid-template-columns: 1fr; text-align: center; gap: 8px; padding: 0 20px; }
   .ft-base-lnks { justify-content: center; }
 
   /* Sessions: session detail panel */
