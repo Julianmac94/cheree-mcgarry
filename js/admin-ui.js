@@ -889,10 +889,17 @@ async function dbBookHalaxyAppt() {
   if (!patientId) { toast('Please select a patient', 'err'); return; }
   if (!date)      { toast('Date is required', 'err'); return; }
 
-  // Build ISO start/end strings
-  var apptStart = date + 'T' + (time.length === 5 ? time : '10:00') + ':00';
-  var endMs     = new Date(apptStart).getTime() + duration * 60 * 1000;
-  var apptEnd   = new Date(endMs).toISOString().slice(0, 19);
+  // Build ISO start/end strings — Halaxy requires a timezone offset (Brisbane = UTC+10, no DST)
+  var TZ = '+10:00';
+  var apptStart = date + 'T' + (time.length === 5 ? time : '10:00') + ':00' + TZ;
+  var startMs   = new Date(apptStart).getTime();
+  var endMs     = startMs + duration * 60 * 1000;
+  // Format end in Brisbane time: shift by +10h then read UTC components
+  var _endBris  = new Date(endMs + 10 * 3600 * 1000);
+  var _p        = function(n) { return ('0' + n).slice(-2); };
+  var apptEnd   = _endBris.getUTCFullYear() + '-' + _p(_endBris.getUTCMonth() + 1) + '-'
+                + _p(_endBris.getUTCDate()) + 'T'
+                + _p(_endBris.getUTCHours()) + ':' + _p(_endBris.getUTCMinutes()) + ':00' + TZ;
 
   var nextBtn = document.getElementById('db-ap-next');
   if (nextBtn) { nextBtn.disabled = true; nextBtn.textContent = 'Booking…'; }
@@ -7545,14 +7552,16 @@ async function _submitNewSession() {
   if (!date)     { errEl.textContent = 'Please pick a date';              errEl.style.display = ''; return; }
   if (!startT)   { errEl.textContent = 'Please set a start time';         errEl.style.display = ''; return; }
 
-  // Build ISO datetimes (assume Brisbane time +10:00)
-  var TZ_OFFSET = '+10:00';
-  var start = date + 'T' + startT + ':00' + TZ_OFFSET;
-  var endMs  = new Date(date + 'T' + startT).getTime() + duration * 60000;
-  var endD   = new Date(endMs);
-  var pad    = function(n) { return String(n).padStart(2, '0'); };
-  var end    = endD.getFullYear() + '-' + pad(endD.getMonth()+1) + '-' + pad(endD.getDate())
-             + 'T' + pad(endD.getHours()) + ':' + pad(endD.getMinutes()) + ':00' + TZ_OFFSET;
+  // Build ISO datetimes — Halaxy requires offset (Brisbane = UTC+10, no DST)
+  var TZ_OFFSET  = '+10:00';
+  var pad        = function(n) { return ('0' + n).slice(-2); };
+  var start      = date + 'T' + startT + ':00' + TZ_OFFSET;
+  var endMs      = new Date(start).getTime() + duration * 60000;
+  // Express end in Brisbane time: shift +10h then read UTC components
+  var _endBris2  = new Date(endMs + 10 * 3600 * 1000);
+  var end        = _endBris2.getUTCFullYear() + '-' + pad(_endBris2.getUTCMonth() + 1) + '-'
+                 + pad(_endBris2.getUTCDate()) + 'T'
+                 + pad(_endBris2.getUTCHours()) + ':' + pad(_endBris2.getUTCMinutes()) + ':00' + TZ_OFFSET;
 
   var feeId  = feeSel && feeSel.value ? feeSel.value : null;
 
