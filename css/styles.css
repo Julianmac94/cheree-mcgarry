@@ -112,38 +112,41 @@ body::after {
   background: var(--cream);
   position: relative;
   overflow: hidden;
+  /* Force GPU compositing — eliminates sub-pixel clip artifact on right edge */
+  transform: translateZ(0);
+  isolation: isolate;
 }
 /* On desktop, cards are absolute so hero needs bottom padding.
    On mobile (overridden in @media) padding is reduced and cards flow. */
 
-/* Background rings — terracotta/clay tones, not pink */
+/* Background rings — concentric teal/terra, centred lower */
 .hero::before {
   content: '';
   position: absolute;
-  bottom: -40vh; left: 50%;
+  bottom: -36vh; left: 50%;
   transform: translateX(-50%);
   width: 1px; height: 1px;
   border-radius: 50%;
   box-shadow:
-    0 0 0 28vh  rgba(190,110,68,0.15),
-    0 0 0 42vh  rgba(185,105,60,0.11),
-    0 0 0 58vh  rgba(190,110,68,0.085),
-    0 0 0 74vh  rgba(178,100,55,0.07),
-    0 0 0 90vh  rgba(190,110,68,0.055),
-    0 0 0 108vh rgba(178,100,55,0.038),
-    0 0 0 128vh rgba(190,110,68,0.025);
+    0 0 0 26vh  rgba(42,88,80,0.13),
+    0 0 0 40vh  rgba(42,88,80,0.09),
+    0 0 0 56vh  rgba(42,88,80,0.07),
+    0 0 0 72vh  rgba(190,110,68,0.09),
+    0 0 0 90vh  rgba(190,110,68,0.065),
+    0 0 0 110vh rgba(190,110,68,0.04),
+    0 0 0 132vh rgba(42,88,80,0.025);
   pointer-events: none; z-index: 0;
 }
 
-/* Soft warm glow — terracotta, behind logo */
+/* Warm glow — centred behind logo */
 .hero::after {
   content: '';
   position: absolute;
-  top: 48px; left: 50%;
+  top: 40px; left: 50%;
   transform: translateX(-50%);
-  width: 520px; height: 520px;
+  width: 560px; height: 560px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(190,110,68,0.08) 0%, rgba(190,110,68,0.03) 40%, transparent 70%);
+  background: radial-gradient(circle, rgba(190,110,68,0.07) 0%, rgba(42,88,80,0.04) 45%, transparent 72%);
   pointer-events: none; z-index: 0;
 }
 
@@ -246,25 +249,24 @@ body::after {
   display: flex;
   align-items: stretch;
   z-index: 2;
-  background: rgba(15,35,30,0.22);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-top: 1px solid rgba(255,255,255,0.08);
+  /* Fade in from transparent — no hard dark bar */
+  background: linear-gradient(to bottom, transparent 0%, rgba(15,35,30,0.18) 35%, rgba(15,35,30,0.32) 100%);
+  padding-top: 48px;
 }
 .hero-card {
   flex: 1; min-width: 0;
-  padding: 28px 40px 34px;
+  padding: 20px 40px 34px;
   cursor: pointer;
   transition: background 0.3s var(--ease);
   display: flex; flex-direction: column;
   text-align: left;
 }
 .hero-card:hover {
-  background: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.05);
 }
 .hc-divider {
   width: 1px;
-  background: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.1);
   flex-shrink: 0;
   margin: 24px 0;
 }
@@ -323,11 +325,12 @@ body::after {
 }
 .hc-btn:hover { background: #192E2A; border-color: rgba(255,255,255,0.3); }
 .hc-btn--mint {
-  background: rgba(119,207,189,0.22);
-  border-color: rgba(119,207,189,0.55);
-  color: #e8f9f6;
+  background: #77CFBD;
+  border-color: #77CFBD;
+  color: #192E2A;
+  font-weight: 500;
 }
-.hc-btn--mint:hover { background: rgba(119,207,189,0.35); border-color: rgba(119,207,189,0.8); }
+.hc-btn--mint:hover { background: #5fbfac; border-color: #5fbfac; }
 
 
 
@@ -1241,6 +1244,18 @@ footer { background: var(--teal-deep); }
   .sp-body { padding: 48px 28px 80px; }
   .jgrid { grid-template-columns: 1fr; }
   .det-body { grid-template-columns: 1fr; }
+
+  /* ── Global wrap + section rhythm ── */
+  .wrap { padding: 0 32px; }
+  .section { padding: 80px 0; }
+  /* Hero cards: drop excess top padding when stacked */
+  .hero-cards { padding-top: 0; }
+  /* Footer */
+  .ft-cols { padding: 52px 32px 44px; }
+  .ft-base { padding: 16px 32px; }
+  /* Sessions launcher / guide */
+  .sw-sg-hd { padding: 52px 32px 40px; }
+  .sw-launcher { padding: 40px 32px 36px; }
 }
 @media (max-width: 580px) {
   .sh-grid { grid-template-columns: 1fr; }
@@ -1256,9 +1271,35 @@ footer { background: var(--teal-deep); }
   .hc-ctas { gap: 14px; }
 
   /* Footer CTA: stack on mobile */
-  .ft-cta { padding: 64px 28px; }
+  .ft-cta { padding: 64px 20px; }
   .ft-cta-inner { grid-template-columns: 1fr; gap: 40px; }
   .ft-cta-mark { display: none; }
+
+  /* ── Tighter wrap + sections on phone ── */
+  .wrap { padding: 0 20px; }
+  .section { padding: 60px 0; }
+
+  /* Nav: compact CTA button on small screens */
+  .nav-cta { font-size: 10px; padding: 8px 13px; letter-spacing: 0.06em; }
+  .nav-cta svg { display: none; }
+
+  /* Footer columns padding */
+  .ft-cols { padding: 44px 20px 36px; }
+  /* Copyright bar: stack on phone */
+  .ft-base { grid-template-columns: 1fr; text-align: center; gap: 8px; padding: 20px; }
+  .ft-base-lnks { justify-content: center; }
+
+  /* Sessions: session detail panel */
+  .det-top { padding: 24px 20px; }
+  .det-txt { padding: 28px 20px; }
+  .det-info { padding: 28px 20px; }
+  .jcard-in { padding: 24px 20px 18px 24px; }
+  .jcard-ft { padding: 12px 24px; }
+
+  /* Info page */
+  .info-head { padding: 56px 20px 44px; }
+  .info-body { padding: 44px 20px 32px; }
+  .ci-snav-inner { padding: 0 16px; }
 }
 /* ── CLIENT INFO PAGE ── */
 .info-head {
