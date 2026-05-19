@@ -134,38 +134,38 @@
 }
 
 /* ════════════════════════════════════════════════
-   ABOUT — Why people come
+   ABOUT — Why people come (icon cards + process)
    ════════════════════════════════════════════════ */
-/* Two-column: intro left, list right */
-.ab-why-layout {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 80px;
-  align-items: start;
-}
-.ab-why-intro-col { position: sticky; top: 100px; }
-.ab-why-list-col  { margin: 0; }
-@media (max-width: 880px) {
-  .ab-why-layout { grid-template-columns: 1fr; gap: 36px; }
-  .ab-why-intro-col { position: static; }
-}
-/* Why people come — grouped cards */
+.ab-why-hd { max-width: 560px; margin-bottom: 52px; }
+
+/* 4-up icon cards */
 .ab-why-cards {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  align-content: start;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
 }
 .ab-why-card {
-  background: var(--cream);
-  border-radius: 14px;
-  padding: 24px 22px 20px;
+  background: white;
+  border-radius: 18px;
+  padding: 30px 26px 26px;
+  display: flex;
+  flex-direction: column;
 }
+.ab-why-icon {
+  width: 48px; height: 48px;
+  background: rgba(42,88,80,0.08);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  color: #2A5850;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+.ab-why-icon svg { width: 22px; height: 22px; }
 .ab-why-card-label {
   font-family: var(--sans);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--teal);
   margin: 0 0 14px;
@@ -176,92 +176,103 @@
   display: flex;
   flex-direction: column;
   gap: 9px;
+  flex: 1;
 }
 .ab-why-card-list li {
   font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(15px, 1.6vw, 17px);
+  font-size: 16px;
   font-weight: 300;
-  color: #192E2A;
+  color: #3a5a54;
   line-height: 1.55;
-  padding-left: 16px;
+  padding-left: 14px;
   position: relative;
 }
 .ab-why-card-list li::before {
   content: '';
   position: absolute;
   left: 0; top: 9px;
-  width: 5px; height: 5px;
+  width: 4px; height: 4px;
   border-radius: 50%;
   background: #77CFBD;
 }
-@media (max-width: 540px) {
+@media (max-width: 900px) {
+  .ab-why-cards { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
   .ab-why-cards { grid-template-columns: 1fr; }
 }
 
-/* What to expect — strip below why cards */
-.ab-expect-strip {
+/* Numbered process steps */
+.ab-process-strip {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0;
   margin-top: 64px;
-  padding-top: 52px;
-  border-top: 1px solid rgba(42,88,80,0.09);
+  padding-top: 56px;
+  border-top: 1px solid rgba(42,88,80,0.1);
 }
-.ab-expect-card {
-  padding: 0 28px 0 0;
+.ab-process-step { padding: 0 32px 0 0; }
+.ab-process-step + .ab-process-step {
+  padding: 0 32px 0 32px;
+  border-left: 1px solid rgba(42,88,80,0.1);
 }
-.ab-expect-card + .ab-expect-card {
-  padding-left: 28px;
-  border-left: 1px solid rgba(42,88,80,0.09);
+.ab-process-step:last-child { padding-right: 0; }
+.ab-step-num {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 44px;
+  font-weight: 300;
+  color: rgba(42,88,80,0.18);
+  line-height: 1;
+  margin-bottom: 14px;
 }
-.ab-expect-card-label {
+.ab-step-label {
   font-family: var(--sans);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--teal);
-  margin: 0 0 12px;
+  margin: 0 0 10px;
 }
-.ab-expect-body {
+.ab-step-body {
   font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(15px, 1.5vw, 17px);
+  font-size: 16px;
   font-weight: 300;
-  color: #192E2A;
+  color: #3a5a54;
   line-height: 1.6;
   margin: 0;
 }
-.ab-expect-list {
+.ab-step-list {
   list-style: none;
   padding: 0; margin: 0;
   display: flex;
   flex-direction: column;
   gap: 7px;
 }
-.ab-expect-list li {
+.ab-step-list li {
   font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(15px, 1.5vw, 17px);
+  font-size: 16px;
   font-weight: 300;
-  color: #192E2A;
+  color: #3a5a54;
   line-height: 1.5;
   padding-left: 14px;
   position: relative;
 }
-.ab-expect-list li::before {
+.ab-step-list li::before {
   content: '';
   position: absolute;
   left: 0; top: 9px;
   width: 4px; height: 4px;
   border-radius: 50%;
-  background: rgba(42,88,80,0.35);
+  background: rgba(42,88,80,0.3);
 }
 @media (max-width: 880px) {
-  .ab-expect-strip { grid-template-columns: repeat(2, 1fr); gap: 28px; }
-  .ab-expect-card { padding: 0; }
-  .ab-expect-card + .ab-expect-card { padding-left: 0; border-left: none; }
+  .ab-process-strip { grid-template-columns: repeat(2, 1fr); gap: 32px; }
+  .ab-process-step,
+  .ab-process-step + .ab-process-step { padding: 0; border-left: none; }
 }
 @media (max-width: 480px) {
-  .ab-expect-strip { grid-template-columns: 1fr; gap: 22px; }
+  .ab-process-strip { grid-template-columns: 1fr; gap: 24px; }
 }
 
 /* ════════════════════════════════════════════════
@@ -567,67 +578,96 @@
 </section>
 
 <!-- ══ 4. WHY PEOPLE COME ════════════════════════════════════════════ -->
-<section class="section section-alt" id="about-why">
+<section class="section" id="about-why">
   <div class="wrap" style="max-width:1040px;">
 
-    <!-- 2-col: intro left, grouped cards right -->
-    <div class="ab-why-layout">
-
-      <div class="ab-why-intro-col">
-        <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">Why people come</span></div>
-        <h2 class="sec-heading" style="margin-bottom:20px;">People come to me<br><em>for lots of reasons.</em></h2>
-        <p class="about-body">Below is a sense of them. You don&rsquo;t need to fit neatly into one of these &mdash; and this isn&rsquo;t a complete list. If something is going on, reach out.</p>
-      </div>
-
-      <div class="ab-why-cards ab-why-list-col">
-
-        <div class="ab-why-card">
-          <p class="ab-why-card-label">Personal &amp; mental health</p>
-          <ul class="ab-why-card-list">
-            <li>Need help to cope and change</li>
-            <li>An individual struggle related to anything and everything</li>
-            <li>Any mental health or developmental struggle regardless of informal or formal diagnosis</li>
-            <li>Past, present or future concerns</li>
-          </ul>
-        </div>
-
-        <div class="ab-why-card">
-          <p class="ab-why-card-label">Relationships</p>
-          <ul class="ab-why-card-list">
-            <li>A relationship that needs a tune up &mdash; is ending or ended &mdash; partner, friends, family or work</li>
-          </ul>
-        </div>
-
-        <div class="ab-why-card">
-          <p class="ab-why-card-label">Types of support</p>
-          <ul class="ab-why-card-list">
-            <li>Therapeutic support for a child, adolescent or adult</li>
-            <li>Professional supervision</li>
-          </ul>
-        </div>
-
-        <div class="ab-why-card">
-          <p class="ab-why-card-label">Getting started</p>
-          <ul class="ab-why-card-list">
-            <li>Whether you&rsquo;ve been for counselling before or not, whether it&rsquo;s for one session or many</li>
-            <li>Private or third party funding</li>
-          </ul>
-        </div>
-
-      </div>
+    <!-- Section heading -->
+    <div class="ab-why-hd">
+      <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">Why people come</span></div>
+      <h2 class="sec-heading" style="margin-bottom:16px;">People come to me<br><em>for lots of reasons.</em></h2>
+      <p class="about-body">Below is a sense of them. You don&rsquo;t need to fit neatly into one of these &mdash; and this isn&rsquo;t a complete list. If something is going on, reach out.</p>
     </div>
 
-    <!-- What to expect — folded in below -->
-    <div class="ab-expect-strip">
+    <!-- 4 icon cards -->
+    <div class="ab-why-cards">
 
-      <div class="ab-expect-card">
-        <p class="ab-expect-card-label">Outcomes</p>
-        <p class="ab-expect-body">Issue resolved, or feeling confident to continue with sessions.</p>
+      <div class="ab-why-card">
+        <div class="ab-why-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M5 20a7 7 0 0114 0"/>
+          </svg>
+        </div>
+        <p class="ab-why-card-label">Personal &amp; mental health</p>
+        <ul class="ab-why-card-list">
+          <li>Need help to cope and change</li>
+          <li>An individual struggle related to anything and everything</li>
+          <li>Any mental health or developmental struggle regardless of informal or formal diagnosis</li>
+          <li>Past, present or future concerns</li>
+        </ul>
       </div>
 
-      <div class="ab-expect-card">
-        <p class="ab-expect-card-label">The process</p>
-        <ul class="ab-expect-list">
+      <div class="ab-why-card">
+        <div class="ab-why-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="8" r="3.5"/>
+            <path d="M2 20a6.5 6.5 0 0111 0"/>
+            <circle cx="17" cy="8" r="3.5"/>
+            <path d="M11 20a6.5 6.5 0 0111 0"/>
+          </svg>
+        </div>
+        <p class="ab-why-card-label">Relationships</p>
+        <ul class="ab-why-card-list">
+          <li>A relationship that needs a tune up &mdash; is ending or ended &mdash; partner, friends, family or work</li>
+        </ul>
+      </div>
+
+      <div class="ab-why-card">
+        <div class="ab-why-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+            <path d="M16 3.13a4 4 0 010 7.75"/>
+          </svg>
+        </div>
+        <p class="ab-why-card-label">Types of support</p>
+        <ul class="ab-why-card-list">
+          <li>Therapeutic support for a child, adolescent or adult</li>
+          <li>Professional supervision</li>
+        </ul>
+      </div>
+
+      <div class="ab-why-card">
+        <div class="ab-why-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3H5a2 2 0 00-2 2v14a2 2 0 002 2h10"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="5" y1="12" x2="15" y2="12"/>
+          </svg>
+        </div>
+        <p class="ab-why-card-label">Getting started</p>
+        <ul class="ab-why-card-list">
+          <li>Whether you&rsquo;ve been for counselling before or not, whether it&rsquo;s for one session or many</li>
+          <li>Private or third party funding</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Numbered process steps -->
+    <div class="ab-process-strip">
+
+      <div class="ab-process-step">
+        <div class="ab-step-num">01</div>
+        <p class="ab-step-label">Outcomes</p>
+        <p class="ab-step-body">Issue resolved, or feeling confident to continue with sessions.</p>
+      </div>
+
+      <div class="ab-process-step">
+        <div class="ab-step-num">02</div>
+        <p class="ab-step-label">The process</p>
+        <ul class="ab-step-list">
           <li>Personal contact from beginning to end</li>
           <li>Individual contact</li>
           <li>Arrange referral with a finder</li>
@@ -636,14 +676,16 @@
         </ul>
       </div>
 
-      <div class="ab-expect-card">
-        <p class="ab-expect-card-label">Intake</p>
-        <p class="ab-expect-body">An intake process or session where required &mdash; for example, for relationships or working with a child.</p>
+      <div class="ab-process-step">
+        <div class="ab-step-num">03</div>
+        <p class="ab-step-label">Intake</p>
+        <p class="ab-step-body">An intake process or session where required &mdash; for example, for relationships or working with a child.</p>
       </div>
 
-      <div class="ab-expect-card">
-        <p class="ab-expect-card-label">Setting</p>
-        <p class="ab-expect-body">Home setting. Private and confidential.</p>
+      <div class="ab-process-step">
+        <div class="ab-step-num">04</div>
+        <p class="ab-step-label">Setting</p>
+        <p class="ab-step-body">Home setting. Private and confidential.</p>
       </div>
 
     </div>
