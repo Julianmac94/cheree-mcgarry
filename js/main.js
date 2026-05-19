@@ -39,21 +39,7 @@ function gentleScrollTo(targetTop, duration) {
 }
 
 function openReachOut() {
-  const card = document.getElementById('ft-cta-practice');
-  if (!card) return;
-  card.classList.add('ft-open');
-
-  const section = document.getElementById('reach-out');
-  if (section) {
-    const navH = (document.getElementById('nav') || {}).offsetHeight || 68;
-    const top  = section.getBoundingClientRect().top + window.scrollY - navH - 24;
-    gentleScrollTo(top, 1200);
-  }
-  // Auto-focus first field after scroll settles
-  setTimeout(() => {
-    const first = document.getElementById('ro-fname');
-    if (first) first.focus();
-  }, 1280);
+  openModal();
 }
 
 function closeReachOut() {
