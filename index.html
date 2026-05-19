@@ -202,12 +202,24 @@
   .ab-editorial-wrap { grid-template-columns: 1fr; gap: 40px; }
   .ab-editorial-photo { order: -1; }
   .ab-photo-placeholder { width: 180px; margin: 0 auto; position: static; }
-  .ab-pullquote-band { padding: 64px 28px; }
+  /* Cheree's portrait: un-sticky + height-capped in single-column layout */
+  .ab-cheree-photo {
+    position: static;
+    height: 400px;
+    aspect-ratio: unset;
+    object-position: center 20%;
+  }
+  .ab-pullquote-band { padding: 56px 28px 48px; }
   .ab-quals-grid { grid-template-columns: 1fr; gap: 28px; }
   .surprise-grid { grid-template-columns: 1fr 1fr; gap: 24px; }
 }
 @media (max-width: 540px) {
   .surprise-grid { grid-template-columns: 1fr; }
+  .ab-pullquote-band { padding: 44px 20px 36px; }
+  .ab-pq-open { font-size: 60px; }
+  .ab-picker-item { font-size: 10px; padding: 6px 11px; }
+  /* Tighter photo on phones */
+  .ab-cheree-photo { height: 300px; }
 }
 </style>
 </head>
