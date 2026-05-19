@@ -103,32 +103,34 @@
 }
 
 /* ════════════════════════════════════════════════
-   ABOUT — Pull-quote band
+   ABOUT — Pull-quote transition banner
    ════════════════════════════════════════════════ */
 .ab-pullquote-band {
-  background: #192E2A;
-  padding: 88px 72px; text-align: center;
-  position: relative; overflow: hidden;
+  background: #F3EFE6;
+  padding: 72px 40px 56px;
+  text-align: center;
+  position: relative;
 }
-.ab-pullquote-wrap { max-width: 680px; margin: 0 auto; position: relative; z-index: 1; }
+.ab-pullquote-wrap { max-width: 760px; margin: 0 auto; }
 .ab-pq-open {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 72px; line-height: 0.6;
-  color: rgba(119,207,189,0.2);
-  display: block; margin-bottom: 16px;
+  font-size: 88px; line-height: 0.5;
+  color: rgba(42,88,80,0.12);
+  display: block; margin-bottom: 12px;
   font-style: normal; user-select: none;
 }
 .ab-pullquote-text {
   font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(22px, 3vw, 36px);
-  font-weight: 300; color: #ffffff;
-  line-height: 1.45; margin: 0 0 24px;
+  font-size: clamp(26px, 3.5vw, 44px);
+  font-weight: 300; color: #192E2A;
+  line-height: 1.4; margin: 0 0 22px;
   font-style: italic;
+  letter-spacing: 0.01em;
 }
 .ab-pullquote-attr {
   font-size: 10px; font-weight: 600;
   letter-spacing: 0.16em; text-transform: uppercase;
-  color: rgba(119,207,189,0.45); margin: 0;
+  color: #7A948F; margin: 0;
 }
 
 /* ════════════════════════════════════════════════
@@ -385,31 +387,24 @@
   </svg>
 </div>
 
-<!-- ══ 1. OPENING — picker + pull quote banner ════════════════════════ -->
-<section class="section section-alt ab-opening-section" id="about-section">
-  <div class="wrap" style="max-width:760px;">
-
-    <!-- Section picker -->
-    <nav class="ab-picker" aria-label="About sections">
-      <button class="ab-picker-item active" onclick="easeScrollTo('about-who')">About Cheree</button>
-      <div class="ab-picker-dot" aria-hidden="true"></div>
-      <button class="ab-picker-item" onclick="easeScrollTo('about-why')">Why people come</button>
-      <div class="ab-picker-dot" aria-hidden="true"></div>
-      <button class="ab-picker-item" onclick="easeScrollTo('surprise-section')">What to expect</button>
-      <div class="ab-picker-dot" aria-hidden="true"></div>
-      <button class="ab-picker-item" onclick="easeScrollTo('about-experience')">Experience</button>
-    </nav>
-
-  </div>
-</section>
-
-<!-- ══ PULL QUOTE BANNER — top of about ══════════════════════════════ -->
-<div class="ab-pullquote-band">
+<!-- ══ 1. QUOTE BANNER — transitions from hero into about ════════════ -->
+<div class="ab-pullquote-band" id="about-section">
   <div class="ab-pullquote-wrap">
     <span class="ab-pq-open" aria-hidden="true">&ldquo;</span>
     <p class="ab-pullquote-text">Together we will decide what you need at a pace that works for you.</p>
     <p class="ab-pullquote-attr">Cheree McGarry</p>
   </div>
+
+  <!-- Section picker — sits below the quote -->
+  <nav class="ab-picker" aria-label="About sections" style="margin-top:44px;margin-bottom:0;">
+    <button class="ab-picker-item active" onclick="easeScrollTo('about-who')">About Cheree</button>
+    <div class="ab-picker-dot" aria-hidden="true"></div>
+    <button class="ab-picker-item" onclick="easeScrollTo('about-why')">Why people come</button>
+    <div class="ab-picker-dot" aria-hidden="true"></div>
+    <button class="ab-picker-item" onclick="easeScrollTo('surprise-section')">What to expect</button>
+    <div class="ab-picker-dot" aria-hidden="true"></div>
+    <button class="ab-picker-item" onclick="easeScrollTo('about-experience')">Experience</button>
+  </nav>
 </div>
 
 <!-- ══ 2. EDITORIAL SPLIT — copy left, photo right ══════════════════ -->
@@ -437,7 +432,7 @@
 
     <!-- Cheree's photo -->
     <div class="ab-editorial-photo">
-      <img src="assets/cheree.jpg" alt="Cheree McGarry" class="ab-cheree-photo">
+      <img src="assets/cheree.png" alt="Cheree McGarry" class="ab-cheree-photo">
     </div>
 
   </div>
