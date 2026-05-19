@@ -108,16 +108,13 @@ body::after {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   text-align: center;
-  padding: 60px 40px 300px;
+  padding: 60px 40px 80px;
   background: var(--cream);
   position: relative;
   overflow: hidden;
-  /* Force GPU compositing — eliminates sub-pixel clip artifact on right edge */
   transform: translateZ(0);
   isolation: isolate;
 }
-/* On desktop, cards are absolute so hero needs bottom padding.
-   On mobile (overridden in @media) padding is reduced and cards flow. */
 
 /* Background rings — concentric teal/terra, centred lower */
 .hero::before {
@@ -158,11 +155,14 @@ body::after {
   from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.hero-logo { animation: hUp 0.9s var(--ease) 0.08s both; }
-.hero-name { animation: hUp 0.9s var(--ease) 0.22s both; }
-.hero-biz  { animation: hUp 0.9s var(--ease) 0.32s both; }
-.hero-rule { animation: hUp 0.9s var(--ease) 0.40s both; }
-.hero-meta { animation: hUp 0.9s var(--ease) 0.48s both; }
+.hero-logo     { animation: hUp 0.9s var(--ease) 0.08s both; }
+.hero-name     { animation: hUp 0.9s var(--ease) 0.22s both; }
+.hero-biz      { animation: hUp 0.9s var(--ease) 0.32s both; }
+.hero-rule     { animation: hUp 0.9s var(--ease) 0.40s both; }
+.hero-meta     { animation: hUp 0.9s var(--ease) 0.48s both; }
+.hero-ctas     { animation: hUp 0.9s var(--ease) 0.56s both; }
+.hero-tagline  { animation: hUp 0.9s var(--ease) 0.64s both; }
+.hero-location { animation: hUp 0.9s var(--ease) 0.70s both; }
 
 .hero-logo {
   width: 172px; height: 172px;
@@ -222,10 +222,33 @@ body::after {
 .hero-meta-line { font-size: 14px; font-weight: 300; color: var(--soft); letter-spacing: 0.03em; }
 .hero-sep { color: var(--terra); margin: 0 10px; opacity: 0.8; }
 
+/* ── HERO CTAs, TAGLINE & LOCATION (replaces hero-cards) ── */
+.hero-ctas {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+.hero-tagline {
+  font-family: var(--serif);
+  font-size: 18px; font-weight: 300; font-style: italic;
+  color: var(--mid);
+  letter-spacing: 0.01em;
+  margin-top: 22px;
+  max-width: 460px;
+  line-height: 1.55;
+}
+.hero-location {
+  font-size: 11px; font-weight: 400;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--soft);
+  opacity: 0.75;
+  margin-top: 10px;
+}
+
 .hero-scroll {
   display: flex; flex-direction: column; align-items: center; gap: 12px;
-  margin-bottom: 0;
-  animation: hUp 0.9s var(--ease) 0.56s both;
+  margin-top: 36px; margin-bottom: 0;
+  animation: hUp 0.9s var(--ease) 0.78s both;
 }
 .hero-scroll-label {
   font-family: var(--sans); font-size: 11px; font-weight: 400;
@@ -1224,24 +1247,12 @@ footer { background: var(--teal-deep); position: relative; overflow: hidden; }
   #nav { padding: 0 24px; }
   .nav-sub { display: none; }
 
-  /* Hero: remove bottom padding reservation, let cards flow naturally */
-  .hero { padding: 56px 20px 24px; }
+  /* Hero */
+  .hero { padding: 56px 20px 40px; }
   .hero-name { white-space: normal; font-size: clamp(44px,11vw,72px); }
   .hero-logo { width: 130px; height: 130px; margin-top: 0; margin-bottom: 20px; }
   .hero-scroll { display: none; }
-
-
-  /* Cards: stack vertically on mobile */
-  .hero-cards {
-    position: relative;
-    bottom: auto; left: auto; right: auto;
-    flex-direction: column;
-    margin-top: 24px;
-  }
-  .hc-divider { width: 100%; height: 1px; margin: 0; }
-  .hero-card { padding: 22px 28px 26px; }
-  .hc-title { font-size: 22px; }
-  .hc-body { font-size: 13px; }
+  .hero-tagline { font-size: 16px; max-width: 340px; }
 
   .about-grid { grid-template-columns: 1fr; gap: 48px; }
   .about-photo-wrap { height: 260px; border-radius: 14px; }
@@ -1273,11 +1284,9 @@ footer { background: var(--teal-deep); position: relative; overflow: hidden; }
   .nav-link:not(.nav-cta) { display: none; }
   .ft-cols-inner { grid-template-columns: 1fr; }
 
-  /* Cards: tighter on phone */
-  .hero-card { padding: 18px 20px 22px; }
-  .hc-title { font-size: 20px; }
-  .hc-body { font-size: 13px; }
-  .hc-ctas { gap: 14px; }
+  /* Hero: stack CTAs on phone */
+  .hero-ctas { flex-direction: column; gap: 10px; margin-top: 24px; }
+  .hero-tagline { font-size: 15px; }
 
   /* Footer CTA: stack on mobile */
   .ft-cta { padding: 64px 20px; }
