@@ -1176,7 +1176,8 @@ footer { background: var(--teal-deep); }
 .ft-reach-btn { width: 100%; justify-content: center; font-size: 12px; padding: 14px 24px; }
 
 /* Footer columns */
-.ft-cols { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1.4fr; gap: 48px; padding: 64px 72px 52px; background: var(--teal-deep); }
+.ft-cols { padding: 64px 0 52px; background: var(--teal-deep); }
+.ft-cols-inner { max-width: 1120px; margin: 0 auto; padding: 0 72px; display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 48px; }
 .ftc-name { font-family: var(--serif); font-size: 20px; font-weight: 400; color: white; margin-bottom: 3px; }
 .ftc-sub { font-size: 10px; font-weight: 300; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.24); margin-bottom: 14px; }
 .ftc-body { font-size: 13px; font-weight: 300; color: rgba(255,255,255,0.38); line-height: 1.75; }
@@ -1188,10 +1189,10 @@ footer { background: var(--teal-deep); }
 .ft-biz-note em { font-style: normal; color: rgba(255,255,255,0.5); }
 .ftc-email { font-size: 13px; font-weight: 300; color: rgba(255,255,255,0.55); word-break: break-all; }
 
-/* Copyright bar — AASW badge left, copyright centre, links right */
+/* Copyright bar — copyright left, links right */
 .ft-base {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 24px;
   padding: 20px 72px;
@@ -1203,15 +1204,16 @@ footer { background: var(--teal-deep); }
 .ft-base-lnks a { font-size: 11px; font-weight: 300; color: rgba(255,255,255,0.22); text-decoration: none; cursor: pointer; transition: color 0.2s; }
 .ft-base-lnks a:hover { color: rgba(255,255,255,0.55); }
 
-/* AASW logo — small, white, in copyright bar */
+/* AASW logo — small, white, under brand copy in footer */
 .ft-aasw-logo {
-  height: 28px; width: auto;
-  opacity: 0.45;
+  height: 32px; width: auto;
+  display: block;
+  opacity: 0.4;
   filter: brightness(0) invert(1);
   transition: opacity 0.2s;
   flex-shrink: 0;
 }
-.ft-aasw-logo:hover { opacity: 0.75; }
+.ft-aasw-logo:hover { opacity: 0.65; }
 .ft-aasw-logo svg { height: 100%; width: auto; display: block; }
 @media (max-width: 900px) {
   #nav { padding: 0 24px; }
@@ -1251,7 +1253,8 @@ footer { background: var(--teal-deep); }
   /* Hero cards: drop excess top padding when stacked */
   .hero-cards { padding-top: 0; }
   /* Footer */
-  .ft-cols { padding: 52px 32px 44px; }
+  .ft-cols { padding: 52px 0 44px; }
+  .ft-cols-inner { padding: 0 32px; }
   .ft-base { padding: 16px 32px; }
   /* Sessions launcher / guide */
   .sw-sg-hd { padding: 52px 32px 40px; }
@@ -1262,7 +1265,7 @@ footer { background: var(--teal-deep); }
   .hero-logo { width: 100px; height: 100px; }
   .frow { grid-template-columns: 1fr; }
   .nav-link:not(.nav-cta) { display: none; }
-  .ft-cols { grid-template-columns: 1fr; }
+  .ft-cols-inner { grid-template-columns: 1fr; }
 
   /* Cards: tighter on phone */
   .hero-card { padding: 18px 20px 22px; }
@@ -1284,7 +1287,8 @@ footer { background: var(--teal-deep); }
   .nav-cta svg { display: none; }
 
   /* Footer columns padding */
-  .ft-cols { padding: 44px 20px 36px; }
+  .ft-cols { padding: 44px 0 36px; }
+  .ft-cols-inner { padding: 0 20px; }
   /* Copyright bar: stack on phone */
   .ft-base { grid-template-columns: 1fr; text-align: center; gap: 8px; padding: 20px; }
   .ft-base-lnks { justify-content: center; }
