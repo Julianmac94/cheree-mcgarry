@@ -7,6 +7,43 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Raleway:wght@200;300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
+<style>
+/* ── Homepage: surprise grid ── */
+.surprise-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 28px;
+}
+.surprise-item {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.surprise-icon {
+  width: 46px; height: 46px;
+  background: rgba(42,88,80,0.08);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: #2A5850; flex-shrink: 0;
+}
+.surprise-icon svg { width: 22px; height: 22px; }
+.surprise-label {
+  font-size: 15px; font-weight: 500;
+  color: #192E2A; margin: 0; line-height: 1.3;
+}
+.surprise-body {
+  font-size: 13.5px; color: #3E5C56;
+  line-height: 1.72; margin: 0;
+}
+@media (max-width: 900px) {
+  .surprise-grid { grid-template-columns: 1fr 1fr; gap: 24px; }
+}
+@media (max-width: 540px) {
+  .surprise-grid { grid-template-columns: 1fr; gap: 20px; }
+}
+/* ── centre the eyebrow on the surprise section ── */
+.eyebrow--centre { justify-content: center; }
+</style>
 </head>
 <body data-page="home">
 
@@ -20,7 +57,6 @@
   </div>
   <div class="nav-links">
     <a class="nav-link" href="sessions.html">Sessions</a>
-    <a class="nav-link" href="about.html">About</a>
     <a class="nav-link" href="info.html">Client Info</a>
     <button class="nav-cta" onclick="openReachOut()">
       <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 8.5c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L4.3 6.6C3.8 5.8 3.55 5.05 3.55 4.4c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H6c.1.08.2.2.27.3L7.4 4.1c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"/></svg>
@@ -157,27 +193,22 @@
 <!-- Organic section flow — bridges hero to about -->
 <div class="org-divider" aria-hidden="true">
   <svg viewBox="0 0 1200 100" fill="none" xmlns="http://www.w3.org/2000/svg" overflow="visible">
-    <!-- Horizontal spine — gently undulating -->
     <path d="M -60 50 C 80 48 180 44 340 52 C 460 58 540 50 620 47 C 706 44 800 50 900 54 C 1020 60 1120 50 1260 47"
           stroke="#2A5850" stroke-width="0.75" stroke-opacity="0.05" fill="none"/>
-    <!-- Upper branching spurs -->
     <path d="M 268 52 C 248 38 220 22 196 6"
           stroke="#2A5850" stroke-width="0.52" stroke-opacity="0.038" fill="none"/>
     <path d="M 620 47 C 600 30 578 14 568 -8"
           stroke="#2A5850" stroke-width="0.48" stroke-opacity="0.034" fill="none"/>
     <path d="M 950 54 C 968 38 988 22 1002 2"
           stroke="#2A5850" stroke-width="0.52" stroke-opacity="0.038" fill="none"/>
-    <!-- Lower branching spurs -->
     <path d="M 420 54 C 402 70 384 88 366 108"
           stroke="#2A5850" stroke-width="0.48" stroke-opacity="0.032" fill="none"/>
     <path d="M 780 52 C 764 70 748 88 734 110"
           stroke="#2A5850" stroke-width="0.45" stroke-opacity="0.030" fill="none"/>
-    <!-- Fine terminals -->
     <path d="M 196 6 C 182 -12 168 -24 154 -38"
           stroke="#2A5850" stroke-width="0.36" stroke-opacity="0.022" fill="none"/>
     <path d="M 1002 2 C 1016 -18 1026 -34 1032 -52"
           stroke="#2A5850" stroke-width="0.36" stroke-opacity="0.022" fill="none"/>
-    <!-- Mint accent spur -->
     <path d="M 504 50 C 524 36 548 22 566 8 C 578 -2 588 -12 594 -24"
           stroke="#77CFBD" stroke-width="0.4" stroke-opacity="0.04" fill="none"/>
   </svg>
@@ -190,7 +221,7 @@
   </svg>
 </div>
 
-<!-- About section -->
+<!-- ── About Cheree ─────────────────────────────────────────────── -->
 <section class="section section-alt" id="about-section">
   <div class="wrap">
     <div class="about-photo-wrap">
@@ -200,22 +231,100 @@
     <div class="about-grid">
       <div>
         <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">About Cheree</span></div>
-        <h2 class="sec-heading">You&rsquo;re in the<br><em>right place.</em></h2>
+        <h2 class="sec-heading">Here for the big things &mdash;<br><em>and the ones you can&rsquo;t name yet.</em></h2>
         <div class="about-quote-block">
           <p class="about-quote">&ldquo;When someone truly feels heard &mdash; that&rsquo;s when things begin to shift. Not fixed. Just met.&rdquo;</p>
           <p class="about-quote-attr">Cheree McGarry</p>
         </div>
-        <p class="about-body">I&rsquo;ve been an Accredited Mental Health Social Worker for over 25 years. I work with everyone &mdash; all ages, all genders, whatever&rsquo;s brought you here. My approach is personal, flexible and real. Never one-size-fits-all.</p>
+        <p class="about-body">I&rsquo;m an Accredited Mental Health Social Worker with over 25 years of experience. I work with everyone &mdash; all ages, all kinds of circumstances. Relationships, family, anxiety, grief, burnout, big life changes &mdash; or just something that doesn&rsquo;t feel right and you can&rsquo;t quite put your finger on it yet. Both are completely valid reasons to reach out.</p>
+        <p class="about-body" style="margin-top:12px;">My approach is warm, genuine and flexible. I follow your lead. Sessions feel more like a real conversation than anything clinical &mdash; which catches people off guard more often than you&rsquo;d think.</p>
         <div class="about-stats">
           <div class="astat"><div class="astat-n">25+</div><div class="astat-l">Years experience</div></div>
           <div class="astat"><div class="astat-n">AASW</div><div class="astat-l">Registered member</div></div>
         </div>
       </div>
       <div class="val-cards">
-        <div class="val-card"><div class="val-num">01</div><h3 class="val-title">Personal. Real.</h3><p class="val-body">I work the way that works for you &mdash; not a template, not a method. Flexible, responsive, and genuinely adapted to what you need.</p></div>
-        <div class="val-card"><div class="val-num">02</div><h3 class="val-title">The relationship matters</h3><p class="val-body">You&rsquo;re not here to be fixed. Real change happens when someone truly feels heard. That&rsquo;s what I&rsquo;m here for.</p></div>
-        <div class="val-card"><div class="val-num">03</div><h3 class="val-title">No Pressure to Begin</h3><p class="val-body">A free 15-minute conversation is available to get a sense of working together &mdash; before you commit to anything.</p></div>
+        <div class="val-card">
+          <div class="val-num">01</div>
+          <h3 class="val-title">Personal. Real.</h3>
+          <p class="val-body">No templates, no rigid methods. I adapt to what&rsquo;s actually useful for you &mdash; not the other way around.</p>
+        </div>
+        <div class="val-card">
+          <div class="val-num">02</div>
+          <h3 class="val-title">The relationship is the work.</h3>
+          <p class="val-body">Real change happens when someone truly feels heard. I&rsquo;m not here to fix you &mdash; I&rsquo;m here to be genuinely present with you.</p>
+        </div>
+        <div class="val-card">
+          <div class="val-num">03</div>
+          <h3 class="val-title">No pressure. No threshold.</h3>
+          <p class="val-body">A free 15-minute conversation is available so you can get a sense of it &mdash; before you commit to anything.</p>
+        </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── What you might not expect ────────────────────────────────── -->
+<section class="section" id="surprise-section">
+  <div class="wrap" style="max-width:1040px;">
+    <div class="eyebrow eyebrow--centre" style="margin-bottom:10px;">
+      <div class="eyebrow-bar"></div>
+      <span class="eyebrow-text">What clients tell me</span>
+    </div>
+    <h2 class="sec-heading" style="text-align:center;margin-bottom:52px;">You might be<br><em>surprised.</em></h2>
+    <div class="surprise-grid">
+
+      <div class="surprise-item">
+        <div class="surprise-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+          </svg>
+        </div>
+        <p class="surprise-label">How quickly it feels normal</p>
+        <p class="surprise-body">Sessions tend to feel more like a real conversation than anything clinical. Most people forget they&rsquo;re &ldquo;in therapy&rdquo; pretty quickly.</p>
+      </div>
+
+      <div class="surprise-item">
+        <div class="surprise-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+            <line x1="9" y1="9" x2="9.01" y2="9"/>
+            <line x1="15" y1="9" x2="15.01" y2="9"/>
+          </svg>
+        </div>
+        <p class="surprise-label">The humour</p>
+        <p class="surprise-body">It doesn&rsquo;t have to feel heavy all the time. Laughter is genuinely welcome here &mdash; and it shows up more than people expect.</p>
+      </div>
+
+      <div class="surprise-item">
+        <div class="surprise-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <p class="surprise-label">How much time you get</p>
+        <p class="surprise-body">You won&rsquo;t be watched off the clock. If something important comes up near the end, we don&rsquo;t just stop. You won&rsquo;t be rushed.</p>
+      </div>
+
+      <div class="surprise-item">
+        <div class="surprise-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </div>
+        <p class="surprise-label">The honesty about complexity</p>
+        <p class="surprise-body">Life isn&rsquo;t black and white, and I&rsquo;m not going to pretend otherwise. I&rsquo;m comfortable sitting with ambiguity &mdash; and so is the work.</p>
+      </div>
+
+    </div>
+
+    <div style="text-align:center;margin-top:52px;">
+      <button class="nav-cta" onclick="openReachOut()" style="display:inline-flex;">
+        <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 8.5c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L4.3 6.6C3.8 5.8 3.55 5.05 3.55 4.4c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H6c.1.08.2.2.27.3L7.4 4.1c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"/></svg>
+        Reach Out
+      </button>
     </div>
   </div>
 </section>
