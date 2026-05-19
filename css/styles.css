@@ -323,11 +323,12 @@ body::after {
 }
 .hc-btn:hover { background: #192E2A; border-color: rgba(255,255,255,0.3); }
 .hc-btn--mint {
-  background: rgba(119,207,189,0.22);
-  border-color: rgba(119,207,189,0.55);
-  color: #e8f9f6;
+  background: #77CFBD;
+  border-color: #77CFBD;
+  color: #192E2A;
+  font-weight: 500;
 }
-.hc-btn--mint:hover { background: rgba(119,207,189,0.35); border-color: rgba(119,207,189,0.8); }
+.hc-btn--mint:hover { background: #5fbfac; border-color: #5fbfac; }
 
 
 
