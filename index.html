@@ -616,17 +616,17 @@ footer { position: relative; overflow: hidden; }
     <div class="hero-rule-dot"></div>
     <div class="hero-rule-line"></div>
   </div>
-  <div class="hero-meta">
-    <span class="hero-meta-line">AASW Registered Member</span>
-    <span class="hero-meta-line">Accredited Mental Health Social Worker</span>
-  </div>
+  <p class="hero-tagline">Together we will decide what you need at a pace that works for you.</p>
   <div class="hero-ctas">
     <a class="hc-btn" href="sessions.html">Explore Sessions</a>
     <button class="hc-btn hc-btn--mint" onclick="openReachOut()">Reach Out</button>
   </div>
-  <p class="hero-tagline">Together we will decide what you need at a pace that works for you.</p>
+  <div class="hero-meta">
+    <span class="hero-meta-line">AASW Registered Member</span>
+    <span class="hero-meta-line">Accredited Mental Health Social Worker</span>
+  </div>
   <p class="hero-location">Located in Karalee, QLD</p>
-  <div class="hero-scroll" role="presentation">
+  <div class="hero-scroll" role="presentation" onclick="easeScrollTo('about-who')" style="cursor:pointer;">
     <span class="hero-scroll-label">Meet Cheree</span>
     <svg class="hero-scroll-arrow" viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <path d="M10 4v12M4 10l6 6 6-6"/>
@@ -660,37 +660,8 @@ footer { position: relative; overflow: hidden; }
 </div>
 
 
-<!-- ══ 1. QUOTE BANNER — transitions from hero into about ════════════ -->
-<div class="ab-pullquote-band" id="about-section" style="overflow:hidden;">
-  <div class="sec-botanical" style="top:-30px;right:5%;width:170px;opacity:0.06;transform:rotate(15deg);" aria-hidden="true">
-    <svg viewBox="0 0 120 200" fill="none" stroke="#2A5850" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M26 196 C24 168 30 142 40 118 C50 94 55 68 58 42 C59 30 60 18 60 8" stroke-width="1.4"/>
-      <path d="M94 196 C96 168 90 142 80 118 C70 94 65 68 62 42 C61 30 60 18 60 8" stroke-width="1.4"/>
-      <path d="M28 168 C17 156 10 140 12 124 C22 128 29 144 28 168Z" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
-      <path d="M36 130 C24 118 18 100 20 84 C32 90 38 108 36 130Z" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
-      <path d="M46 92 C36 78 34 62 38 48 C48 56 50 72 46 92Z" stroke-width="0.8" fill="rgba(42,88,80,0.05)"/>
-      <path d="M92 168 C103 156 110 140 108 124 C98 128 91 144 92 168Z" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
-      <path d="M84 130 C96 118 102 100 100 84 C88 90 82 108 84 130Z" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
-      <path d="M74 92 C84 78 86 62 82 48 C72 56 70 72 74 92Z" stroke-width="0.8" fill="rgba(42,88,80,0.05)"/>
-      <path d="M60 32 C54 20 53 12 60 7 C67 12 66 20 60 32Z" stroke-width="1" fill="rgba(42,88,80,0.09)"/>
-    </svg>
-  </div>
-  <div class="ab-pullquote-wrap">
-    <span class="ab-pq-open" aria-hidden="true">&ldquo;</span>
-    <p class="ab-pullquote-text">Together we will decide what you need at a pace that works for you.</p>
-    <p class="ab-pullquote-attr">Cheree McGarry</p>
-  </div>
-
-  <!-- Section picker — sits below the quote -->
-  <nav class="ab-picker" aria-label="About sections" style="margin-top:44px;margin-bottom:0;">
-    <button class="ab-picker-item active" onclick="easeScrollTo('about-who')">About Cheree</button>
-    <div class="ab-picker-dot" aria-hidden="true"></div>
-    <button class="ab-picker-item" onclick="easeScrollTo('about-why')">Why people come</button>
-  </nav>
-</div>
-
-<!-- ══ 2. EDITORIAL SPLIT — copy left, photo right ══════════════════ -->
-<section class="section ab-editorial-section" id="about-who">
+<!-- ══ 1. EDITORIAL SPLIT — copy left, photo right ══════════════════ -->
+<section class="section ab-editorial-section" id="about-who" style="padding-top:88px;">
   <div class="sec-botanical" style="bottom:-20px;right:-20px;width:220px;opacity:0.055;" aria-hidden="true">
     <svg viewBox="0 0 130 200" fill="none" stroke="#2A5850" stroke-linecap="round" stroke-linejoin="round">
       <path d="M22 192 C36 168 52 142 66 116 C80 90 96 64 108 40 C112 32 116 22 116 14" stroke-width="1.5"/>
