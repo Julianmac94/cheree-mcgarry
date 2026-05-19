@@ -194,62 +194,75 @@ export default async function handler(req, res) {
   const [firstName, ...rest] = name.trim().split(' ');
   const lastName = rest.join(' ');
 
+  // ── 1. Save to Supabase first — this is the source of truth ──────
+  // The form always succeeds if the DB insert works, regardless of email delivery.
+  try {
+    const _db = supabase();
+    const { error: dbErr } = await _db.from('enquiries').insert({
+      first_name: firstName,
+      last_name:  lastName,
+      email,
+      reason,
+      message,
+      source:  _source || 'contact',
+      status:  'new',
+    });
+    if (dbErr) {
+      // 'source' column may not exist yet — fall back without optional columns
+      console.error('[api/contact] Supabase insert error (trying fallback):', dbErr.message);
+      const { error: dbErr2 } = await _db.from('enquiries').insert({
+        first_name: firstName,
+        last_name:  lastName,
+        email,
+        reason,
+        message,
+        status:  'new',
+      });
+      if (dbErr2) console.error('[api/contact] Supabase fallback also failed:', dbErr2.message);
+      else        console.log('[api/contact] Supabase fallback insert succeeded (run migration 008)');
+    } else {
+      console.log('[api/contact] Enquiry saved to Supabase');
+    }
+  } catch (dbEx) {
+    console.error('[api/contact] Supabase exception:', dbEx.message);
+  }
+
+  // ── 2. Send emails via Resend (best-effort — never fail the form) ─
+  // NOTE: Requires chereemcgarry.com to be verified on Resend.
+  // Until the domain is verified, emails send from onboarding@resend.dev
+  // which Resend only delivers to the account owner's address. Once
+  // verified, update from addresses to hello@chereemcgarry.com.
+  const FROM_CHEREE = process.env.RESEND_DOMAIN_VERIFIED === '1'
+    ? 'Cheree McGarry <hello@chereemcgarry.com>'
+    : 'Cheree McGarry <onboarding@resend.dev>';
+  const FROM_WEBSITE = process.env.RESEND_DOMAIN_VERIFIED === '1'
+    ? 'Website <noreply@chereemcgarry.com>'
+    : 'Website <onboarding@resend.dev>';
+
   try {
     await Promise.all([
-      // 1 — Auto-reply to client
+      // Auto-reply to client
       resend.emails.send({
-        from:    'Cheree McGarry <onboarding@resend.dev>',
+        from:    FROM_CHEREE,
         to:      [email],
         subject: 'Thanks for reaching out — Cheree McGarry Counselling',
         html:    clientReplyHtml({ firstName, reason }),
       }),
 
-      // 2 — Notification to Cheree
-      // TODO: update from address to admin@chereemcgarry.com once domain is verified on Resend
+      // Notification to Cheree
       resend.emails.send({
-        from:    'Website <onboarding@resend.dev>',
+        from:    FROM_WEBSITE,
         to:      ['reachout@chereemcgarry.com'],
         replyTo: email,
         subject: `New enquiry from ${name.trim()} — ${reason || 'Reach Out form'}`,
         html:    chereeNotificationHtml({ firstName, lastName, email, reason, message, source: _source }),
       }),
     ]);
-
-    // 3 — Save to Supabase (awaited so it completes before the function exits,
-    //     but errors are caught and never fail the 200 response to the client)
-    try {
-      const _db = supabase();
-      const { error: dbErr } = await _db.from('enquiries').insert({
-        first_name: firstName,
-        last_name:  lastName,
-        email,
-        reason,
-        message,
-        source:  _source || 'contact',
-        status:  'new',
-      });
-      if (dbErr) {
-        // Likely the 'source' column doesn't exist yet — run migration 008.
-        // Fall back to inserting without optional columns.
-        console.error('[api/contact] Supabase insert error (trying fallback without source):', dbErr.message);
-        const { error: dbErr2 } = await _db.from('enquiries').insert({
-          first_name: firstName,
-          last_name:  lastName,
-          email,
-          reason,
-          message,
-          status:  'new',
-        });
-        if (dbErr2) console.error('[api/contact] Supabase fallback insert also failed:', dbErr2.message);
-        else        console.log('[api/contact] Supabase fallback insert succeeded (run migration 008)');
-      }
-    } catch (dbEx) {
-      console.error('[api/contact] Supabase exception:', dbEx.message);
-    }
-
-    return res.status(200).json({ ok: true });
-  } catch (err) {
-    console.error('[api/contact] Resend error:', err);
-    return res.status(500).json({ error: 'Failed to send email.' });
+    console.log('[api/contact] Emails sent via Resend');
+  } catch (emailErr) {
+    // Log but do NOT fail — enquiry is already saved in Supabase
+    console.error('[api/contact] Resend email error (enquiry still saved):', emailErr.message || emailErr);
   }
+
+  return res.status(200).json({ ok: true });
 }
