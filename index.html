@@ -141,7 +141,7 @@
 /* 3-col botanical cards */
 .ab-why-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
 .ab-why-card {
@@ -149,8 +149,8 @@
   border-radius: 18px;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 1fr 90px;
-  min-height: 220px;
+  grid-template-columns: 1fr 130px;
+  min-height: 240px;
 }
 .ab-why-card-body {
   padding: 28px 12px 26px 28px;
@@ -167,7 +167,7 @@
 .ab-why-card-art svg {
   width: 100%;
   height: 100%;
-  max-height: 220px;
+  max-height: 260px;
 }
 .ab-why-card-label {
   font-family: var(--sans);
@@ -217,10 +217,10 @@
 }
 .ab-botanical-divider svg { width: 80px; height: 32px; }
 
-/* Bridge text — outcomes + setting, plain prose */
+/* Bridge text — outcomes + setting + types, plain prose */
 .ab-bridge-text {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 48px;
 }
 .ab-bridge-label {
@@ -240,7 +240,7 @@
   line-height: 1.65;
   margin: 0;
 }
-@media (max-width: 600px) {
+@media (max-width: 760px) {
   .ab-bridge-text { grid-template-columns: 1fr; gap: 28px; }
 }
 
@@ -257,7 +257,7 @@
   border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 .ab-gs-band-inner {
-  max-width: 1040px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 0 72px;
   display: grid;
@@ -444,25 +444,13 @@
 }
 
 /* ════════════════════════════════════════════════
-   ABOUT — Credentials accordion (within About Cheree)
+   ABOUT — Credentials section (within About Cheree)
    ════════════════════════════════════════════════ */
 .ab-creds-accordion {
   margin-top: 36px;
   border-top: 1px solid rgba(42,88,80,0.1);
+  padding-top: 24px;
 }
-.ab-creds-summary {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 0; cursor: pointer; list-style: none;
-  font-family: var(--sans); font-size: 11px; font-weight: 700;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--teal); user-select: none;
-}
-.ab-creds-summary::-webkit-details-marker { display: none; }
-.ab-creds-chevron {
-  width: 15px; height: 15px; flex-shrink: 0;
-  transition: transform 0.22s ease;
-}
-details[open] .ab-creds-chevron { transform: rotate(180deg); }
 .ab-creds-body { padding-bottom: 28px; }
 .ab-creds-group { margin-bottom: 20px; }
 .ab-creds-group:last-child { margin-bottom: 0; }
@@ -776,16 +764,12 @@ footer { position: relative; overflow: hidden; }
       <div class="about-stats" style="margin-top:32px;">
         <div class="astat"><div class="astat-n">25+</div><div class="astat-l">Years experience</div></div>
         <div class="astat"><div class="astat-n">AASW</div><div class="astat-l">Registered member</div></div>
+        <div class="astat"><div class="astat-n" style="font-size:22px;letter-spacing:0.02em;line-height:1.2;padding-top:4px;">AMHSW</div><div class="astat-l">Accredited Mental Health Social Worker</div></div>
       </div>
 
-      <!-- Background & experience — collapsible -->
-      <details class="ab-creds-accordion">
-        <summary class="ab-creds-summary">
-          Background &amp; experience
-          <svg class="ab-creds-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 6l4 4 4-4"/>
-          </svg>
-        </summary>
+      <!-- Background & experience — static section -->
+      <div class="ab-creds-accordion">
+        <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">Background &amp; experience</span></div>
         <div class="ab-creds-body">
 
           <div class="ab-creds-group">
@@ -883,7 +867,7 @@ footer { position: relative; overflow: hidden; }
           </div>
 
         </div>
-      </details>
+      </div>
     </div>
 
     <!-- Cheree's photo -->
@@ -914,7 +898,6 @@ footer { position: relative; overflow: hidden; }
           <p class="ab-why-card-label">Personal &amp; mental health</p>
           <ul class="ab-why-card-list">
             <li>Need help to cope and change</li>
-            <li>An individual struggle related to anything and everything</li>
             <li>Any mental health or developmental struggle regardless of informal or formal diagnosis</li>
             <li>Past, present or future concerns</li>
           </ul>
@@ -947,7 +930,8 @@ footer { position: relative; overflow: hidden; }
         <div class="ab-why-card-body">
           <p class="ab-why-card-label">Relationships</p>
           <ul class="ab-why-card-list">
-            <li>A relationship that needs a tune up &mdash; is ending or ended &mdash; partner, friends, family or work</li>
+            <li>A relationship that needs a tune up &mdash; is ending or ended</li>
+            <li>Partner, friends, family or work</li>
           </ul>
         </div>
         <div class="ab-why-card-art">
@@ -972,38 +956,6 @@ footer { position: relative; overflow: hidden; }
         </div>
       </div>
 
-      <!-- Card 3: Types of support — olive branch -->
-      <div class="ab-why-card">
-        <div class="ab-why-card-body">
-          <p class="ab-why-card-label">Types of support</p>
-          <ul class="ab-why-card-list">
-            <li>Therapeutic support for a child, adolescent or adult</li>
-            <li>Professional supervision</li>
-          </ul>
-        </div>
-        <div class="ab-why-card-art">
-          <svg viewBox="0 0 130 200" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round">
-            <!-- Main branch diagonal lower-left to upper-right -->
-            <path d="M22 192 C36 168 52 142 66 116 C80 90 96 64 108 40 C112 32 116 22 116 14" stroke="#2A5850" stroke-width="1.5"/>
-            <!-- Leaf pairs along the branch -->
-            <!-- Pair 1 bottom -->
-            <path d="M28 178 C18 164 12 148 14 132 C24 138 30 154 28 178Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
-            <path d="M36 172 C46 158 52 142 50 126 C40 132 34 148 36 172Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.07)"/>
-            <!-- Pair 2 -->
-            <path d="M46 148 C34 136 28 118 32 102 C42 110 48 128 46 148Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.08)"/>
-            <path d="M58 140 C70 128 76 110 72 94 C62 102 56 120 58 140Z" stroke="#2A5850" stroke-width="0.85" fill="rgba(42,88,80,0.08)"/>
-            <!-- Pair 3 -->
-            <path d="M66 114 C54 102 50 84 56 70 C65 78 68 96 66 114Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.07)"/>
-            <path d="M76 106 C88 94 92 76 86 62 C77 70 74 88 76 106Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.07)"/>
-            <!-- Pair 4 -->
-            <path d="M88 80 C78 68 76 50 82 38 C90 46 92 64 88 80Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.08)"/>
-            <path d="M100 70 C110 58 112 40 106 28 C98 36 96 54 100 70Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.08)"/>
-            <!-- Terminal tips -->
-            <path d="M106 42 C100 30 98 20 104 12 C110 20 110 30 106 42Z" stroke="#2A5850" stroke-width="0.9" fill="rgba(42,88,80,0.1)"/>
-            <path d="M114 36 C108 24 108 14 114 7 C120 14 120 24 114 36Z" stroke="#2A5850" stroke-width="0.9" fill="rgba(42,88,80,0.1)"/>
-          </svg>
-        </div>
-      </div>
 
     </div>
 
@@ -1081,6 +1033,48 @@ footer { position: relative; overflow: hidden; }
           </div>
         </div>
       </div>
+
+      <!-- Types of support — 3rd info column -->
+      <div>
+        <p class="ab-bridge-label">Types of support</p>
+        <div class="ab-bridge-outcomes">
+          <div class="ab-bridge-outcome">
+            <div class="ab-bridge-outcome-icon" aria-hidden="true">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="7" cy="4.5" r="2.5"/><path d="M2 13c0-2.76 2.24-5 5-5s5 2.24 5 5"/>
+              </svg>
+            </div>
+            <div>
+              <span class="ab-bridge-outcome-label">Individuals</span>
+              <span class="ab-bridge-outcome-text">Children, adolescents &amp; adults</span>
+            </div>
+          </div>
+          <div class="ab-bridge-outcome">
+            <div class="ab-bridge-outcome-icon" aria-hidden="true">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="4.5" cy="4" r="2"/><circle cx="9.5" cy="4" r="2"/>
+                <path d="M1 13c0-2 1.6-3.5 3.5-3.5"/><path d="M13 13c0-2-1.6-3.5-3.5-3.5"/>
+              </svg>
+            </div>
+            <div>
+              <span class="ab-bridge-outcome-label">Couples &amp; families</span>
+              <span class="ab-bridge-outcome-text">Together or individually</span>
+            </div>
+          </div>
+          <div class="ab-bridge-outcome">
+            <div class="ab-bridge-outcome-icon" aria-hidden="true">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1.5" y="5" width="11" height="8" rx="1.2"/><path d="M4.5 5V3.5a2.5 2.5 0 015 0V5"/>
+              </svg>
+            </div>
+            <div>
+              <span class="ab-bridge-outcome-label">Professional supervision</span>
+              <span class="ab-bridge-outcome-text">For practitioners in the field</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div><!-- /.wrap -->
 </section>
