@@ -112,6 +112,9 @@ body::after {
   background: var(--cream);
   position: relative;
   overflow: hidden;
+  /* Force GPU compositing — eliminates sub-pixel clip artifact on right edge */
+  transform: translateZ(0);
+  isolation: isolate;
 }
 /* On desktop, cards are absolute so hero needs bottom padding.
    On mobile (overridden in @media) padding is reduced and cards flow. */
