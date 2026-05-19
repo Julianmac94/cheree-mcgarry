@@ -136,6 +136,19 @@
 /* ════════════════════════════════════════════════
    ABOUT — Why people come
    ════════════════════════════════════════════════ */
+/* Two-column: intro left, list right */
+.ab-why-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 80px;
+  align-items: start;
+}
+.ab-why-intro-col { position: sticky; top: 100px; }
+.ab-why-list-col  { margin: 0; }
+@media (max-width: 880px) {
+  .ab-why-layout { grid-template-columns: 1fr; gap: 36px; }
+  .ab-why-intro-col { position: static; }
+}
 .ab-why-intro { margin-bottom: 36px; }
 .ab-why-items { list-style: none; padding: 0; margin: 0; }
 .ab-why-item {
@@ -460,11 +473,17 @@
 
 <!-- ══ 4. WHY PEOPLE COME ════════════════════════════════════════════ -->
 <section class="section section-alt" id="about-why">
-  <div class="wrap" style="max-width:760px;">
-    <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">Why people come</span></div>
-    <h2 class="sec-heading ab-why-intro" style="margin-bottom:14px;">The reasons are as<br><em>varied as the people.</em></h2>
-    <p class="about-body" style="margin-bottom:40px;">Here&rsquo;s a sense of what brings people through the door. It&rsquo;s not a checklist &mdash; and it&rsquo;s not exhaustive. If something&rsquo;s going on, that&rsquo;s enough.</p>
-    <ul class="ab-why-items">
+  <div class="wrap ab-why-layout" style="max-width:1040px;">
+
+    <!-- Left: intro -->
+    <div class="ab-why-intro-col">
+      <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">Why people come</span></div>
+      <h2 class="sec-heading" style="margin-bottom:20px;">People come to me<br><em>for lots of reasons.</em></h2>
+      <p class="about-body">Below is a sense of them. You don&rsquo;t need to fit neatly into one of these &mdash; and this isn&rsquo;t a complete list. If something is going on, reach out.</p>
+    </div>
+
+    <!-- Right: list -->
+    <ul class="ab-why-items ab-why-list-col">
       <li class="ab-why-item">Need help to cope and change</li>
       <li class="ab-why-item">A relationship that needs a tune up &mdash; is ending or ended &mdash; partner, friends, family or work</li>
       <li class="ab-why-item">An individual struggle related to anything and everything</li>
@@ -475,6 +494,7 @@
       <li class="ab-why-item">Whether you&rsquo;ve been for counselling before or not, whether it&rsquo;s for one session or many</li>
       <li class="ab-why-item">Private or third party funding</li>
     </ul>
+
   </div>
 </section>
 
