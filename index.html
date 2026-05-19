@@ -245,15 +245,16 @@
 }
 
 /* ════ Getting started — dark forest band with glass cards ════ */
-#about-why { padding-bottom: 0; }
+#about-why { padding-bottom: 60px; }
 .ab-gs-band {
   margin-top: 0;
-  background: var(--teal-deep);
-  border-radius: 20px 20px 0 0;
+  background: transparent;
+  border-radius: 0;
   padding: 52px 0;
   display: block;
   position: relative;
-  overflow: hidden;
+  z-index: 1;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 .ab-gs-band-inner {
   max-width: 1040px;
@@ -268,14 +269,14 @@
 .ab-gs-art { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
 .ab-gs-art-fern {
   position: absolute;
-  bottom: -30px; right: -18px;
-  width: 210px; opacity: 0.14;
+  bottom: -30px; right: -16px;
+  width: 400px; opacity: 0.1;
 }
 .ab-gs-art-branch {
   position: absolute;
-  top: -24px; right: 190px;
-  width: 190px; opacity: 0.09;
-  transform: rotate(8deg);
+  top: 30px; right: 330px;
+  width: 260px; opacity: 0.07;
+  transform: rotate(5deg);
 }
 /* Left copy */
 .ab-gs-left { position: relative; z-index: 1; }
@@ -527,27 +528,19 @@ details[open] .ab-creds-chevron { transform: rotate(180deg); }
 /* ════════════════════════════════════════════════
    FOOTER — Radiant arcs in ft-cols
    ════════════════════════════════════════════════ */
-.ft-cols { position: relative; overflow: hidden; }
-.ft-cols-arcs {
-  position: absolute; bottom: -40%; right: -6%;
-  width: 480px; height: 480px; border-radius: 50%;
-  box-shadow:
-    0 0 0 1px  rgba(190,110,68,0.15),
-    0 0 0 36px rgba(190,110,68,0.08),
-    0 0 0 72px rgba(190,110,68,0.06),
-    0 0 0 116px rgba(190,110,68,0.04),
-    0 0 0 170px rgba(190,110,68,0.025);
-  pointer-events: none;
+.ft-cols { position: relative; z-index: 1; }
+
+
+.ab-gs-card-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 14px;
 }
-.ft-cols-logo {
-  position: absolute;
-  right: 110px; bottom: 72px;
-  width: 88px; height: 88px;
-  opacity: 0.07;
-  filter: brightness(0) invert(1);
-  pointer-events: none;
-  z-index: 1;
-}
+.ab-gs-card--mint .ab-gs-card-icon  { background: rgba(42,88,80,0.18); color: var(--teal-deep); }
+.ab-gs-card--forest .ab-gs-card-icon { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); }
+.ab-gs-card-icon svg { width: 18px; height: 18px; }
+footer { position: relative; overflow: hidden; }
 </style>
 </head>
 <body data-page="home">
@@ -561,6 +554,7 @@ details[open] .ab-creds-chevron { transform: rotate(180deg); }
     </div>
   </div>
   <div class="nav-links">
+    <a class="nav-link" href="index.html">Home</a>
     <a class="nav-link" href="sessions.html">Sessions</a>
     <a class="nav-link" href="info.html">Client Info</a>
     <button class="nav-cta" onclick="openReachOut()">
@@ -1089,12 +1083,10 @@ details[open] .ab-creds-chevron { transform: rotate(180deg); }
       </div>
     </div>
   </div><!-- /.wrap -->
+</section>
 
-  <!-- Getting started CTA -->
-  <div class="ab-gs-band">
-
-      <!-- Botanical background art -->
-      <div class="ab-gs-art" aria-hidden="true">
+<footer>
+  <div class="ab-gs-art" aria-hidden="true">
         <!-- Fern: bottom-left -->
         <svg class="ab-gs-art-fern" viewBox="0 0 100 200" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round">
           <path d="M50 196 C49 172 52 148 47 122 C42 96 51 68 50 38 C50 26 50 16 50 8" stroke-width="1.5"/>
@@ -1122,7 +1114,9 @@ details[open] .ab-creds-chevron { transform: rotate(180deg); }
         </svg>
       </div>
 
-      <div class="ab-gs-band-inner">
+  <!-- Getting started CTA -->
+  <div class="ab-gs-band">
+    <div class="ab-gs-band-inner">
       <!-- Left: copy -->
       <div class="ab-gs-left">
         <p class="ab-gs-eyebrow">Getting started</p>
@@ -1138,12 +1132,14 @@ details[open] .ab-creds-chevron { transform: rotate(180deg); }
       <div class="ab-gs-cards">
 
         <div class="ab-gs-card ab-gs-card--mint">
+          <div class="ab-gs-card-icon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3" width="13" height="12" rx="2"/><path d="M1.5 7h13"/><path d="M5 1.5v3M11 1.5v3"/></svg></div>
           <p class="ab-gs-card-label">Book a session</p>
           <p class="ab-gs-card-heading">Ready to book<br>with Cheree?</p>
           <a href="request-session.html" class="ab-gs-card-btn ab-gs-card-btn--forest">Book a session</a>
         </div>
 
         <div class="ab-gs-card ab-gs-card--forest">
+          <div class="ab-gs-card-icon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 8c0 3.314-2.686 6-6 6a6.3 6.3 0 0 1-2.87-.686L2 14l.686-3.13A6.3 6.3 0 0 1 2 8c0-3.314 2.686-6 6-6s6 2.686 6 6z"/></svg></div>
           <p class="ab-gs-card-label">Get in touch</p>
           <p class="ab-gs-card-heading">I&rsquo;m here when<br>you&rsquo;re ready.</p>
           <button class="ab-gs-card-btn ab-gs-card-btn--mint" onclick="openReachOut()">Reach out</button>
@@ -1153,12 +1149,7 @@ details[open] .ab-creds-chevron { transform: rotate(180deg); }
       </div><!-- /.ab-gs-band-inner -->
   </div><!-- /.ab-gs-band -->
 
-</section>
-
-<footer>
   <div class="ft-cols">
-    <div class="ft-cols-arcs" aria-hidden="true"></div>
-    <img class="ft-cols-logo" src="assets/logo.svg" alt="" aria-hidden="true">
     <div class="ft-cols-inner">
     <div class="ft-brand">
       <p class="ftc-name">Cheree McGarry</p>
