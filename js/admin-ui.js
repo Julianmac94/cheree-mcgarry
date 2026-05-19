@@ -2701,8 +2701,10 @@ function renderHomeView() {
   // 2. Overdue invoices (Halaxy invoices with status overdue, or outstanding beyond threshold)
   var FUNDER_DAYS = { ndis_plan: 12, ndis_self: 12, qfes: 25, workcover: 40, eap: 25 };
   var overdueInvoices = invoices.filter(function(inv) {
-    if (inv.status !== 'active' && inv.status !== 'overdue') return false;
-    var daysOld = (Date.now() - new Date(inv.created_at || inv.invoiceDate || 0).getTime()) / 86400000;
+    if (inv.status === 'cancelled' || inv.status === 'draft') return false;
+    if (_invIsPaid(inv)) return false;            // totalBalance=0 → already paid
+    if (!inv.date) return false;                  // no date → skip (avoids epoch bug)
+    var daysOld = (Date.now() - new Date(inv.date).getTime()) / 86400000;
     var threshold = FUNDER_DAYS[inv.funder] || 3; // private/medicare flag quickly
     return daysOld > threshold;
   }).slice(0, 3);
@@ -2717,8 +2719,10 @@ function renderHomeView() {
   // ── In Progress ───────────────────────────────────
   // Submitted invoices within window (not yet overdue, not yet paid)
   var inProgress = invoices.filter(function(inv) {
-    if (inv.status !== 'active') return false;
-    var daysOld = (Date.now() - new Date(inv.created_at || inv.invoiceDate || 0).getTime()) / 86400000;
+    if (inv.status === 'cancelled' || inv.status === 'draft') return false;
+    if (_invIsPaid(inv)) return false;
+    if (!inv.date) return false;
+    var daysOld = (Date.now() - new Date(inv.date).getTime()) / 86400000;
     var threshold = FUNDER_DAYS[inv.funder] || 3;
     return daysOld <= threshold;
   }).slice(0, 5);
@@ -2766,20 +2770,22 @@ function renderHomeView() {
 
     // Overdue invoice cards
     overdueInvoices.forEach(function(inv) {
-      var patientId = (inv.patient && inv.patient.reference) ? inv.patient.reference.replace('Patient/','') : '';
-      var patName   = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId]) || 'Client';
+      var patientId = inv.patientId || '';
+      var patName   = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId])
+                    || (patientId ? 'Client #' + patientId : 'Client');
       var av        = avColor(patName);
       var ini       = initials(patName);
-      var amt       = '$' + parseFloat(inv.totalPrice || 0).toFixed(0);
-      var daysOld   = Math.round((Date.now() - new Date(inv.created_at || inv.invoiceDate || 0).getTime()) / 86400000);
-      var funder    = inv.funder || 'Unknown';
+      var _invAmt   = inv.totalBalance != null ? inv.totalBalance : inv.amount;
+      var amt       = _invAmt != null ? '$' + parseFloat(_invAmt).toFixed(0) : '$0';
+      var daysOld   = inv.date ? Math.round((Date.now() - new Date(inv.date).getTime()) / 86400000) : 0;
+      var funder    = inv.payorOrg || inv.funder || 'Invoice';
       html += '<div class="ac" onclick="navigateTo(\'billing\')">'
-        + '<div class="ac-head is-amber"><div class="ac-pip amber"></div><div class="ac-type amber">' + escHtml(funder.toUpperCase()) + ' Invoice Outstanding</div><div class="ac-age">' + daysOld + ' days submitted</div></div>'
+        + '<div class="ac-head is-amber"><div class="ac-pip amber"></div><div class="ac-type amber">' + escHtml(funder) + ' — Invoice Outstanding</div><div class="ac-age">' + daysOld + ' days old</div></div>'
         + '<div class="ac-body">'
         + '<div class="ac-av ' + av + '">' + ini + '</div>'
         + '<div class="ac-content">'
-        + '<div class="ac-name">' + escHtml(patName) + ' ' + funderBadge(funder) + '</div>'
-        + '<div class="ac-detail">Invoice #' + escHtml(inv.id || '') + ' · Expected payment window exceeded</div>'
+        + '<div class="ac-name">' + escHtml(patName) + ' ' + funderBadge(inv.funder || funder) + '</div>'
+        + '<div class="ac-detail">Invoice #' + escHtml(inv.ref || inv.id || '') + ' · Expected payment window exceeded</div>'
         + '</div>'
         + '<div class="ac-amount">' + amt + '</div>'
         + '</div>'
@@ -2827,13 +2833,15 @@ function renderHomeView() {
     html += '<div class="glass db-queue-card">';
 
     inProgress.forEach(function(inv) {
-      var patientId = (inv.patient && inv.patient.reference) ? inv.patient.reference.replace('Patient/','') : '';
-      var patName   = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId]) || 'Client';
+      var patientId = inv.patientId || '';
+      var patName   = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId])
+                    || (patientId ? 'Client #' + patientId : 'Client');
       var av        = avColor(patName);
       var ini       = initials(patName);
-      var funder    = inv.funder || 'unknown';
-      var amt       = '$' + parseFloat(inv.totalPrice || 0).toFixed(0);
-      var daysOld   = Math.round((Date.now() - new Date(inv.created_at || inv.invoiceDate || 0).getTime()) / 86400000);
+      var funder    = inv.payorOrg || inv.funder || 'Invoice';
+      var _invAmt   = inv.totalBalance != null ? inv.totalBalance : inv.amount;
+      var amt       = _invAmt != null ? '$' + parseFloat(_invAmt).toFixed(0) : '$0';
+      var daysOld   = inv.date ? Math.round((Date.now() - new Date(inv.date).getTime()) / 86400000) : 0;
       var threshold = FUNDER_DAYS[funder] || 3;
       var remaining = threshold - daysOld;
       var isOk      = remaining > 2;
@@ -2842,7 +2850,7 @@ function renderHomeView() {
         + '<div class="ac-av ' + av + '" style="width:32px;height:32px;border-radius:50%;font-size:10px;font-weight:700;flex-shrink:0;display:flex;align-items:center;justify-content:center">' + ini + '</div>'
         + '<div class="db-q-body">'
         + '<div class="db-q-name">' + escHtml(patName) + '</div>'
-        + '<div class="db-q-meta">' + escHtml(funder.toUpperCase()) + ' invoice ' + amt + ' <span class="db-q-dot">·</span> ' + daysOld + ' days submitted</div>'
+        + '<div class="db-q-meta">' + escHtml(funder) + ' invoice ' + amt + ' <span class="db-q-dot">·</span> ' + daysOld + ' days submitted</div>'
         + '</div>'
         + '<div class="db-q-right">'
         + '<span class="db-badge ' + (isOk ? 'db-badge-teal' : 'db-badge-amber') + '">' + (isOk ? 'Within window ✓' : remaining + 'd remaining') + '</span>'
