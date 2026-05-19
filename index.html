@@ -138,22 +138,22 @@
    ════════════════════════════════════════════════ */
 .ab-why-hd { max-width: 560px; margin-bottom: 52px; }
 
-/* 2×2 card grid */
+/* 3-col botanical cards */
 .ab-why-cards {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
 }
 .ab-why-card {
   background: white;
   border-radius: 18px;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 1fr 120px;
+  grid-template-columns: 1fr 90px;
   min-height: 220px;
 }
 .ab-why-card-body {
-  padding: 30px 16px 28px 30px;
+  padding: 28px 12px 26px 28px;
   display: flex;
   flex-direction: column;
 }
@@ -161,13 +161,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px 18px 20px 0;
-  opacity: 0.9;
+  padding: 18px 14px 18px 0;
+  opacity: 0.88;
 }
 .ab-why-card-art svg {
   width: 100%;
   height: 100%;
-  max-height: 230px;
+  max-height: 220px;
 }
 .ab-why-card-label {
   font-family: var(--sans);
@@ -176,66 +176,130 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--teal);
-  margin: 0 0 15px;
+  margin: 0 0 14px;
 }
 .ab-why-card-list {
   list-style: none;
   padding: 0; margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
   flex: 1;
 }
 .ab-why-card-list li {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 300;
   color: #2e4a45;
   line-height: 1.55;
-  padding-left: 15px;
+  padding-left: 14px;
   position: relative;
 }
 .ab-why-card-list li::before {
   content: '';
   position: absolute;
-  left: 0; top: 10px;
+  left: 0; top: 9px;
   width: 4px; height: 4px;
   border-radius: 50%;
   background: #77CFBD;
 }
-@media (max-width: 600px) {
+@media (max-width: 760px) {
   .ab-why-cards { grid-template-columns: 1fr; }
-}
-@media (max-width: 440px) {
-  .ab-why-card { grid-template-columns: 1fr; }
-  .ab-why-card-art { padding: 0 24px 20px; height: 80px; justify-content: flex-start; align-items: flex-end; }
-  .ab-why-card-art svg { height: 100%; width: auto; max-height: none; }
+  .ab-why-card { grid-template-columns: 1fr 80px; }
 }
 
-/* Numbered process steps */
-.ab-process-strip {
+/* Botanical sprig divider */
+.ab-botanical-divider {
+  display: flex;
+  justify-content: center;
+  margin: 48px 0 44px;
+  opacity: 0.55;
+}
+.ab-botanical-divider svg { width: 80px; height: 32px; }
+
+/* What to expect — 2×2 cards */
+.ab-what-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0;
-  margin-top: 64px;
-  padding-top: 56px;
-  border-top: 1px solid rgba(42,88,80,0.1);
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
 }
-.ab-process-step { padding: 0 32px 0 0; }
-.ab-process-step + .ab-process-step {
-  padding: 0 32px 0 32px;
-  border-left: 1px solid rgba(42,88,80,0.1);
+.ab-what-card {
+  background: white;
+  border-radius: 18px;
+  padding: 28px 28px 26px;
+  position: relative;
+  overflow: hidden;
 }
-.ab-process-step:last-child { padding-right: 0; }
-.ab-step-num {
+.ab-what-num {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 44px;
+  font-size: 72px;
   font-weight: 300;
-  color: rgba(42,88,80,0.18);
+  color: rgba(42,88,80,0.07);
   line-height: 1;
-  margin-bottom: 14px;
+  position: absolute;
+  top: 14px;
+  right: 20px;
+  user-select: none;
 }
-.ab-step-label {
+.ab-what-label {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin: 0 0 14px;
+}
+.ab-what-body {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px;
+  font-weight: 300;
+  color: #2e4a45;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 380px;
+}
+.ab-what-list {
+  list-style: none;
+  padding: 0; margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.ab-what-list li {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px;
+  font-weight: 300;
+  color: #2e4a45;
+  line-height: 1.5;
+  padding-left: 15px;
+  position: relative;
+}
+.ab-what-list li::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 10px;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: rgba(42,88,80,0.3);
+}
+@media (max-width: 600px) {
+  .ab-what-grid { grid-template-columns: 1fr; }
+}
+
+/* Getting started CTA band */
+.ab-gs-band {
+  margin-top: 24px;
+  background: rgba(42,88,80,0.05);
+  border-radius: 18px;
+  padding: 40px 44px 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 36px;
+}
+.ab-gs-copy {}
+.ab-gs-eyebrow {
   font-family: var(--sans);
   font-size: 11px;
   font-weight: 700;
@@ -244,45 +308,33 @@
   color: var(--teal);
   margin: 0 0 10px;
 }
-.ab-step-body {
+.ab-gs-title {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 16px;
+  font-size: clamp(26px, 2.8vw, 34px);
+  font-weight: 300;
+  color: #192E2A;
+  line-height: 1.2;
+  margin: 0 0 10px;
+}
+.ab-gs-title em { font-style: italic; color: var(--teal); }
+.ab-gs-sub {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px;
   font-weight: 300;
   color: #3a5a54;
   line-height: 1.6;
   margin: 0;
+  max-width: 360px;
 }
-.ab-step-list {
-  list-style: none;
-  padding: 0; margin: 0;
+.ab-gs-actions {
   display: flex;
-  flex-direction: column;
-  gap: 7px;
+  gap: 14px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
-.ab-step-list li {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 16px;
-  font-weight: 300;
-  color: #3a5a54;
-  line-height: 1.5;
-  padding-left: 14px;
-  position: relative;
-}
-.ab-step-list li::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 9px;
-  width: 4px; height: 4px;
-  border-radius: 50%;
-  background: rgba(42,88,80,0.3);
-}
-@media (max-width: 880px) {
-  .ab-process-strip { grid-template-columns: repeat(2, 1fr); gap: 32px; }
-  .ab-process-step,
-  .ab-process-step + .ab-process-step { padding: 0; border-left: none; }
-}
-@media (max-width: 480px) {
-  .ab-process-strip { grid-template-columns: 1fr; gap: 24px; }
+@media (max-width: 700px) {
+  .ab-gs-band { flex-direction: column; align-items: flex-start; padding: 32px 28px 28px; }
+  .ab-gs-actions { width: 100%; }
 }
 
 /* ════════════════════════════════════════════════
@@ -550,7 +602,7 @@
     <div class="ab-picker-dot" aria-hidden="true"></div>
     <button class="ab-picker-item" onclick="easeScrollTo('about-why')">Why people come</button>
     <div class="ab-picker-dot" aria-hidden="true"></div>
-    <button class="ab-picker-item" onclick="easeScrollTo('surprise-section')">What to expect</button>
+    <button class="ab-picker-item" onclick="easeScrollTo('surprise-section')">What clients say</button>
     <div class="ab-picker-dot" aria-hidden="true"></div>
     <button class="ab-picker-item" onclick="easeScrollTo('about-experience')">Experience</button>
   </nav>
@@ -587,7 +639,7 @@
   </div>
 </section>
 
-<!-- ══ 4. WHY PEOPLE COME ════════════════════════════════════════════ -->
+<!-- ══ 4. WHY PEOPLE COME + WHAT TO EXPECT ══════════════════════════ -->
 <section class="section" id="about-why">
   <div class="wrap" style="max-width:1040px;">
 
@@ -698,56 +750,32 @@
         </div>
       </div>
 
-      <!-- Card 4: Getting started — seedling -->
-      <div class="ab-why-card">
-        <div class="ab-why-card-body">
-          <p class="ab-why-card-label">Getting started</p>
-          <ul class="ab-why-card-list">
-            <li>Whether you&rsquo;ve been for counselling before or not, whether it&rsquo;s for one session or many</li>
-            <li>Private or third party funding</li>
-          </ul>
-        </div>
-        <div class="ab-why-card-art">
-          <svg viewBox="0 0 100 200" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round">
-            <!-- Ground line -->
-            <path d="M12 172 C32 165 68 165 88 172" stroke="#2A5850" stroke-width="0.8" opacity="0.4"/>
-            <!-- Main stem -->
-            <path d="M50 172 C50 155 50 138 50 120 C50 102 50 82 50 62 C50 48 50 36 50 22" stroke="#2A5850" stroke-width="1.6"/>
-            <!-- Left leaf -->
-            <path d="M50 105 C40 92 28 76 20 60 C18 54 20 46 24 44 C30 52 38 70 50 105Z" stroke="#2A5850" stroke-width="1" fill="rgba(42,88,80,0.08)"/>
-            <path d="M50 102 C40 88 30 72 24 58" stroke="#2A5850" stroke-width="0.45"/>
-            <!-- Right leaf -->
-            <path d="M50 105 C60 92 72 76 80 60 C82 54 80 46 76 44 C70 52 62 70 50 105Z" stroke="#2A5850" stroke-width="1" fill="rgba(42,88,80,0.08)"/>
-            <path d="M50 102 C60 88 70 72 76 58" stroke="#2A5850" stroke-width="0.45"/>
-            <!-- Small side buds on stem -->
-            <path d="M49 65 C42 58 37 48 40 40 C46 44 49 54 49 65Z" stroke="#2A5850" stroke-width="0.75" fill="rgba(42,88,80,0.06)"/>
-            <path d="M51 65 C58 58 63 48 60 40 C54 44 51 54 51 65Z" stroke="#2A5850" stroke-width="0.75" fill="rgba(42,88,80,0.06)"/>
-            <!-- Terminal bud -->
-            <path d="M50 36 C45 25 44 14 50 8 C56 14 55 25 50 36Z" stroke="#2A5850" stroke-width="1" fill="rgba(42,88,80,0.12)"/>
-            <line x1="50" y1="34" x2="50" y2="10" stroke="#2A5850" stroke-width="0.45"/>
-            <!-- Roots -->
-            <path d="M50 172 C46 182 40 192 36 198" stroke="#2A5850" stroke-width="0.8" opacity="0.35"/>
-            <path d="M50 172 C54 182 60 192 64 198" stroke="#2A5850" stroke-width="0.8" opacity="0.35"/>
-            <path d="M49 176 C44 186 42 194 40 200" stroke="#2A5850" stroke-width="0.55" opacity="0.25"/>
-          </svg>
-        </div>
-      </div>
-
     </div>
 
-    <!-- Numbered process steps -->
-    <div class="ab-process-strip">
+    <!-- Botanical sprig divider -->
+    <div class="ab-botanical-divider" aria-hidden="true">
+      <svg viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M60 38 C60 28 60 18 60 6" stroke="#2A5850" stroke-width="1.2"/>
+        <path d="M60 30 C50 24 40 16 34 8 C41 8 52 16 60 30Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.08)"/>
+        <path d="M60 30 C70 24 80 16 86 8 C79 8 68 16 60 30Z" stroke="#2A5850" stroke-width="0.8" fill="rgba(42,88,80,0.08)"/>
+        <path d="M60 18 C52 12 44 6 40 2 C47 2 56 8 60 18Z" stroke="#2A5850" stroke-width="0.7" fill="rgba(42,88,80,0.06)"/>
+        <path d="M60 18 C68 12 76 6 80 2 C73 2 64 8 60 18Z" stroke="#2A5850" stroke-width="0.7" fill="rgba(42,88,80,0.06)"/>
+      </svg>
+    </div>
 
-      <div class="ab-process-step">
-        <div class="ab-step-num">01</div>
-        <p class="ab-step-label">Outcomes</p>
-        <p class="ab-step-body">Issue resolved, or feeling confident to continue with sessions.</p>
+    <!-- What to expect — 2×2 cards -->
+    <div class="ab-what-grid">
+
+      <div class="ab-what-card">
+        <div class="ab-what-num" aria-hidden="true">01</div>
+        <p class="ab-what-label">Outcomes</p>
+        <p class="ab-what-body">Issue resolved, or feeling confident to continue with sessions.</p>
       </div>
 
-      <div class="ab-process-step">
-        <div class="ab-step-num">02</div>
-        <p class="ab-step-label">The process</p>
-        <ul class="ab-step-list">
+      <div class="ab-what-card">
+        <div class="ab-what-num" aria-hidden="true">02</div>
+        <p class="ab-what-label">The process</p>
+        <ul class="ab-what-list">
           <li>Personal contact from beginning to end</li>
           <li>Individual contact</li>
           <li>Arrange referral with a finder</li>
@@ -756,18 +784,37 @@
         </ul>
       </div>
 
-      <div class="ab-process-step">
-        <div class="ab-step-num">03</div>
-        <p class="ab-step-label">Intake</p>
-        <p class="ab-step-body">An intake process or session where required &mdash; for example, for relationships or working with a child.</p>
+      <div class="ab-what-card">
+        <div class="ab-what-num" aria-hidden="true">03</div>
+        <p class="ab-what-label">Intake</p>
+        <p class="ab-what-body">An intake process or session where required &mdash; for example, for relationships or working with a child.</p>
       </div>
 
-      <div class="ab-process-step">
-        <div class="ab-step-num">04</div>
-        <p class="ab-step-label">Setting</p>
-        <p class="ab-step-body">Home setting. Private and confidential.</p>
+      <div class="ab-what-card">
+        <div class="ab-what-num" aria-hidden="true">04</div>
+        <p class="ab-what-label">Setting</p>
+        <p class="ab-what-body">Home setting. Private and confidential.</p>
       </div>
 
+    </div>
+
+    <!-- Getting started CTA -->
+    <div class="ab-gs-band">
+      <div class="ab-gs-copy">
+        <p class="ab-gs-eyebrow">Getting started</p>
+        <h3 class="ab-gs-title">Ready to take<br><em>the next step?</em></h3>
+        <p class="ab-gs-sub">Whether you&rsquo;re just exploring or ready to book &mdash; reach out and we&rsquo;ll go from there.</p>
+      </div>
+      <div class="ab-gs-actions">
+        <a href="request-session.html" class="btn btn-mint">
+          Book a session
+          <svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a href="#reach-out" class="btn btn-outline" onclick="openReachOut()">
+          Reach out first
+          <svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
     </div>
 
   </div>
@@ -812,17 +859,6 @@
       </div>
     </div>
 
-    <!-- Section bridge CTA -->
-    <div class="ab-section-cta">
-      <a href="sessions.html" class="btn btn-outline">
-        Learn more about sessions
-        <svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </a>
-      <a href="request-session.html" class="btn btn-mint">
-        Book a session
-        <svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </a>
-    </div>
   </div>
 </section>
 
