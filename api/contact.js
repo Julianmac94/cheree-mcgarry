@@ -230,13 +230,12 @@ export default async function handler(req, res) {
   // ── 2. Send emails via Resend (best-effort — never fail the form) ─
   // NOTE: Requires chereemcgarry.com to be verified on Resend.
   // Until the domain is verified, emails send from onboarding@resend.dev
-  // which Resend only delivers to the account owner's address. Once
-  // verified, update from addresses to hello@chereemcgarry.com.
+  // which Resend only delivers to the account owner's address.
   const FROM_CHEREE = process.env.RESEND_DOMAIN_VERIFIED === '1'
-    ? 'Cheree McGarry <hello@chereemcgarry.com>'
+    ? 'Cheree McGarry <reachout@chereemcgarry.com>'
     : 'Cheree McGarry <onboarding@resend.dev>';
   const FROM_WEBSITE = process.env.RESEND_DOMAIN_VERIFIED === '1'
-    ? 'Website <noreply@chereemcgarry.com>'
+    ? 'Cheree McGarry <reachout@chereemcgarry.com>'
     : 'Website <onboarding@resend.dev>';
 
   try {
