@@ -235,8 +235,8 @@ export default async function handler(req, res) {
     ? 'Cheree McGarry <reachout@chereemcgarry.com>'
     : 'Cheree McGarry <onboarding@resend.dev>';
   const FROM_WEBSITE = process.env.RESEND_DOMAIN_VERIFIED === '1'
-    ? 'Cheree McGarry <reachout@chereemcgarry.com>'
-    : 'Website <onboarding@resend.dev>';
+    ? 'Practice - Website Enquiry <reachout@chereemcgarry.com>'
+    : 'Practice - Website Enquiry <onboarding@resend.dev>';
 
   try {
     await Promise.all([
