@@ -48,7 +48,7 @@ function wrap(innerHtml) {
             <table cellpadding="0" cellspacing="0">
               <tr>
                 <td style="padding-right:14px;vertical-align:middle;">
-                  <div style="width:38px;height:38px;background:${C.teal};border-radius:50%;"></div>
+                  <img src="https://chereemcgarry.com/assets/logo.svg" alt="Cheree McGarry" width="42" height="42" style="display:block;width:42px;height:42px;border-radius:50%;background:${C.teal};" />
                 </td>
                 <td style="vertical-align:middle;">
                   <span style="display:block;font-size:17px;font-weight:500;color:${C.teal};letter-spacing:0.01em;">Cheree McGarry</span>
