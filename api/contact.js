@@ -232,8 +232,8 @@ export default async function handler(req, res) {
   // Until the domain is verified, emails send from onboarding@resend.dev
   // which Resend only delivers to the account owner's address.
   const FROM_CHEREE = process.env.RESEND_DOMAIN_VERIFIED === '1'
-    ? 'Cheree McGarry <reachout@chereemcgarry.com>'
-    : 'Cheree McGarry <onboarding@resend.dev>';
+    ? 'Cheree McGarry Counselling & Wellness <reachout@chereemcgarry.com>'
+    : 'Cheree McGarry Counselling & Wellness <onboarding@resend.dev>';
   const FROM_WEBSITE = process.env.RESEND_DOMAIN_VERIFIED === '1'
     ? 'Practice - Website Enquiry <reachout@chereemcgarry.com>'
     : 'Practice - Website Enquiry <onboarding@resend.dev>';
