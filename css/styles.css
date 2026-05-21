@@ -157,10 +157,10 @@ body::after {
 }
 /* Staggered entrance — eyebrow → first name → surname → rule → content */
 .hero-logo          { animation: hUp 0.9s var(--ease) 0.08s both; }
-.hero-eyebrow       { animation: hUp 0.9s var(--ease) 0.33s both; }
-.hero-tagline-sub   { animation: hUp 0.9s var(--ease) 0.40s both; }
-.hero-name em       { animation: hUp 0.9s var(--ease) 0.18s both; }
-.hero-name span     { animation: hUp 0.9s var(--ease) 0.28s both; }
+.hero-tagline-sub   { animation: hUp 0.9s var(--ease) 0.16s both; }
+.hero-name em       { animation: hUp 0.9s var(--ease) 0.26s both; }
+.hero-name span     { animation: hUp 0.9s var(--ease) 0.34s both; }
+.hero-eyebrow       { animation: hUp 0.9s var(--ease) 0.42s both; }
 .hero-rule       { animation: hUp 0.9s var(--ease) 0.38s both; }
 .hero-tagline    { animation: hUp 0.9s var(--ease) 0.48s both; }
 .hero-ctas       { animation: hUp 0.9s var(--ease) 0.56s both; }
@@ -191,9 +191,9 @@ body::after {
   font-size: 11px; font-weight: 500;
   letter-spacing: 0.28em; text-transform: uppercase;
   color: var(--terra);
-  margin-top: 16px; margin-bottom: 10px;
+  margin-top: 14px; margin-bottom: 36px;
 }
-/* "Real connection, Real support." — serif italic below the eyebrow */
+/* "Real connection, Real support." — opener above the name */
 .hero-tagline-sub {
   font-family: var(--serif);
   font-size: clamp(17px, 2.2vw, 24px);
@@ -201,7 +201,7 @@ body::after {
   color: var(--mid);
   letter-spacing: 0.01em;
   line-height: 1.4;
-  margin: 0 0 36px;
+  margin: 0 0 18px;
 }
 
 /* Name: one-line editorial — first name large italic, surname baseline-aligned */
