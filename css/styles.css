@@ -219,13 +219,13 @@ body::after {
   letter-spacing: -0.02em;
   color: var(--teal);
 }
-/* "McGarry" — optically matched to Cheree (uppercase reads heavier so slightly smaller) */
+/* "McGarry" — optically matched to Cheree (uppercase reads heavier so significantly smaller) */
 .hero-name span {
   display: block;
   font-family: var(--serif);
-  font-size: clamp(37px, 5.5vw, 70px);
+  font-size: clamp(28px, 4vw, 52px);
   font-weight: 300; font-style: normal;
-  letter-spacing: 0.06em; text-transform: uppercase;
+  letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--ink);
   line-height: 0.9;
 }
