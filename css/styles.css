@@ -188,16 +188,21 @@ body::after {
 /* Eyebrow label — terra accent brings warmth to the cream hero */
 .hero-eyebrow {
   font-size: 11px; font-weight: 500;
-  letter-spacing: 0.28em; text-transform: uppercase;
+  letter-spacing: 0.2em; text-transform: uppercase;
   color: var(--terra);
-  margin-top: 12px; margin-bottom: 22px;
+  margin-top: 16px; margin-bottom: 40px;
+}
+.hero-eyebrow-tagline {
+  font-style: italic; text-transform: none;
+  letter-spacing: 0.04em; font-weight: 400;
+  color: var(--soft);
 }
 
-/* Name: stacked two-line editorial treatment */
+/* Name: one-line editorial — first name large italic, surname as small superscript */
 .hero-name {
   font-family: var(--serif);
-  display: flex; flex-direction: column; align-items: center;
-  gap: 0; margin-bottom: 0;
+  display: flex; flex-direction: row; align-items: flex-start; justify-content: center;
+  gap: 8px; margin-bottom: 0;
 }
 /* "Cheree" — first name, italic, teal, dominant */
 .hero-name em {
@@ -208,15 +213,15 @@ body::after {
   letter-spacing: -0.02em;
   color: var(--teal);
 }
-/* "McGarry" — surname, upright, spaced, anchoring */
+/* "McGarry" — surname as superscript annotation */
 .hero-name span {
   display: block;
   font-family: var(--serif);
-  font-size: clamp(32px, 5vw, 58px);
+  font-size: clamp(13px, 1.6vw, 22px);
   font-weight: 300; font-style: normal;
-  letter-spacing: 0.18em; text-transform: uppercase;
-  color: var(--ink);
-  line-height: 1.1;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--ink); opacity: 0.7;
+  line-height: 1;
   margin-top: 6px;
 }
 
@@ -267,7 +272,7 @@ body::after {
 .hero-ctas {
   display: flex; align-items: center; justify-content: center;
   gap: 12px;
-  margin-top: 44px;
+  margin-top: 0;
 }
 
 /* Scroll indicator floats at the bottom, out of flex flow so content centres cleanly */
