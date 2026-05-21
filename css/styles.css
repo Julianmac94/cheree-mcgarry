@@ -156,7 +156,7 @@ body::after {
   to   { opacity: 1; transform: translateY(0); }
 }
 /* Staggered entrance — eyebrow → first name → surname → rule → content */
-.hero-eyebrow    { animation: hUp 0.9s var(--ease) 0.06s both; }
+.hero-eyebrow    { animation: hUp 0.9s var(--ease) 0.33s both; }
 .hero-name em    { animation: hUp 0.9s var(--ease) 0.18s both; }
 .hero-name span  { animation: hUp 0.9s var(--ease) 0.28s both; }
 .hero-rule       { animation: hUp 0.9s var(--ease) 0.38s both; }
@@ -181,7 +181,7 @@ body::after {
   font-size: 11px; font-weight: 500;
   letter-spacing: 0.28em; text-transform: uppercase;
   color: var(--terra);
-  margin-bottom: 18px;
+  margin-top: 12px; margin-bottom: 22px;
 }
 
 /* Name: stacked two-line editorial treatment */
@@ -258,7 +258,7 @@ body::after {
 .hero-ctas {
   display: flex; align-items: center; justify-content: center;
   gap: 12px;
-  margin-top: 26px;
+  margin-top: 44px;
 }
 
 /* Scroll indicator floats at the bottom, out of flex flow so content centres cleanly */
@@ -274,12 +274,12 @@ body::after {
   animation: scrollIn 0.9s var(--ease) 0.78s both;
 }
 .hero-scroll-label {
-  font-family: var(--sans); font-size: 10.5px; font-weight: 400;
-  letter-spacing: 0.2em; text-transform: uppercase;
-  color: var(--soft); opacity: 0.75;
+  font-family: var(--sans); font-size: 13px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--mid); opacity: 0.85;
 }
 .hero-scroll-arrow {
-  color: var(--soft); opacity: 0.55;
+  color: var(--mid); opacity: 0.65;
   animation: scrollBob 2.6s ease-in-out 1.4s infinite;
 }
 @keyframes scrollBob {
