@@ -242,6 +242,7 @@ body::after {
   letter-spacing: 0.06em;
   color: var(--soft); opacity: 0.75;
   margin-top: 22px;
+  max-width: 480px; text-align: center; line-height: 1.8;
 }
 
 /* ── HERO CTAs, TAGLINE & LOCATION ── */
