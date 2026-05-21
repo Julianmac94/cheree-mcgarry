@@ -214,7 +214,7 @@ body::after {
 .hero-name em {
   display: block;
   font-style: italic; font-weight: 300;
-  font-size: clamp(72px, 11vw, 132px);
+  font-size: clamp(44px, 6.5vw, 82px);
   line-height: 0.9;
   letter-spacing: -0.02em;
   color: var(--teal);
@@ -223,7 +223,7 @@ body::after {
 .hero-name span {
   display: block;
   font-family: var(--serif);
-  font-size: clamp(72px, 11vw, 132px);
+  font-size: clamp(44px, 6.5vw, 82px);
   font-weight: 300; font-style: normal;
   letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--ink);
