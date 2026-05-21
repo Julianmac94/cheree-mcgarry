@@ -97,6 +97,15 @@
 .ab-editorial-photo {
   position: relative;
 }
+.ab-photo-botanicals {
+  position: absolute;
+  inset: -40px -40px -40px -40px;
+  width: calc(100% + 80px);
+  height: calc(100% + 80px);
+  pointer-events: none;
+  z-index: 2;
+  overflow: visible;
+}
 .ab-editorial-photo::before,
 .ab-editorial-photo::after {
   content: '';
@@ -117,10 +126,10 @@
 .ab-cheree-photo {
   width: 100%; aspect-ratio: 3/4;
   object-fit: cover; object-position: center top;
+  border-radius: 48px;
   position: sticky; top: 96px;
   display: block;
-  -webkit-mask-image: radial-gradient(ellipse 85% 80% at 50% 36%, black 30%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.3) 70%, transparent 88%);
-  mask-image: radial-gradient(ellipse 85% 80% at 50% 36%, black 30%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.3) 70%, transparent 88%);
+  box-shadow: 0 8px 40px rgba(42,88,80,0.10);
 }
 
 /* ════════════════════════════════════════════════
@@ -455,6 +464,7 @@
     height: 400px;
     aspect-ratio: unset;
     object-position: center 20%;
+    border-radius: 36px;
   }
   .ab-editorial-photo::before { width: 300px; height: 300px; }
   .ab-editorial-photo::after  { width: 400px; height: 400px; }
@@ -731,6 +741,45 @@ footer { position: relative; overflow: hidden; }
     <!-- Cheree's photo -->
     <div class="ab-editorial-photo">
       <img src="assets/cheree-web.jpg" alt="Cheree McGarry" class="ab-cheree-photo">
+
+      <!-- Botanical lines weaving around the photo -->
+      <svg class="ab-photo-botanicals" viewBox="0 0 340 480" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Left stem rising up the left edge -->
+        <path d="M -18 480 C -10 390 -22 310 -8 230 C 4 158 -14 90 10 20"
+              stroke="#2A5850" stroke-width="1.1" stroke-opacity="0.18"/>
+        <!-- Branch left crossing photo corner top-left -->
+        <path d="M -8 230 C 18 210 44 196 68 188"
+              stroke="#2A5850" stroke-width="0.7" stroke-opacity="0.14"/>
+        <path d="M 20 118 C 40 104 54 84 50 62"
+              stroke="#2A5850" stroke-width="0.55" stroke-opacity="0.11"/>
+        <!-- Leaf left A -->
+        <path d="M -8 230 C -24 218 -30 200 -20 186 C -10 196 -6 214 -8 230Z"
+              stroke="#2A5850" stroke-width="0.5" stroke-opacity="0.10" fill="rgba(42,88,80,0.04)"/>
+        <!-- Leaf left B -->
+        <path d="M 10 140 C -4 128 -8 110 0 98 C 10 108 14 126 10 140Z"
+              stroke="#2A5850" stroke-width="0.5" stroke-opacity="0.10" fill="rgba(42,88,80,0.04)"/>
+
+        <!-- Right stem descending from top-right -->
+        <path d="M 358 0 C 350 80 362 160 348 240 C 336 308 354 374 330 460"
+              stroke="#2A5850" stroke-width="1.0" stroke-opacity="0.15"/>
+        <!-- Branch right crossing photo top-right corner -->
+        <path d="M 348 240 C 322 224 298 212 272 206"
+              stroke="#2A5850" stroke-width="0.65" stroke-opacity="0.12"/>
+        <path d="M 330 140 C 310 126 296 108 300 86"
+              stroke="#2A5850" stroke-width="0.5" stroke-opacity="0.10"/>
+        <!-- Leaf right A -->
+        <path d="M 348 240 C 364 226 372 208 362 194 C 350 204 346 222 348 240Z"
+              stroke="#2A5850" stroke-width="0.5" stroke-opacity="0.09" fill="rgba(42,88,80,0.03)"/>
+        <!-- Leaf right B -->
+        <path d="M 338 148 C 352 134 356 116 348 104 C 336 114 332 132 338 148Z"
+              stroke="#2A5850" stroke-width="0.45" stroke-opacity="0.09" fill="rgba(42,88,80,0.03)"/>
+
+        <!-- Mint accent traces -->
+        <path d="M 40 192 C 46 186 54 182 60 184"
+              stroke="#77CFBD" stroke-width="0.5" stroke-opacity="0.18"/>
+        <path d="M 300 210 C 294 204 286 200 280 202"
+              stroke="#77CFBD" stroke-width="0.5" stroke-opacity="0.15"/>
+      </svg>
     </div>
 
   </div>
