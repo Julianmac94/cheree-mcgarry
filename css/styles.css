@@ -204,10 +204,10 @@ body::after {
   margin: 0 0 36px;
 }
 
-/* Name: one-line editorial — first name large italic, surname as small superscript */
+/* Name: one-line editorial — first name large italic, surname baseline-aligned */
 .hero-name {
   font-family: var(--serif);
-  display: flex; flex-direction: row; align-items: flex-start; justify-content: center;
+  display: flex; flex-direction: row; align-items: baseline; justify-content: center;
   gap: 8px; margin-bottom: 0;
 }
 /* "Cheree" — first name, italic, teal, dominant */
