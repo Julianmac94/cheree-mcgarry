@@ -231,10 +231,10 @@ body::after {
 }
 /* "c" in Mc — traditional superscript treatment */
 .hero-name span sup {
-  font-size: 0.38em;
+  font-size: 0.52em;
   font-weight: 300;
   letter-spacing: 0.05em;
-  vertical-align: 0.72em;
+  vertical-align: 0.58em;
   text-transform: lowercase;
 }
 
