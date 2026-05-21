@@ -117,10 +117,10 @@
 .ab-cheree-photo {
   width: 100%; aspect-ratio: 3/4;
   object-fit: cover; object-position: center top;
-  border-radius: 48px;
   position: sticky; top: 96px;
   display: block;
-  box-shadow: 0 8px 40px rgba(42,88,80,0.10);
+  -webkit-mask-image: radial-gradient(ellipse 85% 80% at 50% 36%, black 30%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.3) 70%, transparent 88%);
+  mask-image: radial-gradient(ellipse 85% 80% at 50% 36%, black 30%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.3) 70%, transparent 88%);
 }
 
 /* ════════════════════════════════════════════════
@@ -455,7 +455,6 @@
     height: 400px;
     aspect-ratio: unset;
     object-position: center 20%;
-    border-radius: 36px;
   }
   .ab-editorial-photo::before { width: 300px; height: 300px; }
   .ab-editorial-photo::after  { width: 400px; height: 400px; }
