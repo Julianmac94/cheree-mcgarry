@@ -1286,7 +1286,7 @@ footer { background: var(--teal-deep); position: relative; overflow: hidden; }
 
 /* AASW logo — small, white, under brand copy in footer */
 .ft-aasw-logo {
-  height: 32px; width: auto;
+  height: 52px; width: auto;
   display: block;
   opacity: 0.4;
   filter: brightness(0) invert(1);
