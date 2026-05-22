@@ -29,7 +29,7 @@
   --neu-cta:      0 3px 12px rgba(119,207,189,0.38), 0 1px 0 rgba(255,255,255,0.45) inset;
   --neu-cta-hi:   0 5px 18px rgba(119,207,189,0.48), 0 1px 0 rgba(255,255,255,0.45) inset;
 }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; scroll-padding-top: 68px; }
 body {
   font-family: var(--sans);
   color: var(--ink);
@@ -182,7 +182,7 @@ body::after {
 .hero-logo {
   display: block;
   width: 120px; height: 120px;
-  margin: 0 auto 24px;
+  margin: 0 auto 32px;
   position: relative; z-index: 1;
 }
 
@@ -201,7 +201,7 @@ body::after {
   color: var(--mid);
   letter-spacing: 0.01em;
   line-height: 1.4;
-  margin: 0 0 18px;
+  margin: 0 0 44px;
 }
 
 /* Name: one-line editorial — first name large italic, surname baseline-aligned */
