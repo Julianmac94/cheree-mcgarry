@@ -823,3 +823,118 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .task-item.done .task-check { background: var(--teal); border-color: var(--teal); color: #051c11; }
 .task-check svg { width: 12px; height: 12px; }
 .task-label { flex: 1; font-size: 13px; color: var(--t1); }
+
+/* ─── BENTO GRID ─────────────────────────────────────────────── */
+.dh-bento {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.dh-b-3 { grid-column: span 3; }
+.dh-b-4 { grid-column: span 4; }
+.dh-b-5 { grid-column: span 5; }
+.dh-b-7 { grid-column: span 7; }
+.dh-b-8 { grid-column: span 8; }
+@media (max-width: 1100px) {
+  .dh-b-3 { grid-column: span 6; }
+  .dh-b-4, .dh-b-5, .dh-b-7, .dh-b-8 { grid-column: span 12; }
+}
+
+/* ─── WEEK STRIP (inside schedule card) ─────────────────────── */
+.dh-week-strip {
+  display: flex; gap: 2px;
+  padding: 16px 28px 12px;
+  border-bottom: 1px solid var(--sep);
+}
+.dh-week-day {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 8px 3px; border-radius: 10px; transition: background 0.12s;
+}
+.dh-week-day--active { background: rgba(52,211,153,0.12); }
+.dh-wd-name {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--t3);
+}
+.dh-week-day--active .dh-wd-name { color: var(--teal); }
+.dh-wd-num { font-size: 15px; font-weight: 700; color: var(--t2); line-height: 1; }
+.dh-week-day--active .dh-wd-num { color: var(--teal); }
+.dh-wd-pip { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+.dh-wd-pip--has   { background: rgba(52,211,153,0.50); }
+.dh-wd-pip--today { background: var(--teal); }
+
+/* ─── TASKS CARD ─────────────────────────────────────────────── */
+.dh-tasks-card {
+  background: var(--gc);
+  backdrop-filter: var(--gblur); -webkit-backdrop-filter: var(--gblur);
+  border: 1px solid var(--gb); border-radius: var(--r); box-shadow: var(--gshadow);
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.dh-tasks-hdr {
+  display: flex; align-items: center; gap: 14px;
+  padding: 24px 28px 18px; border-bottom: 1px solid var(--sep); flex-shrink: 0;
+}
+.dh-tasks-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--t3); flex: 1;
+}
+.dh-tasks-body { flex: 1; min-height: 60px; }
+.dh-task-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 28px; border-bottom: 1px solid var(--sep); transition: background 0.12s;
+}
+.dh-task-item:last-of-type { border-bottom: none; }
+.dh-task-item:hover { background: rgba(255,255,255,0.03); }
+.dh-task-chk {
+  width: 17px; height: 17px; border-radius: 5px;
+  border: 1.5px solid var(--gb); background: none; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: transparent; font-family: inherit; font-size: 10px; transition: all 0.13s; padding: 0;
+}
+.dh-task-item.done .dh-task-chk { background: var(--teal); border-color: var(--teal); color: #051c11; }
+.dh-task-lbl { flex: 1; font-size: 12.5px; color: var(--t1); font-weight: 500; }
+.dh-task-item.done .dh-task-lbl { opacity: 0.38; text-decoration: line-through; }
+.dh-tasks-add {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 28px; border-top: 1px solid var(--sep); flex-shrink: 0;
+}
+.dh-tasks-plus { color: var(--t3); font-size: 18px; flex-shrink: 0; line-height: 1; user-select: none; }
+.dh-task-inp {
+  flex: 1; background: none; border: none; outline: none;
+  font-size: 12.5px; color: var(--t1); font-family: inherit;
+}
+.dh-task-inp::placeholder { color: var(--t3); }
+.dh-tasks-empty   { padding: 28px 28px; text-align: center; color: var(--t3); font-size: 12.5px; }
+.dh-tasks-loading { padding: 18px 28px; color: var(--t3); font-size: 12px; font-style: italic; }
+
+/* ─── BILLING SUMMARY CARD ───────────────────────────────────── */
+.dh-billing-card {
+  background: var(--gc);
+  backdrop-filter: var(--gblur); -webkit-backdrop-filter: var(--gblur);
+  border: 1px solid var(--gb); border-radius: var(--r); box-shadow: var(--gshadow);
+  overflow: hidden; cursor: pointer; transition: transform 0.15s;
+}
+.dh-billing-card:hover { transform: translateY(-2px); }
+.dh-billing-hdr {
+  display: flex; align-items: center; gap: 14px;
+  padding: 24px 28px 18px; border-bottom: 1px solid var(--sep);
+}
+.dh-billing-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--t3); flex: 1;
+}
+.dh-billing-body { display: flex; padding: 24px 28px; gap: 0; }
+.dh-billing-stat {
+  flex: 1; display: flex; flex-direction: column; gap: 6px;
+  padding: 0 28px; border-right: 1px solid var(--sep);
+}
+.dh-billing-stat:first-child { padding-left: 0; }
+.dh-billing-stat:last-child  { border-right: none; }
+.dh-bs-lbl {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: var(--t3);
+}
+.dh-bs-amt {
+  font-size: 28px; font-weight: 800; letter-spacing: -0.04em; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.dh-bs-sub { font-size: 11px; color: var(--t3); font-weight: 500; }

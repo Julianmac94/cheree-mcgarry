@@ -2651,42 +2651,42 @@ body {
 
     <div class="sidebar-nav">
       <div class="sidebar-section-label">Workspace</div>
-      <button class="sidebar-item active" data-view="home" onclick="navigateTo('home')">
-        <span class="si-icon">⌂</span>
+      <button class="sidebar-item active" data-view="home" title="Home" onclick="navigateTo('home')">
+        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg></span>
         <span class="si-label">Home</span>
       </button>
-      <button class="sidebar-item" data-view="queue" onclick="navigateTo('queue')">
-        <span class="si-icon">≡</span>
+      <button class="sidebar-item" data-view="queue" title="Inbox" onclick="navigateTo('queue')">
+        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg></span>
         <span class="si-label">Inbox</span>
         <span class="si-badge" id="sib-queue"></span>
       </button>
-      <button class="sidebar-item" data-view="clients" onclick="navigateTo('clients')">
-        <span class="si-icon">◎</span>
+      <button class="sidebar-item" data-view="clients" title="Clients" onclick="navigateTo('clients')">
+        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span>
         <span class="si-label">Clients</span>
       </button>
 
       <div class="sidebar-divider"></div>
       <div class="sidebar-section-label">Finance</div>
-      <button class="sidebar-item" data-view="billing" onclick="navigateTo('billing')">
-        <span class="si-icon">$</span>
+      <button class="sidebar-item" data-view="billing" title="Billing" onclick="navigateTo('billing')">
+        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg></span>
         <span class="si-label">Billing</span>
       </button>
-      <button class="sidebar-item" data-view="vendors" onclick="navigateTo('vendors')">
-        <span class="si-icon">◈</span>
+      <button class="sidebar-item" data-view="vendors" title="Funders" onclick="navigateTo('vendors')">
+        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg></span>
         <span class="si-label">Funders</span>
       </button>
 
       <div class="sidebar-divider"></div>
       <div class="sidebar-section-label">Insights</div>
-      <button class="sidebar-item" data-view="reports" onclick="navigateTo('reports')">
-        <span class="si-icon">↗</span>
+      <button class="sidebar-item" data-view="reports" title="Reports (coming soon)" onclick="navigateTo('reports')">
+        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
         <span class="si-label">Reports</span>
         <span class="si-stub">Soon</span>
       </button>
 
       <div class="sidebar-divider"></div>
-      <button class="sidebar-item" data-view="settings" onclick="navigateTo('settings')">
-        <span class="si-icon">⚙</span>
+      <button class="sidebar-item" data-view="settings" title="Settings" onclick="navigateTo('settings')">
+        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
         <span class="si-label">Settings</span>
       </button>
     </div>
