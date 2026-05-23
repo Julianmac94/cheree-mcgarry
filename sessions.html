@@ -694,14 +694,13 @@ const planMatrix = {
       heading:     'Medicare',
       logo:        'assets/medicare-logo.svg',
       price:       '$195 / session',
-      pocket:      'Out-of-pocket: <strong>$107.75</strong> after $87.25 Medicare rebate',
+      pocket:      'Medicare rebate of <strong>$87.25</strong> available &mdash; claimed via Services Australia',
       funder:      false,
       needBefore:  'GP or psychiatrist <strong>Mental Health Care Plan (MHCP)</strong> naming <em>Cheree McGarry &mdash; AMHSW</em> is required before your first session.',
       highlights:  [
         'Up to <strong>10 sessions</strong> per calendar year &mdash; GP review required after the first 6',
-        'Rebate of $87.25 claimed via Services Australia &mdash; or ask Cheree to submit on your behalf (case-by-case)',
-        'Cannot claim both Medicare and private health for the same session',
-        'Medicare rebates cannot be applied to cancellation fees',
+        'Rebate of $87.25 claimed via Services Australia',
+        'Late cancellation fees are not covered by the Medicare rebate',
       ],
       cancelExtra: 'Medicare rebates do not apply to cancellation or no-show fees.',
       ctaType:     'book',
@@ -714,13 +713,11 @@ const planMatrix = {
       heading:     'Private / Self-funded',
       logo:        null,
       price:       '$195 / session',
-      pocket:      'Payment processed on the day &mdash; tax invoice issued immediately',
+      pocket:      'Payment made on the day of your appointment &mdash; tax invoice issued immediately',
       funder:      false,
       needBefore:  null,
       highlights:  [
-        'No referral required &mdash; book directly via Halaxy',
-        'Private health extras may apply &mdash; check with your insurer',
-        'Cannot claim both Medicare and private health for the same session',
+        'No referral required &mdash; contact Cheree to request a session',
       ],
       cancelExtra: null,
       ctaType:     'book',
@@ -751,12 +748,13 @@ const planMatrix = {
     'ndis-plan': {
       heading:     'NDIS &mdash; Plan-managed',
       logo:        'assets/ndis-logo.svg',
-      price:       'NDIS price guide rate',
-      pocket:      'Rate confirmed before your first session &mdash; invoiced directly to your plan manager',
+      price:       null,
+      pocket:      null,
       funder:      true,
       needBefore:  '<strong>Written approval from your plan manager is required before your first booking.</strong> Confirm counselling is within your funded supports and have your plan number and plan manager contact details ready.',
       highlights:  [
-        'Invoiced directly to your plan manager in NDIS-compliant format',
+        'Pricing and payment are arranged with your plan manager &mdash; not charged to you directly',
+        'Invoiced to your plan manager in NDIS-compliant format',
         'Bring your plan number and plan manager name and contact details',
         'Cancellations: may be covered by your plan or charged to you directly &mdash; check with your plan manager',
       ],
@@ -786,17 +784,17 @@ const planMatrix = {
       approval:    "We'll contact you to confirm after reviewing your EAP referral.",
     },
     dva: {
-      heading:     'ADFHSC &amp; DVA',
+      heading:     'Open Arms &amp; DVA',
       logo:        'assets/dva-logo.svg',
       price:       'Billed to your funder',
       pocket:      'You are not charged for sessions you attend',
       funder:      true,
       needBefore:  'Contact your <strong>unit health officer, Medical Officer, or DVA case manager</strong> to arrange your referral before booking.',
       highlights:  [
-        'Sessions billed directly to ADFHSC or DVA',
+        'Sessions billed directly to Open Arms or DVA',
         'Cancellations: may be covered by your funder or charged to you directly',
       ],
-      cancelExtra: 'Sessions are funded by ADFHSC/DVA. Cancellations without adequate notice may be charged to you directly.',
+      cancelExtra: 'Sessions are funded by Open Arms/DVA. Cancellations without adequate notice may be charged to you directly.',
       ctaType:     'book',
       formUrl:     null,
       formLabel:   null,
@@ -811,7 +809,7 @@ const planMatrix = {
       funder:      false,
       needBefore:  null,
       highlights:  [
-        "Common pathways: <strong>Private</strong> ($195/session, no referral), <strong>Medicare</strong> ($107.75 out-of-pocket with a GP referral), <strong>NDIS</strong>, or employer-funded (QFES, DVA/ADFHSC)",
+        "Common pathways: <strong>Private</strong> ($195/session, no referral), <strong>Medicare</strong> (rebate of $87.25 with a GP referral), <strong>NDIS</strong>, or employer-funded (QFES, Open Arms/DVA)",
         "That's completely fine &mdash; reach out and Cheree will help you work through your options",
       ],
       cancelExtra: null,
@@ -863,7 +861,7 @@ const planMatrix = {
       approval:    "We'll contact you to confirm after reviewing your EAP referral.",
     },
     dva: {
-      heading:     'ADFHSC &amp; DVA',
+      heading:     'Open Arms &amp; DVA',
       logo:        'assets/dva-logo.svg',
       price:       'Billed to your funder',
       pocket:      'You are not charged for sessions you attend',
@@ -871,10 +869,10 @@ const planMatrix = {
       needBefore:  'Contact your <strong>unit health officer or DVA case manager</strong>. Individual intake for each partner is required before joint sessions begin.',
       highlights:  [
         'Individual intake required for each partner before joint sessions',
-        'Sessions billed to ADFHSC/DVA',
+        'Sessions billed to Open Arms/DVA',
         'Cancellations: may be covered by your funder or charged to you directly',
       ],
-      cancelExtra: 'Sessions are funded by ADFHSC/DVA. Late cancellations may be charged to you directly.',
+      cancelExtra: 'Sessions are funded by Open Arms/DVA. Late cancellations may be charged to you directly.',
       ctaType:     'book',
       formUrl:     null,
       formLabel:   null,
@@ -905,7 +903,7 @@ const planMatrix = {
       heading:     'Medicare',
       logo:        'assets/medicare-logo.svg',
       price:       '$195 / session',
-      pocket:      'Out-of-pocket: <strong>$107.75</strong> after $87.25 rebate',
+      pocket:      'Medicare rebate of <strong>$87.25</strong> available &mdash; claimed via Services Australia',
       funder:      false,
       needBefore:  'A <strong>parent or guardian intake</strong> with Cheree is required first. Then a GP or psychiatrist <strong>MHCP naming Cheree McGarry &mdash; AMHSW</strong> for the child.',
       highlights:  [
@@ -925,13 +923,12 @@ const planMatrix = {
       heading:     'Private / Self-funded',
       logo:        null,
       price:       '$195 / session',
-      pocket:      'Payment processed on the day &mdash; tax invoice issued immediately',
+      pocket:      'Payment made on the day of your appointment &mdash; tax invoice issued immediately',
       funder:      false,
       needBefore:  'A <strong>parent or guardian intake</strong> session with Cheree is required before child counselling begins.',
       highlights:  [
         'One parent/guardian intake required &mdash; both parents are welcome to attend together',
         'Intake covers background information, consent, and treatment planning',
-        'Private health extras may apply &mdash; check with your insurer',
       ],
       cancelExtra: null,
       ctaType:     'book',
@@ -962,11 +959,12 @@ const planMatrix = {
     'ndis-plan': {
       heading:     'NDIS &mdash; Plan-managed',
       logo:        'assets/ndis-logo.svg',
-      price:       'NDIS price guide rate',
-      pocket:      'Rate confirmed before first session &mdash; invoiced to plan manager',
+      price:       null,
+      pocket:      null,
       funder:      true,
       needBefore:  'A <strong>parent/guardian intake</strong> is required first. <strong>Written approval from the plan manager</strong> must be in place before booking. Confirm counselling is within funded supports.',
       highlights:  [
+        'Pricing and payment are arranged with your plan manager &mdash; not charged to you directly',
         'Parent/guardian intake required before child sessions begin',
         'Written plan manager approval must be confirmed before first booking',
         'Bring plan number and plan manager name and contact details',
@@ -999,7 +997,7 @@ const planMatrix = {
       approval:    "We'll contact you to confirm after reviewing your EAP referral.",
     },
     dva: {
-      heading:     'ADFHSC &amp; DVA',
+      heading:     'Open Arms &amp; DVA',
       logo:        'assets/dva-logo.svg',
       price:       'Billed to your funder',
       pocket:      'You are not charged for sessions your child attends',
@@ -1007,10 +1005,10 @@ const planMatrix = {
       needBefore:  '<strong>Parent/guardian intake</strong> required first. Contact your <strong>unit health officer or DVA case manager</strong> to arrange referral.',
       highlights:  [
         'Parent/guardian intake required before child counselling begins',
-        'Sessions billed to ADFHSC/DVA',
+        'Sessions billed to Open Arms/DVA',
         'Cancellations: may be covered by funder or charged to you directly',
       ],
-      cancelExtra: 'Sessions funded by ADFHSC/DVA. Late cancellations may be charged to you directly.',
+      cancelExtra: 'Sessions funded by Open Arms/DVA. Late cancellations may be charged to you directly.',
       ctaType:     'book',
       formUrl:     null,
       formLabel:   null,
@@ -1041,13 +1039,11 @@ const planMatrix = {
       heading:     'Private / Self-funded',
       logo:        null,
       price:       '$195 / session',
-      pocket:      'Sessions are $195/hr with a 2-hour minimum after intake &mdash; payment on the day',
+      pocket:      'Payment made on the day of your appointment &mdash; tax invoice issued immediately',
       funder:      false,
-      needBefore:  'An <strong>individual intake session</strong> is required first before mediation sessions begin.',
+      needBefore:  null,
       highlights:  [
-        'Individual intake required before mediation proceeds',
-        'Mediation sessions: $195/hr, 2-hour minimum',
-        'Tax invoice issued immediately after each session',
+        'Contact Cheree to discuss your mediation requirements',
       ],
       cancelExtra: null,
       ctaType:     'book',
@@ -1076,7 +1072,7 @@ const planMatrix = {
       approval:    "We'll contact you to confirm after reviewing your EAP referral.",
     },
     dva: {
-      heading:     'ADFHSC &amp; DVA',
+      heading:     'Open Arms &amp; DVA',
       logo:        'assets/dva-logo.svg',
       price:       'Billed to your funder',
       pocket:      'You are not charged for sessions you attend',
@@ -1084,10 +1080,10 @@ const planMatrix = {
       needBefore:  'Individual intake required first. Contact your <strong>unit health officer or DVA case manager</strong> to arrange referral for mediation.',
       highlights:  [
         'Individual intake required before mediation sessions begin',
-        'Confirm mediation is covered by your ADFHSC/DVA entitlement',
+        'Confirm mediation is covered by your Open Arms/DVA entitlement',
         'Cancellations: may be covered by funder or charged to you directly',
       ],
-      cancelExtra: 'Sessions funded by ADFHSC/DVA. Late cancellations may be charged to you directly.',
+      cancelExtra: 'Sessions funded by Open Arms/DVA. Late cancellations may be charged to you directly.',
       ctaType:     'book',
       formUrl:     null,
       formLabel:   null,
@@ -1121,9 +1117,9 @@ const disabledFunding = {
 
 const svcLabels  = {
   individual:      'Individual therapy',
-  'couple-family': 'Couple or family therapy',
-  child:           'Child (under 16)',
-  mediation:       'Professional mediation',
+  'couple-family': 'Couple &amp; family',
+  child:           'Child therapy',
+  mediation:       'Workplace &amp; professional mediation',
 };
 const fundLabels = {
   medicare:    'Medicare (MHCP)',
@@ -1131,7 +1127,7 @@ const fundLabels = {
   'ndis-self': 'NDIS &mdash; self-managed',
   'ndis-plan': 'NDIS &mdash; plan-managed',
   qfes:        'QFES',
-  dva:         'ADFHSC &amp; DVA',
+  dva:         'Open Arms &amp; DVA',
   'not-sure':  'Not sure',
 };
 
@@ -1484,7 +1480,7 @@ function _btmPickerHtml() {
             (disabled.includes('ndis-self') ? '' : '<option value="ndis-self">NDIS — self-managed</option>') +
             (disabled.includes('ndis-plan') ? '' : '<option value="ndis-plan">NDIS — plan-managed</option>') +
             (disabled.includes('qfes') ? '' : '<option value="qfes">QFES</option>') +
-            (disabled.includes('dva') ? '' : '<option value="dva">ADFHSC &amp; DVA</option>') +
+            (disabled.includes('dva') ? '' : '<option value="dva">Open Arms &amp; DVA</option>') +
             '<option value="not-sure">Not sure</option>' +
           '</select></div>';
   }
@@ -1804,8 +1800,8 @@ const svcMeta = {
     color:     'rgba(42,88,80,0.1)',
     textColor: '#2A5850',
     desc:      'One-to-one sessions for adults (16+)',
-    facts:     ['60 minute sessions', 'Karalee (QLD) or online', 'Medicare &amp; NDIS available', 'No referral needed for private'],
-    note:      'For children under 16, select <em>Child therapy</em> — a parent or guardian intake is required first.',
+    facts:     ['60 minute sessions', 'Karalee (QLD) or online', 'Multiple funding pathways available', 'No referral needed for private payment'],
+    note:      null,
     infoLink:  'practice-information.html',
     infoText:  'How sessions work',
   },
@@ -1814,9 +1810,9 @@ const svcMeta = {
     icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="6.5" r="3"/><path d="M5 18c0-3.3 2.2-5.5 5-5.5s5 2.2 5 5.5"/></svg>',
     color:     'rgba(190,110,68,0.1)',
     textColor: '#BE6E44',
-    desc:      'Counselling for children under 16',
-    facts:     ['60 minute sessions', 'Art therapy &amp; sandtray available', 'Parent or guardian intake first', 'Medicare &amp; NDIS available'],
-    note:      'A parent or guardian intake session is required before your child\'s first appointment — this is a separate booking.',
+    desc:      'Therapy for children under 16',
+    facts:     ['60 minute sessions', 'Art therapy &amp; sandtray available', 'Multiple funding pathways available'],
+    note:      'A parent or guardian intake with Cheree is required before your child\'s first session — this is a mandatory first step.',
     infoLink:  'practice-information.html#pi-children',
     infoText:  'What to know about child intake',
   },
@@ -1826,19 +1822,19 @@ const svcMeta = {
     color:     'rgba(119,207,189,0.15)',
     textColor: '#2A5850',
     desc:      'Sessions involving partners or family members',
-    facts:     ['60 minute sessions', 'Individual intake per person first', '$195 per session — not per person', 'Private, QFES &amp; DVA available'],
+    facts:     ['120 minute sessions', 'Individual intake per person first', 'Billed per session — not per person', 'Private, QFES &amp; DVA available'],
     note:      'Medicare does not cover couple or family therapy. Each person completes a brief individual intake before joint sessions begin.',
     infoLink:  'practice-information.html#pi-couples',
     infoText:  'What to know about couple &amp; family intake',
   },
   mediation: {
-    label:     'Professional mediation',
+    label:     'Workplace &amp; professional mediation',
     icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.2"/><circle cx="15" cy="14" r="2.2"/><path d="M5 8.2V14a1 1 0 0 0 1 1h3M15 11.8V6a1 1 0 0 0-1-1h-3"/></svg>',
     color:     'rgba(42,88,80,0.08)',
     textColor: '#3E5C56',
     desc:      'Workplace and interpersonal dispute resolution',
-    facts:     ['2-hour minimum per session', 'Individual intake required first', 'Professional &amp; workplace settings', 'Private, QFES &amp; DVA available'],
-    note:      'Medicare does not cover mediation. An individual intake session is required before mediation sessions begin.',
+    facts:     ['Karalee (QLD) or online', 'Workplace &amp; professional settings'],
+    note:      'Mediation sessions are tailored to each situation. Reach out to Cheree to discuss your needs and arrange the right process.',
     infoLink:  'practice-information.html',
     infoText:  'How mediation works',
   },
@@ -1885,7 +1881,7 @@ const fundMeta = {
     icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="#3E5C7A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2l2.1 6.5H19l-5.6 4.1 2.1 6.4L10 14.9 4.5 19l2.1-6.4L1 8.5h6.9L10 2z"/></svg>',
     color:     '#edf2f9',
     accentColor: '#3E5C7A',
-    label:     'ADFHSC &amp; DVA',
+    label:     'Open Arms &amp; DVA',
     sub:       'ADF members, families &amp; DVA card holders',
   },
   'not-sure': {
@@ -1942,10 +1938,19 @@ function gPickSvc(key) {
   });
   document.getElementById('sg-insight-svc').innerHTML = _gRenderSvcInsight(key);
   _gShow('sg-insight-svc');
-  document.getElementById('sg-fund-pills').innerHTML = _gRenderFundPills(key);
-  _gHide('sg-insight-fund'); _gHide('sg-outcome');
-  _gShow('sg-fund');
-  _gScrollTo('sg-insight-svc');
+
+  if (key === 'mediation') {
+    // Mediation bypasses the funding step — contact Cheree directly
+    _gHide('sg-fund'); _gHide('sg-insight-fund');
+    document.getElementById('sg-outcome').innerHTML = _gRenderMediationContact();
+    _gShow('sg-outcome');
+    _gScrollTo('sg-insight-svc');
+  } else {
+    document.getElementById('sg-fund-pills').innerHTML = _gRenderFundPills(key);
+    _gHide('sg-insight-fund'); _gHide('sg-outcome');
+    _gShow('sg-fund');
+    _gScrollTo('sg-insight-svc');
+  }
 }
 
 function gPickFund(key) {
@@ -1963,6 +1968,20 @@ function gPickFund(key) {
   document.getElementById('sg-outcome').innerHTML = _gRenderOutcome(gService, key);
   _gShow('sg-outcome');
   _gScrollTo('sg-insight-fund');
+}
+
+function _gRenderMediationContact() {
+  var backBtn = '<button class="sg-back" onclick="gBack(\'svc\')" style="font-size:12px;display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:#7A948F;cursor:pointer;font-family:var(--sans);margin-bottom:20px">' +
+    '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L4 6l4 4"/></svg> Change service</button>';
+  return '<div class="sg-step sg--in">' +
+    '<div class="sg-step-top">' +
+      '<span class="sg-step-ey">Next step</span>' +
+      backBtn +
+    '</div>' +
+    '<h2 class="sg-q">Ready to explore mediation?</h2>' +
+    '<p style="font-size:14px;color:#3E5C56;line-height:1.75;margin-bottom:24px">Mediation sessions are tailored to each situation. Reach out to Cheree to discuss your needs and arrange the right process for your circumstances.</p>' +
+    '<button class="btn btn-solid" onclick="openModal()">Reach out to Cheree &rarr;</button>' +
+  '</div>';
 }
 
 function _gRenderSvcGrid() {
@@ -2076,10 +2095,11 @@ function _gExistingHtml() {
   '<div id="ec-form">' +
     '<div class="frow">' +
       '<div class="fg"><label class="fl">First name</label><input class="fi" name="ec-fname" type="text" placeholder="Your name" autocomplete="given-name"></div>' +
-      '<div class="fg"><label class="fl">Last name</label><input class="fi" name="ec-lname" type="text" placeholder="Optional" autocomplete="family-name"></div>' +
+      '<div class="fg"><label class="fl">Last name <span class="sw-req-opt">(optional)</span></label><input class="fi" name="ec-lname" type="text" placeholder="Optional" autocomplete="family-name"></div>' +
     '</div>' +
     '<div class="fg"><label class="fl">Email address</label><input class="fi" name="ec-email" type="email" placeholder="you@example.com" autocomplete="email"></div>' +
     '<div class="fg"><label class="fl">What would you like to book?</label><input class="fi" name="ec-service" type="text" placeholder="e.g. Individual session, fortnightly"></div>' +
+    '<div class="fg"><label class="fl">Preferred week <span class="sw-req-opt">(earliest available is generally 1 week out)</span></label><input class="fi" name="ec-date" type="text" placeholder="e.g. Week of 2 June, or mid-June"></div>' +
     '<div class="fg"><label class="fl">Anything else? <span class="sw-req-opt">(optional)</span></label><textarea class="ft" name="ec-message" placeholder="Preferred days/times, any changes since your last session, or anything else helpful."></textarea></div>' +
     '<button class="fsub" id="ec-submit" onclick="submitExistingForm()">' +
       '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>' +
