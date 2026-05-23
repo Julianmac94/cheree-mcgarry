@@ -7,17 +7,17 @@
 :root {
   --canvas:   #0B0F1A;
 
-  /* Glass card */
-  --gc:       rgba(15,22,40,0.62);
-  --gc-hv:    rgba(20,28,50,0.72);
-  --gb:       rgba(255,255,255,0.11);
-  --gb-hv:    rgba(255,255,255,0.20);
-  --gblur:    blur(28px) saturate(160%);
-  --gshadow:  0 2px 0 rgba(255,255,255,0.08) inset,
-              0 28px 60px rgba(0,0,0,0.55),
-              0 6px 20px rgba(0,0,0,0.35);
-  --gsm:      0 1px 0 rgba(255,255,255,0.07) inset,
-              0 12px 32px rgba(0,0,0,0.45);
+  /* Glass card — translucent white so gradient bleeds through */
+  --gc:       rgba(255,255,255,0.07);
+  --gc-hv:    rgba(255,255,255,0.12);
+  --gb:       rgba(255,255,255,0.13);
+  --gb-hv:    rgba(255,255,255,0.24);
+  --gblur:    blur(32px) saturate(180%);
+  --gshadow:  0 1px 0 rgba(255,255,255,0.18) inset,
+              0 28px 60px rgba(0,0,0,0.50),
+              0 6px 20px rgba(0,0,0,0.32);
+  --gsm:      0 1px 0 rgba(255,255,255,0.14) inset,
+              0 12px 32px rgba(0,0,0,0.40);
 
   /* Text */
   --t1: rgba(255,255,255,0.94);
@@ -60,7 +60,7 @@ body {
   height: 100svh;
 }
 
-/* ─── CANVAS GRADIENT (strong enough to show through glass) ──── */
+/* ─── CANVAS GRADIENT — strong enough to bleed through glass ─── */
 body::before {
   content: '';
   position: fixed;
@@ -68,9 +68,9 @@ body::before {
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(ellipse 90% 70% at 0% 0%,  rgba(52,211,153,0.22) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 65% at 100% 95%, rgba(167,139,250,0.20) 0%, transparent 55%),
-    radial-gradient(ellipse 55% 50% at 65% 35%, rgba(96,165,250,0.10) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 65% at 10% 5%,  rgba(52,211,153,0.42) 0%, transparent 52%),
+    radial-gradient(ellipse 65% 60% at 92% 92%, rgba(167,139,250,0.38) 0%, transparent 52%),
+    radial-gradient(ellipse 50% 45% at 58% 38%, rgba(96,165,250,0.20) 0%, transparent 58%);
 }
 
 /* ─── APP SHELL ──────────────────────────────────────────────── */
@@ -111,7 +111,7 @@ body::before {
   flex-direction: column !important;
   padding: 0 !important;
   align-items: center !important;
-  background: rgba(8,12,22,0.75) !important;
+  background: rgba(6,10,20,0.72) !important;
   backdrop-filter: var(--gblur) !important;
   -webkit-backdrop-filter: var(--gblur) !important;
   border-right: 1px solid var(--sep) !important;
@@ -223,7 +223,7 @@ body::before {
   padding: 0 28px !important;
   height: 52px !important;
   flex-shrink: 0;
-  background: rgba(8,12,22,0.55) !important;
+  background: rgba(6,10,20,0.55) !important;
   backdrop-filter: var(--gblur) !important;
   -webkit-backdrop-filter: var(--gblur) !important;
   border-bottom: 1px solid var(--sep) !important;
@@ -668,7 +668,7 @@ body::before {
 .db-detail-panel {
   width: 0; min-width: 0; overflow: hidden;
   transition: width 0.24s cubic-bezier(0.4,0,0.2,1), min-width 0.24s;
-  background: rgba(8,12,22,0.85);
+  background: rgba(6,10,20,0.88);
   backdrop-filter: var(--gblur); -webkit-backdrop-filter: var(--gblur);
   border-left: 1px solid var(--sep);
   display: flex; flex-direction: column;
