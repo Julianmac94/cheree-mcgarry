@@ -283,6 +283,103 @@
   .sp-ncb-inner { flex-direction: column; gap: 14px; }
 }
 </style>
+<style>
+/* ── Guide v3 — interactive session finder ── */
+
+/* Hero overrides: compact for guide-first layout */
+.sp-head { padding: 64px 72px 56px !important; flex-direction: column !important; align-items: flex-start !important; gap: 0 !important; min-height: unset !important; }
+.sp-head-organic { display: none; }
+.sp-intro { margin-bottom: 0; }
+.sp-price-hint { font-size: 12px; color: rgba(255,255,255,0.28); letter-spacing: 0.02em; margin-top: 14px; }
+.sp-price-hint strong { color: rgba(255,255,255,0.45); font-weight: 500; }
+
+/* Guide section */
+.sp-guide { background: #F3EFE6; padding: 52px 0 88px; }
+.sg-inner { max-width: 800px; margin: 0 auto; padding: 0 72px; display: flex; flex-direction: column; gap: 12px; }
+
+/* Step cards */
+.sg-step { background: white; border-radius: 20px; border: 1px solid rgba(42,88,80,0.09); padding: 32px 36px 30px; }
+.sg--hidden { display: none !important; }
+.sg--in { animation: sgIn 0.32s ease both; }
+@keyframes sgIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+.sg-step-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.sg-step-ey { font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #7A948F; }
+.sg-back { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #7A948F; background: none; border: none; cursor: pointer; font-family: 'Raleway', sans-serif; padding: 0; transition: color 0.15s; }
+.sg-back:hover { color: #2A5850; }
+.sg-q { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 400; color: #192E2A; line-height: 1.2; margin: 12px 0 24px; }
+
+/* Who choices */
+.sg-who-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.sg-who-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 22px 14px 20px; border-radius: 14px; border: 1.5px solid rgba(42,88,80,0.12); background: #F3EFE6; cursor: pointer; font-family: 'Raleway', sans-serif; font-size: 13.5px; font-weight: 500; color: #3E5C56; line-height: 1.3; text-align: center; transition: border-color 0.18s, background 0.18s; }
+.sg-who-btn:hover { border-color: rgba(42,88,80,0.32); background: rgba(42,88,80,0.04); }
+.sg-who-btn.sg-who-btn--reach { color: #BE6E44; border-color: rgba(190,110,68,0.2); background: rgba(190,110,68,0.04); }
+.sg-who-btn--reach:hover { border-color: rgba(190,110,68,0.38); background: rgba(190,110,68,0.07); }
+.sg-who-icon { width: 40px; height: 40px; border-radius: 50%; background: rgba(42,88,80,0.1); color: #2A5850; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sg-who-icon svg { width: 19px; height: 19px; }
+.sg-who-btn--reach .sg-who-icon { background: rgba(190,110,68,0.12); color: #BE6E44; }
+.sg-who-label { font-size: 13.5px; font-weight: 600; }
+.sg-who-sub { font-size: 12px; color: #7A948F; font-weight: 400; }
+
+/* Service choices */
+.sg-svc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.sg-svc-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 20px 18px; border-radius: 14px; border: 1.5px solid rgba(42,88,80,0.1); background: #F3EFE6; cursor: pointer; text-align: left; transition: border-color 0.18s, background 0.18s; }
+.sg-svc-btn:hover { border-color: rgba(42,88,80,0.3); background: rgba(42,88,80,0.03); }
+.sg-svc-btn.sel { border-color: #2A5850; background: rgba(42,88,80,0.05); }
+.sg-svc-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
+.sg-svc-icon svg { width: 18px; height: 18px; }
+.sg-svc-label { font-size: 13.5px; font-weight: 600; color: #192E2A; font-family: 'Raleway', sans-serif; }
+.sg-svc-desc { font-size: 12px; color: #7A948F; line-height: 1.45; }
+
+/* Insight panels */
+.sg-insight { background: white; border-radius: 16px; border: 1px solid rgba(42,88,80,0.08); border-left: 3px solid #2A5850; padding: 24px 28px; }
+.sgi-hd { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.sgi-badge { width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.sgi-badge svg { width: 18px; height: 18px; }
+.sgi-lbl { font-family: 'Raleway', sans-serif; font-size: 13.5px; font-weight: 600; color: #192E2A; }
+.sgi-sub { font-size: 12px; color: #7A948F; display: block; margin-top: 3px; }
+.sgi-facts { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 7px 24px; }
+.sgi-facts li { font-size: 13.5px; color: #3E5C56; line-height: 1.5; padding-left: 16px; position: relative; font-weight: 300; }
+.sgi-facts li::before { content: '—'; position: absolute; left: 0; color: #77CFBD; font-size: 11px; line-height: 1.7; }
+.sgi-note { font-size: 13px; color: #7A948F; font-style: italic; font-weight: 300; margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(42,88,80,0.08); }
+.sgi-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #BE6E44; text-decoration: none; font-family: 'Raleway', sans-serif; }
+.sgi-link:hover { text-decoration: underline; }
+
+/* Funding insight */
+.sgi-fund-hd { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+.sgi-logo { height: 26px; width: auto; flex-shrink: 0; margin-top: 4px; }
+.sgi-price { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; color: #2A5850; display: block; line-height: 1.1; }
+.sgi-pocket { font-size: 13px; color: #3E5C56; display: block; margin-top: 4px; line-height: 1.45; }
+.sgi-before { display: flex; align-items: flex-start; gap: 10px; padding: 13px 16px; background: rgba(190,110,68,0.07); border-radius: 10px; margin-bottom: 16px; font-size: 13.5px; color: #3E5C56; line-height: 1.65; }
+.sgi-before svg { flex-shrink: 0; margin-top: 2px; }
+
+/* Funding pills */
+.sg-fund-pills { display: flex; flex-wrap: wrap; gap: 10px; }
+.sg-fund-pill { padding: 11px 20px; border-radius: 100px; border: 1.5px solid rgba(42,88,80,0.15); background: #F3EFE6; cursor: pointer; font-family: 'Raleway', sans-serif; font-size: 13px; font-weight: 500; color: #3E5C56; transition: border-color 0.18s, background 0.18s, color 0.18s; }
+.sg-fund-pill:hover { border-color: rgba(42,88,80,0.35); }
+.sg-fund-pill.sel { border-color: #2A5850; background: #2A5850; color: white; }
+
+/* Existing client */
+.sg-exist-hd { margin-bottom: 24px; }
+.sg-exist-hd h3 { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 400; color: #192E2A; }
+.sg-exist-hd p { font-size: 14px; color: #7A948F; margin-top: 6px; line-height: 1.65; }
+
+/* Responsive */
+@media (max-width: 820px) {
+  .sp-head { padding: 56px 32px 48px !important; }
+  .sg-inner { padding: 0 32px; }
+}
+@media (max-width: 640px) {
+  .sp-head { padding: 44px 22px 38px !important; }
+  .sg-inner { padding: 0 18px; }
+  .sg-step { padding: 24px 20px 22px; }
+  .sg-who-grid { grid-template-columns: 1fr; }
+  .sg-svc-grid { grid-template-columns: 1fr 1fr; }
+  .sgi-facts { grid-template-columns: 1fr; }
+  .sg-insight { padding: 20px 22px; }
+  .sg-q { font-size: 21px; }
+}
+@media (max-width: 420px) { .sg-svc-grid { grid-template-columns: 1fr; } }
+</style>
 </head>
 <body data-page="sessions">
 <nav id="nav">
@@ -376,243 +473,104 @@
     <!-- Hero text -->
     <div class="sp-head-content">
       <div class="eyebrow sp-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Sessions with Cheree</span></div>
-      <h1 class="sp-title">Come as you are.<br><em>We&rsquo;ll work from there.</em></h1>
-      <p class="sp-intro">There&rsquo;s no wrong way to start. Your first session is a chance to get to know each other &mdash; share what brought you here, ask your questions, and see how it feels. You decide what comes next.</p>
-      <a href="#session-start" class="sp-start-link">
-        Book now
-        <svg class="sp-start-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
-      </a>
-    </div>
-
-    <!-- Pricing card — right side of hero -->
-    <div class="sp-head-pricing">
-      <span class="sp-head-price-eyebrow">Standard rate</span>
-      <span class="sp-head-price-amount">$195</span>
-      <span class="sp-head-price-sub">per session &mdash; all types</span>
-      <div class="sp-head-price-rows">
-        <div class="sp-head-price-row">
-          <span class="sp-head-price-row-lbl">With Medicare</span>
-          <span class="sp-head-price-row-val">~$107 out of pocket</span>
-        </div>
-        <div class="sp-head-price-row">
-          <span class="sp-head-price-row-lbl">NDIS &amp; EAP</span>
-          <span class="sp-head-price-row-val">May be fully covered</span>
-        </div>
-      </div>
-      <a href="#sw-coverage-guide" class="sp-head-price-link">How funding works &darr;</a>
+      <h1 class="sp-title">Find the right<br><em>path for you.</em></h1>
+      <p class="sp-intro">Use the guide below to understand your options, see what&rsquo;s involved, and get set up.</p>
+      <p class="sp-price-hint"><strong>$195</strong> per session &nbsp;&middot;&nbsp; Medicare &middot; NDIS &middot; QFES &middot; DVA available</p>
     </div>
 
   </div>
 
 
-  <!-- Approach -->
-  <section class="sp-approach">
-    <div class="sp-approach-inner">
-      <div class="sp-approach-hd">
-        <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">How we work</span></div>
-      </div>
-      <div class="sp-approach-split">
-        <div class="sp-method">
-          <div class="sp-method-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          </div>
-          <h3 class="sp-method-title">Talking it through</h3>
-          <p class="sp-method-body">Sometimes what you need most is a space to speak freely &mdash; without judgment, without being steered toward a conclusion. Conversation-based sessions are open and unstructured, following what matters to you in the room.</p>
-        </div>
-        <div class="sp-method">
-          <div class="sp-method-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </div>
-          <h3 class="sp-method-title">Creative &amp; expressive approaches</h3>
-          <p class="sp-method-body">For some people &mdash; especially children &mdash; words aren&rsquo;t the easiest way in. Creative and expressive therapies offer another path: engaging, non-verbal, and often more revealing than talk alone.</p>
-          <div class="sp-method-tags">
-            <span class="sp-method-tag">Art therapy</span>
-            <span class="sp-method-tag">Sandtray</span>
-          </div>
-        </div>
-      </div>
-      <div class="sp-needs-wrap">
-        <span class="sp-needs-hd">People come with many different needs</span>
-        <div class="sp-needs">
-          <span class="sp-need"><span class="sp-need-dot"></span>Information &amp; understanding</span>
-          <span class="sp-need"><span class="sp-need-dot"></span>To be heard</span>
-          <span class="sp-need"><span class="sp-need-dot"></span>Space to express</span>
-        </div>
-      </div>
-    </div>
-  </section>
+  <!-- Interactive session guide -->
+  <section class="sp-guide" id="session-start">
+    <div class="sg-inner">
 
-  <!-- New client callout -->
-  <section class="sp-new-client-bar">
-    <div class="sp-ncb-inner">
-      <div class="sp-ncb-text">
-        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true" style="flex-shrink:0;color:#BE6E44;margin-top:1px"><circle cx="9" cy="9" r="7.5"/><path d="M9 8v4"/><circle cx="9" cy="5.5" r=".5" fill="currentColor" stroke="none"/></svg>
-        <span>New client? Read the practice information guide to understand what to expect before you book &mdash; including intake processes for children, couples, and families.</span>
-      </div>
-      <a href="practice-information.html" class="sp-ncb-link">
-        Practice information
-        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M3 7h8M7 3l4 4-4 4"/></svg>
-      </a>
-    </div>
-  </section>
-
-  <!-- Funding guide -->
-  <section class="sw-coverage-guide" id="sw-coverage-guide">
-    <div class="sw-cg-hd">
-      <div class="eyebrow sw-sg-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Funding options</span></div>
-      <h2 class="sw-sg-title">How do you plan to access sessions?</h2>
-      <p class="sw-sg-intro">There&rsquo;s more than one way to access sessions with me. The right path depends on your situation &mdash; most people fall into one of the two main options below.</p>
-    </div>
-
-    <div class="sw-cg-primary">
-
-      <div class="sw-cg-item sw-cg-item--primary">
-        <div class="sw-cg-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      <!-- Step 0: Who are you? -->
+      <div class="sg-step sg--in" id="sg-who">
+        <div class="sg-step-top">
+          <span class="sg-step-ey">Where are you starting from?</span>
         </div>
-        <div class="sw-cg-item-hd">
-          <h4 class="sw-cg-name">Paying privately</h4>
-          <span class="sw-cg-price">$195 / session</span>
-        </div>
-        <p class="sw-cg-lede">No referral needed &mdash; just book directly and pay on the day.</p>
-        <ul class="sw-cg-bullets">
-          <li>Tax invoice issued immediately; private health extras may partially rebate</li>
-          <li>Straightforward &mdash; no GP visit, no waiting on paperwork</li>
-          <li>Available for all session types</li>
-        </ul>
-        <p class="sw-cg-who">Found Cheree on your own and want to get started without a GP visit? This is the most direct path.</p>
-      </div>
-
-      <div class="sw-cg-item sw-cg-item--primary">
-        <div class="sw-cg-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-        </div>
-        <div class="sw-cg-item-hd">
-          <h4 class="sw-cg-name">Medicare</h4>
-          <span class="sw-cg-price">~$107 out of pocket</span>
-        </div>
-        <p class="sw-cg-lede">See your GP first &mdash; a Mental Health Care Plan unlocks a Medicare rebate of $87.25 per session.</p>
-        <ul class="sw-cg-bullets">
-          <li>Ask your GP for a Mental Health Care Plan naming Cheree McGarry, AMHSW</li>
-          <li>Up to 10 sessions per calendar year; GP review after the first 6</li>
-          <li>Individual and child therapy only</li>
-        </ul>
-        <p class="sw-cg-who">Already spoken to your GP, or want to reduce the cost of ongoing sessions? This is the most common funded path.</p>
-      </div>
-
-    </div>
-
-    <span class="sw-cg-secondary-hd">Other funding pathways</span>
-    <div class="sw-cg-secondary">
-
-      <div class="sw-cg-sec-item">
-        <div class="sw-cg-sec-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="8" r="2"/><path d="M9 15c0-1.657 1.343-3 3-3s3 1.343 3 3v3"/></svg>
-        </div>
-        <div class="sw-cg-sec-content">
-          <div class="sw-cg-sec-hd">
-            <h5 class="sw-cg-sec-name">NDIS &mdash; self or plan-managed</h5>
-            <span class="sw-cg-sec-price">Self or plan-managed</span>
-          </div>
-          <p class="sw-cg-sec-body">If counselling is in your NDIS plan, you may be able to use your funding. Self-managed: pay $195 on the day and claim reimbursement. Plan-managed: invoiced directly to your plan manager at the NDIS rate. Confirm counselling is in your funded supports before booking. Individual and child therapy only.</p>
+        <h2 class="sg-q">How can I help?</h2>
+        <div class="sg-who-grid">
+          <button class="sg-who-btn" onclick="gWho('new')">
+            <div class="sg-who-icon">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="7" r="3.5"/><path d="M3 18c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>
+            </div>
+            <span class="sg-who-label">I&rsquo;m a new client</span>
+            <span class="sg-who-sub">First time with Cheree</span>
+          </button>
+          <button class="sg-who-btn" onclick="gWho('existing')">
+            <div class="sg-who-icon">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="7" r="3.5"/><path d="M3 18c0-3.9 3.1-7 7-7s7 3.1 7 7"/><path d="M14.5 10.5l2 2-2 2"/></svg>
+            </div>
+            <span class="sg-who-label">I&rsquo;m an existing client</span>
+            <span class="sg-who-sub">I&rsquo;ve worked with Cheree before</span>
+          </button>
+          <button class="sg-who-btn sg-who-btn--reach" onclick="openModal()">
+            <div class="sg-who-icon">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M18 13.5c0 .5-.1 1-.37 1.46-.27.52-.67.97-1.2 1.3-.52.33-1.1.57-1.72.57-.9 0-1.95-.33-3.15-1.05L5.45 9.9C4.7 8.7 4.33 7.57 4.33 6.6c0-.63.15-1.2.48-1.71.3-.52.75-.97 1.27-1.26.4-.21.85-.33 1.35-.33H8c.15.12.3.3.4.45l1.75 2.47c.15.18.25.39.25.57 0 .22-.09.42-.27.6l-.52.55c-.03.06-.04.12-.04.18 0 .06.03.12.07.18l1.42 1.42c.06.06.12.07.18.07.06 0 .12-.03.18-.07l.51-.54c.24-.25.45-.34.66-.34.22 0 .42.1.64.27l2.61 1.83c.18.15.33.3.4.51.06.15.09.3.09.45z"/></svg>
+            </div>
+            <span class="sg-who-label">Just have a question</span>
+            <span class="sg-who-sub">Reach out to Cheree directly</span>
+          </button>
         </div>
       </div>
 
-      <div class="sw-cg-sec-item">
-        <div class="sw-cg-sec-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c-4 0-7-3.5-7-8 0-3 1.5-5 3-6 0 2 1 3 1 3 1-2 2-5 5-7 0 2.5 2 4 2 6.5.8-.8 1-2 1-2 1 1.5 2 3 2 5.5 0 4.5-3 8-7 8z"/></svg>
+      <!-- Step 1: Service type -->
+      <div class="sg-step sg--hidden" id="sg-svc">
+        <div class="sg-step-top">
+          <span class="sg-step-ey">Step 1 of 3</span>
+          <button class="sg-back" onclick="gBack('who')">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L4 6l4 4"/></svg>
+            Back
+          </button>
         </div>
-        <div class="sw-cg-sec-content">
-          <div class="sw-cg-sec-hd">
-            <h5 class="sw-cg-sec-name">QFES Employee Assistance</h5>
-            <span class="sw-cg-sec-price">Covered by QFES</span>
-          </div>
-          <p class="sw-cg-sec-body">Queensland Fire &amp; Emergency Services employees can access sessions at no cost through the EAP. Contact your EAP coordinator to confirm your entitlement and arrange a referral before booking. All session types may be covered.</p>
-        </div>
+        <h2 class="sg-q">What type of support are you looking for?</h2>
+        <div class="sg-svc-grid" id="sg-svc-grid"></div>
       </div>
 
-      <div class="sw-cg-sec-item">
-        <div class="sw-cg-sec-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <!-- Service insight -->
+      <div class="sg-step sg-insight sg--hidden" id="sg-insight-svc"></div>
+
+      <!-- Step 2: Funding -->
+      <div class="sg-step sg--hidden" id="sg-fund">
+        <div class="sg-step-top">
+          <span class="sg-step-ey">Step 2 of 3</span>
+          <button class="sg-back" onclick="gBack('svc')">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L4 6l4 4"/></svg>
+            Back
+          </button>
         </div>
-        <div class="sw-cg-sec-content">
-          <div class="sw-cg-sec-hd">
-            <h5 class="sw-cg-sec-name">ADFHSC &amp; DVA</h5>
-            <span class="sw-cg-sec-price">Covered by funder</span>
-          </div>
-          <p class="sw-cg-sec-body">Current and former ADF members, their families, and DVA card holders may be eligible for funded sessions billed directly to ADFHSC or DVA. Contact your unit health officer, Medical Officer, or DVA case manager to arrange a referral before booking.</p>
+        <h2 class="sg-q">How are you planning to fund sessions?</h2>
+        <div class="sg-fund-pills" id="sg-fund-pills"></div>
+      </div>
+
+      <!-- Funding insight -->
+      <div class="sg-step sg-insight sg--hidden" id="sg-insight-fund"></div>
+
+      <!-- Outcome + request form -->
+      <div class="sg--hidden" id="sg-outcome"></div>
+
+      <!-- Existing client form -->
+      <div class="sg-step sg--hidden" id="sg-existing">
+        <div class="sg-step-top">
+          <span class="sg-step-ey">Existing client</span>
+          <button class="sg-back" onclick="gBack('who')">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L4 6l4 4"/></svg>
+            Back
+          </button>
         </div>
+        <div id="sg-existing-inner"></div>
       </div>
 
     </div>
   </section>
+
 
 
 </div><!-- /page-top-pad -->
 
 <footer>
-  <!-- Session starter — self-contained picker, inline outcome reveal -->
-  <div class="sw-bottom-cta" id="session-start">
-    <!-- Botanical art background -->
-    <div class="sw-btm-art" aria-hidden="true">
-      <svg class="sw-btm-art-svg" viewBox="0 0 1280 280" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
-        <path d="M60 240 C52 205 68 172 98 158 C118 148 145 154 148 176 C152 198 135 226 112 238 C90 248 66 260 60 240Z" stroke="rgba(190,110,68,0.18)" stroke-width="1.4" fill="rgba(190,110,68,0.05)"/>
-        <path d="M60 240 C84 208 118 182 148 176" stroke="rgba(190,110,68,0.1)" stroke-width="1"/>
-        <path d="M80 260 C68 232 72 202 92 190 C106 183 126 188 130 205 C134 222 122 246 106 254 C92 261 83 270 80 260Z" stroke="rgba(190,110,68,0.14)" stroke-width="1.2" fill="rgba(190,110,68,0.04)"/>
-        <path d="M40 280 C30 250 45 220 65 208" stroke="rgba(190,110,68,0.12)" stroke-width="1.2" stroke-linecap="round"/>
-        <circle cx="148" cy="130" r="3" fill="rgba(190,110,68,0.12)"/>
-        <circle cx="160" cy="148" r="2" fill="rgba(190,110,68,0.09)"/>
-        <circle cx="130" cy="115" r="2.5" fill="rgba(190,110,68,0.1)"/>
-        <path d="M1220 240 C1228 205 1212 172 1182 158 C1162 148 1135 154 1132 176 C1128 198 1145 226 1168 238 C1190 248 1214 260 1220 240Z" stroke="rgba(190,110,68,0.18)" stroke-width="1.4" fill="rgba(190,110,68,0.05)"/>
-        <path d="M1220 240 C1196 208 1162 182 1132 176" stroke="rgba(190,110,68,0.1)" stroke-width="1"/>
-        <path d="M1200 260 C1212 232 1208 202 1188 190 C1174 183 1154 188 1150 205 C1146 222 1158 246 1174 254 C1188 261 1197 270 1200 260Z" stroke="rgba(190,110,68,0.14)" stroke-width="1.2" fill="rgba(190,110,68,0.04)"/>
-        <path d="M1240 280 C1250 250 1235 220 1215 208" stroke="rgba(190,110,68,0.12)" stroke-width="1.2" stroke-linecap="round"/>
-        <circle cx="1132" cy="130" r="3" fill="rgba(190,110,68,0.12)"/>
-        <circle cx="1120" cy="148" r="2" fill="rgba(190,110,68,0.09)"/>
-        <circle cx="1150" cy="115" r="2.5" fill="rgba(190,110,68,0.1)"/>
-        <path d="M520 10 C580 -8 700 -8 760 10" stroke="rgba(42,88,80,0.07)" stroke-width="1" stroke-linecap="round"/>
-        <path d="M560 280 C620 265 660 265 720 280" stroke="rgba(42,88,80,0.06)" stroke-width="1" stroke-linecap="round"/>
-      </svg>
-    </div>
-
-    <!-- Content card -->
-    <div class="sw-btm-card" id="btm-card">
-
-      <!-- Static header -->
-      <div class="sw-btm-hd">
-        <div class="eyebrow sw-btm-ey"><div class="eyebrow-bar"></div><span class="eyebrow-text">Ready to begin</span></div>
-        <p class="sw-bottom-cta-q">Let&rsquo;s get you set up</p>
-        <p class="sw-btm-desc">Whether you&rsquo;re ready to book your first session, want to reconnect as an existing client, or just need a conversation first &mdash; Cheree is here for all of it.</p>
-      </div>
-
-      <!-- Phase 0: initial choice buttons -->
-      <div class="sw-btm-choices" id="btm-choices">
-        <button class="sw-btm-choice sw-btm-choice--opt" data-bclient="new" onclick="btmChoose('new')">
-          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="2.5"/><path d="M1.5 12.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
-          I&rsquo;m a new client
-        </button>
-        <button class="sw-btm-choice sw-btm-choice--opt" data-bclient="existing" onclick="btmChoose('existing')">
-          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c0-2.8 2.2-5 5-5s5 2.2 5 5"/><circle cx="7" cy="4.5" r="2.5"/><path d="M10.5 7.5l1.5 1-1 1.5"/></svg>
-          I&rsquo;m an existing client
-        </button>
-        <button class="sw-btm-choice sw-btm-choice--reach" onclick="openModal()">
-          <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 8.5c0 .35-.08.68-.25.98-.18.35-.45.65-.8.87-.35.22-.73.38-1.15.38-.6 0-1.3-.22-2.1-.7L4.3 6.6C3.8 5.8 3.55 5.05 3.55 4.4c0-.42.1-.8.32-1.14.2-.35.5-.65.85-.84.27-.14.57-.22.9-.22H6c.1.08.2.2.27.3L7.4 4.1c.1.12.17.26.17.38 0 .15-.06.28-.18.4l-.35.37c-.02.04-.03.08-.03.12 0 .04.02.08.05.12l.95.95c.04.04.08.05.12.05.04 0 .08-.02.12-.05l.34-.36c.16-.17.3-.23.44-.23.15 0 .28.07.43.18l1.74 1.22c.12.1.22.2.27.34.04.1.06.2.06.3z"/></svg>
-          Reach out &mdash; talk to Cheree
-        </button>
-      </div>
-
-      <!-- Phase 1+: expandable content (picker / form) — injected by JS -->
-      <div class="sw-btm-expand sw-btm-expand--closed" id="btm-expand">
-        <div class="sw-btm-expand-inner" id="btm-expand-inner"></div>
-      </div>
-
-    </div>
-
-    <!-- Outcome — revealed below card after selections confirmed -->
-    <div class="sw-btm-outcome-section sw-btm-outcome-section--hidden" id="btm-outcome"></div>
-
-  </div>
-
   <div class="ft-cols">
     <div class="ft-cols-inner">
     <div class="ft-brand">
@@ -1835,6 +1793,329 @@ function toggleSvcMore(id) {
   if (!el) return;
   var open = el.classList.toggle('open');
   if (btn) btn.textContent = open ? 'Show less' : 'Read more';
+}
+
+/* ── GUIDE v3 — interactive session finder ──────────────────────────────────── */
+
+/* ─ Service metadata ─────────────────────────────────────────────────────────── */
+const svcMeta = {
+  individual: {
+    label:     'Individual therapy',
+    icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="7" r="3.5"/><path d="M3 18c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>',
+    color:     'rgba(42,88,80,0.1)',
+    textColor: '#2A5850',
+    desc:      'One-to-one sessions for adults (16+)',
+    facts:     ['60 minute sessions', 'Karalee (QLD) or online', 'Medicare &amp; NDIS available', 'No referral needed for private'],
+    note:      'For children under 16, select <em>Child therapy</em> — a parent or guardian intake is required first.',
+    infoLink:  'practice-information.html',
+    infoText:  'How sessions work',
+  },
+  child: {
+    label:     'Child therapy',
+    icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="6.5" r="3"/><path d="M5 18c0-3.3 2.2-5.5 5-5.5s5 2.2 5 5.5"/></svg>',
+    color:     'rgba(190,110,68,0.1)',
+    textColor: '#BE6E44',
+    desc:      'Counselling for children under 16',
+    facts:     ['60 minute sessions', 'Art therapy &amp; sandtray available', 'Parent or guardian intake first', 'Medicare &amp; NDIS available'],
+    note:      'A parent or guardian intake session is required before your child\'s first appointment — this is a separate booking.',
+    infoLink:  'practice-information.html#pi-children',
+    infoText:  'What to know about child intake',
+  },
+  'couple-family': {
+    label:     'Couple &amp; family',
+    icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="2.6"/><circle cx="13" cy="7" r="2.6"/><path d="M2.5 18c0-3 2-5 4.5-5M17.5 18c0-3-2-5-4.5-5M10 18c0-2.8-1.5-4.5-1.5-4.5h3S10 15.2 10 18"/></svg>',
+    color:     'rgba(119,207,189,0.15)',
+    textColor: '#2A5850',
+    desc:      'Joint sessions — $195 per session (not per person)',
+    facts:     ['60 minute sessions', 'Individual intake per person first', '$195 per session — not per person', 'Private, QFES &amp; DVA available'],
+    note:      'Medicare does not cover couple or family therapy. Each person completes a brief individual intake before joint sessions begin.',
+    infoLink:  'practice-information.html#pi-couples',
+    infoText:  'What to know about couple &amp; family intake',
+  },
+  mediation: {
+    label:     'Professional mediation',
+    icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.2"/><circle cx="15" cy="14" r="2.2"/><path d="M5 8.2V14a1 1 0 0 0 1 1h3M15 11.8V6a1 1 0 0 0-1-1h-3"/></svg>',
+    color:     'rgba(42,88,80,0.08)',
+    textColor: '#3E5C56',
+    desc:      '$195/hr &middot; 2-hour minimum after intake',
+    facts:     ['2-hour minimum per session', 'Individual intake required first', 'Professional &amp; workplace settings', 'Private, QFES &amp; DVA available'],
+    note:      'Medicare does not cover mediation. An individual intake session is required before mediation sessions begin.',
+    infoLink:  'practice-information.html',
+    infoText:  'How mediation works',
+  },
+};
+
+/* ─ Funding insight metadata ──────────────────────────────────────────────────── */
+const fundMeta = {
+  medicare: {
+    icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="#2A5850" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 7v6M7 10h6"/></svg>',
+    color:     '#e8f0ef',
+    accentColor: '#2A5850',
+    label:     'Medicare',
+    sub:       'Mental Health Care Plan required',
+  },
+  private: {
+    icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="#7A948F" stroke-width="1.5" stroke-linecap="round"><rect x="2.5" y="5.5" width="15" height="11" rx="1.5"/><path d="M2.5 9h15"/></svg>',
+    color:     '#f3efe6',
+    accentColor: '#7A948F',
+    label:     'Private / self-funded',
+    sub:       'No referral needed — book directly',
+  },
+  'ndis-self': {
+    icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="#2A5850" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 18c.5-4 3-6.5 6.5-6.5s6 2.5 6.5 6.5"/></svg>',
+    color:     '#eef5f4',
+    accentColor: '#2A5850',
+    label:     'NDIS — self-managed',
+    sub:       'Confirm counselling is in your funded supports first',
+  },
+  'ndis-plan': {
+    icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="#2A5850" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 18c.5-4 3-6.5 6.5-6.5s6 2.5 6.5 6.5"/></svg>',
+    color:     '#eef5f4',
+    accentColor: '#2A5850',
+    label:     'NDIS — plan-managed',
+    sub:       'Written plan manager approval required first',
+  },
+  qfes: {
+    icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="#BE6E44" stroke-width="1.5" stroke-linecap="round"><path d="M10 2.5C6 4 3 7 3 11c1 4.5 4 6.5 7 7 3-.5 6-2.5 7-7 0-4-3-7-7-8.5z"/></svg>',
+    color:     '#fdf5f0',
+    accentColor: '#BE6E44',
+    label:     'QFES — Employee Assistance',
+    sub:       'QFES employees — confirm your referral first',
+  },
+  dva: {
+    icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="#3E5C7A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2l2.1 6.5H19l-5.6 4.1 2.1 6.4L10 14.9 4.5 19l2.1-6.4L1 8.5h6.9L10 2z"/></svg>',
+    color:     '#edf2f9',
+    accentColor: '#3E5C7A',
+    label:     'ADFHSC &amp; DVA',
+    sub:       'ADF members, families &amp; DVA card holders',
+  },
+  'not-sure': {
+    icon:      '<svg viewBox="0 0 20 20" fill="none" stroke="#7A948F" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 13.5v.5M10 7.5c0-1.2 1.2-1.8 2.1-1.1.9.7.9 2-.1 2.8L10 11"/></svg>',
+    color:     '#f3efe6',
+    accentColor: '#7A948F',
+    label:     'Not sure yet',
+    sub:       'That\'s fine — Cheree can help you work it out',
+  },
+};
+
+/* ─ Guide state ─────────────────────────────────────────────────────────────── */
+let gClientType = null;
+let gService    = null;
+let gFunding    = null;
+
+/* ─ Guide functions ─────────────────────────────────────────────────────────── */
+
+function gWho(type) {
+  gClientType = type;
+  if (type === 'existing') {
+    _gHide('sg-svc'); _gHide('sg-insight-svc');
+    _gHide('sg-fund'); _gHide('sg-insight-fund'); _gHide('sg-outcome');
+    document.getElementById('sg-existing-inner').innerHTML = _gExistingHtml();
+    _gShow('sg-existing');
+    _gScrollTo('sg-existing');
+  } else {
+    _gHide('sg-existing'); _gHide('sg-insight-svc');
+    _gHide('sg-fund'); _gHide('sg-insight-fund'); _gHide('sg-outcome');
+    _gRenderSvcGrid();
+    _gShow('sg-svc');
+    _gScrollTo('sg-svc');
+  }
+}
+
+function gBack(to) {
+  if (to === 'who') {
+    gService = null; gFunding = null;
+    _gHide('sg-svc'); _gHide('sg-insight-svc');
+    _gHide('sg-fund'); _gHide('sg-insight-fund');
+    _gHide('sg-outcome'); _gHide('sg-existing');
+    _gScrollTo('sg-who');
+  } else if (to === 'svc') {
+    gFunding = null;
+    _gHide('sg-fund'); _gHide('sg-insight-fund'); _gHide('sg-outcome');
+    _gScrollTo('sg-insight-svc');
+  }
+}
+
+function gPickSvc(key) {
+  gService = key; gFunding = null;
+  document.querySelectorAll('.sg-svc-btn').forEach(function(b) {
+    b.classList.toggle('sel', b.dataset.svc === key);
+  });
+  document.getElementById('sg-insight-svc').innerHTML = _gRenderSvcInsight(key);
+  _gShow('sg-insight-svc');
+  document.getElementById('sg-fund-pills').innerHTML = _gRenderFundPills(key);
+  _gHide('sg-insight-fund'); _gHide('sg-outcome');
+  _gShow('sg-fund');
+  _gScrollTo('sg-insight-svc');
+}
+
+function gPickFund(key) {
+  if ((disabledFunding[gService] || []).includes(key)) return;
+  gFunding = key;
+  currentPlan = (planMatrix[gService] || {})[key] || null;
+  selectedService = gService;
+  selectedFunding = gFunding;
+  selectedClient  = gClientType;
+  document.querySelectorAll('.sg-fund-pill').forEach(function(p) {
+    p.classList.toggle('sel', p.dataset.fund === key);
+  });
+  document.getElementById('sg-insight-fund').innerHTML = _gRenderFundInsight(gService, key);
+  _gShow('sg-insight-fund');
+  document.getElementById('sg-outcome').innerHTML = _gRenderOutcome(gService, key);
+  _gShow('sg-outcome');
+  _gScrollTo('sg-insight-fund');
+}
+
+function _gRenderSvcGrid() {
+  var order = ['individual', 'child', 'couple-family', 'mediation'];
+  var html = order.map(function(key) {
+    var m = svcMeta[key];
+    return '<button class="sg-svc-btn" data-svc="' + key + '" onclick="gPickSvc(\'' + key + '\')">' +
+      '<div class="sg-svc-icon" style="background:' + m.color + ';color:' + m.textColor + '">' + m.icon + '</div>' +
+      '<span class="sg-svc-label">' + m.label + '</span>' +
+      '<span class="sg-svc-desc">' + m.desc + '</span>' +
+    '</button>';
+  }).join('');
+  document.getElementById('sg-svc-grid').innerHTML = html;
+}
+
+function _gRenderSvcInsight(key) {
+  var m = svcMeta[key];
+  if (!m) return '';
+  return '<div class="sgi-hd">' +
+    '<div class="sgi-badge" style="background:' + m.color + ';color:' + m.textColor + '">' + m.icon + '</div>' +
+    '<div><span class="sgi-lbl">' + m.label + '</span><span class="sgi-sub">Quick overview</span></div>' +
+  '</div>' +
+  '<ul class="sgi-facts">' + m.facts.map(function(f) { return '<li>' + f + '</li>'; }).join('') + '</ul>' +
+  (m.note ? '<p class="sgi-note">' + m.note + '</p>' : '') +
+  '<a class="sgi-link" href="' + m.infoLink + '">' +
+    '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h8M7 3l4 4-4 4"/></svg>' +
+    m.infoText +
+  '</a>';
+}
+
+function _gRenderFundPills(svc) {
+  var disabled = disabledFunding[svc] || [];
+  var all = ['medicare', 'private', 'ndis-self', 'ndis-plan', 'qfes', 'dva', 'not-sure'];
+  return all.filter(function(k) { return !disabled.includes(k); })
+    .map(function(k) {
+      var lbl = (fundLabels[k] || k).replace(/&mdash;/g, '—').replace(/&amp;/g, '&');
+      return '<button class="sg-fund-pill' + (gFunding === k ? ' sel' : '') + '" data-fund="' + k + '" onclick="gPickFund(\'' + k + '\')">' + lbl + '</button>';
+    }).join('');
+}
+
+function _gRenderFundInsight(svc, fund) {
+  var fm   = fundMeta[fund];
+  var plan = (planMatrix[svc] || {})[fund];
+  if (!fm || !plan) return '';
+
+  var priceBlock = '';
+  if (plan.price) {
+    priceBlock = '<div class="sgi-fund-hd">' +
+      '<div>' +
+        '<span class="sgi-price">' + plan.price + '</span>' +
+        (plan.pocket ? '<span class="sgi-pocket">' + plan.pocket + '</span>' : '') +
+      '</div>' +
+    '</div>';
+  }
+
+  var beforeBlock = '';
+  if (plan.needBefore) {
+    beforeBlock = '<div class="sgi-before">' +
+      '<svg viewBox="0 0 16 16" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round" width="16" height="16" style="flex-shrink:0;margin-top:2px"><circle cx="8" cy="8" r="6.5"/><path d="M8 5.5v4M8 11v.5"/></svg>' +
+      '<span>' + plan.needBefore + '</span>' +
+    '</div>';
+  }
+
+  var factsHtml = '';
+  if (plan.highlights && plan.highlights.length) {
+    factsHtml = '<ul class="sgi-facts" style="grid-template-columns:1fr;margin-top:14px">' +
+      plan.highlights.map(function(h) { return '<li>' + h + '</li>'; }).join('') +
+    '</ul>';
+  }
+
+  return '<div class="sgi-hd">' +
+    '<div class="sgi-badge" style="background:' + fm.color + ';color:' + fm.accentColor + '">' + fm.icon + '</div>' +
+    '<div><span class="sgi-lbl">' + fm.label + '</span><span class="sgi-sub">' + fm.sub + '</span></div>' +
+  '</div>' +
+  priceBlock + beforeBlock + factsHtml;
+}
+
+function _gRenderOutcome(svc, fund) {
+  var plan = (planMatrix[svc] || {})[fund];
+  if (!plan) return '';
+
+  var backBtn = '<button class="sg-back" onclick="gBack(\'svc\')" style="font-size:12px;display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:#7A948F;cursor:pointer;font-family:var(--sans);margin-bottom:20px">' +
+    '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L4 6l4 4"/></svg> Change selections</button>';
+
+  if (plan.ctaType === 'contact') {
+    return '<div class="sg-step sg--in">' +
+      '<div class="sg-step-top">' +
+        '<span class="sg-step-ey">Step 3 of 3</span>' +
+        backBtn +
+      '</div>' +
+      '<h2 class="sg-q">Not sure? That\'s completely okay.</h2>' +
+      '<p style="font-size:14px;color:#3E5C56;line-height:1.75;margin-bottom:24px">' + plan.highlights.join(' ') + '</p>' +
+      '<button class="btn btn-solid" onclick="openModal()">Reach out to Cheree &rarr;</button>' +
+    '</div>';
+  }
+
+  return '<div class="sg-step sg--in">' +
+    '<div class="sg-step-top">' +
+      '<span class="sg-step-ey">Step 3 of 3 — Request your session</span>' +
+      backBtn +
+    '</div>' +
+    _inlineRequestHtml() +
+  '</div>';
+}
+
+function _gExistingHtml() {
+  return '<div class="sg-exist-hd">' +
+    '<h3>Send a message to the practice</h3>' +
+    '<p>Let Cheree know you\'d like to reconnect. You\'ll hear back within 1–2 business days.</p>' +
+  '</div>' +
+  '<div id="ec-form">' +
+    '<div class="frow">' +
+      '<div class="fg"><label class="fl">First name</label><input class="fi" name="ec-fname" type="text" placeholder="Your name" autocomplete="given-name"></div>' +
+      '<div class="fg"><label class="fl">Last name</label><input class="fi" name="ec-lname" type="text" placeholder="Optional" autocomplete="family-name"></div>' +
+    '</div>' +
+    '<div class="fg"><label class="fl">Email address</label><input class="fi" name="ec-email" type="email" placeholder="you@example.com" autocomplete="email"></div>' +
+    '<div class="fg"><label class="fl">What would you like to book?</label><input class="fi" name="ec-service" type="text" placeholder="e.g. Individual session, fortnightly"></div>' +
+    '<div class="fg"><label class="fl">Anything else? <span class="sw-req-opt">(optional)</span></label><textarea class="ft" name="ec-message" placeholder="Preferred days/times, any changes since your last session, or anything else helpful."></textarea></div>' +
+    '<button class="fsub" id="ec-submit" onclick="submitExistingForm()">' +
+      '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M1 4l6 5 6-5"/></svg>' +
+      ' Send Message' +
+    '</button>' +
+  '</div>' +
+  '<div class="m-ok" id="ec-ok" style="display:none">' +
+    '<div class="m-ok-ring">&#127807;</div>' +
+    '<h3>Message Sent</h3>' +
+    '<p>Thank you. The practice will be in touch within 1–2 business days to confirm your session.</p>' +
+  '</div>';
+}
+
+function _gShow(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('sg--hidden');
+  el.classList.add('sg--in');
+}
+
+function _gHide(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('sg--hidden');
+  el.classList.remove('sg--in');
+}
+
+function _gScrollTo(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  setTimeout(function() {
+    var navH = (document.getElementById('nav') || {}).offsetHeight || 68;
+    var top = el.getBoundingClientRect().top + window.scrollY - navH - 16;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  }, 40);
 }
 
 </script>
