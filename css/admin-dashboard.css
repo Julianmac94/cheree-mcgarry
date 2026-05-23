@@ -34,15 +34,15 @@
   --red:    #F87171;  --red-a:    rgba(248,113,113,0.22);
 
   /* Radius */
-  --r:   20px;
-  --rsm: 12px;
+  --r:   24px;
+  --rsm: 14px;
   --rxs: 8px;
 
   /* Legacy compat */
   --db-teal: #34D399; --db-amber: #FBBF24; --db-blue: #60A5FA;
   --db-red: #F87171; --db-purple: #A78BFA; --db-green: #6BCB77;
   --db-text: rgba(255,255,255,0.94); --db-t2: rgba(255,255,255,0.52);
-  --db-t3: rgba(255,255,255,0.28); --db-r: 20px; --db-rsm: 12px; --db-rxs: 8px;
+  --db-t3: rgba(255,255,255,0.28); --db-r: 24px; --db-rsm: 14px; --db-rxs: 8px;
   --db-teal-bg: rgba(52,211,153,0.18); --db-amber-bg: rgba(251,191,36,0.18);
   --db-blue-bg: rgba(96,165,250,0.18); --db-red-bg: rgba(248,113,113,0.18);
   --db-purple-bg: rgba(167,139,250,0.18); --db-green-bg: rgba(107,203,119,0.18);
@@ -355,13 +355,13 @@ body::before {
   border: 1px solid var(--gb);
   border-radius: var(--r);
   box-shadow: var(--gshadow);
-  padding: 22px 24px 20px;
+  padding: 28px 28px 24px;
   cursor: pointer;
   transition: transform 0.16s, box-shadow 0.16s;
   display: flex;
   flex-direction: column;
   gap: 0;
-  min-height: 150px;
+  min-height: 160px;
 }
 .dh-stat:hover {
   transform: translateY(-3px);
@@ -374,9 +374,11 @@ body::before {
   margin-bottom: 20px;
 }
 .dh-stat-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--t2);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--t3);
   flex: 1;
 }
 .dh-stat-num {
@@ -420,17 +422,19 @@ body::before {
 }
 .dh-sched-hdr {
   display: flex; align-items: center; gap: 14px;
-  padding: 20px 24px 16px;
+  padding: 24px 28px 18px;
   border-bottom: 1px solid var(--sep);
 }
 .dh-sched-title-text {
-  font-size: 15px; font-weight: 700; color: var(--t1); flex: 1;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--t3); flex: 1;
 }
-.dh-sched-date-text { font-size: 12px; color: var(--t3); }
+.dh-sched-date-text { font-size: 11px; color: var(--t3); font-weight: 500; }
 
 .dh-sched-row {
   display: flex; align-items: center; gap: 14px;
-  padding: 14px 24px;
+  padding: 14px 28px;
   border-bottom: 1px solid var(--sep);
   cursor: pointer; transition: background 0.13s;
 }
@@ -455,19 +459,9 @@ body::before {
   flex-shrink: 0;
 }
 .dh-sched-empty {
-  padding: 40px 24px; text-align: center;
+  padding: 44px 28px; text-align: center;
   color: var(--t3); font-size: 13.5px; line-height: 1.6;
 }
-.dh-sched-footer {
-  padding: 12px 24px; border-top: 1px solid var(--sep);
-  background: rgba(255,255,255,0.02);
-}
-.dh-text-link {
-  font-size: 12.5px; font-weight: 600; color: var(--teal);
-  background: none; border: none; padding: 0;
-  cursor: pointer; font-family: inherit; transition: opacity 0.12s;
-}
-.dh-text-link:hover { opacity: 0.7; }
 
 /* Attention card */
 .dh-attn-card {
@@ -481,10 +475,14 @@ body::before {
 }
 .dh-attn-hdr {
   display: flex; align-items: center; gap: 14px;
-  padding: 20px 24px 16px;
+  padding: 24px 28px 18px;
   border-bottom: 1px solid var(--sep);
 }
-.dh-attn-title { font-size: 15px; font-weight: 700; color: var(--t1); flex: 1; }
+.dh-attn-title {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--t3); flex: 1;
+}
 .dh-attn-count {
   font-size: 11px; font-weight: 700;
   padding: 3px 9px; border-radius: 20px;
@@ -493,7 +491,7 @@ body::before {
 
 .dh-attn-item {
   display: flex; align-items: center; gap: 14px;
-  padding: 14px 24px;
+  padding: 14px 28px;
   border-bottom: 1px solid var(--sep);
   cursor: pointer; transition: background 0.13s;
 }
@@ -511,8 +509,30 @@ body::before {
 .dh-attn-arrow { font-size: 18px; color: var(--t3); flex-shrink: 0; }
 
 .dh-attn-empty {
-  padding: 40px 24px; text-align: center;
+  padding: 44px 28px; text-align: center;
   color: var(--t3); font-size: 13.5px;
+}
+
+/* ── White "pop" card variant — Needs Attention ── */
+.dh-attn-card--white {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-color: transparent !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.50), 0 4px 14px rgba(0,0,0,0.28) !important;
+}
+.dh-attn-card--white .dh-attn-hdr    { border-bottom-color: rgba(11,15,26,0.07) !important; }
+.dh-attn-card--white .dh-attn-title  { color: rgba(11,15,26,0.42) !important; }
+.dh-attn-card--white .dh-attn-count  { background: rgba(251,191,36,0.14) !important; color: #b45309 !important; }
+.dh-attn-card--white .dh-attn-item   { border-bottom-color: rgba(11,15,26,0.06) !important; }
+.dh-attn-card--white .dh-attn-item:hover { background: rgba(11,15,26,0.03) !important; }
+.dh-attn-card--white .dh-attn-name   { color: #0d1117 !important; }
+.dh-attn-card--white .dh-attn-meta   { color: rgba(11,15,26,0.42) !important; }
+.dh-attn-card--white .dh-attn-arrow  { color: rgba(11,15,26,0.22) !important; }
+.dh-attn-card--white .dh-attn-empty  { color: rgba(11,15,26,0.38) !important; }
+.dh-attn-card--white .c-icon--amber  {
+  background: rgba(251,191,36,0.13) !important;
+  color: #d97706 !important;
 }
 
 /* ─── CLIENTS VIEW ───────────────────────────────────────────── */

@@ -2778,13 +2778,10 @@ function renderHomeView() {
     });
   }
 
-  html += '<div class="dh-sched-footer">'
-    + '<button class="dh-text-link" onclick="navigateTo(\'queue\')">Full schedule →</button>'
-    + '</div>'
-    + '</div>'; // dh-sched-card
+  html += '</div>'; // dh-sched-card
 
-  // Needs attention card
-  html += '<div class="dh-attn-card">'
+  // Needs attention card — white "pop" card
+  html += '<div class="dh-attn-card dh-attn-card--white">'
     + '<div class="dh-attn-hdr">'
     + '<div class="c-icon c-icon--amber">!</div>'
     + '<span class="dh-attn-title">Needs Attention</span>'
