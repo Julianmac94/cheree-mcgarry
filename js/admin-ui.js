@@ -2720,7 +2720,27 @@ function renderHomeView() {
     card:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>',
   };
 
+  var greeting = (function() {
+    var h = now.getHours();
+    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  })();
+  var dateLabel = now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+
   var html = '<div class="dh-wrap"><div class="dh-bento">';
+
+  // ── Inline page header (replaces topbar) ─────────────────────
+  html += '<div class="dh-hd-row">'
+    + '<div class="dh-hd-left">'
+    + '<div class="dh-hd-greeting">' + escHtml(greeting) + '</div>'
+    + '<div class="dh-hd-date">' + escHtml(dateLabel) + '</div>'
+    + '</div>'
+    + '<div class="dh-hd-actions">'
+    + '<button class="dh-new-btn" onclick="navigateTo(\'clients\')">'
+    + '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+    + 'New Session'
+    + '</button>'
+    + '</div>'
+    + '</div>';
 
   // ── 4 Stat cards ─────────────────────────────────────────────
   html +=
