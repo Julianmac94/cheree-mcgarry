@@ -2757,26 +2757,12 @@ function renderHomeView() {
   html += '<div class="db-greeting-bar">'
     + '<div class="db-greeting-text">'
     + '<div class="db-greeting-line">' + greeting + ', Cheree <span class="db-greeting-accent">✦</span></div>'
-    + '<div class="db-greeting-date">' + dateLabel + '&nbsp; · &nbsp;' + actionSub + '</div>'
+    + '<div class="db-greeting-date">' + dateLabel + '</div>'
     + '</div>'
-    + '<div class="db-qa-strip">'
-    + '<button class="db-qa db-qa--teal" onclick="openDbModal(\'appt\')">'
-    + '<span class="db-qa-icon">+</span>'
-    + '<div><div class="db-qa-label">Add Session</div><div class="db-qa-sub">Log appointment</div></div>'
+    + '<button class="db-btn-primary" onclick="navigateTo(\'clients\')">'
+    + '<svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="margin-right:3px;flex-shrink:0"><path d="M5.5 1v9M1 5.5h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
+    + 'New Client'
     + '</button>'
-    + '<button class="db-qa db-qa--blue" onclick="openIntakePicker()">'
-    + '<span class="db-qa-icon">↗</span>'
-    + '<div><div class="db-qa-label">Send Intake</div><div class="db-qa-sub">Copy form link</div></div>'
-    + '</button>'
-    + '<button class="db-qa db-qa--amber" onclick="navigateTo(\'billing\')">'
-    + '<span class="db-qa-icon">$</span>'
-    + '<div><div class="db-qa-label">Chase Invoice</div><div class="db-qa-sub">' + (overdueInvoices.length > 0 ? overdueInvoices.length + ' overdue' : 'View billing') + '</div></div>'
-    + '</button>'
-    + '<button class="db-qa db-qa--purple" onclick="window.open(\'https://www.halaxy.com\',\'_blank\')">'
-    + '<span class="db-qa-icon">⤴</span>'
-    + '<div><div class="db-qa-label">Halaxy</div><div class="db-qa-sub">Patient records</div></div>'
-    + '</button>'
-    + '</div>'
     + '</div>';
 
   // ── KPI PILL STRIP ────────────────────────────────
@@ -2805,10 +2791,6 @@ function renderHomeView() {
     + '</button>'
     + '</div>';
 
-  // ── TWO-COLUMN GRID ───────────────────────────────
-  html += '<div class="db-home-grid">';
-  html += '<div class="db-home-main">';
-
   // Inline pipeline strip
   html += '<div class="db-pipe-inline">'
     + '<button class="db-pipe-seg db-pipe-seg--new" onclick="navigateTo(\'queue\')">'
@@ -2836,6 +2818,54 @@ function renderHomeView() {
     + '</button>'
     + '</div>';
 
+  // ── UTILITY ROW — today · next session · quick links ──────────
+  var todayLabel = now.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+  html += '<div class="db-util-row">';
+
+  // Tile 1: Today's sessions
+  html += '<div class="db-util-tile"><div class="db-util-tile-label">Today · ' + todayLabel + '</div>';
+  if (todayAppts.length > 0) {
+    todayAppts.slice(0, 3).forEach(function(a) {
+      var d = new Date(a.start);
+      var tStr = d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' });
+      var tPid = '';
+      (a.participant || []).forEach(function(p) { var r = (p.actor && p.actor.reference) || ''; if (r.startsWith('Patient/')) tPid = r.replace('Patient/', ''); });
+      var tName = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[tPid]) || 'Client';
+      html += '<div class="db-util-sess-mini"><div class="db-util-sess-time">' + tStr + '</div><div class="db-util-sess-name">' + escHtml(tName) + '</div></div>';
+    });
+    if (todayAppts.length > 3) html += '<div style="font-size:11px;color:var(--db-t3);padding:3px 0">+' + (todayAppts.length - 3) + ' more</div>';
+  } else {
+    html += '<div class="db-util-empty">No sessions scheduled</div>';
+  }
+  html += '<button class="db-util-link" onclick="navigateTo(\'queue\')">' + (todayAppts.length > 0 ? 'Full schedule →' : 'View this week →') + '</button></div>';
+
+  // Tile 2: Next upcoming session
+  var nextUpcoming = weekAppts.filter(function(a) { return new Date(a.start) > now; })[0];
+  html += '<div class="db-util-tile"><div class="db-util-tile-label">Next session</div>';
+  if (nextUpcoming) {
+    var nuD = new Date(nextUpcoming.start);
+    var nuDay = nuD.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+    var nuT   = nuD.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' });
+    var nuPid = '';
+    (nextUpcoming.participant || []).forEach(function(p) { var r = (p.actor && p.actor.reference) || ''; if (r.startsWith('Patient/')) nuPid = r.replace('Patient/', ''); });
+    var nuName = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[nuPid]) || 'Client';
+    html += '<div style="font-size:14px;font-weight:700;color:var(--db-text);margin-bottom:3px">' + escHtml(nuName) + '</div>'
+      + '<div style="font-size:12px;color:var(--db-t2)">' + nuDay + ' · ' + nuT + '</div>';
+  } else {
+    html += '<div class="db-util-empty">No upcoming sessions</div>';
+  }
+  html += '<button class="db-util-link" onclick="navigateTo(\'queue\')">View calendar →</button></div>';
+
+  // Tile 3: Quick links
+  html += '<div class="db-util-tile">'
+    + '<div class="db-util-tile-label">Quick links</div>'
+    + '<button class="db-util-qa-btn" onclick="openIntakePicker()"><span class="db-util-qa-icon">↗</span>Send intake form</button>'
+    + '<button class="db-util-qa-btn" onclick="window.open(\'https://www.halaxy.com\',\'_blank\')"><span class="db-util-qa-icon">⤴</span>Open Halaxy</button>'
+    + '<button class="db-util-qa-btn" onclick="navigateTo(\'billing\')"><span class="db-util-qa-icon">$</span>Billing'
+    + (overdueInvoices.length > 0 ? ' <span style="color:var(--db-amber);font-weight:700">· ' + overdueInvoices.length + ' overdue</span>' : '') + '</button>'
+    + '</div>';
+  html += '</div>'; // end util-row
+
   // Needs Action
   if (needsActionTotal > 0) {
     html += '<div class="db-sec-hdr"><div class="db-sec-title">Needs Action</div>'
@@ -2843,7 +2873,7 @@ function renderHomeView() {
       + '<div class="db-sec-divider"></div></div>';
 
     if (newEnquiries.length > 0) {
-      html += '<div class="glass db-lead-list">';
+      html += '<div class="db-lead-list">';
       newEnquiries.forEach(function(e) {
         var name   = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
         var av     = avColor(name);
@@ -2867,7 +2897,7 @@ function renderHomeView() {
     }
 
     if (overdueInvoices.length > 0) {
-      html += '<div class="glass db-lead-list">';
+      html += '<div class="db-lead-list">';
       overdueInvoices.forEach(function(inv) {
         var patientId = inv.patientId || '';
         var patName   = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId])
@@ -2894,7 +2924,7 @@ function renderHomeView() {
     }
 
     if (needsSetup.length > 0) {
-      html += '<div class="glass db-lead-list">';
+      html += '<div class="db-lead-list">';
       needsSetup.forEach(function(c) {
         var name   = c.display_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Client';
         var av     = avColor(name);
@@ -2917,7 +2947,7 @@ function renderHomeView() {
   if (inProgress.length > 0) {
     html += '<div class="db-sec-hdr"><div class="db-sec-title">In Progress</div>'
       + '<div class="db-sec-count info">' + inProgress.length + '</div><div class="db-sec-divider"></div></div>';
-    html += '<div class="glass db-queue-card">';
+    html += '<div class="db-queue-card">';
     inProgress.forEach(function(inv) {
       var patientId = inv.patientId || '';
       var patName   = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId])
@@ -2952,70 +2982,6 @@ function renderHomeView() {
       + '</div>';
   }
 
-  html += '</div>'; // end .db-home-main
-
-  // ── RIGHT SIDEBAR ─────────────────────────────────
-  html += '<div class="db-home-aside">';
-
-  // Today's sessions widget
-  var todayLabel = now.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-  html += '<div class="db-today-widget">'
-    + '<div class="db-today-hd">'
-    + '<span class="db-today-hd-label">Today</span>'
-    + '<span class="db-today-hd-date">' + todayLabel + '</span>'
-    + '</div>';
-
-  if (todayAppts.length > 0) {
-    html += '<div class="db-today-sessions">';
-    todayAppts.forEach(function(a) {
-      var d         = new Date(a.start);
-      var timeStr   = d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' });
-      var patientId = '';
-      (a.participant || []).forEach(function(p) {
-        var ref = (p.actor && p.actor.reference) || '';
-        if (ref.startsWith('Patient/')) patientId = ref.replace('Patient/', '');
-      });
-      var patName  = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId]) || 'Client';
-      var av       = avColor(patName);
-      var ini      = initials(patName);
-      var isIntake = a.appointmentType && a.appointmentType.toLowerCase().includes('intake');
-      html += '<div class="db-today-sess">'
-        + '<div class="db-today-time">' + timeStr + '</div>'
-        + '<div class="db-today-av ' + av + '">' + ini + '</div>'
-        + '<div class="db-today-name">' + escHtml(patName) + '</div>'
-        + (isIntake ? '<span class="db-badge db-badge-teal" style="font-size:9px;padding:2px 6px">Intake</span>' : '')
-        + '</div>';
-    });
-    html += '</div>';
-  } else {
-    html += '<div class="db-today-empty">No sessions today</div>';
-  }
-  html += '<div class="db-today-footer"><button class="db-lead-footer-link" onclick="navigateTo(\'queue\')">'
-    + (todayAppts.length > 0 ? 'Full schedule →' : 'View this week →') + '</button></div>';
-  html += '</div>'; // end today widget
-
-  // Next session chip (only if today is empty but week has sessions)
-  if (weekAppts.length > 0 && todayAppts.length === 0) {
-    var nxt    = weekAppts[0];
-    var nxtD   = new Date(nxt.start);
-    var nxtDay = nxtD.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' });
-    var nxtT   = nxtD.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' });
-    var nxtPid = '';
-    (nxt.participant || []).forEach(function(p) {
-      var ref = (p.actor && p.actor.reference) || '';
-      if (ref.startsWith('Patient/')) nxtPid = ref.replace('Patient/', '');
-    });
-    var nxtName = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[nxtPid]) || 'Client';
-    html += '<div class="db-next-sess-chip">'
-      + '<div class="db-nsc-label">Next session</div>'
-      + '<div class="db-nsc-name">' + escHtml(nxtName) + '</div>'
-      + '<div class="db-nsc-when">' + nxtDay + ' · ' + nxtT + '</div>'
-      + '</div>';
-  }
-
-
-  html += '</div>'; // end .db-home-aside
-  html += '</div>'; // end .db-home-grid
 
   content.innerHTML = html;
 }
