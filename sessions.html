@@ -248,8 +248,39 @@
   .sw-cg-sec-item { border-right: none; border-bottom: 1px solid rgba(42,88,80,0.07); }
   .sw-cg-sec-item:last-child { border-bottom: none; }
 }
-@media (max-width: 600px) {
-  .sp-who-ph { flex-direction: column; gap: 12px; }
+/* ── New client callout bar ── */
+.sp-new-client-bar {
+  background: #F3EFE6;
+  border-top: 1px solid rgba(190,110,68,0.12);
+  border-bottom: 1px solid rgba(190,110,68,0.12);
+  padding: 18px 72px;
+}
+.sp-ncb-inner {
+  max-width: 1040px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap;
+}
+.sp-ncb-text {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 13.5px; color: #3E5C56; line-height: 1.6; font-weight: 300;
+  flex: 1; min-width: 0;
+}
+.sp-ncb-link {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; text-decoration: none;
+  color: #BE6E44; white-space: nowrap;
+  padding: 9px 18px; border-radius: 100px;
+  border: 1px solid rgba(190,110,68,0.28);
+  transition: background 0.18s, border-color 0.18s;
+}
+.sp-ncb-link:hover {
+  background: rgba(190,110,68,0.07);
+  border-color: rgba(190,110,68,0.45);
+}
+@media (max-width: 700px) {
+  .sp-new-client-bar { padding: 16px 24px; }
+  .sp-ncb-inner { flex-direction: column; gap: 14px; }
 }
 </style>
 </head>
@@ -374,32 +405,6 @@
   </div>
 
 
-  <!-- First session -->
-  <section class="sp-fs">
-    <div class="sp-fs-inner">
-      <div class="sp-fs-hd">
-        <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">Your first session</span></div>
-      </div>
-      <div class="sp-tl">
-        <div class="sp-tl-step">
-          <div class="sp-tl-node"><span class="sp-tl-n">01</span></div>
-          <span class="sp-tl-lbl">Your pace</span>
-          <p class="sp-tl-body">Share as much or as little as you want. There&rsquo;s no expectation to arrive with it figured out &mdash; the session opens where you are.</p>
-        </div>
-        <div class="sp-tl-step">
-          <div class="sp-tl-node"><span class="sp-tl-n">02</span></div>
-          <span class="sp-tl-lbl">Getting to know each other</span>
-          <p class="sp-tl-body">I hear a little of your story; you get a feel for how I work. It&rsquo;s as much about you deciding if this fits as it is about anything else.</p>
-        </div>
-        <div class="sp-tl-step">
-          <div class="sp-tl-node"><span class="sp-tl-n">03</span></div>
-          <span class="sp-tl-lbl">Ask anything. Then decide.</span>
-          <p class="sp-tl-body">This is your chance to ask whatever you need to. You don&rsquo;t have to commit to coming back until it feels right.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- Approach -->
   <section class="sp-approach">
     <div class="sp-approach-inner">
@@ -437,125 +442,17 @@
     </div>
   </section>
 
-  <!-- Who I work with -->
-  <section class="sp-who">
-    <div class="sp-who-inner">
-      <div class="sp-who-hd">
-        <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">Who I work with</span></div>
+  <!-- New client callout -->
+  <section class="sp-new-client-bar">
+    <div class="sp-ncb-inner">
+      <div class="sp-ncb-text">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true" style="flex-shrink:0;color:#BE6E44;margin-top:1px"><circle cx="9" cy="9" r="7.5"/><path d="M9 8v4"/><circle cx="9" cy="5.5" r=".5" fill="currentColor" stroke="none"/></svg>
+        <span>New client? Read the practice information guide to understand what to expect before you book &mdash; including intake processes for children, couples, and families.</span>
       </div>
-      <div class="sp-who-stack">
-
-        <!-- Adults -->
-        <div class="sp-who-panel sp-who-panel--adult">
-          <div class="sp-who-ph">
-            <div class="sp-who-badge" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M3 21c0-4 4-7 9-7s9 3 9 7"/></svg>
-            </div>
-            <div class="sp-who-ph-text">
-              <span class="sp-who-ey">Individual sessions</span>
-              <h3 class="sp-who-name">Adults</h3>
-              <p class="sp-who-lede">A space for you to work through what matters, at your pace and on your own terms.</p>
-            </div>
-          </div>
-          <div class="sp-who-pb">
-            <div>
-              <span class="sp-who-col-hd">What sessions look like</span>
-              <ul class="sp-who-list">
-                <li>Sessions follow your lead &mdash; no set agenda, no timeline</li>
-                <li>Talking-based or creative approaches, depending on what works for you</li>
-                <li>In person at Karalee (QLD) or online</li>
-                <li>Anxiety, grief, burnout, relationships, life changes &mdash; or just something that doesn&rsquo;t feel right yet</li>
-              </ul>
-            </div>
-            <div>
-              <div class="sp-who-intake">
-                <span class="sp-who-intake-ey">Getting started</span>
-                <ul class="sp-who-steps">
-                  <li><span class="sp-who-step-n">1</span><span>Reach out or request a session &mdash; no referral needed to get started</span></li>
-                  <li><span class="sp-who-step-n">2</span><span>Short intake questionnaire sent before your first session</span></li>
-                  <li><span class="sp-who-step-n">3</span><span>First session &mdash; your pace, your space</span></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Children -->
-        <div class="sp-who-panel sp-who-panel--child">
-          <div class="sp-who-ph">
-            <div class="sp-who-badge" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 21c0-3.5 3.1-6 7-6s7 2.5 7 6"/></svg>
-            </div>
-            <div class="sp-who-ph-text">
-              <span class="sp-who-ey">Ages 5 and over</span>
-              <h3 class="sp-who-name">Children</h3>
-              <p class="sp-who-lede">Play-based and creative approaches, tailored to your child&rsquo;s age and what they need.</p>
-            </div>
-          </div>
-          <div class="sp-who-pb">
-            <div>
-              <span class="sp-who-col-hd">What sessions look like</span>
-              <ul class="sp-who-list">
-                <li>Often play-based, creative, or expressive &mdash; rarely purely conversational</li>
-                <li>Art therapy and sandtray are frequently used</li>
-                <li>Sessions are designed to feel engaging and comfortable, not clinical</li>
-                <li>Parents are kept informed and involved throughout</li>
-              </ul>
-            </div>
-            <div>
-              <div class="sp-who-intake">
-                <span class="sp-who-intake-ey">How it begins</span>
-                <ul class="sp-who-steps">
-                  <li><span class="sp-who-step-n">1</span><span>Short questionnaire sent to parents before the intake session</span></li>
-                  <li><span class="sp-who-step-n">2</span><span>Parent or guardian intake session &mdash; one or both parents are welcome</span></li>
-                  <li><span class="sp-who-step-n">3</span><span>Child&rsquo;s sessions begin</span></li>
-                </ul>
-                <div class="sp-who-note">
-                  <svg viewBox="0 0 16 16" fill="none" width="14" height="14"><circle cx="8" cy="8" r="7" stroke="#BE6E44" stroke-width="1.3"/><path d="M8 5v4M8 11v.5" stroke="#BE6E44" stroke-width="1.4" stroke-linecap="round"/></svg>
-                  The parent intake helps me understand the full picture &mdash; your child&rsquo;s history, what you&rsquo;ve observed, and how to shape the sessions specifically for them.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Couples & Families -->
-        <div class="sp-who-panel sp-who-panel--couple">
-          <div class="sp-who-ph">
-            <div class="sp-who-badge" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7" r="3"/><path d="M1 21c0-3.3 2.9-6 6.5-6"/><circle cx="16.5" cy="7" r="3"/><path d="M23 21c0-3.3-2.9-6-6.5-6"/><path d="M9 20.5c0-3 1.6-5 4-5s4 2 4 5"/></svg>
-            </div>
-            <div class="sp-who-ph-text">
-              <span class="sp-who-ey">Together</span>
-              <h3 class="sp-who-name">Couples &amp; Families</h3>
-              <p class="sp-who-lede">Building communication, working through what&rsquo;s between you, or simply creating more space for each other.</p>
-            </div>
-          </div>
-          <div class="sp-who-pb">
-            <div>
-              <span class="sp-who-col-hd">What sessions look like</span>
-              <ul class="sp-who-list">
-                <li>Joint sessions once the individual intake process is complete</li>
-                <li>Work is collaborative &mdash; communication, repair, or simply strengthening what&rsquo;s already there</li>
-                <li>Doesn&rsquo;t require a crisis &mdash; some couples and families come simply because they want to</li>
-                <li>Works for romantic partners, co-parents, adult children and parents, or other close relationships</li>
-              </ul>
-            </div>
-            <div>
-              <div class="sp-who-intake">
-                <span class="sp-who-intake-ey">How it begins</span>
-                <ul class="sp-who-steps">
-                  <li><span class="sp-who-step-n">1</span><span>Both complete a questionnaire before the intake session</span></li>
-                  <li><span class="sp-who-step-n">2</span><span>Individual intake and assessment sessions for each person &mdash; space to speak freely and build trust</span></li>
-                  <li><span class="sp-who-step-n">3</span><span>Suitability for joint sessions is determined &mdash; sometimes more than one individual session is needed first</span></li>
-                  <li><span class="sp-who-step-n">4</span><span>Joint sessions begin when it feels right for both</span></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
+      <a href="practice-information.html" class="sp-ncb-link">
+        Practice information
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M3 7h8M7 3l4 4-4 4"/></svg>
+      </a>
     </div>
   </section>
 
@@ -736,6 +633,7 @@
       <h5>Information</h5>
       <ul>
         <li><a href="info.html">Client Information</a></li>
+        <li><a href="practice-information.html">Practice Information</a></li>
         <li><a href="#" onclick="openInfoModal('privacy')">Privacy Policy</a></li>
         <li><a href="#" onclick="openInfoModal('cancellation')">Cancellation Policy</a></li>
         <li><a href="#" onclick="openInfoModal('fees')">Fees &amp; Rebates</a></li>
