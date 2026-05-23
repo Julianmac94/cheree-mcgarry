@@ -57,53 +57,34 @@
 }
 .sp-head-price-link:hover { color: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.3); }
 
-/* ── Section shared ── */
-.sp-section-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(26px, 3.2vw, 42px); font-weight: 300;
-  color: #192E2A; line-height: 1.2; margin-bottom: 14px;
-}
-.sp-section-intro {
-  font-size: 15px; color: #3E5C56; line-height: 1.75;
-  font-weight: 300; max-width: 580px; margin: 0 auto;
-}
-
-/* ── First session ── */
+/* ── First session — timeline ── */
 .sp-fs { background: white; padding: 88px 0 80px; }
 .sp-fs-inner { max-width: 1040px; margin: 0 auto; padding: 0 72px; }
-.sp-fs-hd { text-align: center; margin-bottom: 32px; }
-.sp-fs-lead {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(20px, 2.6vw, 34px); font-weight: 300;
-  color: #192E2A; line-height: 1.35; text-align: center;
-  max-width: 580px; margin: 0 auto 52px;
+.sp-fs-hd { text-align: center; margin-bottom: 52px; }
+.sp-tl { display: grid; grid-template-columns: repeat(3, 1fr); position: relative; }
+.sp-tl::before {
+  content: ''; position: absolute; top: 32px;
+  left: 17%; right: 17%; height: 1px;
+  background: rgba(190,110,68,0.18);
 }
-.sp-fs-lead em { font-style: italic; color: #2A5850; }
-.sp-fs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.sp-fs-card {
-  padding: 32px 28px 28px; border-radius: 16px;
-  background: #F3EFE6; border: 1px solid rgba(42,88,80,0.06);
-  position: relative; overflow: hidden;
+.sp-tl-step { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 28px; }
+.sp-tl-node {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: #F3EFE6; border: 1px solid rgba(190,110,68,0.22);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 22px; position: relative; z-index: 1; flex-shrink: 0;
 }
-.sp-fs-card::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; border-radius: 16px 16px 0 0;
-  background: #BE6E44; opacity: 0.45;
+.sp-tl-n { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; color: #BE6E44; }
+.sp-tl-lbl {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  color: #2A5850; display: block; margin-bottom: 12px;
 }
-.sp-fs-num {
-  font-family: 'Cormorant Garamond', serif; font-size: 12px;
-  font-style: italic; color: #BE6E44; display: block; margin-bottom: 14px; opacity: 0.8;
-}
-.sp-fs-title {
-  font-family: 'Cormorant Garamond', serif; font-size: 21px; font-weight: 400;
-  color: #192E2A; line-height: 1.25; margin-bottom: 12px;
-}
-.sp-fs-body { font-size: 14px; color: #3E5C56; line-height: 1.8; font-weight: 300; }
+.sp-tl-body { font-size: 14px; color: #3E5C56; line-height: 1.78; font-weight: 300; }
 
 /* ── Approach ── */
 .sp-approach { background: #F3EFE6; padding: 88px 0 80px; }
 .sp-approach-inner { max-width: 1040px; margin: 0 auto; padding: 0 72px; }
-.sp-approach-hd { text-align: center; margin-bottom: 52px; }
+.sp-approach-hd { text-align: center; margin-bottom: 36px; }
 .sp-approach-split { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 52px; }
 .sp-method {
   padding: 36px 32px 32px; background: white;
@@ -144,7 +125,7 @@
 /* ── Who I work with ── */
 .sp-who { background: white; padding: 88px 0 80px; }
 .sp-who-inner { max-width: 1040px; margin: 0 auto; padding: 0 72px; }
-.sp-who-hd { text-align: center; margin-bottom: 52px; }
+.sp-who-hd { text-align: center; margin-bottom: 36px; }
 .sp-who-stack { display: grid; gap: 28px; }
 .sp-who-panel { border-radius: 20px; overflow: hidden; border: 1px solid rgba(42,88,80,0.09); }
 .sp-who-ph { padding: 30px 36px 26px; display: flex; align-items: flex-start; gap: 18px; }
@@ -254,7 +235,10 @@
   .sp-head { flex-direction: column !important; padding: 60px 28px 52px !important; min-height: unset; gap: 36px; }
   .sp-head-pricing { width: 100%; max-width: 340px; }
   .sp-fs-inner, .sp-approach-inner, .sp-who-inner { padding: 0 28px; }
-  .sp-fs-grid { grid-template-columns: 1fr; gap: 14px; }
+  .sp-tl { grid-template-columns: 1fr; gap: 32px; }
+  .sp-tl::before { display: none; }
+  .sp-tl-step { flex-direction: row; text-align: left; gap: 20px; align-items: flex-start; }
+  .sp-tl-node { margin-bottom: 0; }
   .sp-approach-split { grid-template-columns: 1fr; }
   .sp-who-ph { padding: 24px 24px 20px; }
   .sp-who-pb { grid-template-columns: 1fr; padding: 20px 24px 24px; }
@@ -395,24 +379,22 @@
     <div class="sp-fs-inner">
       <div class="sp-fs-hd">
         <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">Your first session</span></div>
-        <h2 class="sp-section-title">Start wherever you are</h2>
       </div>
-      <p class="sp-fs-lead">There&rsquo;s no need to have it figured out. Your first session is a conversation &mdash; a chance to get to know each other, share what brought you here, and see <em>how it feels to work together.</em></p>
-      <div class="sp-fs-grid">
-        <div class="sp-fs-card">
-          <span class="sp-fs-num">01 &mdash; Your pace</span>
-          <h3 class="sp-fs-title">Share as much or as little as you want</h3>
-          <p class="sp-fs-body">There&rsquo;s no expectation to arrive with everything worked out. You can share what feels comfortable in the moment &mdash; nothing more. The session opens at your pace.</p>
+      <div class="sp-tl">
+        <div class="sp-tl-step">
+          <div class="sp-tl-node"><span class="sp-tl-n">01</span></div>
+          <span class="sp-tl-lbl">Your pace</span>
+          <p class="sp-tl-body">Share as much or as little as you want. There&rsquo;s no expectation to arrive with it figured out &mdash; the session opens where you are.</p>
         </div>
-        <div class="sp-fs-card">
-          <span class="sp-fs-num">02 &mdash; Getting to know each other</span>
-          <h3 class="sp-fs-title">A chance for us both to get a feel for things</h3>
-          <p class="sp-fs-body">The first session is as much about you getting a sense of working with me as it is about anything else. I&rsquo;ll hear a little of your story, and you can get a feel for how I work.</p>
+        <div class="sp-tl-step">
+          <div class="sp-tl-node"><span class="sp-tl-n">02</span></div>
+          <span class="sp-tl-lbl">Getting to know each other</span>
+          <p class="sp-tl-body">I hear a little of your story; you get a feel for how I work. It&rsquo;s as much about you deciding if this fits as it is about anything else.</p>
         </div>
-        <div class="sp-fs-card">
-          <span class="sp-fs-num">03 &mdash; No pressure</span>
-          <h3 class="sp-fs-title">Ask your questions, then decide</h3>
-          <p class="sp-fs-body">This is your chance to ask anything you need to. You don&rsquo;t have to commit to returning until it feels right &mdash; the first session is about finding out if this is a good fit for you.</p>
+        <div class="sp-tl-step">
+          <div class="sp-tl-node"><span class="sp-tl-n">03</span></div>
+          <span class="sp-tl-lbl">Ask anything. Then decide.</span>
+          <p class="sp-tl-body">This is your chance to ask whatever you need to. You don&rsquo;t have to commit to coming back until it feels right.</p>
         </div>
       </div>
     </div>
@@ -423,8 +405,6 @@
     <div class="sp-approach-inner">
       <div class="sp-approach-hd">
         <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">How we work</span></div>
-        <h2 class="sp-section-title">Sessions shaped around what works for you</h2>
-        <p class="sp-section-intro">Different people need different things. Some want to talk it through; others need a different kind of space. Sessions are shaped around what genuinely helps &mdash; not one fixed approach.</p>
       </div>
       <div class="sp-approach-split">
         <div class="sp-method">
@@ -462,7 +442,6 @@
     <div class="sp-who-inner">
       <div class="sp-who-hd">
         <div class="eyebrow"><div class="eyebrow-bar"></div><span class="eyebrow-text">Who I work with</span></div>
-        <h2 class="sp-section-title">For individuals, children, and families</h2>
       </div>
       <div class="sp-who-stack">
 
