@@ -2656,152 +2656,160 @@ function renderHomeView() {
   var invoices  = (_halaxyData && _halaxyData.invoices) || [];
   var clients   = (_pipelineData.clients || []);
 
-  // ── Helpers ──────────────────────────────────────────────────
-  function _dhAvColor(name) {
-    var colors = ['av-teal','av-blue','av-purple','av-amber','av-red'];
-    return colors[(name || '').charCodeAt(0) % colors.length];
+  // helpers
+  function _avCol(name) {
+    var c = ['av-teal','av-blue','av-purple','av-amber','av-red'];
+    return c[(name || '').charCodeAt(0) % c.length];
   }
-  function _dhInitials(name) {
+  function _ini(name) {
     if (!name) return '?';
-    var parts = name.trim().split(/\s+/);
-    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+    var p = name.trim().split(/\s+/);
+    return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase();
   }
-  function _dhFmtTime(isoStr) {
-    var d = new Date(isoStr);
-    var h = d.getHours(), m = d.getMinutes();
-    var ampm = h >= 12 ? 'pm' : 'am';
-    var h12  = h % 12 || 12;
-    return h12 + ':' + (m < 10 ? '0' : '') + m + ampm;
+  function _fmtTime(iso) {
+    var d = new Date(iso), h = d.getHours(), m = d.getMinutes();
+    return (h % 12 || 12) + ':' + (m < 10 ? '0' : '') + m + (h >= 12 ? 'pm' : 'am');
   }
 
-  // ── Derived data ─────────────────────────────────────────────
   var now        = new Date();
   var todayStart = new Date(now); todayStart.setHours(0,0,0,0);
   var weekEnd    = new Date(todayStart); weekEnd.setDate(weekEnd.getDate() + 7);
+  var dateLabel  = now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
 
   var todayAppts = appts.filter(function(a) {
-    if (!a.start || a.status === 'cancelled') return false;
-    return new Date(a.start).toDateString() === now.toDateString();
+    return a.start && a.status !== 'cancelled' && new Date(a.start).toDateString() === now.toDateString();
   }).sort(function(a,b) { return new Date(a.start) - new Date(b.start); });
 
-  var weekSessions = appts.filter(function(a) {
+  var weekCount    = appts.filter(function(a) {
     if (!a.start || a.status === 'cancelled') return false;
     var t = new Date(a.start).getTime();
     return t >= todayStart.getTime() && t < weekEnd.getTime();
   }).length;
 
-  var activeClients  = clients.filter(function(c) { return c.active !== false; });
-  var newEnquiries   = enquiries.filter(function(e) { return (e.status || 'new') === 'new'; });
-
-  var outstandingAmt = invoices.reduce(function(sum, inv) {
-    if (inv.status === 'active' || inv.status === 'overdue') sum += parseFloat(inv.totalPrice || 0);
-    return sum;
+  var activeClients = clients.filter(function(c) { return c.active !== false; });
+  var newEnquiries  = enquiries.filter(function(e) { return (e.status || 'new') === 'new'; });
+  var outAmt        = invoices.reduce(function(s, inv) {
+    return (inv.status === 'active' || inv.status === 'overdue') ? s + parseFloat(inv.totalPrice || 0) : s;
   }, 0);
-  var outStr = '$' + Math.round(outstandingAmt).toLocaleString('en-AU');
+  var outStr = '$' + Math.round(outAmt).toLocaleString('en-AU');
 
-  // ── Greeting & date ──────────────────────────────────────────
-  var hr        = now.getHours();
-  var greeting  = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
-  var dateLabel = now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
-
-  // ── Build HTML ───────────────────────────────────────────────
   var html = '<div class="dh-wrap">';
 
-  // Greeting bar
-  html += '<div class="dh-greet">'
-    + '<div class="dh-greet-text">'
-    + '<div class="dh-greet-heading">' + escHtml(greeting) + ', Cheree <span class="dh-greet-star">✦</span></div>'
-    + '<div class="dh-greet-date">' + escHtml(dateLabel) + '</div>'
+  // ── Page title row ────────────────────────────────────────────
+  html += '<div class="dh-title-row">'
+    + '<div>'
+    + '<div class="dh-page-title">Dashboard</div>'
+    + '<div class="dh-page-sub">' + escHtml(dateLabel) + '</div>'
     + '</div>'
-    + '<button class="dh-btn-primary" onclick="navigateTo(\'clients\')">+ New Session</button>'
+    + '<button class="dh-new-btn" onclick="navigateTo(\'clients\')">'
+    + '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+    + 'New Session'
+    + '</button>'
     + '</div>';
 
-  // Two-column body
-  html += '<div class="dh-cols">';
+  // ── Row 1: 4 stat cards ───────────────────────────────────────
+  html += '<div class="dh-stats-row">'
 
-  // ── LEFT column ──────────────────────────────────────────────
-  html += '<div class="dh-main">';
+    // Active clients
+    + '<div class="dh-stat dh-stat--teal" onclick="navigateTo(\'clients\')">'
+    + '<div class="dh-stat-hdr">'
+    + '<div class="c-icon c-icon--teal">◎</div>'
+    + '<span class="dh-stat-label">Active Clients</span>'
+    + '</div>'
+    + '<div class="dh-stat-num">' + activeClients.length + '</div>'
+    + '<div class="dh-stat-foot">this financial year</div>'
+    + '</div>'
 
-  // Today's schedule glass card
+    // New enquiries
+    + '<div class="dh-stat dh-stat--amber" onclick="navigateTo(\'queue\')">'
+    + '<div class="dh-stat-hdr">'
+    + '<div class="c-icon c-icon--amber">✉</div>'
+    + '<span class="dh-stat-label">New Enquiries</span>'
+    + '</div>'
+    + '<div class="dh-stat-num">' + newEnquiries.length + '</div>'
+    + '<div class="dh-stat-foot">awaiting response</div>'
+    + '</div>'
+
+    // This week sessions
+    + '<div class="dh-stat dh-stat--purple">'
+    + '<div class="dh-stat-hdr">'
+    + '<div class="c-icon c-icon--purple">◈</div>'
+    + '<span class="dh-stat-label">This Week</span>'
+    + '</div>'
+    + '<div class="dh-stat-num">' + weekCount + '</div>'
+    + '<div class="dh-stat-foot">sessions scheduled</div>'
+    + '</div>'
+
+    // Outstanding
+    + '<div class="dh-stat dh-stat--blue" onclick="navigateTo(\'billing\')">'
+    + '<div class="dh-stat-hdr">'
+    + '<div class="c-icon c-icon--blue">$</div>'
+    + '<span class="dh-stat-label">Outstanding</span>'
+    + '</div>'
+    + '<div class="dh-stat-num" style="font-size:36px;letter-spacing:-0.03em">' + escHtml(outStr) + '</div>'
+    + '<div class="dh-stat-foot">invoiced, not paid</div>'
+    + '</div>'
+
+    + '</div>'; // dh-stats-row
+
+  // ── Row 2: schedule card + needs attention card ───────────────
+  html += '<div class="dh-main-row">';
+
+  // Today's schedule
   html += '<div class="dh-sched-card">'
     + '<div class="dh-sched-hdr">'
-    + '<span class="dh-sched-title">TODAY</span>'
-    + '<span class="dh-sched-date">' + escHtml(dateLabel) + '</span>'
+    + '<div class="c-icon c-icon--teal">⊙</div>'
+    + '<span class="dh-sched-title-text">Today\'s Sessions</span>'
+    + '<span class="dh-sched-date-text">' + escHtml(dateLabel) + '</span>'
     + '</div>';
 
   if (todayAppts.length === 0) {
-    html += '<div class="dh-sched-empty">No sessions scheduled for today</div>';
+    html += '<div class="dh-sched-empty">No sessions scheduled for today.<br>'
+      + '<span style="font-size:12px;opacity:0.6">Enjoy the breathing room.</span></div>';
   } else {
-    todayAppts.slice(0, 5).forEach(function(a) {
-      var patientName = a.patientName || 'Client';
-      var av  = _dhAvColor(patientName);
-      var ini = _dhInitials(patientName);
-      var timeStr = _dhFmtTime(a.start);
-      var statusBadge = a.status ? '<span class="dh-sched-badge">' + escHtml(a.status) + '</span>' : '';
+    todayAppts.slice(0, 6).forEach(function(a) {
+      var nm  = a.patientName || 'Client';
       html += '<div class="dh-sched-row" onclick="navigateTo(\'queue\')">'
-        + '<div class="dh-sched-time">' + escHtml(timeStr) + '</div>'
-        + '<div class="dh-sched-av ' + av + '">' + escHtml(ini) + '</div>'
-        + '<div class="dh-sched-info">'
-        + '<div class="dh-sched-name">' + escHtml(patientName) + '</div>'
-        + '<div class="dh-sched-type"></div>'
-        + '</div>'
-        + statusBadge
+        + '<div class="dh-sched-time">' + _fmtTime(a.start) + '</div>'
+        + '<div class="dh-sched-av ' + _avCol(nm) + '">' + _ini(nm) + '</div>'
+        + '<span class="dh-sched-name">' + escHtml(nm) + '</span>'
+        + (a.status && a.status !== 'scheduled' ? '<span class="dh-sched-status">' + escHtml(a.status) + '</span>' : '')
         + '</div>';
     });
   }
 
   html += '<div class="dh-sched-footer">'
-    + '<button class="dh-text-link" onclick="navigateTo(\'queue\')">View full schedule →</button>'
+    + '<button class="dh-text-link" onclick="navigateTo(\'queue\')">Full schedule →</button>'
     + '</div>'
     + '</div>'; // dh-sched-card
 
-  // Needs Attention section
-  html += '<div class="dh-sec-label">NEEDS ATTENTION</div>';
+  // Needs attention card
+  html += '<div class="dh-attn-card">'
+    + '<div class="dh-attn-hdr">'
+    + '<div class="c-icon c-icon--amber">!</div>'
+    + '<span class="dh-attn-title">Needs Attention</span>'
+    + (newEnquiries.length > 0 ? '<span class="dh-attn-count">' + newEnquiries.length + ' new</span>' : '')
+    + '</div>';
 
   if (newEnquiries.length === 0) {
-    html += '<div class="dh-empty-state">All clear — nothing urgent ✓</div>';
+    html += '<div class="dh-attn-empty">All clear — nothing urgent today ✓</div>';
   } else {
-    newEnquiries.slice(0, 3).forEach(function(e) {
-      var name    = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
-      var av      = _dhAvColor(name);
-      var ini     = _dhInitials(name);
-      var src     = e.source || '';
-      var preview = e.message ? (e.message.length > 60 ? e.message.slice(0, 60) + '…' : e.message) : '';
-      html += '<div class="dh-action-card" onclick="navigateTo(\'queue\')">'
-        + '<div class="dh-action-av av-amber">' + escHtml(ini) + '</div>'
-        + '<div class="dh-action-body">'
-        + '<div class="dh-action-name">' + escHtml(name) + '</div>'
-        + '<div class="dh-action-meta">New enquiry' + (src ? ' · ' + escHtml(src) : '') + '</div>'
-        + (preview ? '<div class="dh-action-preview">' + escHtml(preview) + '</div>' : '')
+    newEnquiries.slice(0, 5).forEach(function(e) {
+      var nm  = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
+      var src = e.source || 'enquiry';
+      html += '<div class="dh-attn-item" onclick="navigateTo(\'queue\')">'
+        + '<div class="dh-attn-av ' + _avCol(nm) + '">' + _ini(nm) + '</div>'
+        + '<div class="dh-attn-body">'
+        + '<div class="dh-attn-name">' + escHtml(nm) + '</div>'
+        + '<div class="dh-attn-meta">New enquiry · ' + escHtml(src) + '</div>'
         + '</div>'
-        + '<button class="dh-action-btn">Review →</button>'
+        + '<span class="dh-attn-arrow">›</span>'
         + '</div>';
     });
   }
 
-  html += '</div>'; // dh-main
-
-  // ── RIGHT column: KPI cards ──────────────────────────────────
-  html += '<div class="dh-kpis">'
-    + '<div class="dh-kpi-card dh-kpi-card--teal">'
-    + '<div class="dh-kpi-num">' + activeClients.length + '</div>'
-    + '<div class="dh-kpi-lbl">Active Clients</div>'
-    + '</div>'
-    + '<div class="dh-kpi-card dh-kpi-card--amber" onclick="navigateTo(\'queue\')" style="cursor:pointer">'
-    + '<div class="dh-kpi-num">' + newEnquiries.length + '</div>'
-    + '<div class="dh-kpi-lbl">New Enquiries</div>'
-    + '</div>'
-    + '<div class="dh-kpi-card dh-kpi-card--purple">'
-    + '<div class="dh-kpi-num">' + weekSessions + '</div>'
-    + '<div class="dh-kpi-lbl">This Week</div>'
-    + '</div>'
-    + '<div class="dh-kpi-card dh-kpi-card--blue" onclick="navigateTo(\'billing\')" style="cursor:pointer">'
-    + '<div class="dh-kpi-num">' + escHtml(outStr) + '</div>'
-    + '<div class="dh-kpi-lbl">Outstanding</div>'
-    + '</div>'
-    + '</div>'; // dh-kpis
-
-  html += '</div>'; // dh-cols
+  html += '</div>'; // dh-attn-card
+  html += '</div>'; // dh-main-row
   html += '</div>'; // dh-wrap
 
   content.innerHTML = html;
