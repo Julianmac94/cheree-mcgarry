@@ -8,6 +8,7 @@
 
 import { isAuthed } from './_auth.js';
 import { createClient } from '@supabase/supabase-js';
+import { deleteCalendarEvent } from './calendar-pending.js';
 
 const db = createClient(
   process.env.SUPABASE_URL,
@@ -73,6 +74,26 @@ export default async function handler(req, res) {
     const body = req.body || {};
     const { id, ...fields } = body;
     if (!id) return res.status(400).json({ error: 'id is required' });
+
+    // On archive: cascade-delete any GCal events attached to this client's sessions.
+    // Failures are non-blocking — archive still proceeds even if GCal is unreachable.
+    if (fields.active === false) {
+      try {
+        const { data: sessions } = await db
+          .from('sessions')
+          .select('gcal_event_id')
+          .eq('client_id', id)
+          .not('gcal_event_id', 'is', null);
+
+        if (sessions?.length) {
+          await Promise.allSettled(
+            sessions.map(s => deleteCalendarEvent(s.gcal_event_id))
+          );
+        }
+      } catch (gcalErr) {
+        console.warn('[clients] GCal cascade cleanup error:', gcalErr.message);
+      }
+    }
 
     const allowed = ['display_name', 'funder', 'plan_manager', 'halaxy_id', 'active', 'notes', 'enquiry_id',
                      'client_type', 'parent_client_id', 'is_contact'];

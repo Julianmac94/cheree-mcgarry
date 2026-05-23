@@ -7,7 +7,7 @@
 import { isAuthed } from './_auth.js';
 import { google } from 'googleapis';
 
-const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
+const SCOPES = ['https://www.googleapis.com/auth/calendar.events'];
 
 export default function handler(req, res) {
   if (!isAuthed(req)) {

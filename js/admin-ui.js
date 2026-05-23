@@ -2556,9 +2556,15 @@ function renderClientCardPl(c) {
 function renderSessionMiniPl(s, clientId) {
   var d = new Date(s.session_date + 'T12:00:00');
   var dateStr = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' });
+  var timeStr = s.session_time ? s.session_time.slice(0, 5) : '';
+  var typeMap = { video: '📹', in_person: '🏢', phone: '📞' };
+  var typeIcon = s.session_type ? (typeMap[s.session_type] || '') : '';
+  var gcalDot = s.gcal_event_id ? '<span title="In Google Calendar" style="color:var(--db-teal);font-size:9px">●</span>' : '';
   var next = STATUS_NEXT[s.status];
   return '<div class="pl-session-mini">'
-    + '<span style="color:var(--mid);font-weight:500;font-size:11px">' + dateStr + '</span>'
+    + '<span style="color:var(--mid);font-weight:500;font-size:11px">' + dateStr + (timeStr ? ' ' + timeStr : '') + '</span>'
+    + (typeIcon ? '<span style="font-size:10px">' + typeIcon + '</span>' : '')
+    + gcalDot
     + '<span style="color:var(--soft);font-size:10px">' + escHtml(s.invoice_ref || '') + '</span>'
     + (next
         ? '<button class="pl-action-btn pl-action-btn--soft" style="font-size:9px;padding:2px 7px" onclick="event.stopPropagation();advanceSessionPl(\'' + s.id + '\',\'' + next.next + '\',\'' + clientId + '\')">' + next.label + '</button>'
@@ -2569,11 +2575,25 @@ function renderSessionMiniPl(s, clientId) {
 
 /* ── Add session form (pipeline) ── */
 function renderAddSessionFormPl(clientId) {
+  var today = new Date().toISOString().slice(0, 10);
   return '<div class="cl-add-session-form" id="pl-add-sess-' + clientId + '">'
     + '<div class="cl-form-row">'
-    + '<div class="cl-form-field"><label for="pl-sess-date-' + clientId + '">Date</label>'
-    + '<input class="cl-form-input" id="pl-sess-date-' + clientId + '" type="date"></div>'
-    + '<div class="cl-form-field"><label for="pl-sess-status-' + clientId + '">Status</label>'
+    + '<div class="cl-form-field"><label>Date</label>'
+    + '<input class="cl-form-input" id="pl-sess-date-' + clientId + '" type="date" value="' + today + '"></div>'
+    + '<div class="cl-form-field"><label>Time</label>'
+    + '<input class="cl-form-input" id="pl-sess-time-' + clientId + '" type="time" placeholder="09:00">'
+    + '<div style="font-size:9px;color:var(--soft);margin-top:2px">Creates calendar event</div>'
+    + '</div>'
+    + '</div>'
+    + '<div class="cl-form-row">'
+    + '<div class="cl-form-field"><label>Type</label>'
+    + '<select class="cl-form-input" id="pl-sess-type-' + clientId + '">'
+    + '<option value="">— type —</option>'
+    + '<option value="video">Video</option>'
+    + '<option value="in_person">In Person</option>'
+    + '<option value="phone">Phone</option>'
+    + '</select></div>'
+    + '<div class="cl-form-field"><label>Status</label>'
     + '<select class="cl-form-input" id="pl-sess-status-' + clientId + '">'
     + '<option value="upcoming">Upcoming</option>'
     + '<option value="completed">Completed</option>'
@@ -2581,9 +2601,9 @@ function renderAddSessionFormPl(clientId) {
     + '</select></div>'
     + '</div>'
     + '<div class="cl-form-row">'
-    + '<div class="cl-form-field"><label for="pl-sess-inv-' + clientId + '">Invoice ref</label>'
+    + '<div class="cl-form-field"><label>Invoice ref</label>'
     + '<input class="cl-form-input" id="pl-sess-inv-' + clientId + '" type="text" placeholder="e.g. INV-001"></div>'
-    + '<div class="cl-form-field"><label for="pl-sess-notes-' + clientId + '">Notes</label>'
+    + '<div class="cl-form-field"><label>Notes</label>'
     + '<input class="cl-form-input" id="pl-sess-notes-' + clientId + '" type="text" placeholder="Optional…"></div>'
     + '</div>'
     + '<div class="cl-form-actions">'
@@ -5340,17 +5360,34 @@ function toggleAddSessionFormPl(clientId) {
 
 /* ── Save session (pipeline) ── */
 async function saveSessionPl(clientId) {
-  var date   = (document.getElementById('pl-sess-date-' + clientId) || {}).value;
-  var status = (document.getElementById('pl-sess-status-' + clientId) || {}).value || 'upcoming';
-  var inv    = (document.getElementById('pl-sess-inv-' + clientId) || {}).value.trim();
-  var notes  = (document.getElementById('pl-sess-notes-' + clientId) || {}).value.trim();
+  var date    = (document.getElementById('pl-sess-date-'   + clientId) || {}).value;
+  var time    = (document.getElementById('pl-sess-time-'   + clientId) || {}).value.trim();
+  var type    = (document.getElementById('pl-sess-type-'   + clientId) || {}).value;
+  var status  = (document.getElementById('pl-sess-status-' + clientId) || {}).value || 'upcoming';
+  var inv     = (document.getElementById('pl-sess-inv-'    + clientId) || {}).value.trim();
+  var notes   = (document.getElementById('pl-sess-notes-'  + clientId) || {}).value.trim();
   if (!date) { toast('Enter a session date.', 'err'); return; }
+
+  // Look up client name so the GCal event has a meaningful title
+  var client = _pipelineData && (_pipelineData.clients || []).find(function(c) { return c.id === clientId; });
+  var clientName = client ? client.display_name : null;
+
   try {
-    await apiFetch('/api/sessions', {
+    var result = await apiFetch('/api/sessions', {
       method: 'POST',
-      body: { client_id: clientId, session_date: date, status: status, invoice_ref: inv || null, notes: notes || null },
+      body: {
+        client_id:    clientId,
+        session_date: date,
+        session_time: time    || null,
+        session_type: type    || null,
+        status:       status,
+        invoice_ref:  inv     || null,
+        notes:        notes   || null,
+        client_name:  clientName,
+      },
     });
-    toast('Session added');
+    var calMsg = (time && result.gcal_event_id) ? ' + calendar event created' : '';
+    toast('Session added' + calMsg);
     refreshPipeline();
   } catch (err) {
     toast('Could not save session: ' + err.message, 'err');
@@ -6440,14 +6477,77 @@ async function confirmLinkEnquiry(clientId, clientName) {
 
 /* ── Archive / reactivate client ── */
 async function setClientActivePl(clientId, active) {
-  var label = active ? 'reactivated' : 'archived';
-  if (!active && !confirm('Archive this client?')) return;
+  if (active) {
+    // Reactivation — simple confirm
+    if (!confirm('Reactivate this client?')) return;
+    try {
+      await apiFetch('/api/clients', { method: 'PATCH', body: { id: clientId, active: true } });
+      toast('Client reactivated');
+      refreshPipeline();
+    } catch (err) {
+      toast('Could not reactivate: ' + err.message, 'err');
+    }
+    return;
+  }
+
+  // Archive — show a richer confirmation modal
+  var client   = _pipelineData && (_pipelineData.clients || []).find(function(c) { return c.id === clientId; });
+  if (!client) return;
+
+  var sessions = client.sessions || [];
+  var gcalSess = sessions.filter(function(s) { return s.gcal_event_id; });
+  var FUNDER_LABELS_LOCAL = {
+    ndis_plan: 'NDIS Plan-Managed', ndis_self: 'NDIS Self-Managed',
+    medicare: 'Medicare', private: 'Private', qfes: 'QFES EAP',
+    workcover: 'WorkCover', dva: 'DVA / ADFHSC',
+  };
+  var funderLabel = FUNDER_LABELS_LOCAL[client.funder] || client.funder || '—';
+  var halaxyLinked = !!(client.halaxy_id && client.halaxy_id.trim());
+
+  var gcalNote = gcalSess.length > 0
+    ? '<div class="db-hint-box" style="background:rgba(190,110,68,0.08);border-color:rgba(190,110,68,0.22);color:var(--db-amber);margin-top:12px">'
+      + '<span>⚠</span><span>' + gcalSess.length + ' Google Calendar event' + (gcalSess.length !== 1 ? 's' : '') + ' will be deleted from the Pending Clients calendar.</span>'
+      + '</div>'
+    : '<div style="font-size:11.5px;color:var(--db-t3);margin-top:10px">No calendar events to remove.</div>';
+
+  var halaxyNote = halaxyLinked
+    ? '<div class="db-hint-box" style="margin-top:8px"><span>✓</span><span>Linked to Halaxy — they\'ll continue to appear via Halaxy sync after archiving.</span></div>'
+    : '<div class="db-hint-box" style="background:rgba(217,79,47,0.07);border-color:rgba(217,79,47,0.2);color:var(--db-red);margin-top:8px"><span>!</span><span>Not yet linked to Halaxy. Link them first or they\'ll disappear from the active list.</span></div>';
+
+  var overlay = document.createElement('div');
+  overlay.className = 'db-modal-overlay open';
+  overlay.onclick = function(ev) { if (ev.target === overlay) overlay.remove(); };
+  overlay.innerHTML = '<div class="db-modal" style="width:420px">'
+    + '<div class="db-modal-hdr">'
+    + '<div><div class="db-modal-title">Archive ' + escHtml(client.display_name) + '?</div>'
+    + '<div class="db-modal-sub">Moves them out of the admin active list</div></div>'
+    + '<button class="db-modal-close" onclick="this.closest(\'.db-modal-overlay\').remove()">×</button>'
+    + '</div>'
+    + '<div class="db-modal-body" style="gap:6px">'
+    + '<div style="display:flex;gap:20px;padding:10px 14px;background:rgba(0,0,0,0.025);border-radius:8px">'
+    + '<div><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.09em;color:var(--db-t3);margin-bottom:3px">Funder</div><div style="font-size:13px;font-weight:600;color:var(--db-text)">' + escHtml(funderLabel) + '</div></div>'
+    + '<div><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.09em;color:var(--db-t3);margin-bottom:3px">Sessions</div><div style="font-size:13px;font-weight:600;color:var(--db-text)">' + sessions.length + '</div></div>'
+    + '<div><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.09em;color:var(--db-t3);margin-bottom:3px">Halaxy</div><div style="font-size:13px;font-weight:600;color:' + (halaxyLinked ? 'var(--db-teal)' : 'var(--db-red)') + '">' + (halaxyLinked ? 'Linked ✓' : 'Not linked') + '</div></div>'
+    + '</div>'
+    + halaxyNote
+    + gcalNote
+    + '</div>'
+    + '<div class="db-modal-ftr">'
+    + '<button class="db-btn-ghost" onclick="this.closest(\'.db-modal-overlay\').remove()">Cancel</button>'
+    + '<button class="db-btn-primary" style="background:var(--db-red);box-shadow:0 2px 8px rgba(217,79,47,0.25)" onclick="this.closest(\'.db-modal-overlay\').remove();_doArchiveClient(\'' + clientId + '\')">Archive' + (gcalSess.length ? ' + Delete Calendar Events' : '') + '</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(overlay);
+}
+
+async function _doArchiveClient(clientId) {
   try {
-    await apiFetch('/api/clients', { method: 'PATCH', body: { id: clientId, active: active } });
-    toast('Client ' + label);
+    await apiFetch('/api/clients', { method: 'PATCH', body: { id: clientId, active: false } });
+    toast('Client archived');
+    closeDetailPanel();
     refreshPipeline();
   } catch (err) {
-    toast('Could not update client: ' + err.message, 'err');
+    toast('Could not archive: ' + err.message, 'err');
   }
 }
 

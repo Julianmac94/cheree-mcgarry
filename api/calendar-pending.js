@@ -87,9 +87,9 @@ async function getOAuth2Client() {
 }
 
 export async function createCalendarEvent({ title, start, end, notes }) {
-  const oauth2    = await getOAuth2Client();
-  const calendar  = google.calendar({ version: 'v3', auth: oauth2 });
-  const TZ        = 'Australia/Brisbane';
+  const oauth2   = await getOAuth2Client();
+  const calendar = google.calendar({ version: 'v3', auth: oauth2 });
+  const TZ       = 'Australia/Brisbane';
 
   const event = await calendar.events.insert({
     calendarId: CALENDAR_ID,
@@ -102,4 +102,18 @@ export async function createCalendarEvent({ title, start, end, notes }) {
   });
 
   return { id: event.data.id, htmlLink: event.data.htmlLink };
+}
+
+export async function deleteCalendarEvent(eventId) {
+  if (!eventId) return;
+  const oauth2   = await getOAuth2Client();
+  const calendar = google.calendar({ version: 'v3', auth: oauth2 });
+
+  try {
+    await calendar.events.delete({ calendarId: CALENDAR_ID, eventId });
+  } catch (err) {
+    // 404/410 means already deleted — safe to ignore
+    const code = err.code || err.status;
+    if (code !== 404 && code !== 410) throw err;
+  }
 }
