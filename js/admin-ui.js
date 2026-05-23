@@ -2779,73 +2779,61 @@ function renderHomeView() {
     + '</div>'
     + '</div>';
 
-  // ── STATS ROW ─────────────────────────────────────
-  var outStr      = outstandingAmt > 0 ? ('$' + Math.round(outstandingAmt).toLocaleString('en-AU')) : '$0';
-  var actionClass = needsActionTotal > 0 ? 'db-stat-card--urgent' : 'db-stat-card--ok';
-  html += '<div class="db-stats-row">'
-    + '<div class="db-stat-card db-stat-card--primary">'
-    + '<div class="db-stat-icon-chip">◎</div>'
-    + '<div class="db-stat-label">Active Clients</div>'
-    + '<div class="db-stat-val">' + activeClientCount + '</div>'
-    + '<div class="db-stat-sub">' + weekAppts.length + ' session' + (weekAppts.length !== 1 ? 's' : '') + ' this week</div>'
-    + '</div>'
-    + '<div class="db-stat-card ' + actionClass + '">'
-    + '<div class="db-stat-icon-chip">⚡</div>'
-    + '<div class="db-stat-label">Needs Action</div>'
-    + '<div class="db-stat-val">' + needsActionTotal + '</div>'
-    + '<div class="db-stat-sub">' + (needsActionTotal > 0 ? 'Awaiting attention' : 'All clear ✓') + '</div>'
-    + '</div>'
-    + '<div class="db-stat-card db-stat-card--finance">'
-    + '<div class="db-stat-icon-chip">$</div>'
-    + '<div class="db-stat-label">Outstanding</div>'
-    + '<div class="db-stat-val">' + outStr + '</div>'
-    + '<div class="db-stat-sub">' + overdueInvoices.length + ' overdue</div>'
-    + '</div>'
-    + '<div class="db-stat-card db-stat-card--week">'
-    + '<div class="db-stat-icon-chip">↗</div>'
-    + '<div class="db-stat-label">This Week</div>'
-    + '<div class="db-stat-val">' + weekAppts.length + '</div>'
-    + '<div class="db-stat-sub">Sessions scheduled</div>'
-    + '</div>'
+  // ── KPI PILL STRIP ────────────────────────────────
+  var outStr       = outstandingAmt > 0 ? ('$' + Math.round(outstandingAmt).toLocaleString('en-AU')) : '$0';
+  var actionPill   = needsActionTotal > 0 ? 'db-kpi-pill--red' : 'db-kpi-pill--teal';
+  var actionSub2   = needsActionTotal > 0 ? needsActionTotal + ' item' + (needsActionTotal !== 1 ? 's' : '') + ' awaiting' : 'all clear ✓';
+  html += '<div class="db-kpi-strip">'
+    + '<button class="db-kpi-pill db-kpi-pill--teal" onclick="navigateTo(\'clients\')">'
+    + '<div class="db-kpi-val">' + stageActive + '</div>'
+    + '<div class="db-kpi-text"><div class="db-kpi-label">Active clients</div><div class="db-kpi-sub">' + weekAppts.length + ' session' + (weekAppts.length !== 1 ? 's' : '') + ' this week</div></div>'
+    + '</button>'
+    + '<div class="db-kpi-sep"></div>'
+    + '<button class="db-kpi-pill ' + actionPill + '" onclick="navigateTo(\'queue\')">'
+    + '<div class="db-kpi-val">' + needsActionTotal + '</div>'
+    + '<div class="db-kpi-text"><div class="db-kpi-label">Needs action</div><div class="db-kpi-sub">' + actionSub2 + '</div></div>'
+    + '</button>'
+    + '<div class="db-kpi-sep"></div>'
+    + '<button class="db-kpi-pill db-kpi-pill--blue" onclick="navigateTo(\'queue\')">'
+    + '<div class="db-kpi-val">' + weekAppts.length + '</div>'
+    + '<div class="db-kpi-text"><div class="db-kpi-label">This week</div><div class="db-kpi-sub">sessions scheduled</div></div>'
+    + '</button>'
+    + '<div class="db-kpi-sep"></div>'
+    + '<button class="db-kpi-pill db-kpi-pill--amber" onclick="navigateTo(\'billing\')">'
+    + '<div class="db-kpi-val">' + outStr + '</div>'
+    + '<div class="db-kpi-text"><div class="db-kpi-label">Outstanding</div><div class="db-kpi-sub">' + (overdueInvoices.length > 0 ? overdueInvoices.length + ' overdue' : 'no overdue invoices') + '</div></div>'
+    + '</button>'
     + '</div>';
 
   // ── TWO-COLUMN GRID ───────────────────────────────
   html += '<div class="db-home-grid">';
   html += '<div class="db-home-main">';
 
-  // Pipeline card
-  var pipeTotal = stageNew + stageTriage + stageIntake + stageActive;
-  function pipeBarH(count, max) {
-    var pct = max > 0 ? Math.max(Math.round((count / max) * 100), count > 0 ? 6 : 0) : 0;
-    return '<div class="db-pipe-h-bar"><div class="db-pipe-h-fill" style="width:' + pct + '%"></div></div>';
-  }
-  html += '<div class="glass db-pipeline-card">'
-    + '<div class="db-pipeline-hd">'
-    + '<span class="db-pipeline-hd-title">Client Pipeline</span>'
-    + '<span class="db-pipeline-hd-total">' + pipeTotal + ' total</span>'
-    + '</div>'
-    + '<div class="db-pipeline-stages-h">'
-    + '<div class="db-pipe-h-stage db-pipe-h-stage--new" onclick="navigateTo(\'queue\')">'
-    + '<div class="db-pipe-h-label">New Leads</div>'
-    + '<div class="db-pipe-h-count">' + stageNew + '</div>'
-    + pipeBarH(stageNew, stageMax)
-    + '</div>'
-    + '<div class="db-pipe-h-stage db-pipe-h-stage--triage" onclick="navigateTo(\'queue\')">'
-    + '<div class="db-pipe-h-label">In Triage</div>'
-    + '<div class="db-pipe-h-count">' + stageTriage + '</div>'
-    + pipeBarH(stageTriage, stageMax)
-    + '</div>'
-    + '<div class="db-pipe-h-stage db-pipe-h-stage--intake" onclick="navigateTo(\'clients\')">'
-    + '<div class="db-pipe-h-label">Intake</div>'
-    + '<div class="db-pipe-h-count">' + stageIntake + '</div>'
-    + pipeBarH(stageIntake, stageMax)
-    + '</div>'
-    + '<div class="db-pipe-h-stage db-pipe-h-stage--active" onclick="navigateTo(\'clients\')">'
-    + '<div class="db-pipe-h-label">Active</div>'
-    + '<div class="db-pipe-h-count">' + stageActive + '</div>'
-    + pipeBarH(stageActive, stageMax)
-    + '</div>'
-    + '</div>'
+  // Inline pipeline strip
+  html += '<div class="db-pipe-inline">'
+    + '<button class="db-pipe-seg db-pipe-seg--new" onclick="navigateTo(\'queue\')">'
+    + '<div class="db-pipe-seg-dot"></div>'
+    + '<div class="db-pipe-seg-val">' + stageNew + '</div>'
+    + '<div class="db-pipe-seg-label">New leads</div>'
+    + '</button>'
+    + '<span class="db-pipe-arrow">→</span>'
+    + '<button class="db-pipe-seg db-pipe-seg--triage" onclick="navigateTo(\'queue\')">'
+    + '<div class="db-pipe-seg-dot"></div>'
+    + '<div class="db-pipe-seg-val">' + stageTriage + '</div>'
+    + '<div class="db-pipe-seg-label">Triage</div>'
+    + '</button>'
+    + '<span class="db-pipe-arrow">→</span>'
+    + '<button class="db-pipe-seg db-pipe-seg--intake" onclick="navigateTo(\'clients\')">'
+    + '<div class="db-pipe-seg-dot"></div>'
+    + '<div class="db-pipe-seg-val">' + stageIntake + '</div>'
+    + '<div class="db-pipe-seg-label">Intake</div>'
+    + '</button>'
+    + '<span class="db-pipe-arrow">→</span>'
+    + '<button class="db-pipe-seg db-pipe-seg--active" onclick="navigateTo(\'clients\')">'
+    + '<div class="db-pipe-seg-dot"></div>'
+    + '<div class="db-pipe-seg-val">' + stageActive + '</div>'
+    + '<div class="db-pipe-seg-label">Active</div>'
+    + '</button>'
     + '</div>';
 
   // Needs Action
@@ -2971,7 +2959,7 @@ function renderHomeView() {
 
   // Today's sessions widget
   var todayLabel = now.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-  html += '<div class="glass db-today-widget">'
+  html += '<div class="db-today-widget">'
     + '<div class="db-today-hd">'
     + '<span class="db-today-hd-label">Today</span>'
     + '<span class="db-today-hd-date">' + todayLabel + '</span>'
@@ -3018,21 +3006,13 @@ function renderHomeView() {
       if (ref.startsWith('Patient/')) nxtPid = ref.replace('Patient/', '');
     });
     var nxtName = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[nxtPid]) || 'Client';
-    html += '<div class="glass db-next-sess-chip">'
+    html += '<div class="db-next-sess-chip">'
       + '<div class="db-nsc-label">Next session</div>'
       + '<div class="db-nsc-name">' + escHtml(nxtName) + '</div>'
       + '<div class="db-nsc-when">' + nxtDay + ' · ' + nxtT + '</div>'
       + '</div>';
   }
 
-  // Quick stats sidebar card
-  html += '<div class="glass db-aside-stats">'
-    + '<div class="db-aside-stat"><div class="db-aside-stat-val" style="color:var(--db-teal)">' + stageActive + '</div><div class="db-aside-stat-label">Active clients</div></div>'
-    + '<div class="db-aside-stat-div"></div>'
-    + '<div class="db-aside-stat"><div class="db-aside-stat-val" style="color:var(--db-amber)">' + (stageNew + stageTriage) + '</div><div class="db-aside-stat-label">In pipeline</div></div>'
-    + '<div class="db-aside-stat-div"></div>'
-    + '<div class="db-aside-stat"><div class="db-aside-stat-val" style="color:var(--db-blue)">' + inProgress.length + '</div><div class="db-aside-stat-label">Awaiting payment</div></div>'
-    + '</div>';
 
   html += '</div>'; // end .db-home-aside
   html += '</div>'; // end .db-home-grid

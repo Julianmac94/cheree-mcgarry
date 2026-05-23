@@ -349,7 +349,7 @@ body { background: #F5F2EE !important; overflow: hidden; height: 100svh; }
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 24px 0 10px;
+  margin: 16px 0 8px;
 }
 .db-sec-title {
   font-size: 10px;
@@ -1340,7 +1340,12 @@ select.db-form-input:focus { background-color: #fff; }
 /* ─────────────────────────────────────────────────────────────────
    TODAY WIDGET  (right sidebar)
 ───────────────────────────────────────────────────────────────── */
-.db-today-widget { overflow: hidden; padding: 0; }
+.db-today-widget {
+  overflow: hidden;
+  padding: 0;
+  background: rgba(42,88,80,0.05);
+  border-radius: var(--db-r);
+}
 .db-today-hd {
   display: flex;
   align-items: center;
@@ -1414,6 +1419,8 @@ select.db-form-input:focus { background-color: #fff; }
 ───────────────────────────────────────────────────────────────── */
 .db-next-sess-chip {
   padding: 13px 16px;
+  background: rgba(42,88,80,0.05);
+  border-radius: var(--db-r);
 }
 .db-nsc-label {
   font-size: 9.5px;
@@ -1465,3 +1472,128 @@ select.db-form-input:focus { background-color: #fff; }
   background: rgba(0,0,0,0.08);
   flex-shrink: 0;
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   KPI PILL STRIP  (home — compact single-line metrics bar)
+───────────────────────────────────────────────────────────────── */
+.db-kpi-strip {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.07);
+  border-radius: var(--db-r);
+  height: 54px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+.db-kpi-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  height: 100%;
+  cursor: pointer;
+  transition: background 0.12s;
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  font-family: 'Inter', system-ui, sans-serif;
+  text-align: left;
+}
+.db-kpi-pill:hover { background: rgba(42,88,80,0.05); }
+.db-kpi-val {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--db-text);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.db-kpi-text { min-width: 0; }
+.db-kpi-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--db-t2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.db-kpi-sub {
+  font-size: 10px;
+  color: var(--db-t3);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.db-kpi-sep {
+  width: 1px;
+  height: 26px;
+  background: rgba(0,0,0,0.08);
+  flex-shrink: 0;
+}
+/* Colour accents */
+.db-kpi-pill--teal  .db-kpi-val { color: var(--db-teal); }
+.db-kpi-pill--amber .db-kpi-val { color: var(--db-amber); }
+.db-kpi-pill--red   .db-kpi-val { color: var(--db-red); }
+.db-kpi-pill--blue  .db-kpi-val { color: var(--db-blue); }
+
+/* ─────────────────────────────────────────────────────────────────
+   INLINE PIPELINE STRIP  (home — thin horizontal flow)
+───────────────────────────────────────────────────────────────── */
+.db-pipe-inline {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 0;
+}
+.db-pipe-seg {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border: none;
+  background: none;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.db-pipe-seg:hover { background: rgba(0,0,0,0.04); }
+.db-pipe-seg-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.db-pipe-seg-val {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.db-pipe-seg-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--db-t2);
+}
+.db-pipe-arrow {
+  font-size: 11px;
+  color: rgba(0,0,0,0.18);
+  padding: 0 4px;
+  flex-shrink: 0;
+  user-select: none;
+}
+/* Stage colour themes */
+.db-pipe-seg--new    .db-pipe-seg-dot { background: var(--db-amber); }
+.db-pipe-seg--new    .db-pipe-seg-val { color: var(--db-amber); }
+.db-pipe-seg--triage .db-pipe-seg-dot { background: var(--db-blue); }
+.db-pipe-seg--triage .db-pipe-seg-val { color: var(--db-blue); }
+.db-pipe-seg--intake .db-pipe-seg-dot { background: var(--db-purple); }
+.db-pipe-seg--intake .db-pipe-seg-val { color: var(--db-purple); }
+.db-pipe-seg--active .db-pipe-seg-dot { background: var(--db-teal); }
+.db-pipe-seg--active .db-pipe-seg-val { color: var(--db-teal); }
