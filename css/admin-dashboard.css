@@ -1706,3 +1706,285 @@ select.db-form-input:focus { background-color: #fff; }
   background: rgba(0,0,0,0.05);
   color: var(--db-t2);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DARK CANVAS — GLASS MORPHISM REDESIGN
+   Mytasky-inspired: deep dark canvas · frosted glass widget surfaces
+   · bright white "pop" cards for content lists
+═══════════════════════════════════════════════════════════════════ */
+
+/* ── Dark mode tokens ── */
+:root {
+  --dk-canvas:      #0D1117;
+  --dk-layer:       #111822;
+  --dk-surface:     rgba(255,255,255,0.055);
+  --dk-surface-hv:  rgba(255,255,255,0.085);
+  --dk-border:      rgba(255,255,255,0.08);
+  --dk-border-hv:   rgba(255,255,255,0.14);
+  --dk-text:        rgba(255,255,255,0.92);
+  --dk-t2:          rgba(255,255,255,0.55);
+  --dk-t3:          rgba(255,255,255,0.30);
+  --dk-sep:         rgba(255,255,255,0.06);
+  /* Vivid accents that read on dark */
+  --dk-teal:        #4ECDC4;
+  --dk-amber:       #F5A623;
+  --dk-blue:        #6BA5F5;
+  --dk-red:         #FF6B6B;
+  --dk-purple:      #B39DFA;
+  --dk-green:       #6BCB77;
+}
+
+/* ── Canvas & shell ── */
+body                                    { background: var(--dk-canvas) !important; }
+.app-shell                              { background: var(--dk-canvas) !important; }
+.app-main                               { background: var(--dk-canvas) !important; }
+.view-content                           { background: transparent !important; }
+.view-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12) !important; }
+
+/* ── Topbar: dark glass ── */
+.app-topbar {
+  background: rgba(13,17,23,0.80) !important;
+  backdrop-filter: blur(20px) saturate(1.5) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.5) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.03) !important;
+}
+.db-topbar-title                        { color: var(--dk-text) !important; }
+.db-topbar-sub                          { color: var(--dk-t2) !important; }
+
+/* Topbar search: dark glass */
+.db-search-wrap {
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.09) !important;
+}
+.db-search-wrap input                   { color: var(--dk-text) !important; }
+.db-search-wrap input::placeholder      { color: var(--dk-t3) !important; }
+
+/* Ghost button on dark */
+.db-btn-ghost {
+  background: rgba(255,255,255,0.07) !important;
+  color: var(--dk-t2) !important;
+  border-color: rgba(255,255,255,0.10) !important;
+}
+.db-btn-ghost:hover {
+  background: rgba(255,255,255,0.11) !important;
+  color: var(--dk-text) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+}
+
+/* Primary button — brighter teal shadow on dark */
+.db-btn-primary {
+  background: #3B9E97 !important;
+  box-shadow: 0 2px 12px rgba(78,205,196,0.28) !important;
+}
+.db-btn-primary:hover { background: #2D8880 !important; }
+
+/* ── Greeting bar ── */
+.db-greeting-line                       { color: var(--dk-text) !important; }
+.db-greeting-accent                     { color: var(--dk-teal) !important; }
+.db-greeting-date                       { color: var(--dk-t3) !important; }
+
+/* ── Quick action buttons (greeting bar) ── */
+.db-qa {
+  background: var(--dk-surface) !important;
+  border-color: var(--dk-border) !important;
+  box-shadow: none !important;
+}
+.db-qa:hover {
+  background: var(--dk-surface-hv) !important;
+  border-color: var(--dk-border-hv) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.30) !important;
+}
+.db-qa-label                            { color: var(--dk-text) !important; }
+.db-qa-sub                              { color: var(--dk-t3) !important; }
+.db-qa-icon                             { background: rgba(255,255,255,0.08) !important; color: var(--dk-t2) !important; }
+.db-qa--teal .db-qa-icon               { background: rgba(78,205,196,0.15) !important; color: var(--dk-teal) !important; }
+.db-qa--blue .db-qa-icon               { background: rgba(107,165,245,0.15) !important; color: var(--dk-blue) !important; }
+.db-qa--amber .db-qa-icon              { background: rgba(245,166,35,0.15) !important; color: var(--dk-amber) !important; }
+.db-qa--purple .db-qa-icon             { background: rgba(179,157,250,0.15) !important; color: var(--dk-purple) !important; }
+
+/* ── KPI pill strip: dark glass ── */
+.db-kpi-strip {
+  background: var(--dk-surface) !important;
+  border: 1px solid var(--dk-border) !important;
+  box-shadow: none !important;
+}
+.db-kpi-pill:hover                      { background: var(--dk-surface-hv) !important; }
+.db-kpi-val                             { color: var(--dk-text) !important; }
+.db-kpi-label                           { color: var(--dk-t2) !important; }
+.db-kpi-sub                             { color: var(--dk-t3) !important; }
+.db-kpi-sep                             { background: var(--dk-border) !important; }
+.db-kpi-pill--teal  .db-kpi-val        { color: var(--dk-teal)   !important; }
+.db-kpi-pill--amber .db-kpi-val        { color: var(--dk-amber)  !important; }
+.db-kpi-pill--red   .db-kpi-val        { color: var(--dk-red)    !important; }
+.db-kpi-pill--blue  .db-kpi-val        { color: var(--dk-blue)   !important; }
+
+/* ── Inline pipeline strip ── */
+.db-pipe-seg:hover                      { background: rgba(255,255,255,0.06) !important; }
+.db-pipe-seg-label                      { color: var(--dk-t2) !important; }
+.db-pipe-arrow                          { color: rgba(255,255,255,0.15) !important; }
+.db-pipe-seg--new    .db-pipe-seg-dot  { background: var(--dk-amber)  !important; }
+.db-pipe-seg--new    .db-pipe-seg-val  { color:      var(--dk-amber)  !important; }
+.db-pipe-seg--triage .db-pipe-seg-dot  { background: var(--dk-blue)   !important; }
+.db-pipe-seg--triage .db-pipe-seg-val  { color:      var(--dk-blue)   !important; }
+.db-pipe-seg--intake .db-pipe-seg-dot  { background: var(--dk-purple) !important; }
+.db-pipe-seg--intake .db-pipe-seg-val  { color:      var(--dk-purple) !important; }
+.db-pipe-seg--active .db-pipe-seg-dot  { background: var(--dk-teal)   !important; }
+.db-pipe-seg--active .db-pipe-seg-val  { color:      var(--dk-teal)   !important; }
+
+/* ── Utility tiles: dark glass ── */
+.db-util-tile {
+  background: var(--dk-surface) !important;
+  border: 1px solid var(--dk-border) !important;
+  box-shadow: none !important;
+}
+.db-util-tile-label                     { color: var(--dk-t3) !important; }
+.db-util-sess-time                      { color: var(--dk-t3) !important; }
+.db-util-sess-name                      { color: var(--dk-text) !important; }
+.db-util-empty                          { color: var(--dk-t3) !important; }
+.db-util-link                           { color: var(--dk-teal) !important; }
+.db-util-sess-mini                      { border-bottom-color: var(--dk-sep) !important; }
+.db-util-qa-btn                         { color: var(--dk-t2) !important; border-bottom-color: var(--dk-sep) !important; }
+.db-util-qa-btn:hover                   { color: var(--dk-text) !important; }
+.db-util-qa-icon                        { background: rgba(255,255,255,0.07) !important; color: var(--dk-t2) !important; }
+
+/* ── Section headers ── */
+.db-sec-title                           { color: var(--dk-t2) !important; }
+.db-sec-divider                         { background: var(--dk-sep) !important; }
+.db-sec-count                           { background: rgba(255,255,255,0.18) !important; color: var(--dk-text) !important; }
+.db-sec-count.urgent                    { background: var(--dk-red) !important; }
+.db-sec-count.info                      { background: var(--dk-teal) !important; color: #fff !important; }
+
+/* ── Lead list: WHITE pop card (Mytasky contrast) ── */
+.db-lead-list {
+  background: #ffffff !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.40), 0 2px 8px rgba(0,0,0,0.20) !important;
+}
+.db-lead-item:hover                     { background: rgba(42,88,80,0.05) !important; }
+.db-lead-item                           { border-bottom-color: rgba(0,0,0,0.05) !important; }
+.db-lead-name                           { color: #192E2A !important; }
+.db-lead-meta                           { color: #4A6B60 !important; }
+.db-lead-age                            { color: #7A948F !important; }
+.db-lead-status                         { color: #2A5850 !important; }
+.db-lead-footer                         { background: rgba(42,88,80,0.03) !important; border-top-color: rgba(0,0,0,0.06) !important; }
+.db-lead-footer-link                    { color: #2A5850 !important; }
+.db-lead-action-btn                     { background: #ffffff !important; color: #4A6B60 !important; border-color: rgba(0,0,0,0.12) !important; }
+.db-lead-action-btn:hover               { background: rgba(42,88,80,0.07) !important; color: #2A5850 !important; }
+
+/* ── Queue card (In Progress): WHITE pop card ── */
+.db-queue-card {
+  background: #ffffff !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.40), 0 2px 8px rgba(0,0,0,0.20) !important;
+}
+.db-q-item:hover                        { background: rgba(42,88,80,0.04) !important; }
+.db-q-item                              { border-bottom-color: rgba(0,0,0,0.05) !important; }
+.db-q-name                              { color: #192E2A !important; }
+.db-q-meta                              { color: #4A6B60 !important; }
+.db-q-dot                               { color: #7A948F !important; }
+
+/* ── Action cards (Needs Action): WHITE pop card ── */
+.ac {
+  background: #ffffff !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.40), 0 2px 8px rgba(0,0,0,0.20) !important;
+}
+.ac-name                                { color: #192E2A !important; }
+.ac-detail                              { color: #4A6B60 !important; }
+.ac-age                                 { color: #7A948F !important; }
+.ac-amount                              { color: #192E2A !important; }
+.ac-foot                                { background: rgba(0,0,0,0.015) !important; }
+
+/* ── Neu / Glass generic cards: dark glass ── */
+.neu, .glass {
+  background: var(--dk-surface) !important;
+  border-color: var(--dk-border) !important;
+  box-shadow: none !important;
+}
+.neu-sm, .glass-sm {
+  background: var(--dk-surface) !important;
+  border-color: var(--dk-border) !important;
+  box-shadow: none !important;
+}
+
+/* ── Detail panel: dark surface ── */
+.db-detail-panel {
+  background: #161D2B !important;
+  border-left-color: rgba(255,255,255,0.07) !important;
+}
+.db-dp-head {
+  background: #161D2B !important;
+  border-bottom-color: var(--dk-sep) !important;
+}
+.db-dp-name                             { color: var(--dk-text) !important; }
+.db-dp-sub                              { color: var(--dk-t2) !important; }
+.db-dp-tabs {
+  background: #161D2B !important;
+  border-bottom-color: var(--dk-sep) !important;
+}
+.db-dp-tab                              { color: var(--dk-t3) !important; }
+.db-dp-tab:hover                        { color: var(--dk-t2) !important; }
+.db-dp-tab.active                       { color: var(--dk-teal) !important; border-bottom-color: var(--dk-teal) !important; }
+.db-dp-body                             { background: var(--dk-canvas) !important; }
+.db-dp-row:nth-child(odd)              { background: rgba(255,255,255,0.04) !important; }
+.db-dp-row-label                        { color: var(--dk-t2) !important; }
+.db-dp-row-val                          { color: var(--dk-text) !important; }
+.db-dp-close                            { background: rgba(255,255,255,0.07) !important; color: var(--dk-t2) !important; border: none !important; }
+.db-dp-close:hover                      { background: rgba(255,255,255,0.12) !important; }
+.db-inv-row                             { background: rgba(255,255,255,0.05) !important; border-color: var(--dk-border) !important; }
+.db-inv-row:hover                       { background: rgba(255,255,255,0.09) !important; }
+.db-inv-amt                             { color: var(--dk-text) !important; }
+.db-inv-meta                            { color: var(--dk-t2) !important; }
+.db-dp-empty                            { color: var(--dk-t3) !important; }
+.db-dp-sec-title                        { color: var(--dk-t3) !important; }
+
+/* ── Clients table: dark surface ── */
+.db-tbl-wrap                            { background: var(--dk-surface) !important; border-radius: var(--db-r) !important; border: 1px solid var(--dk-border) !important; }
+.db-clients-tbl th                      { background: rgba(255,255,255,0.04) !important; color: var(--dk-t3) !important; border-bottom-color: var(--dk-sep) !important; }
+.db-clients-tbl td                      { border-bottom-color: var(--dk-sep) !important; }
+.db-clients-tbl tbody tr:hover          { background: rgba(255,255,255,0.05) !important; }
+.db-clients-tbl tbody tr.sel           { background: rgba(78,205,196,0.10) !important; }
+.db-cl-name                             { color: var(--dk-text) !important; }
+.db-cl-email                            { color: var(--dk-t3) !important; }
+.db-dt                                  { color: var(--dk-t2) !important; }
+.db-dt-up                               { color: var(--dk-teal) !important; }
+.db-dt-none                             { color: var(--dk-t3) !important; }
+.db-amt-amber                           { color: var(--dk-amber) !important; }
+.db-amt-blue                            { color: var(--dk-blue) !important; }
+.db-amt-none                            { color: var(--dk-t3) !important; }
+
+/* ── Badge adjustments for dark bg ── */
+.db-badge-teal                          { background: rgba(78,205,196,0.15) !important; color: var(--dk-teal) !important; }
+.db-badge-amber                         { background: rgba(245,166,35,0.15) !important; color: var(--dk-amber) !important; }
+.db-badge-blue                          { background: rgba(107,165,245,0.15) !important; color: var(--dk-blue) !important; }
+.db-badge-red                           { background: rgba(255,107,107,0.15) !important; color: var(--dk-red) !important; }
+.db-badge-green                         { background: rgba(107,203,119,0.15) !important; color: var(--dk-green) !important; }
+.db-badge-purple                        { background: rgba(179,157,250,0.15) !important; color: var(--dk-purple) !important; }
+.db-badge-grey                          { background: rgba(255,255,255,0.08) !important; color: var(--dk-t2) !important; }
+
+/* ── Upcoming strip cards: dark glass ── */
+.db-uc-card                             { background: var(--dk-surface) !important; border: 1px solid var(--dk-border) !important; box-shadow: none !important; }
+.db-uc-card:hover                       { box-shadow: 0 6px 20px rgba(0,0,0,0.35) !important; }
+.db-uc-day                              { color: var(--dk-t3) !important; }
+.db-uc-date                             { color: var(--dk-text) !important; }
+.db-uc-sep                              { background: var(--dk-sep) !important; }
+.db-uc-name                             { color: var(--dk-text) !important; }
+.db-uc-time                             { color: var(--dk-t2) !important; }
+
+/* ── Modal: keep mostly white (overlays are intentionally light) ── */
+.db-modal-overlay                       { background: rgba(0,0,0,0.70) !important; }
+
+/* ── Empty states ── */
+.db-empty                               { color: var(--dk-t3) !important; }
+
+/* ── Subtle background glow for depth ── */
+body::before {
+  content: '';
+  position: fixed;
+  top: -20%;
+  left: 20%;
+  width: 60vw;
+  height: 60vh;
+  background: radial-gradient(ellipse at center, rgba(78,205,196,0.06) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+.app-shell, .app-main, .view-content, .sidebar { position: relative; z-index: 1; }
