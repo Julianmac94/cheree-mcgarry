@@ -7639,17 +7639,14 @@ function renderFundersView() {
   var content = document.getElementById('view-content');
   if (!content) return;
 
-  var funders  = (_halaxyData && _halaxyData.funders)   || [];
-  var invoices = (_halaxyData && _halaxyData.invoices)  || [];
-  var clients  = (_pipelineData && _pipelineData.clients) || [];
-
-  // Group invoices by funder key — use Halaxy Coverage as source of truth
+  var invoices     = (_halaxyData && _halaxyData.invoices) || [];
   var hxCoverageMap = (_halaxyData && _halaxyData.patientFunderMap) || {};
+
+  // ── Billing stats (from Halaxy data) ──
   var byFunder = {};
   invoices.forEach(function(inv) {
     if (!inv.patientId || inv.status === 'cancelled' || inv.status === 'draft') return;
     var pid = String(inv.patientId);
-    // Priority: Halaxy Coverage → fee name → 'private'
     var fk = (hxCoverageMap[pid] && _mapCoverageToFunderKey(hxCoverageMap[pid]))
           || _guessFunderKey(inv.feeName || '')
           || 'private';
@@ -7662,39 +7659,131 @@ function renderFundersView() {
   });
 
   function fmt(n) { return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function extLink() {
+    return '<svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" style="opacity:0.55;flex-shrink:0;vertical-align:middle;margin-left:3px"><path d="M5 2H2a1 1 0 00-1 1v7a1 1 0 001 1h7a1 1 0 001-1V8M7 1h4m0 0v4m0-4L5.5 6.5"/></svg>';
+  }
 
   var html = '<div class="funders-view">';
   html += '<div class="funders-view-hd"><span class="view-title">Funders</span></div>';
 
-  if (!funders.length && !Object.keys(byFunder).length) {
-    html += '<div class="dp-empty" style="margin-top:40px">No funder data available — run a Halaxy sync in Settings</div>';
+  // ── Billing activity (only if Halaxy data loaded) ──
+  var billingKeys = Object.keys(byFunder).filter(function(k) { return byFunder[k].count > 0; });
+  if (billingKeys.length) {
+    html += '<div class="fv-sec-hdr"><span class="fv-sec-title">Billing Activity</span><div class="fv-sec-divider"></div></div>';
+    html += '<div class="funder-billing-grid">';
+    var allKeys = Object.keys(FUNDER_LABELS);
+    Object.keys(byFunder).forEach(function(k) { if (!allKeys.includes(k)) allKeys.push(k); });
+    allKeys.forEach(function(fk) {
+      var stats = byFunder[fk];
+      if (!stats || !stats.count) return;
+      var label = FUNDER_LABELS[fk] || fk;
+      html += '<div class="funder-billing-card">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div class="funder-billing-name">' + escHtml(label) + '</div>'
+        + '<div class="funder-billing-sub">' + stats.count + ' invoice' + (stats.count !== 1 ? 's' : '') + (stats.paid > 0 ? ' · ' + fmt(stats.paid) + ' paid' : '') + '</div>'
+        + '</div>'
+        + '<div class="funder-billing-stat">'
+        + '<div class="funder-billing-val' + (stats.owing > 0 ? ' owing' : '') + '">' + (stats.owing > 0 ? fmt(stats.owing) : '—') + '</div>'
+        + '<div class="funder-billing-lbl">' + (stats.owing > 0 ? 'outstanding' : 'all clear') + '</div>'
+        + '</div>'
+        + '</div>';
+    });
     html += '</div>';
-    content.innerHTML = html;
-    return;
   }
 
-  // Show all known funders, highlight ones with activity
-  var funderKeys = Object.keys(FUNDER_LABELS);
-  // Add any extra keys from invoice data not in FUNDER_LABELS
-  Object.keys(byFunder).forEach(function(k) { if (!funderKeys.includes(k)) funderKeys.push(k); });
+  // ── Reference cards ──
 
-  funderKeys.forEach(function(fk) {
-    var stats = byFunder[fk] || { owing: 0, paid: 0, count: 0 };
-    if (!stats.count) return; // only show funders with actual invoices
-    var label = FUNDER_LABELS[fk] || fk;
-    html += '<div class="funder-card">'
-      + '<div>'
-      + '<div class="funder-card-name">' + escHtml(label) + '</div>'
-      + '<div class="funder-card-sub">' + stats.count + ' invoice' + (stats.count !== 1 ? 's' : '') + (stats.paid > 0 ? ' · ' + fmt(stats.paid) + ' paid FY' : '') + '</div>'
-      + '</div>'
-      + '<div class="funder-stat">'
-      + '<div class="funder-stat-val' + (stats.owing > 0 ? ' owing' : '') + '">' + (stats.owing > 0 ? fmt(stats.owing) : '—') + '</div>'
-      + '<div class="funder-stat-label">' + (stats.owing > 0 ? 'outstanding' : 'all clear') + '</div>'
-      + '</div>'
-      + '</div>';
-  });
+  // NDIS
+  html += '<div class="fv-sec-hdr"><span class="fv-sec-title">NDIS — Plan Managed</span><div class="fv-sec-divider"></div></div>';
+  html += '<div class="funder-ref-grid">';
 
-  html += '</div>';
+  // Plan Partners
+  html += '<div class="funder-ref-card">'
+    + '<div class="funder-ref-hdr">'
+    + '<div class="funder-ref-icon" style="background:rgba(42,88,80,0.09)">🏢</div>'
+    + '<div><div class="funder-ref-name">Plan Partners</div><div class="funder-ref-sub">NDIS plan manager — portal submission</div></div>'
+    + '</div>'
+    + '<div class="funder-ref-body">'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Portal</span><span class="funder-ref-val"><a href="https://dashboard.planpartners.com.au" target="_blank">dashboard.planpartners.com.au' + extLink() + '</a></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Process</span><span class="funder-ref-val"><div class="funder-ref-process"><strong>Step 1.</strong> Log in to portal<br><strong>Step 2.</strong> Upload invoice for each session</div></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Invoicing</span><span class="funder-ref-val">One invoice at a time</span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Remittance</span><span class="funder-ref-val">Available on portal — check after submission</span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Payment</span><span class="funder-ref-val"><span class="funder-pay-badge">Direct Deposit</span></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Login</span><span class="funder-ref-val" style="color:var(--mid)">reachout@chereemcgarry.com</span></div>'
+    + '</div></div>';
+
+  // In Choice
+  html += '<div class="funder-ref-card">'
+    + '<div class="funder-ref-hdr">'
+    + '<div class="funder-ref-icon" style="background:rgba(42,88,80,0.09)">🏢</div>'
+    + '<div><div class="funder-ref-name">In Choice</div><div class="funder-ref-sub">NDIS plan manager — email via Halaxy</div></div>'
+    + '</div>'
+    + '<div class="funder-ref-body">'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Contact</span><span class="funder-ref-val"><a href="mailto:accounts@inchoice.com.au">accounts@inchoice.com.au</a></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Process</span><span class="funder-ref-val"><div class="funder-ref-process"><strong>Step 1.</strong> Generate invoice in Halaxy<br><strong>Step 2.</strong> Email invoice directly through Halaxy to accounts@inchoice.com.au</div></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Invoicing</span><span class="funder-ref-val">One invoice at a time</span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Remittance</span><span class="funder-ref-val">Emailed by <span style="color:var(--mid)">accounts@inchoice.com.au</span></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Payment</span><span class="funder-ref-val"><span class="funder-pay-badge">Direct Deposit</span></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Login</span><span class="funder-ref-val" style="color:var(--soft)">N/A — email only</span></div>'
+    + '</div></div>';
+
+  html += '</div>'; // /NDIS grid
+
+  // WorkCover
+  html += '<div class="fv-sec-hdr"><span class="fv-sec-title">WorkCover</span><div class="fv-sec-divider"></div></div>';
+  html += '<div class="funder-ref-grid" style="grid-template-columns:minmax(340px,600px)">';
+  html += '<div class="funder-ref-card">'
+    + '<div class="funder-ref-hdr">'
+    + '<div class="funder-ref-icon" style="background:rgba(190,110,68,0.1)">🛡️</div>'
+    + '<div><div class="funder-ref-name">WorkCover Queensland</div><div class="funder-ref-sub">Submit via WorkCover online portal</div></div>'
+    + '</div>'
+    + '<div class="funder-ref-body">'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Portal</span><span class="funder-ref-val"><a href="https://ols.workcoverqld.com.au/ols/login.wc" target="_blank">ols.workcoverqld.com.au' + extLink() + '</a></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Process</span><span class="funder-ref-val"><div class="funder-ref-process"><strong>Step 1.</strong> Generate invoice in Halaxy<br><strong>Step 2.</strong> Submit invoice through the WorkCover online portal</div></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Invoicing</span><span class="funder-ref-val">One invoice at a time</span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Remittance</span><span class="funder-ref-val">Emailed by <span style="color:var(--mid)">info@workcoverqld.com.au</span></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Payment</span><span class="funder-ref-val"><span class="funder-pay-badge">Direct Deposit</span></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Login</span><span class="funder-ref-val" style="color:var(--mid)">reachout@chereemcgarry.com</span></div>'
+    + '</div></div>';
+  html += '</div>'; // /WorkCover grid
+
+  // QFES
+  html += '<div class="fv-sec-hdr"><span class="fv-sec-title">QFES — Employee Assistance</span><div class="fv-sec-divider"></div></div>';
+  html += '<div class="funder-ref-grid" style="grid-template-columns:minmax(340px,600px)">';
+  html += '<div class="funder-ref-card">'
+    + '<div class="funder-ref-hdr">'
+    + '<div class="funder-ref-icon" style="background:rgba(0,0,0,0.05)">🔥</div>'
+    + '<div><div class="funder-ref-name">Queensland Fire &amp; Emergency Services</div><div class="funder-ref-sub">SharePoint form + email with invoice</div></div>'
+    + '</div>'
+    + '<div class="funder-ref-body">'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Portal</span><span class="funder-ref-val"><a href="https://qfes.sharepoint.com/" target="_blank">qfes.sharepoint.com' + extLink() + '</a></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Process</span><span class="funder-ref-val"><div class="funder-ref-process"><strong>Step 1.</strong> Complete the SharePoint reimbursement form<br><strong>Step 2.</strong> Email invoice to <a href="mailto:bso.fessn@fire.qld.gov.au">bso.fessn@fire.qld.gov.au</a> with invoice attached</div></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Invoicing</span><span class="funder-ref-val">Batch all sessions where possible — one at a time is acceptable if needed</span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Remittance</span><span class="funder-ref-val">Emailed by <span style="color:var(--mid)">ecc.eft.remittance@chde.qld.gov.au</span></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Payment</span><span class="funder-ref-val"><span class="funder-pay-badge">Direct Deposit</span></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Login</span><span class="funder-ref-val" style="color:var(--mid)">reachout@chereemcgarry.com</span></div>'
+    + '</div></div>';
+  html += '</div>'; // /QFES grid
+
+  // BUPA / ADFHSC
+  html += '<div class="fv-sec-hdr"><span class="fv-sec-title">BUPA / ADFHSC — Open Arms &amp; DVA</span><div class="fv-sec-divider"></div></div>';
+  html += '<div class="funder-ref-grid" style="grid-template-columns:minmax(340px,600px)">';
+  html += '<div class="funder-ref-card">'
+    + '<div class="funder-ref-hdr">'
+    + '<div class="funder-ref-icon" style="background:rgba(61,111,168,0.1)">⭐</div>'
+    + '<div><div class="funder-ref-name">BUPA / ADFHSC</div><div class="funder-ref-sub">ADF members, families &amp; DVA — portal upload</div></div>'
+    + '</div>'
+    + '<div class="funder-ref-body">'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Portal</span><span class="funder-ref-val"><a href="https://acs.adfhsc.com.au/login/" target="_blank">acs.adfhsc.com.au/login' + extLink() + '</a></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Process</span><span class="funder-ref-val"><div class="funder-ref-process"><strong>Step 1.</strong> Log in to the ADFHSC portal<br><strong>Step 2.</strong> Upload invoice for each session</div></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Invoicing</span><span class="funder-ref-val">One invoice at a time</span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Remittance</span><span class="funder-ref-val">Emailed by <span style="color:var(--mid)">adfhscproviders@bupa.com.au</span></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Payment</span><span class="funder-ref-val"><span class="funder-pay-badge">Direct Deposit</span></span></div>'
+    + '<div class="funder-ref-row"><span class="funder-ref-lbl">Login</span><span class="funder-ref-val" style="color:var(--mid)">cheree.mcgarry@adfhsc.com.au</span></div>'
+    + '</div></div>';
+  html += '</div>'; // /BUPA grid
+
+  html += '</div>'; // /.funders-view
   content.innerHTML = html;
 }
 
