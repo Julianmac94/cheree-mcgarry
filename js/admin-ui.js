@@ -2734,103 +2734,173 @@ function renderHomeView() {
     return daysOld <= threshold;
   }).slice(0, 5);
 
+  // ── Pipeline stage counts ─────────────────────────
+  var stageNew    = enquiries.filter(function(e) { return (e.status || 'new') === 'new'; }).length;
+  var stageTriage = enquiries.filter(function(e) { return e.status === 'triage'; }).length;
+  var stageIntake = enquiries.filter(function(e) { return e.status === 'intake' || e.status === 'scheduled'; }).length
+                  + clients.filter(function(c) { return c.status === 'onboarding'; }).length;
+  var stageActive = clients.filter(function(c) { return c.status === 'active'; }).length;
+  var stageMax    = Math.max(stageNew, stageTriage, stageIntake, stageActive, 1);
+
   // ── Build HTML ────────────────────────────────────
   var html = '';
 
-  // Stats row
-  html += '<div class="db-stats-row">';
-  html += '<div class="glass db-stat-card"><div class="db-stat-label">Active Clients</div><div class="db-stat-val">' + activeClientCount + '</div><div class="db-stat-sub">' + weekAppts.length + ' sessions this week</div></div>';
-  html += '<div class="glass db-stat-card"><div class="db-stat-label">Needs Action</div><div class="db-stat-val" style="color:var(--db-amber)">' + needsActionTotal + '</div><div class="db-stat-sub">Awaiting attention</div></div>';
+  // ── Stats row ─────────────────────────────────────
   var outStr = outstandingAmt > 0 ? ('$' + Math.round(outstandingAmt).toLocaleString('en-AU')) : '$0';
-  html += '<div class="glass db-stat-card"><div class="db-stat-label">Outstanding</div><div class="db-stat-val" style="color:var(--db-blue)">' + outStr + '</div><div class="db-stat-sub">' + overdueInvoices.length + ' overdue</div></div>';
-  html += '<div class="glass db-stat-card"><div class="db-stat-label">This Week</div><div class="db-stat-val" style="color:var(--db-teal)">' + weekAppts.length + '</div><div class="db-stat-sub">Sessions scheduled</div></div>';
-  html += '</div>';
+  var actionClass = needsActionTotal > 0 ? 'db-stat-card--urgent' : 'db-stat-card--ok';
+  html += '<div class="db-stats-row">'
+    + '<div class="db-stat-card db-stat-card--primary">'
+    + '<div class="db-stat-icon-chip">◎</div>'
+    + '<div class="db-stat-label">Active Clients</div>'
+    + '<div class="db-stat-val">' + activeClientCount + '</div>'
+    + '<div class="db-stat-sub">' + weekAppts.length + ' session' + (weekAppts.length !== 1 ? 's' : '') + ' this week</div>'
+    + '</div>'
+    + '<div class="db-stat-card ' + actionClass + '">'
+    + '<div class="db-stat-icon-chip">⚡</div>'
+    + '<div class="db-stat-label">Needs Action</div>'
+    + '<div class="db-stat-val">' + needsActionTotal + '</div>'
+    + '<div class="db-stat-sub">Awaiting attention</div>'
+    + '</div>'
+    + '<div class="db-stat-card db-stat-card--finance">'
+    + '<div class="db-stat-icon-chip">$</div>'
+    + '<div class="db-stat-label">Outstanding</div>'
+    + '<div class="db-stat-val">' + outStr + '</div>'
+    + '<div class="db-stat-sub">' + overdueInvoices.length + ' overdue</div>'
+    + '</div>'
+    + '<div class="db-stat-card db-stat-card--week">'
+    + '<div class="db-stat-icon-chip">↗</div>'
+    + '<div class="db-stat-label">This Week</div>'
+    + '<div class="db-stat-val">' + weekAppts.length + '</div>'
+    + '<div class="db-stat-sub">Sessions scheduled</div>'
+    + '</div>'
+    + '</div>';
+
+  // ── Pipeline stages bar ───────────────────────────
+  function pipeBar(count, max) {
+    var pct = max > 0 ? Math.round((count / max) * 100) : 0;
+    return '<div class="db-pipe-bar"><div class="db-pipe-bar-fill" style="width:' + pct + '%"></div></div>';
+  }
+  html += '<div class="db-pipeline-row">'
+    + '<div class="db-pipe-stage db-pipe-stage--new" onclick="navigateTo(\'queue\')">'
+    + '<div class="db-pipe-label">New Enquiries</div>'
+    + '<div class="db-pipe-count">' + stageNew + '</div>'
+    + pipeBar(stageNew, stageMax)
+    + '</div>'
+    + '<div class="db-pipe-stage db-pipe-stage--triage" onclick="navigateTo(\'queue\')">'
+    + '<div class="db-pipe-label">In Triage</div>'
+    + '<div class="db-pipe-count">' + stageTriage + '</div>'
+    + pipeBar(stageTriage, stageMax)
+    + '</div>'
+    + '<div class="db-pipe-stage db-pipe-stage--intake" onclick="navigateTo(\'clients\')">'
+    + '<div class="db-pipe-label">Intake / Onboarding</div>'
+    + '<div class="db-pipe-count">' + stageIntake + '</div>'
+    + pipeBar(stageIntake, stageMax)
+    + '</div>'
+    + '<div class="db-pipe-stage db-pipe-stage--active" onclick="navigateTo(\'clients\')">'
+    + '<div class="db-pipe-label">Active Clients</div>'
+    + '<div class="db-pipe-count">' + stageActive + '</div>'
+    + pipeBar(stageActive, stageMax)
+    + '</div>'
+    + '</div>';
 
   // ── NEEDS ACTION section ──────────────────────────
   if (needsActionTotal > 0) {
     html += '<div class="db-sec-hdr"><div class="db-sec-title">Needs Action</div><div class="db-sec-count urgent">' + needsActionTotal + '</div><div class="db-sec-divider"></div></div>';
-    html += '<div class="action-folder">';
 
-    // New enquiry cards
-    newEnquiries.forEach(function(e) {
-      var name = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
-      var av   = avColor(name);
-      var ini  = initials(name);
-      var age  = timeAgo(e.created_at);
-      var src  = e.source ? '<span class="db-badge db-badge-grey" style="font-size:10px">' + escHtml(e.source) + '</span>' : '';
-      html += '<div class="ac" onclick="openDetailPanel(\'enquiry\',\'' + escHtml(e.id) + '\')">'
-        + '<div class="ac-head is-red"><div class="ac-pip red"></div><div class="ac-type red">New Enquiry</div><div class="ac-age">' + age + '</div></div>'
-        + '<div class="ac-body">'
-        + '<div class="ac-av ' + av + '">' + ini + '</div>'
-        + '<div class="ac-content">'
-        + '<div class="ac-name">' + escHtml(name) + ' ' + src + '</div>'
-        + '<div class="ac-detail">' + escHtml(e.email || '') + (e.reason ? '<br>Reason: ' + escHtml(e.reason) : '') + ' · No reply sent yet</div>'
-        + '</div>'
-        + '</div>'
-        + '<div class="ac-foot">'
-        + '<button class="btn-ac primary red" onclick="event.stopPropagation();window.location=\'mailto:' + encodeURIComponent(e.email || '') + '\'">Reply by email</button>'
-        + '<button class="btn-ac soft" onclick="event.stopPropagation()">Log note</button>'
-        + '<button class="btn-ac-link" onclick="event.stopPropagation();openDetailPanel(\'enquiry\',\'' + escHtml(e.id) + '\')">View profile →</button>'
-        + '</div>'
+    // New enquiries — compact lead feed
+    if (newEnquiries.length > 0) {
+      html += '<div class="glass db-lead-list">';
+      newEnquiries.forEach(function(e) {
+        var name = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
+        var av   = avColor(name);
+        var ini  = initials(name);
+        var age  = timeAgo(e.created_at);
+        var src  = e.source ? '<span class="db-badge db-badge-grey">' + escHtml(e.source) + '</span>' : '';
+        var reason = e.reason ? escHtml(e.reason) : 'No reason specified';
+        html += '<div class="db-lead-item" onclick="openDetailPanel(\'enquiry\',\'' + escHtml(e.id) + '\')">'
+          + '<div class="db-lead-av ' + av + '">' + ini + '</div>'
+          + '<div class="db-lead-body">'
+          + '<div class="db-lead-name">' + escHtml(name) + ' ' + src + '</div>'
+          + '<div class="db-lead-meta">' + escHtml(e.email || '—') + ' · ' + reason + '</div>'
+          + '</div>'
+          + '<div class="db-lead-right">'
+          + '<div class="db-lead-age">' + age + '</div>'
+          + '<div class="db-lead-status"><span class="db-lead-status-dot"></span>New</div>'
+          + '</div>'
+          + '<div class="db-lead-actions-inline">'
+          + '<button class="db-lead-action-btn db-lead-action-btn--reply" onclick="event.stopPropagation();window.location=\'mailto:' + encodeURIComponent(e.email || '') + '\'">Reply</button>'
+          + '</div>'
+          + '</div>';
+      });
+      html += '<div class="db-lead-footer">'
+        + '<span style="font-size:12px;color:var(--db-t2)">' + newEnquiries.length + ' new enquir' + (newEnquiries.length !== 1 ? 'ies' : 'y') + ' awaiting reply</span>'
+        + '<button class="db-lead-footer-link" onclick="navigateTo(\'queue\')">View all in Inbox →</button>'
         + '</div>';
-    });
+      html += '</div>';
+    }
 
-    // Overdue invoice cards
-    overdueInvoices.forEach(function(inv) {
-      var patientId = inv.patientId || '';
-      var patName   = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId])
-                    || (patientId ? 'Client #' + patientId : 'Client');
-      var av        = avColor(patName);
-      var ini       = initials(patName);
-      var _invAmt   = inv.totalBalance != null ? inv.totalBalance : inv.amount;
-      var amt       = _invAmt != null ? '$' + parseFloat(_invAmt).toFixed(0) : '$0';
-      var daysOld   = inv.date ? Math.round((Date.now() - new Date(inv.date).getTime()) / 86400000) : 0;
-      var funder    = inv.payorOrg || inv.funder || 'Invoice';
-      html += '<div class="ac" onclick="navigateTo(\'billing\')">'
-        + '<div class="ac-head is-amber"><div class="ac-pip amber"></div><div class="ac-type amber">' + escHtml(funder) + ' — Invoice Outstanding</div><div class="ac-age">' + daysOld + ' days old</div></div>'
-        + '<div class="ac-body">'
-        + '<div class="ac-av ' + av + '">' + ini + '</div>'
-        + '<div class="ac-content">'
-        + '<div class="ac-name">' + escHtml(patName) + ' ' + funderBadge(inv.funder || funder) + '</div>'
-        + '<div class="ac-detail">Invoice #' + escHtml(inv.ref || inv.id || '') + ' · Expected payment window exceeded</div>'
-        + '</div>'
-        + '<div class="ac-amount">' + amt + '</div>'
-        + '</div>'
-        + '<div class="ac-foot">'
-        + '<button class="btn-ac primary amber" onclick="event.stopPropagation();navigateTo(\'billing\')">Chase funder</button>'
-        + '<button class="btn-ac soft" onclick="event.stopPropagation()">Mark as paid</button>'
-        + '<button class="btn-ac-link" onclick="event.stopPropagation();navigateTo(\'billing\')">View billing →</button>'
-        + '</div>'
+    // Overdue invoice cards — compact list
+    if (overdueInvoices.length > 0) {
+      html += '<div class="glass db-lead-list">';
+      overdueInvoices.forEach(function(inv) {
+        var patientId = inv.patientId || '';
+        var patName   = (_halaxyData && _halaxyData.patientMap && _halaxyData.patientMap[patientId])
+                      || (patientId ? 'Client #' + patientId : 'Client');
+        var av        = avColor(patName);
+        var ini       = initials(patName);
+        var _invAmt   = inv.totalBalance != null ? inv.totalBalance : inv.amount;
+        var amt       = _invAmt != null ? '$' + parseFloat(_invAmt).toFixed(0) : '$0';
+        var daysOld   = inv.date ? Math.round((Date.now() - new Date(inv.date).getTime()) / 86400000) : 0;
+        var funder    = inv.payorOrg || inv.funder || 'Invoice';
+        html += '<div class="db-lead-item" onclick="navigateTo(\'billing\')">'
+          + '<div class="db-lead-av ' + av + '">' + ini + '</div>'
+          + '<div class="db-lead-body">'
+          + '<div class="db-lead-name">' + escHtml(patName) + ' ' + funderBadge(inv.funder || funder) + '</div>'
+          + '<div class="db-lead-meta">Invoice #' + escHtml(inv.ref || inv.id || '') + ' · Payment window exceeded</div>'
+          + '</div>'
+          + '<div class="db-lead-right">'
+          + '<div class="db-lead-age" style="font-size:13px;font-weight:700;color:var(--db-amber)">' + amt + '</div>'
+          + '<div class="db-lead-status" style="color:var(--db-amber)"><span class="db-lead-status-dot"></span>' + daysOld + ' days old</div>'
+          + '</div>'
+          + '<div class="db-lead-actions-inline">'
+          + '<button class="db-lead-action-btn db-lead-action-btn--amber" onclick="event.stopPropagation();navigateTo(\'billing\')">Chase</button>'
+          + '</div>'
+          + '</div>';
+      });
+      html += '<div class="db-lead-footer">'
+        + '<span style="font-size:12px;color:var(--db-t2)">' + overdueInvoices.length + ' overdue invoice' + (overdueInvoices.length !== 1 ? 's' : '') + '</span>'
+        + '<button class="db-lead-footer-link" onclick="navigateTo(\'billing\')">View billing →</button>'
         + '</div>';
-    });
+      html += '</div>';
+    }
 
-    // Needs Halaxy setup cards
-    needsSetup.forEach(function(c) {
-      var name   = c.display_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Client';
-      var av     = avColor(name);
-      var ini    = initials(name);
-      var funder = c.funder_type || 'TBC';
-      html += '<div class="ac" onclick="renderClientDetailView(\'' + escHtml(c.id || '') + '\')">'
-        + '<div class="ac-head is-amber"><div class="ac-pip amber"></div><div class="ac-type amber">Intake — Halaxy Setup Required</div><div class="ac-age">Not yet linked</div></div>'
-        + '<div class="ac-body">'
-        + '<div class="ac-av ' + av + '">' + ini + '</div>'
-        + '<div class="ac-content">'
-        + '<div class="ac-name">' + escHtml(name) + ' <span class="db-badge db-badge-grey" style="font-size:10px">' + escHtml(funder) + '</span></div>'
-        + '<div class="ac-detail">Not yet created in Halaxy · Funder unknown — confirm at intake</div>'
-        + '</div>'
-        + '</div>'
-        + '<div class="ac-foot">'
-        + '<button class="btn-ac primary" onclick="event.stopPropagation();renderClientDetailView(\'' + escHtml(c.id || '') + '\')">Link to Halaxy</button>'
-        + '<button class="btn-ac soft" onclick="event.stopPropagation()">Create patient</button>'
-        + '<button class="btn-ac-link" onclick="event.stopPropagation();renderClientDetailView(\'' + escHtml(c.id || '') + '\')">View profile →</button>'
-        + '</div>'
+    // Needs Halaxy setup — compact list
+    if (needsSetup.length > 0) {
+      html += '<div class="glass db-lead-list">';
+      needsSetup.forEach(function(c) {
+        var name   = c.display_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Client';
+        var av     = avColor(name);
+        var ini    = initials(name);
+        var funder = c.funder_type || 'TBC';
+        html += '<div class="db-lead-item" onclick="renderClientDetailView(\'' + escHtml(c.id || '') + '\')">'
+          + '<div class="db-lead-av ' + av + '">' + ini + '</div>'
+          + '<div class="db-lead-body">'
+          + '<div class="db-lead-name">' + escHtml(name) + ' <span class="db-badge db-badge-grey">' + escHtml(funder) + '</span></div>'
+          + '<div class="db-lead-meta">Not yet in Halaxy — confirm funder at intake</div>'
+          + '</div>'
+          + '<div class="db-lead-right">'
+          + '<div class="db-lead-status" style="color:var(--db-blue)"><span class="db-lead-status-dot"></span>Setup needed</div>'
+          + '</div>'
+          + '<div class="db-lead-actions-inline">'
+          + '<button class="db-lead-action-btn" onclick="event.stopPropagation();renderClientDetailView(\'' + escHtml(c.id || '') + '\')">Link</button>'
+          + '</div>'
+          + '</div>';
+      });
+      html += '<div class="db-lead-footer">'
+        + '<span style="font-size:12px;color:var(--db-t2)">Halaxy setup pending</span>'
+        + '<button class="db-lead-footer-link" onclick="navigateTo(\'clients\')">View clients →</button>'
         + '</div>';
-    });
-
-    html += '</div>'; // action-folder
-
-    if (needsActionTotal === 0) {
-      html = html.replace('<div class="action-folder"></div>', '');
+      html += '</div>';
     }
   }
 
