@@ -1575,3 +1575,169 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .m-merge-date  { font-size: 11px; color: var(--teal); font-weight: 500; }
 .m-merge-badge { font-size: 10px; color: var(--t3); margin-top: 1px; }
 .m-merge-arr   { color: var(--t3); font-size: 14px; margin-left: auto; }
+
+/* ══ Dark settings overrides ══════════════════════════════════════════ */
+.settings-view { max-width: 640px !important; }
+.settings-section {
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  border-radius: 16px !important;
+  box-shadow: none !important;
+  padding: 20px !important;
+  margin-bottom: 14px !important;
+}
+.settings-section-title {
+  color: var(--t2) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  margin-bottom: 14px !important;
+}
+.settings-row {
+  border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+}
+.settings-row-label { color: var(--t1) !important; font-size: 13px !important; }
+.settings-row-val   { color: var(--t3) !important; font-size: 12px !important; }
+.settings-row-action a,
+.settings-row-action button {
+  background: rgba(255,255,255,0.06) !important;
+  color: var(--t2) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  padding: 5px 12px !important;
+  text-decoration: none !important;
+  transition: background 0.15s !important;
+}
+.settings-row-action a:hover,
+.settings-row-action button:hover {
+  background: rgba(255,255,255,0.10) !important;
+  color: var(--t1) !important;
+}
+
+/* Danger zone section */
+.settings-danger-section {
+  border-color: rgba(248,113,113,0.15) !important;
+  background: rgba(248,113,113,0.04) !important;
+}
+.settings-danger-title { color: var(--red) !important; opacity: 0.8; }
+.settings-danger-desc {
+  font-size: 12.5px; color: var(--t3); line-height: 1.6; margin-bottom: 16px;
+}
+.settings-danger-confirm { display: flex; flex-direction: column; gap: 10px; }
+.settings-danger-input {
+  padding: 10px 14px; border-radius: 10px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(248,113,113,0.20);
+  color: var(--t1); font-family: inherit; font-size: 13px; color-scheme: dark;
+  width: 100%; box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.settings-danger-input:focus { outline: none; border-color: rgba(248,113,113,0.50); }
+.settings-danger-input::placeholder { color: rgba(255,255,255,0.20); }
+.settings-danger-btn {
+  padding: 11px 16px; border-radius: 10px;
+  background: rgba(248,113,113,0.10); border: 1px solid rgba(248,113,113,0.25);
+  color: var(--red); font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s, opacity 0.15s;
+  width: 100%;
+}
+.settings-danger-btn:not(:disabled):hover { background: rgba(248,113,113,0.18); }
+.settings-danger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ══ Mobile — dark bottom nav + responsive layout ═════════════════════
+   Overrides the light-themed bottom-nav and fixes layout for ≤768px. */
+@media (max-width: 768px) {
+  /* Dark bottom nav */
+  .bottom-nav {
+    background: rgba(6,10,22,0.96) !important;
+    border-top: 1px solid rgba(255,255,255,0.07) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    height: 60px !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  }
+  .bn-item { color: rgba(255,255,255,0.28) !important; font-size: 9.5px !important; }
+  .bn-item.active { color: var(--teal) !important; }
+  .bn-icon { font-size: 20px !important; }
+
+  /* View content — tighter on mobile */
+  .view-content { padding: 14px 14px 82px !important; }
+
+  /* Home view heading */
+  .home-view, .queue-view, .clients-view, .billing-view, .settings-view {
+    padding: 14px 0 82px !important;
+  }
+
+  /* Bento grid — single column on mobile */
+  .dh-bento {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .dh-b-3, .dh-b-4, .dh-b-5, .dh-b-6, .dh-b-7, .dh-b-8 {
+    grid-column: span 1 !important;
+  }
+
+  /* Stats row — 2×2 on mobile */
+  .dh-stats-row { grid-template-columns: repeat(2,1fr) !important; gap: 10px !important; }
+
+  /* Week strip — smaller text */
+  .dh-wd-name { font-size: 8px !important; letter-spacing: 0.06em !important; }
+  .dh-wd-num  { font-size: 13px !important; }
+  .dh-week-strip { padding: 12px 12px 10px !important; gap: 1px !important; }
+
+  /* Schedule rows */
+  .dh-sched-row { padding: 9px 14px !important; }
+  .dh-sched-name { font-size: 13px !important; }
+
+  /* Attention cards */
+  .dh-attn-item { padding: 10px 14px !important; }
+
+  /* Pipeline / queue */
+  .dh-sched-card, .dh-attn-card { border-radius: 16px !important; }
+
+  /* Stat cards */
+  .dh-stat { border-radius: 16px !important; padding: 16px !important; }
+  .dh-stat-val { font-size: 28px !important; }
+
+  /* Modal — full-width on small screens */
+  .modal-overlay { padding: 10px 6px !important; align-items: flex-end !important; }
+  .modal-card {
+    max-width: 100% !important;
+    max-height: 88dvh !important;
+    border-radius: 20px 20px 14px 14px !important;
+  }
+
+  /* Settings */
+  .settings-view { padding-left: 0 !important; padding-right: 0 !important; }
+  .settings-section { border-radius: 12px !important; }
+  .settings-danger-confirm { flex-direction: column !important; }
+
+  /* Client list */
+  .cl-list { padding: 8px 0 82px !important; }
+  .cl-list-hd { padding: 12px 14px 10px !important; }
+
+  /* Pipeline board — scroll horizontally if needed */
+  .dkb-board {
+    grid-template-columns: repeat(2,1fr) !important;
+    gap: 10px !important;
+  }
+
+  /* Queue items */
+  .q-item { padding: 10px 14px !important; }
+
+  /* View title */
+  .view-title { font-size: 22px !important; }
+
+  /* Topbar — show on mobile with minimal info */
+  .app-topbar {
+    display: none !important;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 390px) {
+  .dh-stats-row { grid-template-columns: 1fr !important; }
+  .dkb-board { grid-template-columns: 1fr !important; }
+  .view-content { padding: 12px 12px 82px !important; }
+}

@@ -4795,6 +4795,7 @@ function renderSettingsView() {
   var halaxyOk = _halaxyData && _halaxyData.connected;
   var calOk = _calEventsLoaded;
   var html = '<div class="settings-view"><span class="view-title" style="display:block;margin-bottom:22px">Settings</span>';
+
   // Connections
   html += '<div class="settings-section"><div class="settings-section-title">Connections</div>';
   html += '<div class="settings-row"><span class="settings-row-label">Halaxy</span><span class="settings-row-val">' + (halaxyOk ? '✓ Connected' : '✗ Not connected') + '</span>'
@@ -4802,19 +4803,55 @@ function renderSettingsView() {
   html += '<div class="settings-row"><span class="settings-row-label">Google Calendar</span><span class="settings-row-val">' + (calOk ? '✓ Connected' : 'Not connected') + '</span>'
     + '<div class="settings-row-action"><a href="/api/google-auth">Reconnect</a></div></div>';
   html += '</div>';
+
   // Account
   html += '<div class="settings-section"><div class="settings-section-title">Account</div>';
   html += '<div class="settings-row"><span class="settings-row-label">Signed in as</span><span class="settings-row-val">' + escHtml(window.ADMIN_USER || 'Julian') + '</span></div>';
   html += '<div class="settings-row"><span class="settings-row-label">Session</span><span class="settings-row-val"></span><div class="settings-row-action"><a href="/admin?logout=1">Sign out</a></div></div>';
   html += '</div>';
+
   // Website links
   html += '<div class="settings-section"><div class="settings-section-title">Website</div>';
   html += '<div class="settings-row"><span class="settings-row-label">View site</span><span class="settings-row-val">chereemcgarry.com</span><div class="settings-row-action"><a href="/" target="_blank">Open ↗</a></div></div>';
   html += '<div class="settings-row"><span class="settings-row-label">Email history</span><span class="settings-row-val">Resend</span><div class="settings-row-action"><a href="https://resend.com/emails" target="_blank">Open ↗</a></div></div>';
   html += '<div class="settings-row"><span class="settings-row-label">Practice management</span><span class="settings-row-val">Halaxy</span><div class="settings-row-action"><a href="https://www.halaxy.com/practitioner" target="_blank">Open ↗</a></div></div>';
   html += '</div>';
+
+  // Danger zone
+  html += '<div class="settings-section settings-danger-section">';
+  html += '<div class="settings-section-title settings-danger-title">Danger zone</div>';
+  html += '<div class="settings-danger-desc">Reset clears all manually-entered dashboard data — enquiries, clients, sessions, tasks, and activity logs. '
+    + 'Halaxy appointments and Google Calendar events are fetched live and will reappear automatically. '
+    + 'Your Google Calendar connection and settings are not affected.</div>';
+  html += '<div class="settings-danger-confirm">'
+    + '<input class="settings-danger-input" id="reset-confirm-input" type="text" placeholder="Type RESET to confirm" autocomplete="off" oninput="document.getElementById(\'reset-btn\').disabled = this.value !== \'RESET\'">'
+    + '<button class="settings-danger-btn" id="reset-btn" disabled onclick="_resetDashboardData()">Reset dashboard data</button>'
+    + '</div>';
+  html += '</div>';
+
   html += '</div>';
   content.innerHTML = html;
+}
+
+async function _resetDashboardData() {
+  var inp = document.getElementById('reset-confirm-input');
+  if (!inp || inp.value !== 'RESET') return;
+  var btn = document.getElementById('reset-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Resetting…'; }
+  try {
+    var result = await apiFetch('/api/admin-reset', { method: 'POST', body: { confirm: 'RESET' } });
+    var d = result.deleted || {};
+    toast('Reset complete — ' + ((d.enquiries || 0) + (d.clients || 0) + (d.sessions || 0) + (d.tasks || 0)) + ' records removed');
+    _pipelineData  = null;
+    _dhTasks       = [];
+    _dhAppts       = [];
+    _dhEnqClientMap = {};
+    loadPipeline();
+    renderHomeView();
+  } catch (e) {
+    toast('Reset failed: ' + e.message, 'err');
+    if (btn) { btn.disabled = false; btn.textContent = 'Reset dashboard data'; }
+  }
 }
 
 /* ═══════════════════════════════════════════════════
