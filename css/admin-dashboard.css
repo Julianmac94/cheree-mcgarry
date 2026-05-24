@@ -1188,28 +1188,26 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   position: relative;
   z-index: 2; /* tab above card so ::after (also z-index:2) renders above card border */
 }
-/* Concave notch at the bottom-right of the tab.
-   Every fill-based approach fails because body::before has a radial
-   gradient — no flat colour ever matches it perfectly, leaving a
-   visible dark box in the canvas area.
-   Solution: draw ONLY the arc border (1px, same colour as the card
-   border) using a radial-gradient. Everything else stays transparent
-   so the canvas gradient shows through unobstructed. */
+/* Concave notch — quadratic bezier arc via inline SVG background.
+   No fill at all: the canvas gradient shows through everywhere except
+   the 1.5px stroke that traces the curve.
+   Element sits in the canvas area just above the card, to the right
+   of the tab. Its TL corner (0,0) aligns with the tab's right border
+   at 20px above the junction; its BL corner (0,20) is the junction
+   itself; its BR corner (20,20) sits on the card's top surface.
+   The bezier M 0 0 Q 0 20 20 20 sweeps from the tab border through
+   the junction and lands on the card border — exactly the concave
+   arc in the reference. */
 .dh-fold-tab::after {
   content: '';
   position: absolute;
-  bottom: 0;      /* element's bottom sits at tab-bottom = card-top = junction y */
-  right: -16px;   /* element's left sits at tab-right = junction x */
-  width: 16px;
-  height: 16px;
-  /* Circle centred at bottom-left (0% 100%) = the exact junction point.
-     transparent 0–12px | 1px arc ring at card-border colour | transparent beyond */
-  background: radial-gradient(
-    circle at 0% 100%,
-    transparent 12px,
-    rgba(255,255,255,0.09) 12px 13px,
-    transparent 13px
-  );
+  bottom: 0;      /* element bottom = tab bottom = card top */
+  right: -20px;   /* element left = tab right */
+  width: 20px;
+  height: 20px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='-1%20-1%2022%2022'%3E%3Cpath d='M%200%200%20Q%200%2020%2020%2020' fill='none' stroke='white' stroke-opacity='0.09' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-size: 20px 20px;
+  background-repeat: no-repeat;
   pointer-events: none;
   z-index: 2;
 }
