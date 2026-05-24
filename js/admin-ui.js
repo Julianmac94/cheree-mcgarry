@@ -486,6 +486,13 @@ document.addEventListener('click', function(e) {
     var res = document.getElementById('db-ap-hx-results');
     if (res) { res.innerHTML = ''; res.style.display = 'none'; }
   }
+  // Close date/time picker popups if clicking outside
+  if (!e.target.closest('.cdp-wrap') && !e.target.closest('.cdp-popup')) {
+    document.querySelectorAll('.cdp-popup').forEach(function(p) { p.style.display = 'none'; });
+  }
+  if (!e.target.closest('.ctp-wrap') && !e.target.closest('.ctp-popup')) {
+    document.querySelectorAll('.ctp-popup').forEach(function(p) { p.style.display = 'none'; });
+  }
 });
 
 var FUNDER_LABELS = {
@@ -879,7 +886,27 @@ function _cdpToggle(inputId) {
   if (!popup) return;
   var isHidden = popup.style.display === 'none' || !popup.style.display;
   document.querySelectorAll('.cdp-popup, .ctp-popup').forEach(function(p) { p.style.display = 'none'; });
-  if (isHidden) popup.style.display = 'block';
+  if (isHidden) {
+    var btn = document.querySelector('#' + inputId + '-cdp .cdp-btn');
+    if (btn) {
+      var r = btn.getBoundingClientRect();
+      var pw = Math.max(242, Math.min(r.width, 280));
+      var ph = 290; // approx popup height
+      popup.style.position = 'fixed';
+      popup.style.width = pw + 'px';
+      var left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
+      popup.style.left = left + 'px';
+      popup.style.right = 'auto';
+      if (window.innerHeight - r.bottom - 8 >= ph || r.top < ph) {
+        popup.style.top = (r.bottom + 4) + 'px';
+        popup.style.bottom = 'auto';
+      } else {
+        popup.style.top = 'auto';
+        popup.style.bottom = (window.innerHeight - r.top + 4) + 'px';
+      }
+    }
+    popup.style.display = 'block';
+  }
 }
 
 function _ctpFormatDisplay(val) {
@@ -919,6 +946,24 @@ function _ctpToggle(inputId) {
   var isHidden = popup.style.display === 'none' || !popup.style.display;
   document.querySelectorAll('.cdp-popup, .ctp-popup').forEach(function(p) { p.style.display = 'none'; });
   if (isHidden) {
+    var btn = document.querySelector('#' + inputId + '-ctp .ctp-btn');
+    if (btn) {
+      var r = btn.getBoundingClientRect();
+      var pw = 160;
+      var ph = 240; // approx popup height
+      popup.style.position = 'fixed';
+      popup.style.width = pw + 'px';
+      var left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
+      popup.style.left = left + 'px';
+      popup.style.right = 'auto';
+      if (window.innerHeight - r.bottom - 8 >= ph || r.top < ph) {
+        popup.style.top = (r.bottom + 4) + 'px';
+        popup.style.bottom = 'auto';
+      } else {
+        popup.style.top = 'auto';
+        popup.style.bottom = (window.innerHeight - r.top + 4) + 'px';
+      }
+    }
     popup.style.display = 'block';
     // Scroll to selected
     setTimeout(function() {

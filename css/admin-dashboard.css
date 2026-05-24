@@ -1187,19 +1187,22 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   box-shadow: none;
   position: relative; /* needed for ::after notch */
 }
-/* Concave notch where tab's right edge meets the card below */
+/* Concave notch where tab's right edge meets the card below.
+   Uses the card fill colour — its rounded top-left corner reveals
+   the canvas behind, producing the correct concave arc. */
 .dh-fold-tab::after {
   content: '';
   position: absolute;
-  bottom: -1px; /* sit flush with card top */
-  right: -13px;
-  width: 13px;
+  bottom: -13px;            /* element starts exactly at tab's bottom edge */
+  right:  -13px;            /* element starts exactly at tab's right edge  */
+  width:  13px;
   height: 13px;
-  background: rgba(8,12,24,0.55); /* match tab/card surface */
-  border-top-left-radius: 11px;   /* creates the concave curve */
-  border-left: 1px solid rgba(255,255,255,0.09); /* match card border */
+  background: rgba(13,19,38,0.97); /* matches --gc card colour */
+  border-top-left-radius: 11px;    /* concave arc: reveals canvas at top-left */
+  border-top:  1px solid rgba(255,255,255,0.09);
+  border-left: 1px solid rgba(255,255,255,0.09);
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 .dh-fold-tab svg { opacity: 0.65; }
 .dh-fold-tab .dh-fold-badge {
@@ -2034,9 +2037,7 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .cdp-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
 .cdp-btn svg { opacity: 0.55; flex-shrink: 0; }
 .cdp-popup {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
+  position: fixed; /* overridden to fixed by JS for clip-proof placement */
   z-index: 9999;
   background: rgba(13,19,38,0.98);
   border: 1px solid rgba(255,255,255,0.12);
@@ -2106,9 +2107,7 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .ctp-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
 .ctp-btn svg { opacity: 0.55; flex-shrink: 0; }
 .ctp-popup {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
+  position: fixed; /* overridden to fixed by JS for clip-proof placement */
   z-index: 9999;
   background: rgba(13,19,38,0.98);
   border: 1px solid rgba(255,255,255,0.12);
@@ -2166,6 +2165,6 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   transition: all 0.15s; text-align: center;
 }
 .arm-prio-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); }
-.arm-prio-btn.active[data-p="low"]    { background: rgba(52,211,153,0.12);  color: var(--teal);   border-color: rgba(52,211,153,0.3); }
-.arm-prio-btn.active[data-p="medium"] { background: rgba(251,191,36,0.12);  color: var(--amber);  border-color: rgba(251,191,36,0.3); }
-.arm-prio-btn.active[data-p="high"]   { background: rgba(248,113,113,0.12); color: var(--red);    border-color: rgba(248,113,113,0.3); }
+.arm-prio-btn.active[data-prio="low"]    { background: rgba(52,211,153,0.12);  color: var(--teal);   border-color: rgba(52,211,153,0.3); }
+.arm-prio-btn.active[data-prio="medium"] { background: rgba(251,191,36,0.12);  color: var(--amber);  border-color: rgba(251,191,36,0.3); }
+.arm-prio-btn.active[data-prio="high"]   { background: rgba(248,113,113,0.12); color: var(--red);    border-color: rgba(248,113,113,0.3); }
