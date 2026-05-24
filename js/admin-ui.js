@@ -2225,7 +2225,8 @@ function updateSidebarBadge() {
 }
 
 /* ── Mobile intro animation ─────────────────────────────────── */
-var _mobIntroRan = false;
+var _mobIntroRan    = false;
+var _mobAnimRunning = false; /* true while the intro animation sequence is in-flight */
 
 /** Typewrite `text` into `el` character by character, then call `cb`. */
 function _mobTypewriter(el, text, cb, speed) {
@@ -2268,12 +2269,15 @@ function _mobAnimHeader() {
   if (!greetingEl) {
     if (dateEl) _mobSlideIn(dateEl, 0);
     if (metaEl) _mobSlideIn(metaEl, 120);
+    _mobAnimRunning = false;
     return;
   }
   var fullGreeting = greetingEl.textContent;
   _mobTypewriter(greetingEl, fullGreeting, function() {
     if (dateEl) _mobSlideIn(dateEl, 60);
     if (metaEl) _mobSlideIn(metaEl, 200);
+    /* Animation fully complete — allow future header updates */
+    setTimeout(function() { _mobAnimRunning = false; }, 300);
   }, 46);
 }
 
@@ -2286,8 +2290,13 @@ function _mobAnimHeader() {
  */
 function _mobRunIntro() {
   if (window.innerWidth > 768) return;
-  if (_mobIntroRan) { _mobUpdateHeader(); return; }
-  _mobIntroRan = true;
+  if (_mobIntroRan) {
+    /* Don't clobber the header mid-animation — wait until it's done */
+    if (!_mobAnimRunning) _mobUpdateHeader();
+    return;
+  }
+  _mobIntroRan    = true;
+  _mobAnimRunning = true;
 
   var splash     = document.getElementById('mob-splash');
   var splashLogo = document.getElementById('mob-splash-logo');
@@ -4055,7 +4064,7 @@ function renderHomeView() {
 
   // On mobile: just render the schedule app and update the persistent header
   if (window.innerWidth <= 768) {
-    _mobUpdateHeader();
+    if (!_mobAnimRunning) _mobUpdateHeader();
     _mobRenderSchedule();
     _updateMobileDock('home');
     return;
