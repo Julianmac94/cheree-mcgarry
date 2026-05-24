@@ -894,6 +894,8 @@ body {
 #mob-hd       { display: none; }
 .mob-dock     { display: none; }
 .mob-action-sheet { display: none; }
+/* Splash: hidden on desktop, shown on mobile via media query below */
+#mob-splash   { display: none; }
 
 /* ── Mobile dock styles ── */
 @media (max-width: 768px) {
@@ -904,16 +906,32 @@ body {
   /* Full-height flex column */
   .app-main { display: flex; flex-direction: column; height: 100svh; overflow: hidden; }
 
-  /* Logo bar — centered logo, no text, no border */
+  /* ── Splash screen (full-screen cover during initial load) ── */
+  #mob-splash {
+    display: flex; align-items: center; justify-content: center;
+    position: fixed; inset: 0; z-index: 9100;
+    background: var(--canvas);
+    pointer-events: none; /* never block interaction */
+    transition: opacity 0.38s ease;
+  }
+  #mob-splash-logo {
+    width: 130px; height: 130px;
+    /* coloured logo — no brightness filter */
+    transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+
+  /* Logo bar — starts invisible; revealed by _mobRunIntro after animation */
   .mob-logo-bar {
     display: flex; justify-content: center; align-items: center;
     padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 4px;
     flex-shrink: 0;
+    opacity: 0; /* shown by JS after intro animation */
   }
   .mob-logo-img {
     width: 68px; height: 68px;
-    filter: brightness(12);
-    opacity: 0.88;
+    /* natural brand colours — no brightness override */
+    opacity: 0.92;
   }
 
   /* Persistent header below logo */
@@ -2868,18 +2886,6 @@ body {
         <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg></span>
         <span class="si-label">Billing</span>
       </button>
-      <button class="sidebar-item" data-view="vendors" title="Funders" onclick="navigateTo('vendors')">
-        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg></span>
-        <span class="si-label">Funders</span>
-      </button>
-
-      <div class="sidebar-divider"></div>
-      <div class="sidebar-section-label">Insights</div>
-      <button class="sidebar-item" data-view="reports" title="Reports (coming soon)" onclick="navigateTo('reports')">
-        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
-        <span class="si-label">Reports</span>
-        <span class="si-stub">Soon</span>
-      </button>
 
       <div class="sidebar-divider"></div>
       <button class="sidebar-item" data-view="settings" title="Settings" onclick="navigateTo('settings')">
@@ -2959,32 +2965,32 @@ body {
       </div>
     </div>
 
+    <!-- ── Mobile dock (flex-column child — sits at bottom naturally on mobile) ── -->
+    <nav class="mob-dock" id="mob-dock">
+      <button class="mob-dock-item active" data-app="home" onclick="mobSwitchApp('home')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Schedule</span>
+      </button>
+      <button class="mob-dock-item" data-app="queue" onclick="mobSwitchApp('queue')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+        <span>Inbox</span>
+      </button>
+      <button class="mob-dock-center" onclick="toggleMobActionSheet()" title="Add / More">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+      </button>
+      <button class="mob-dock-item" data-app="reminders" onclick="mobSwitchApp('reminders')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        <span>Reminders</span>
+      </button>
+      <button class="mob-dock-item" data-app="billing" onclick="mobSwitchApp('billing')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
+        <span>Billing</span>
+      </button>
+    </nav>
+
   </div><!-- /.app-main -->
 
 </div><!-- /.app-shell -->
-
-<!-- ── Mobile dock ── -->
-<nav class="mob-dock" id="mob-dock">
-  <button class="mob-dock-item active" data-app="home" onclick="mobSwitchApp('home')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-    <span>Schedule</span>
-  </button>
-  <button class="mob-dock-item" data-app="queue" onclick="mobSwitchApp('queue')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
-    <span>Inbox</span>
-  </button>
-  <button class="mob-dock-center" onclick="toggleMobActionSheet()" title="Add / More">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-  </button>
-  <button class="mob-dock-item" data-app="reminders" onclick="mobSwitchApp('reminders')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-    <span>Reminders</span>
-  </button>
-  <button class="mob-dock-item" data-app="billing" onclick="mobSwitchApp('billing')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
-    <span>Billing</span>
-  </button>
-</nav>
 
 <!-- ── Mobile action sheet (^ button) ── -->
 <div class="mob-action-sheet" id="mob-action-sheet" onclick="if(event.target===this)closeMobActionSheet()">
@@ -3024,6 +3030,11 @@ body {
       </a>
     </div>
   </div>
+</div>
+
+<!-- ── Mobile splash (fixed overlay, shown during initial load on mobile only) ── -->
+<div id="mob-splash">
+  <img src="/assets/logo.svg" id="mob-splash-logo" alt="">
 </div>
 
 <!-- ── Detail modal ── -->

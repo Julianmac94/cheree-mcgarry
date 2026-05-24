@@ -1186,23 +1186,24 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   color: var(--t2);
   box-shadow: none;
   position: relative;
-  z-index: 1; /* tab must stack above card so ::after covers card border */
+  z-index: 2; /* tab above card so ::after (also z-index:2) renders above card border */
 }
-/* Concave notch at the bottom-right of the tab where the tab wall
-   transitions into the card's top surface.
-   A canvas-coloured square with border-bottom-left-radius masks the
-   90° corner, revealing the card below through the curved cutout. */
+/* Concave notch at the bottom-right of the tab.
+   A card-coloured rectangle sits in the canvas area just above the
+   card-top, to the right of the tab. border-bottom-left-radius curves
+   its bottom-left corner, revealing canvas through the arc and creating
+   the concave junction between the tab's right wall and the card's top. */
 .dh-fold-tab::after {
   content: '';
   position: absolute;
-  bottom: 0;               /* bottom of element = tab's bottom */
-  right: -16px;            /* element sits to the right of the tab */
+  bottom: 0;               /* bottom of element = tab's bottom = card's top */
+  right: -16px;            /* sticks out 16px to the right of the tab */
   width: 16px;
   height: 16px;
-  background: var(--canvas); /* page background — covers card corner */
-  border-bottom-left-radius: 13px; /* the concave curve */
+  background: rgba(13, 19, 38, 0.97); /* = var(--gc), card background */
+  border-bottom-left-radius: 13px;    /* concave arc at the junction */
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 .dh-fold-tab svg { opacity: 0.65; }
 .dh-fold-tab .dh-fold-badge {

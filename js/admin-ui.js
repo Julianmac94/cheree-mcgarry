@@ -2203,9 +2203,109 @@ function updateSidebarBadge() {
   // Badge is now updated inside renderQueueView() — this is a no-op stub
 }
 
+/* ── Mobile intro animation ─────────────────────────────────── */
+var _mobIntroRan = false;
+
+/** Typewrite `text` into `el` character by character, then call `cb`. */
+function _mobTypewriter(el, text, cb, speed) {
+  if (!el) { if (cb) cb(); return; }
+  el.textContent = '';
+  var i = 0;
+  speed = speed || 30;
+  var t = setInterval(function() {
+    el.textContent += text[i];
+    i++;
+    if (i >= text.length) { clearInterval(t); if (cb) cb(); }
+  }, speed);
+}
+
+/** Fade+slide an element into view after `delay` ms. */
+function _mobSlideIn(el, delay) {
+  if (!el) return;
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(8px)';
+  el.style.transition = 'none';
+  setTimeout(function() {
+    el.style.transition = 'opacity 0.38s ease, transform 0.38s ease';
+    el.style.opacity = '1';
+    el.style.transform = 'translateY(0)';
+  }, delay || 0);
+}
+
+/** Typewrite the greeting, then slide in the date and meta rows. */
+function _mobAnimHeader() {
+  var mobHd = document.getElementById('mob-hd');
+  if (!mobHd) return;
+  var greetingEl = mobHd.querySelector('.mob-hd-greeting');
+  var dateEl     = mobHd.querySelector('.mob-hd-date');
+  var metaEl     = mobHd.querySelector('.mob-hd-meta');
+
+  /* Pre-hide date and meta before the animation starts */
+  if (dateEl) { dateEl.style.opacity = '0'; dateEl.style.transform = 'translateY(8px)'; }
+  if (metaEl) { metaEl.style.opacity = '0'; metaEl.style.transform = 'translateY(8px)'; }
+
+  if (!greetingEl) {
+    if (dateEl) _mobSlideIn(dateEl, 0);
+    if (metaEl) _mobSlideIn(metaEl, 120);
+    return;
+  }
+  var fullGreeting = greetingEl.textContent;
+  _mobTypewriter(greetingEl, fullGreeting, function() {
+    if (dateEl) _mobSlideIn(dateEl, 40);
+    if (metaEl) _mobSlideIn(metaEl, 170);
+  }, 28);
+}
+
+/**
+ * One-shot mobile intro: fly the splash logo to the top, fade the
+ * splash out, reveal mob-logo-bar, then typewrite the greeting.
+ * No-ops on desktop or after first run.
+ */
+function _mobRunIntro() {
+  if (window.innerWidth > 768) return;
+  if (_mobIntroRan) { _mobUpdateHeader(); return; }
+  _mobIntroRan = true;
+
+  var splash     = document.getElementById('mob-splash');
+  var splashLogo = document.getElementById('mob-splash-logo');
+  var logoBar    = document.getElementById('mob-logo-bar');
+
+  /* Populate header content first (creates the DOM nodes for animation) */
+  _mobUpdateHeader();
+
+  if (!splash) {
+    /* No splash element — just reveal logo bar and animate header */
+    if (logoBar) logoBar.style.opacity = '1';
+    _mobAnimHeader();
+    return;
+  }
+
+  /* Phase 1: fly logo toward the top and shrink it by ~50% */
+  if (splashLogo) {
+    splashLogo.style.transform = 'translateY(-38vh) scale(0.52)';
+  }
+  /* Fade out splash bg with a short head-start delay */
+  splash.style.transition = 'opacity 0.38s ease 0.18s';
+  splash.style.opacity = '0';
+
+  /* Phase 2: after animation completes — hide splash, show logo bar, animate header */
+  setTimeout(function() {
+    splash.style.display = 'none';
+    if (logoBar) {
+      logoBar.style.transition = 'opacity 0.22s ease';
+      logoBar.style.opacity = '1';
+    }
+    setTimeout(_mobAnimHeader, 80);
+  }, 640);
+}
+
 function renderPipeline() {
   if (!_pipelineData) return;
-  _mobUpdateHeader(); // populate persistent mobile header first
+  if (window.innerWidth <= 768) {
+    _mobRunIntro(); /* handles header population + one-shot intro animation */
+  } else {
+    _mobUpdateHeader();
+  }
   navigateTo(_currentView); // re-render current view with fresh data
   updateSidebarBadge();
 }
