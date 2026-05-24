@@ -96,8 +96,42 @@ body::before {
   gap: 0 !important;
 }
 
-/* Topbar strip — gone */
-.app-topbar { display: none !important; }
+/* ─── BRAND TOPBAR ──────────────────────────────────────────── */
+.app-topbar {
+  display: flex !important;
+  height: 52px !important;
+  flex-shrink: 0 !important;
+  background: rgba(8,12,24,0.85) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  padding: 0 20px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  position: relative !important;
+  z-index: 20 !important;
+}
+/* Brand text colours */
+.topbar-brand-nm { color: var(--t1) !important; }
+.topbar-brand-nm em { color: var(--teal) !important; }
+.topbar-brand-sub { color: var(--t3) !important; }
+/* Buttons */
+.topbar-icon-btn { color: var(--t3) !important; border-color: transparent !important; }
+.topbar-icon-btn:hover { background: rgba(255,255,255,0.07) !important; color: var(--teal) !important; }
+.topbar-add-btn {
+  background: rgba(52,211,153,0.1) !important;
+  border-color: rgba(52,211,153,0.22) !important;
+  color: var(--teal) !important;
+}
+.topbar-add-btn:hover { background: rgba(52,211,153,0.18) !important; }
+.topbar-nav-btn { color: var(--t3) !important; border-color: transparent !important; }
+.topbar-nav-btn:hover { background: rgba(255,255,255,0.07) !important; color: var(--t1) !important; border-color: transparent !important; }
+.topbar-nav-btn.active { background: rgba(52,211,153,0.1) !important; color: var(--teal) !important; border-color: rgba(52,211,153,0.2) !important; }
+.topbar-refresh-btn { color: var(--t3) !important; }
+.topbar-refresh-btn:hover { color: var(--teal) !important; }
+.topbar-signout { color: var(--t3) !important; }
+.topbar-signout:hover { color: var(--t1) !important; }
+/* Drop add-menu gets dark glass look automatically via existing .dh-add-menu styles */
 
 .app-main {
   flex: 1 !important;
@@ -121,7 +155,7 @@ body::before {
 .view-content {
   flex: 1;
   overflow-y: auto;
-  padding: 96px 36px 60px !important;
+  padding: 44px 36px 60px !important;
   min-width: 0;
   background: transparent !important;
 }
@@ -1187,13 +1221,27 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   box-shadow: none;
   position: relative;
   z-index: 2;
-  /* Concave notch: mask cuts a quarter-circle OUT of the bottom-right
-     corner of the tab shape itself. Canvas gradient shows through the
-     cut naturally — no colour-matching needed. */
-  -webkit-mask-image: radial-gradient(circle at 100% 100%, transparent 20px, white 20px);
-  mask-image: radial-gradient(circle at 100% 100%, transparent 20px, white 20px);
 }
-.dh-fold-tab::after { display: none; }
+/*
+  Concave notch — the RIGHT approach:
+  A 20×20 helper placed just to the right of the tab's bottom edge.
+  border-top-left-radius:20px makes its top-left corner a transparent
+  quarter-circle (the concave arc), exposing the canvas through that area.
+  The rest of the element (bottom-right sliver) carries the tab/card
+  background so it blends invisibly with the card below.
+*/
+.dh-fold-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;          /* bottom edge aligns with card top */
+  right: -20px;          /* sits immediately to the right of the tab */
+  width: 20px;
+  height: 20px;
+  background: rgba(8,12,24,0.55);  /* exact match with tab/card bg */
+  border-top-left-radius: 20px;    /* this IS the concave arc */
+  pointer-events: none;
+  z-index: 3;
+}
 .dh-fold-tab svg { opacity: 0.65; }
 .dh-fold-tab .dh-fold-badge {
   background: var(--amber-a); color: var(--amber);
