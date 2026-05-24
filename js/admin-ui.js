@@ -4839,7 +4839,7 @@ async function _resetDashboardData() {
   var btn = document.getElementById('reset-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Resetting…'; }
   try {
-    var result = await apiFetch('/api/admin-reset', { method: 'POST', body: { confirm: 'RESET' } });
+    var result = await apiFetch('/api/admin-tasks', { method: 'POST', body: { confirm: 'RESET' } });
     var d = result.deleted || {};
     toast('Reset complete — ' + ((d.enquiries || 0) + (d.clients || 0) + (d.sessions || 0) + (d.tasks || 0)) + ' records removed');
     _pipelineData  = null;

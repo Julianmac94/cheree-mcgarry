@@ -1,7 +1,7 @@
 /**
  * api/admin-tasks.js
  * GET    /api/admin-tasks            — list all tasks
- * POST   /api/admin-tasks            — create task  { title }
+ * POST   /api/admin-tasks            — create task { title } OR reset dashboard { confirm:'RESET' }
  * PATCH  /api/admin-tasks?id=xxx     — toggle/update { completed?, title? }
  * DELETE /api/admin-tasks?id=xxx     — delete task
  */
@@ -26,7 +26,30 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { title, enquiry_id, client_label } = req.body || {};
+    const body = req.body || {};
+
+    // ── Dashboard reset (confirm token required) ──────────────────
+    if (body.confirm === 'RESET') {
+      try {
+        const SENTINEL = '00000000-0000-0000-0000-000000000000';
+        const [r1, r2, r3, r4, r5] = await Promise.all([
+          db.from('activity_log').delete().neq('id', SENTINEL),
+          db.from('sessions').delete().neq('id', SENTINEL),
+          db.from('enquiries').delete().neq('id', SENTINEL),
+          db.from('clients').delete().neq('id', SENTINEL),
+          db.from('tasks').delete().neq('id', SENTINEL),
+        ]);
+        const err = r1.error || r2.error || r3.error || r4.error || r5.error;
+        if (err) throw new Error(err.message);
+        return res.status(200).json({ ok: true });
+      } catch (err) {
+        console.error('[admin-tasks/reset]', err);
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
+    // ── Normal task creation ──────────────────────────────────────
+    const { title, enquiry_id, client_label } = body;
     if (!title?.trim()) return res.status(400).json({ error: 'Title required' });
     const { data, error } = await db
       .from('tasks')
