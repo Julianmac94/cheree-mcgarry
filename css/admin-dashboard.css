@@ -396,18 +396,20 @@ body::before {
 
 /* Page header row — greeting left, action chips right-aligned */
 .dh-hd-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
   padding: 0 4px 8px;
 }
 .dh-hd-left { flex-shrink: 0; }
+/* Greeting + Add button sit on the same line */
+.dh-hd-name-row {
+  display: flex; align-items: center; gap: 16px;
+  flex-wrap: wrap;
+}
 .dh-hd-greeting {
   font-size: 36px; font-weight: 700; color: var(--t1);
   letter-spacing: -0.03em; line-height: 1;
 }
-.dh-hd-date { font-size: 13px; color: var(--t3); margin-top: 7px; font-weight: 400; }
-.dh-hd-meta { font-size: 12px; color: var(--t3); margin-top: 6px; font-weight: 400; line-height: 1.5; }
+.dh-hd-date { display: none; } /* replaced by TODAY tag on week strip */
+.dh-hd-meta { font-size: 12px; color: var(--t3); margin-top: 8px; font-weight: 400; line-height: 1.5; }
 .dh-hd-meta strong { color: var(--t2); font-weight: 500; }
 .dh-hd-actions { display: flex; align-items: stretch; gap: 10px; flex-shrink: 0; }
 
@@ -1216,18 +1218,7 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   reveals the card behind it, while the remaining L-shaped area blends
   with the canvas — creating the concave curve at the tab's bottom-right.
 */
-.dh-fold-tab::after {
-  content: '';
-  position: absolute;
-  bottom: -20px;         /* element top = card top (correct) */
-  right: -20px;          /* 20px to the right of the tab */
-  width: 20px;
-  height: 20px;
-  background: var(--canvas);       /* solid canvas — NOT tab colour */
-  border-top-left-radius: 20px;    /* the concave arc */
-  pointer-events: none;
-  z-index: 3;
-}
+/* notch attempt removed */
 .dh-fold-tab svg { opacity: 0.65; }
 .dh-fold-tab .dh-fold-badge {
   background: var(--amber-a); color: var(--amber);
@@ -1239,7 +1230,8 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 /* Card inside a fold: flat top-left where tab connects, fills remaining space */
 .dh-fold > .dh-sched-card,
 .dh-fold > .dh-attn-card,
-.dh-fold > .dh-billing-card {
+.dh-fold > .dh-billing-card,
+.dh-fold > .dh-tasks-card {
   border-top-left-radius: 0 !important;
   flex: 1;
   min-height: 0;

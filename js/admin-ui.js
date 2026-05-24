@@ -550,6 +550,18 @@ var _currentView = 'home';
 
 var _SECONDARY_VIEWS = { settings: true, vendors: true, reports: true, reminders: true };
 
+/* Toggle settings from the floating desktop cog — click to open, click again to dismiss */
+function toggleDesktopSettings() {
+  var btn = document.getElementById('dh-desk-settings-btn');
+  if (_currentView === 'settings') {
+    navigateTo('home');
+    if (btn) btn.style.color = '';
+  } else {
+    navigateTo('settings');
+    if (btn) btn.style.color = 'var(--teal)';
+  }
+}
+
 /* ── Mobile app-switch primary views ──────────────────────────── */
 var _MOB_APPS = { home: true, queue: true, reminders: true, billing: true };
 
@@ -560,6 +572,9 @@ function navigateTo(view) {
   document.querySelectorAll('.sidebar-item').forEach(function(el) {
     el.classList.toggle('active', el.dataset.view === view);
   });
+  // Keep floating settings cog highlighted when on settings
+  var cogBtn = document.getElementById('dh-desk-settings-btn');
+  if (cogBtn) cogBtn.style.color = view === 'settings' ? 'var(--teal)' : '';
   closeDetailPanel();
   _dbUpdateTopbar(view);
 
@@ -4292,14 +4307,12 @@ function renderHomeView() {
   html += '<div class="dh-hd-row">'
     + '<div class="dh-hd-left">'
     + '<img src="/assets/logo.svg" class="dh-hd-logo" alt="" width="52" height="52">'
+    + '<div class="dh-hd-name-row">'
     + '<div class="dh-hd-greeting">' + escHtml(greeting) + (firstName ? ', ' + escHtml(firstName) : '') + '</div>'
-    + '<div class="dh-hd-date">' + escHtml(dateLabel) + '</div>'
-    + '<div class="dh-hd-meta">' + escHtml(_todaySummary) + _nextSummary + '</div>'
-    + '</div>'
-    + '<div class="dh-add-wrap dh-mob-add-wrap">'
-    + '<button class="dh-chip dh-chip--primary" id="dh-mob-add-btn" onclick="toggleMobAddMenu()">'
-    + '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>'
-    + '&nbsp;Add'
+    + '<div class="dh-add-wrap">'
+    + '<button class="topbar-add-btn" id="dh-mob-add-btn" onclick="toggleMobAddMenu()">'
+    + '<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>'
+    + ' Add'
     + '</button>'
     + '<div class="dh-add-menu" id="dh-mob-add-menu" style="display:none">'
     + '<button class="dh-add-item" onclick="closeMobAddMenu();openDbModal(\'client\')">'
@@ -4309,6 +4322,9 @@ function renderHomeView() {
     + '<button class="dh-add-item" onclick="closeMobAddMenu();focusReminderInp()">'
     + IC.tasks + 'Reminder</button>'
     + '</div>'
+    + '</div>'
+    + '</div>'
+    + '<div class="dh-hd-meta">' + escHtml(_todaySummary) + _nextSummary + '</div>'
     + '</div>'
     + '</div>';
 
@@ -4366,9 +4382,14 @@ function renderHomeView() {
     + '</div>'
     + '</div>'; // .dh-fold
 
-  // BR: Billing card (flush — no fold-tab, like Reminders)
-  html += '<div class="dh-b-6" id="dh-q-bill" style="display:flex;flex-direction:column;">'
-    + '<div class="dh-billing-card" style="flex:1;" onclick="navigateTo(\'billing\')">'
+    // BR: Billing card — with fold tab
+  html += '<div class="dh-b-6 dh-fold" id="dh-q-bill">'
+    + '<div class="dh-fold-tab">'
+    + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>'
+    + 'Billing'
+    + (awaitingPayCount ? '<span class="dh-fold-badge" style="background:rgba(245,158,11,0.18);color:var(--amber)">' + awaitingPayCount + ' unpaid</span>' : '')
+    + '</div>'
+    + '<div class="dh-billing-card" onclick="navigateTo(\'billing\')">'
     + '<div class="dh-billing-body">'
     + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Paid this month</div>'
     + '<div class="dh-bs-amt" style="color:var(--teal)">' + _fmt$(bPaid) + '</div>'
@@ -4379,7 +4400,7 @@ function renderHomeView() {
     + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Needs invoice</div>'
     + '<div class="dh-bs-amt" style="color:' + (needsInvoiceCount ? 'var(--amber)' : 'var(--teal)') + '">' + needsInvoiceCount + '</div>'
     + '<div class="dh-bs-sub">' + escHtml(needsInvoiceCount ? 'Sessions pending' : 'All invoiced') + '</div></div>'
-    + '</div></div></div>'; // .dh-billing-card + dh-b-6
+    + '</div></div></div>'; // .dh-billing-card + dh-fold
 
   html += '</div>'; // .dh-bento
   html += '</div>'; // .dh-wrap
