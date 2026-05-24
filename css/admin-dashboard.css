@@ -1885,33 +1885,29 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   .clients-view,
   .billing-view,
   .settings-view {
-    padding: 32px 16px 84px !important;
+    padding: calc(env(safe-area-inset-top, 0px) + 24px) 16px 84px !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
 
-  /* ── Home header — wrap CTA below greeting ── */
-  .dh-hd-row     { flex-wrap: wrap !important; gap: 10px !important; align-items: flex-start !important; }
-  .dh-hd-left    { width: 100% !important; }
-  .dh-hd-greeting { font-size: 28px !important; }
-  .dh-hd-actions { width: 100% !important; flex-wrap: wrap !important; gap: 8px !important; flex-shrink: 1 !important; }
-  .dh-chip       { min-height: 42px !important; font-size: 12px !important; padding: 0 16px !important; flex: 1 !important; min-width: 120px !important; }
+  /* ── Home header — compact single-row on mobile ── */
+  .dh-hd-row     { flex-wrap: nowrap !important; gap: 10px !important; align-items: flex-start !important; }
+  .dh-hd-left    { flex: 1 !important; min-width: 0 !important; }
+  .dh-hd-greeting { font-size: 24px !important; }
+  .dh-hd-date    { display: none !important; }
+  .dh-hd-meta    { font-size: 11px !important; margin-top: 3px !important; }
+  .dh-add-wrap   { flex-shrink: 0 !important; }
+  .dh-chip       { min-height: 40px !important; font-size: 12px !important; padding: 0 14px !important; }
   .dh-chip--ext  { display: none !important; }
 
-  /* ── Feed / new layout ── */
-  .dh-wrap  { gap: 16px !important; }
-  .dh-feed  { gap: 10px !important; }
-  .dh-kpi-strip { border-radius: 12px !important; }
-  .dh-kpi-item  { padding: 14px 14px !important; }
-  .dh-kpi-val   { font-size: 22px !important; }
-  .dh-kpi-lbl   { font-size: 10px !important; }
-  .dh-util-row  { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  /* ── Bento grid: single column; hide non-schedule quadrants ── */
+  .dh-wrap  { gap: 12px !important; }
+  .dh-bento { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .dh-b-3, .dh-b-4, .dh-b-5, .dh-b-6, .dh-b-7, .dh-b-8 { grid-column: span 1 !important; }
+  #dh-q-inbox, #dh-q-util, #dh-q-bill { display: none !important; }
+  #dh-q-sched .dh-fold { min-height: auto !important; }
   .dh-util-widget { padding: 14px 16px !important; border-radius: 12px !important; }
   .dh-util-main { font-size: 17px !important; }
-  .dh-billing-strip { flex-direction: column !important; border-radius: 12px !important; }
-  .dh-billing-strip-hd { border-right: none !important; border-bottom: 1px solid var(--sep) !important; }
-  .dh-bs2-item { border-right: none !important; border-bottom: 1px solid var(--sep) !important; padding: 12px 16px !important; }
-  .dh-bs2-item:last-child { border-bottom: none !important; }
 
   /* ── Dark bottom nav ── */
   .bottom-nav {

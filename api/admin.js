@@ -2848,7 +2848,10 @@ body {
 <div class="bn-more-sheet" id="bn-more-sheet" onclick="if(event.target===this)closeMoreSheet()">
   <div class="bn-more-panel">
     <div class="bn-more-handle"></div>
-    <div class="bn-more-section-title">Settings &amp; More</div>
+    <button class="bn-more-item" onclick="navigateTo('clients')">
+      <span class="bn-more-icon">◎</span>
+      <span>Clients</span>
+    </button>
     <button class="bn-more-item" onclick="navigateTo('settings')">
       <span class="bn-more-icon">⚙</span>
       <span>Settings</span>

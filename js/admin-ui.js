@@ -538,7 +538,7 @@ var _halaxyFeeMap    = {};   // funder ID → array of fee IDs (from halaxy_fee_
 /* ── View routing ── */
 var _currentView = 'home';
 
-var _SECONDARY_VIEWS = { settings: true, vendors: true, reports: true };
+var _SECONDARY_VIEWS = { settings: true, vendors: true, reports: true, reminders: true };
 
 function navigateTo(view) {
   _currentView = view;
@@ -552,8 +552,10 @@ function navigateTo(view) {
   if (moreBtn) moreBtn.classList.toggle('more-active', !!_SECONDARY_VIEWS[view]);
   closeDetailPanel();
   _dbUpdateTopbar(view);
+  _updateMobileDock(view);
   if (!_pipelineData) return; // data not loaded yet — will render when loaded
   if (view === 'home')          renderHomeView();
+  else if (view === 'reminders') renderRemindersView();
   else if (view === 'queue')    renderQueueView();
   else if (view === 'clients')  renderClientsView();
   else if (view === 'billing')  renderBillingView();
@@ -598,9 +600,94 @@ function _closeAddMenuOutside(e) {
 }
 function focusReminderInp() {
   var inp = document.getElementById('dh-task-inp');
-  if (!inp) return;
+  if (!inp) { navigateTo('reminders'); return; }
   inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
   setTimeout(function() { inp.focus(); }, 280);
+}
+
+/* ── Mobile dock: swap nav items based on view ────────────────── */
+function _updateMobileDock(view) {
+  if (window.innerWidth > 768) return;
+  var nav = document.querySelector('.bottom-nav');
+  if (!nav) return;
+
+  function _bn(v, icon, label, active) {
+    return '<button class="bn-item' + (active ? ' active' : '') + '" data-view="' + v + '" onclick="navigateTo(\'' + v + '\')">'
+      + '<span class="bn-icon">' + icon + '</span><span>' + label + '</span></button>';
+  }
+
+  if (view === 'home' || view === 'reminders') {
+    // Home dock: Inbox | Reminders | Billing | More
+    nav.innerHTML =
+      _bn('queue',   '≡', 'Inbox',      false)
+      + '<button class="bn-item' + (view === 'reminders' ? ' active' : '') + '" onclick="navigateTo(\'reminders\')">'
+      + '<span class="bn-icon">◻</span><span>Reminders</span></button>'
+      + _bn('billing', '$', 'Billing',    false)
+      + '<button class="bn-item" id="bn-more-btn" onclick="toggleMoreSheet()">'
+      + '<span class="bn-icon">⋯</span><span>More</span></button>';
+  } else {
+    // Standard dock: Home | Inbox | Clients | Billing | More
+    nav.innerHTML =
+      _bn('home',    '⌂', 'Home',       false)
+      + _bn('queue',   '≡', 'Inbox',    view === 'queue')
+      + _bn('clients', '◎', 'Clients',  view === 'clients')
+      + _bn('billing', '$', 'Billing',  view === 'billing')
+      + '<button class="bn-item' + (_SECONDARY_VIEWS[view] ? ' more-active' : '') + '" id="bn-more-btn" onclick="toggleMoreSheet()">'
+      + '<span class="bn-icon">⋯</span><span>More</span></button>';
+  }
+}
+
+/* ── Reminders view (mobile-optimised task list) ──────────────── */
+function renderRemindersView() {
+  var content = document.getElementById('view-content');
+  if (!content) return;
+
+  var tasks   = _dhTasks || [];
+  var pending = tasks.filter(function(t) { return !t.completed; });
+  var done    = tasks.filter(function(t) { return t.completed; }).slice(0, 8);
+
+  var html = '<div class="home-view">'
+    + '<div class="dh-hd-row" style="margin-bottom:20px">'
+    + '<div class="dh-hd-left"><div class="dh-hd-greeting">Reminders</div></div>'
+    + '</div>';
+
+  // Add input
+  html += '<div class="dh-util-widget" style="margin-bottom:12px">'
+    + '<div class="dh-util-add">'
+    + '<input class="dh-util-add-inp" id="dh-task-inp" placeholder="Add reminder…" onkeydown="dhAddTask(event)" autofocus>'
+    + '</div>'
+    + '</div>';
+
+  // Pending
+  if (pending.length) {
+    pending.forEach(function(t) {
+      html += '<div class="m-task-row" style="padding:13px 16px;background:rgba(255,255,255,0.04);border-radius:10px;margin-bottom:6px;border:1px solid rgba(255,255,255,0.07)">'
+        + '<button class="m-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',true);navigateTo(\'reminders\')"></button>'
+        + '<span class="m-task-lbl">' + escHtml(t.title || '') + '</span>'
+        + '</div>';
+    });
+  } else {
+    html += '<div style="color:var(--t3);font-size:14px;padding:28px 0;text-align:center">All clear ✓</div>';
+  }
+
+  // Done
+  if (done.length) {
+    html += '<div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--t3);margin:20px 0 8px">Done</div>';
+    done.forEach(function(t) {
+      html += '<div class="m-task-row" style="padding:13px 16px;background:rgba(255,255,255,0.02);border-radius:10px;margin-bottom:6px;opacity:0.45;border:1px solid rgba(255,255,255,0.05)">'
+        + '<button class="m-task-chk m-task-chk-done" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',false);navigateTo(\'reminders\')">✓</button>'
+        + '<span class="m-task-lbl m-task-lbl-done">' + escHtml(t.title || '') + '</span>'
+        + '</div>';
+    });
+  }
+
+  html += '</div>';
+  content.innerHTML = html;
+  _updateMobileDock('reminders');
+  setTimeout(function() {
+    var inp = document.getElementById('dh-task-inp');
+    if (inp) inp.focus();
+  }, 100);
 }
 
 /* ── Topbar: hide on home (inline header used), show on other views ── */
@@ -3389,13 +3476,13 @@ function renderHomeView() {
 
   // TL: Schedule
   _dhAppts = appts;
-  html += '<div class="dh-b-6 dh-fold">'
+  html += '<div class="dh-b-6 dh-fold" id="dh-q-sched">'
     + '<div class="dh-fold-tab">' + IC.cal + 'Schedule</div>'
     + '<div class="dh-sched-card" id="dh-sched-inner"></div>'
     + '</div>';
 
   // TR: Inbox
-  html += '<div class="dh-b-6 dh-fold">'
+  html += '<div class="dh-b-6 dh-fold" id="dh-q-inbox">'
     + '<div class="dh-fold-tab">'
     + IC.inbox + 'Inbox'
     + (newEnquiries.length ? '<span class="dh-fold-badge">' + newEnquiries.length + ' new</span>' : '')
@@ -3423,7 +3510,7 @@ function renderHomeView() {
   html += '</div></div>'; // .dh-attn-card + dh-b-6.dh-fold
 
   // BL: Reminders (full quadrant)
-  html += '<div class="dh-b-6"><div class="dh-util-col">'
+  html += '<div class="dh-b-6" id="dh-q-util"><div class="dh-util-col">'
     + '<div class="dh-util-widget">'
     + '<div class="dh-util-title">Reminders</div>'
     + '<div class="dh-util-main" id="dh-util-remind-val" style="color:var(--t3)">—</div>'
@@ -3435,7 +3522,7 @@ function renderHomeView() {
     + '</div></div>'; // .dh-util-col + dh-b-6
 
   // BR: Billing card
-  html += '<div class="dh-b-6 dh-fold">'
+  html += '<div class="dh-b-6 dh-fold" id="dh-q-bill">'
     + '<div class="dh-fold-tab">' + IC.card + 'Billing</div>'
     + '<div class="dh-billing-card" onclick="navigateTo(\'billing\')">'
     + '<div class="dh-billing-body">'
@@ -3460,6 +3547,7 @@ function renderHomeView() {
   _dhLoadTasks();
   var _inboxListEl = document.getElementById('dh-inbox-list');
   if (_inboxListEl) _dhRenderInboxItems(_inboxListEl, newEnquiries);
+  _updateMobileDock('home');
 }
 
 /* ── Home view task helpers ─────────────────────────────────────
