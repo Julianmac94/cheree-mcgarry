@@ -525,12 +525,18 @@ var _halaxyFeeMap    = {};   // funder ID → array of fee IDs (from halaxy_fee_
 /* ── View routing ── */
 var _currentView = 'home';
 
+var _SECONDARY_VIEWS = { settings: true, vendors: true, reports: true };
+
 function navigateTo(view) {
   _currentView = view;
-  // Update sidebar + bottom nav active states
-  document.querySelectorAll('.sidebar-item, .bn-item').forEach(function(el) {
+  closeMoreSheet();
+  // Update sidebar + primary bottom-nav active states
+  document.querySelectorAll('.sidebar-item, .bn-item[data-view]').forEach(function(el) {
     el.classList.toggle('active', el.dataset.view === view);
   });
+  // More button gets a dim highlight when a secondary view is active
+  var moreBtn = document.getElementById('bn-more-btn');
+  if (moreBtn) moreBtn.classList.toggle('more-active', !!_SECONDARY_VIEWS[view]);
   closeDetailPanel();
   _dbUpdateTopbar(view);
   if (!_pipelineData) return; // data not loaded yet — will render when loaded
@@ -541,6 +547,18 @@ function navigateTo(view) {
   else if (view === 'settings') renderSettingsView();
   else if (view === 'vendors')  renderFundersView();
   else if (view === 'reports')  renderStubView('reports', 'Reports', 'Practice reports and insights coming soon.')
+}
+
+function toggleMoreSheet() {
+  var sheet = document.getElementById('bn-more-sheet');
+  if (!sheet) return;
+  if (sheet.classList.contains('open')) closeMoreSheet();
+  else sheet.classList.add('open');
+}
+
+function closeMoreSheet() {
+  var sheet = document.getElementById('bn-more-sheet');
+  if (sheet) sheet.classList.remove('open');
 }
 
 /* ── Topbar: hide on home (inline header used), show on other views ── */
@@ -3093,13 +3111,21 @@ function _dhRenderSchedCard() {
   h += '</div>';
 
   // Card header + week nav
-  var prevLabel = _dhSchedWeekOff === 0 ? '← Last week' : '← This week';
-  var nextLabel = _dhSchedWeekOff === 0 ? 'Next week' : 'This week';
-  h += '<div class="dh-card-hd"><span class="dh-card-title">' + escHtml(dateLabel) + '</span>'
-    + '<div style="display:flex;align-items:center;gap:6px">';
-  if (_dhSchedWeekOff > -1) h += '<button class="dh-see-all" onclick="dhSchedNavWeek(-1)" type="button">' + prevLabel + '</button>';
-  if (_dhSchedWeekOff <  1) h += '<button class="dh-see-all" onclick="dhSchedNavWeek(1)"  type="button">' + nextLabel + ' ' + arrowSVG + '</button>';
-  h += '</div></div>';
+  var weekLbl = _dhSchedWeekOff === -1 ? 'Last Week' : _dhSchedWeekOff === 1 ? 'Next Week' : 'This Week';
+  h += '<div class="dh-card-hd">'
+    + '<span class="dh-card-title">' + escHtml(dateLabel) + '</span>'
+    + '<div class="dh-sched-nav">'
+    + '<button class="dh-sched-nav-btn" onclick="dhSchedNavWeek(-1)" type="button" title="Previous week"'
+    + (_dhSchedWeekOff <= -1 ? ' disabled' : '') + '>'
+    + '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2L4 7l5 5"/></svg>'
+    + '</button>'
+    + '<span class="dh-sched-nav-lbl">' + escHtml(weekLbl) + '</span>'
+    + '<button class="dh-sched-nav-btn" onclick="dhSchedNavWeek(1)" type="button" title="Next week"'
+    + (_dhSchedWeekOff >= 1 ? ' disabled' : '') + '>'
+    + '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2l5 5-5 5"/></svg>'
+    + '</button>'
+    + '</div>'
+    + '</div>';
 
   // Sessions list
   if (!selAppts.length) {
@@ -3220,50 +3246,10 @@ function renderHomeView() {
   // User first name from server-injected window.ADMIN_USER
   var firstName = ((window.ADMIN_USER || '').split(' ')[0]) || '';
 
-  // ── Page header ──────────────────────────────────────────────
-  html += '<div class="dh-hd-row">'
-    + '<div class="dh-hd-left">'
-    + '<div class="dh-hd-greeting">' + escHtml(greeting) + (firstName ? ', ' + escHtml(firstName) : '') + '</div>'
-    + '<div class="dh-hd-date">' + escHtml(dateLabel) + '</div>'
-    + '</div>'
-    + '<div class="dh-hd-actions">'
-    + '<button class="dh-chip dh-chip--ghost" onclick="openDbModal(\'client\')">'
-    + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>'
-    + 'Add Client'
-    + '</button>'
-    + '<button class="dh-chip dh-chip--primary" onclick="openDbModal(\'appt\')">'
-    + '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-    + 'New Appointment'
-    + '</button>'
-    + '<a class="dh-chip dh-chip--ext" href="https://www.halaxy.com" target="_blank" rel="noopener">'
-    + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'
-    + 'Halaxy'
-    + '</a>'
-    + '</div>'
-    + '</div>';
-
-  // ── Main 2×2 bento ───────────────────────────────────────────
-  html += '<div class="dh-bento">';
-
-  // ── Schedule card — folder tab (6 cols) ──────────────────────
-  _dhAppts = appts;
-  html += '<div class="dh-fold dh-b-6">'
-    + '<div class="dh-fold-tab">' + IC.cal + 'Schedule</div>'
-    + '<div class="dh-sched-card" id="dh-sched-inner"></div>'
-    + '</div>';
-
-  // ── Inbox card — folder tab + sub-sidebar (6 cols) ──────────
-  var allEnqs       = enquiries;
-  var contactedEnqs = enquiries.filter(function(e){ return e.status === 'contacted'; });
-  var closedEnqs    = enquiries.filter(function(e){ return e.status === 'closed'; });
-
-  // Billing sessions = past appointments needing a billing action
+  // ── Pre-compute lookup maps (needed for KPI + inbox) ─────────
   _dhBillingSessions = _uni.past.filter(function(s) {
     return s.status === 'pending-invoice' || s.status === 'invoiced' || s.status === 'needs-recording';
   });
-  var unpaidCount = _dhBillingSessions.length;
-
-  // Build lookup maps for inbox sub-info
   _dhEnqClientMap = {};
   clients.forEach(function(c) { if (c.enquiry_id) _dhEnqClientMap[c.enquiry_id] = c; });
   _dhPatientApptMap = {};
@@ -3273,25 +3259,146 @@ function renderHomeView() {
     if (!_dhPatientApptMap[key]) _dhPatientApptMap[key] = [];
     _dhPatientApptMap[key].push(s);
   });
-  // Sort each patient's upcoming sessions by date so [0] is always the nearest
   Object.keys(_dhPatientApptMap).forEach(function(k) {
     _dhPatientApptMap[k].sort(function(a, b) { return a.startMs - b.startMs; });
   });
+  _dhUnlinkedCalAppts = _uni.upcoming.filter(function(s) {
+    return s.source === 'cal' && !s.patientId && !s.isReminder;
+  });
 
-  // "Upcoming" folder — enquiries whose linked client has a future Halaxy appointment
+  var allEnqs       = enquiries;
+  var contactedEnqs = enquiries.filter(function(e){ return e.status === 'contacted'; });
+  var closedEnqs    = enquiries.filter(function(e){ return e.status === 'closed'; });
+  var unpaidCount   = _dhBillingSessions.length;
+  var unlinkedCount = _dhUnlinkedCalAppts.length;
   var upcomingApptEnqs = enquiries.filter(function(e) {
     var client = _dhEnqClientMap[e.id];
     return client && client.halaxy_id && (_dhPatientApptMap[String(client.halaxy_id)] || []).length > 0;
   });
 
-  // "Unlinked" folder — upcoming GCal events with no Halaxy patient and not marked as reminders
-  _dhUnlinkedCalAppts = _uni.upcoming.filter(function(s) {
-    return s.source === 'cal' && !s.patientId && !s.isReminder;
-  });
+  // KPI helpers
+  var _wd0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var _dow = _wd0.getDay();
+  _wd0.setDate(_wd0.getDate() + (_dow === 0 ? -6 : 1 - _dow));
+  var _wd7 = new Date(_wd0); _wd7.setDate(_wd7.getDate() + 7);
+  var thisWeekCount = appts.filter(function(a) {
+    var d = new Date(a.startIso || a.start || (a.dateStr ? a.dateStr + 'T00:00' : ''));
+    return d >= _wd0 && d < _wd7 && a.status !== 'cancelled';
+  }).length;
+  var needsActionCount = newEnquiries.length
+    + _uni.past.filter(function(s){ return s.status === 'pending-invoice'; }).length;
 
-  var unlinkedCount = _dhUnlinkedCalAppts.length;
+  // Today / Next Session helpers
+  var todayIso = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  var todayAppts = appts.filter(function(a) {
+    return a.dateStr === todayIso && a.status !== 'cancelled';
+  }).sort(function(a,b){ return (a.startMs||0)-(b.startMs||0); });
+  var nextAppt = _uni.upcoming.filter(function(a) {
+    return a.status !== 'cancelled' && a.startMs && a.startMs > Date.now();
+  }).sort(function(a,b){ return a.startMs - b.startMs; })[0];
+  function _fmtT(iso) { var d=new Date(iso),h=d.getHours(),m=d.getMinutes(); return (h%12||12)+':'+(m<10?'0':'')+m+(h>=12?'pm':'am'); }
 
-  html += '<div class="dh-fold dh-b-6">'
+  // Billing
+  var needsInvoiceCount = _uni.past.filter(function(s) { return s.status === 'pending-invoice'; }).length;
+  var awaitingPayCount  = invoices.filter(function(i) { return parseFloat(i.totalBalance || 0) > 0; }).length;
+
+  // ── Header — greeting + single primary action ─────────────────
+  html += '<div class="dh-hd-row">'
+    + '<div class="dh-hd-left">'
+    + '<div class="dh-hd-greeting">' + escHtml(greeting) + (firstName ? ', ' + escHtml(firstName) : '') + '</div>'
+    + '<div class="dh-hd-date">' + escHtml(dateLabel) + '</div>'
+    + '</div>'
+    + '<button class="dh-chip dh-chip--primary" onclick="openDbModal(\'appt\')">'
+    + '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+    + 'New Appointment'
+    + '</button>'
+    + '</div>';
+
+  // ── KPI strip ────────────────────────────────────────────────
+  html += '<div class="dh-kpi-strip">'
+    + '<div class="dh-kpi-item" onclick="navigateTo(\'clients\')">'
+    + '<div class="dh-kpi-val">' + activeClients.length + '</div>'
+    + '<div class="dh-kpi-lbl">Active clients</div>'
+    + '</div>'
+    + '<div class="dh-kpi-item' + (needsActionCount > 0 ? ' dh-kpi-item--amber' : '') + '" onclick="navigateTo(\'queue\')">'
+    + '<div class="dh-kpi-val">' + needsActionCount + '</div>'
+    + '<div class="dh-kpi-lbl">Needs action</div>'
+    + '</div>'
+    + '<div class="dh-kpi-item" onclick="document.getElementById(\'dh-sched-inner\') && document.getElementById(\'dh-sched-inner\').scrollIntoView({behavior:\'smooth\'})">'
+    + '<div class="dh-kpi-val">' + thisWeekCount + '</div>'
+    + '<div class="dh-kpi-lbl">This week</div>'
+    + '</div>'
+    + '<div class="dh-kpi-item' + (bPending > 0 ? ' dh-kpi-item--amber' : ' dh-kpi-item--teal') + '" onclick="navigateTo(\'billing\')">'
+    + '<div class="dh-kpi-val">' + _fmt$(bPending) + '</div>'
+    + '<div class="dh-kpi-lbl">Outstanding</div>'
+    + '</div>'
+    + '</div>';
+
+  // ── Utility row — Today / Next Session / Reminders ───────────
+  html += '<div class="dh-util-row">';
+
+  // Today
+  var todayDateStr = now.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+  html += '<div class="dh-util-widget">'
+    + '<div class="dh-util-title">Today</div>'
+    + '<div class="dh-util-main">' + todayAppts.length + ' session' + (todayAppts.length !== 1 ? 's' : '') + '</div>'
+    + '<div class="dh-util-sub">' + escHtml(todayDateStr) + '</div>';
+  if (todayAppts.length) {
+    html += '<div class="dh-util-pills">'
+      + todayAppts.slice(0,2).map(function(a) {
+          var nm = a.name || a.patientName || 'Client';
+          var t  = a.timeStr || (a.startIso ? _fmtT(a.startIso) : a.start ? _fmtT(a.start) : '');
+          return '<span class="dh-util-pill">' + escHtml((t ? t + ' · ' : '') + nm) + '</span>';
+        }).join('')
+      + (todayAppts.length > 2 ? '<span class="dh-util-pill dh-util-pill--more">+' + (todayAppts.length - 2) + '</span>' : '')
+      + '</div>';
+  }
+  html += '</div>';
+
+  // Next Session
+  if (nextAppt) {
+    var nxtName = escHtml(nextAppt.name || nextAppt.patientName || 'Client');
+    var nxtTime = nextAppt.timeStr || (nextAppt.startIso ? _fmtT(nextAppt.startIso) : nextAppt.start ? _fmtT(nextAppt.start) : '');
+    var nxtDate = nextAppt.dateStr && nextAppt.dateStr !== todayIso
+      ? new Date(nextAppt.dateStr + 'T00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+      : 'Today';
+    html += '<div class="dh-util-widget dh-util-widget--link" onclick="openDetailPanel(\'session\',\'' + escHtml(String(nextAppt.id||'')) + '\')">'
+      + '<div class="dh-util-title">Next Session</div>'
+      + '<div class="dh-util-main">' + nxtName + '</div>'
+      + '<div class="dh-util-sub">' + escHtml(nxtTime + (nxtTime ? ' · ' : '') + nxtDate) + '</div>'
+      + '</div>';
+  } else {
+    html += '<div class="dh-util-widget">'
+      + '<div class="dh-util-title">Next Session</div>'
+      + '<div class="dh-util-main" style="color:var(--t3)">None scheduled</div>'
+      + '<div class="dh-util-sub">Calendar is clear</div>'
+      + '</div>';
+  }
+
+  // Reminders (count loaded async; add-input inline)
+  html += '<div class="dh-util-widget">'
+    + '<div class="dh-util-title">Reminders</div>'
+    + '<div class="dh-util-main" id="dh-util-remind-val" style="color:var(--t3)">—</div>'
+    + '<div class="dh-util-sub" id="dh-util-remind-sub">Loading…</div>'
+    + '<div class="dh-util-add">'
+    + '<input class="dh-util-add-inp" id="dh-task-inp" placeholder="Add reminder…" onkeydown="dhAddTask(event)">'
+    + '</div>'
+    + '</div>';
+
+  html += '</div>'; // .dh-util-row
+
+  // ── Feed — single column vertical ────────────────────────────
+  html += '<div class="dh-feed">';
+
+  // Schedule card — full width
+  _dhAppts = appts;
+  html += '<div class="dh-fold">'
+    + '<div class="dh-fold-tab">' + IC.cal + 'Schedule</div>'
+    + '<div class="dh-sched-card" id="dh-sched-inner"></div>'
+    + '</div>';
+
+  // Inbox card — full width hero
+  html += '<div class="dh-fold">'
     + '<div class="dh-fold-tab">'
     + IC.inbox
     + 'Inbox'
@@ -3300,8 +3407,6 @@ function renderHomeView() {
     + (unlinkedCount ? '<span class="dh-fold-badge" style="background:rgba(224,123,57,0.15);color:#b85a1e">' + unlinkedCount + ' unlinked</span>' : '')
     + '</div>'
     + '<div class="dh-attn-card">';
-
-  // Sub-sidebar with folder categories
   html += '<div class="dh-inbox-sidebar">'
     + '<div class="dh-inbox-folder active" data-status="new" onclick="dhInboxFilter(\'new\',this)">'
     + '<span class="dh-if-label">New</span><span class="dh-if-count">' + newEnquiries.length + '</span></div>'
@@ -3318,48 +3423,32 @@ function renderHomeView() {
     + '<div class="dh-inbox-folder" data-status="all" onclick="dhInboxFilter(\'all\',this)">'
     + '<span class="dh-if-label">All</span><span class="dh-if-count">' + allEnqs.length + '</span></div>'
     + '</div>';
-
-  // Inbox list pane — rendered after mount so _dhRenderInboxItems can access the DOM
   html += '<div class="dh-inbox-list" id="dh-inbox-list"></div>';
   html += '</div></div>'; // .dh-attn-card + .dh-fold
 
-  // ── Tasks card (6 cols) ──────────────────────────────────────
-  html += '<div class="dh-tasks-card dh-b-6">'
-    + '<div class="dh-card-hd">'
-    + '<span class="dh-card-title">Reminders</span>'
-    + '</div>'
-    + '<div class="dh-tasks-body" id="dh-tasks-body"><div class="dh-tasks-loading">Loading…</div></div>'
-    + '<div class="dh-tasks-add"><span class="dh-tasks-plus">+</span>'
-    + '<input class="dh-task-inp" id="dh-task-inp" placeholder="Add a reminder…" onkeydown="dhAddTask(event)">'
-    + '</div></div>';
+  // Billing strip — compact inline row
+  html += '<div class="dh-billing-strip" onclick="navigateTo(\'billing\')">'
+    + '<div class="dh-billing-strip-hd">' + IC.card + '<span class="dh-billing-strip-label">Billing</span></div>'
+    + '<div class="dh-bs2-item"><div class="dh-bs2-lbl">Paid this month</div>'
+    + '<div class="dh-bs2-val" style="color:var(--teal)">' + _fmt$(bPaid) + '</div>'
+    + '<div class="dh-bs2-sub">' + escHtml(now.toLocaleDateString('en-AU',{month:'long'})) + '</div></div>'
+    + '<div class="dh-bs2-item"><div class="dh-bs2-lbl">Pending payment</div>'
+    + '<div class="dh-bs2-val" style="color:' + (bPending > 0 ? 'var(--amber)' : 'var(--teal)') + '">' + _fmt$(bPending) + '</div>'
+    + '<div class="dh-bs2-sub">' + escHtml(awaitingPayCount ? awaitingPayCount + ' invoice' + (awaitingPayCount !== 1 ? 's' : '') : 'All clear') + '</div></div>'
+    + '<div class="dh-bs2-item"><div class="dh-bs2-lbl">Needs invoice</div>'
+    + '<div class="dh-bs2-val" style="color:' + (needsInvoiceCount ? 'var(--amber)' : 'var(--teal)') + '">' + needsInvoiceCount + '</div>'
+    + '<div class="dh-bs2-sub">' + escHtml(needsInvoiceCount ? 'Sessions pending' : 'All invoiced') + '</div></div>'
+    + '<div class="dh-bs2-item" style="display:flex;align-items:center;color:var(--t3);font-size:18px;padding:0 20px">→</div>'
+    + '</div>';
 
-  // ── Billing summary (6 cols) ─────────────────────────────────
-  var needsInvoiceCount = _uni.past.filter(function(s) { return s.status === 'pending-invoice'; }).length;
-  var awaitingPayCount  = invoices.filter(function(i) { return parseFloat(i.totalBalance || 0) > 0; }).length;
-  html += '<div class="dh-billing-card dh-b-6" onclick="navigateTo(\'billing\')">'
-    + '<div class="dh-card-hd">'
-    + '<span class="dh-card-title">Billing</span>'
-    + '<span class="dh-see-all">Overview ' + arrowSVG + '</span>'
-    + '</div>'
-    + '<div class="dh-billing-body">'
-    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Paid This Month</div>'
-    + '<div class="dh-bs-amt" style="color:var(--teal)">' + _fmt$(bPaid) + '</div>'
-    + '<div class="dh-bs-sub">' + now.toLocaleDateString('en-AU',{month:'long'}) + '</div></div>'
-    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Pending Payment</div>'
-    + '<div class="dh-bs-amt" style="color:' + (bPending > 0 ? 'var(--amber)' : 'var(--teal)') + '">' + _fmt$(bPending) + '</div>'
-    + '<div class="dh-bs-sub">' + (awaitingPayCount ? awaitingPayCount + ' invoice' + (awaitingPayCount !== 1 ? 's' : '') : 'All clear ✓') + '</div></div>'
-    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Needs Invoice</div>'
-    + '<div class="dh-bs-amt" style="color:' + (needsInvoiceCount ? 'var(--amber)' : 'var(--teal)') + '">' + needsInvoiceCount + '</div>'
-    + '<div class="dh-bs-sub">' + (needsInvoiceCount ? 'No invoice yet' : 'All invoiced ✓') + '</div></div>'
-    + '</div></div>';
+  html += '</div>'; // .dh-feed
+  html += '</div>'; // .dh-wrap
 
-  html += '</div></div>'; // dh-bento + dh-wrap
   content.innerHTML = html;
   _dhSchedWeekOff = 0;
   _dhSchedDateStr = '';
   _dhRenderSchedCard();
   _dhLoadTasks();
-  // Render inbox list after mount so the DOM element exists
   var _inboxListEl = document.getElementById('dh-inbox-list');
   if (_inboxListEl) _dhRenderInboxItems(_inboxListEl, newEnquiries);
 }
@@ -3371,30 +3460,39 @@ function renderHomeView() {
 var _dhTasks = []; // module-level cache for openDetailPanel lookup
 
 async function _dhLoadTasks() {
-  var body = document.getElementById('dh-tasks-body');
-  if (!body) return;
   try {
     var tasks = await apiFetch('/api/admin-tasks');
     _dhTasks = Array.isArray(tasks) ? tasks : [];
-    if (!_dhTasks.length) {
-      body.innerHTML = '<div class="dh-tasks-empty">No tasks yet</div>';
-      return;
+    var valEl = document.getElementById('dh-util-remind-val');
+    var subEl = document.getElementById('dh-util-remind-sub');
+    var pending = _dhTasks.filter(function(t){ return !t.completed; }).length;
+    if (valEl) {
+      valEl.style.color = pending > 0 ? 'var(--t1)' : 'var(--t3)';
+      valEl.textContent = pending;
     }
-    body.innerHTML = _dhTasks.map(function(t) {
-      var done    = t.completed ? ' done' : '';
-      var chk     = t.completed ? '✓' : '';
-      var status  = t.completed ? 'Done' : 'Active';
-      var due     = t.due_date ? new Date(t.due_date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
-      return '<div class="dh-task-item' + done + '" data-id="' + escHtml(String(t.id)) + '">'
-        + '<button class="dh-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',' + !t.completed + ')" type="button">' + chk + '</button>'
-        + '<span class="dh-task-lbl">' + escHtml(t.title || t.text || '') + '</span>'
-        + '<span class="dh-task-status">' + status + '</span>'
-        + '<span class="dh-task-deadline">' + due + '</span>'
-        + '<button class="dh-task-arrow" onclick="openDetailPanel(\'task\',\'' + escHtml(String(t.id)) + '\')" type="button">›</button>'
-        + '</div>';
-    }).join('');
+    if (subEl) {
+      subEl.textContent = pending === 0 ? 'All clear'
+        : pending === 1 ? '1 pending reminder' : pending + ' pending reminders';
+    }
+    // Legacy body target (settings view tasks widget)
+    var body = document.getElementById('dh-tasks-body');
+    if (body) {
+      body.innerHTML = !_dhTasks.length ? '<div class="dh-tasks-empty">No tasks yet</div>'
+        : _dhTasks.map(function(t) {
+            var done = t.completed ? ' done' : '';
+            var chk  = t.completed ? '✓' : '';
+            return '<div class="dh-task-item' + done + '" data-id="' + escHtml(String(t.id)) + '">'
+              + '<button class="dh-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',' + !t.completed + ')" type="button">' + chk + '</button>'
+              + '<span class="dh-task-lbl">' + escHtml(t.title || t.text || '') + '</span>'
+              + '<button class="dh-task-arrow" onclick="openDetailPanel(\'task\',\'' + escHtml(String(t.id)) + '\')" type="button">›</button>'
+              + '</div>';
+          }).join('');
+    }
   } catch(e) {
-    body.innerHTML = '<div class="dh-tasks-empty" style="font-size:11px">Could not load tasks</div>';
+    var valEl = document.getElementById('dh-util-remind-val');
+    if (valEl) { valEl.textContent = '—'; valEl.style.color = 'var(--t3)'; }
+    var subEl = document.getElementById('dh-util-remind-sub');
+    if (subEl) subEl.textContent = 'Could not load';
   }
 }
 
@@ -3485,21 +3583,19 @@ async function dhAddTask(ev) {
   if (!text) return;
   inp.value = ''; inp.disabled = true;
   try {
-    var t    = await apiFetch('/api/admin-tasks', { method: 'POST', body: { text: text } });
-    var body = document.getElementById('dh-tasks-body');
-    var empty = body && body.querySelector('.dh-tasks-empty');
-    if (empty) empty.remove();
-    if (body && t && t.id) {
-      var div = document.createElement('div');
-      div.className  = 'dh-task-item';
-      div.dataset.id = t.id;
-      div.innerHTML  = '<button class="dh-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',true)" type="button"></button>'
-        + '<span class="dh-task-lbl">' + escHtml(text) + '</span>';
-      body.appendChild(div);
+    var t = await apiFetch('/api/admin-tasks', { method: 'POST', body: { text: text } });
+    if (t && t.id) {
+      _dhTasks.push(t);
+      var pending = _dhTasks.filter(function(x){ return !x.completed; }).length;
+      var valEl = document.getElementById('dh-util-remind-val');
+      var subEl = document.getElementById('dh-util-remind-sub');
+      if (valEl) { valEl.textContent = pending; valEl.style.color = 'var(--t1)'; }
+      if (subEl) subEl.textContent = pending + ' pending reminder' + (pending !== 1 ? 's' : '');
+      toast('Reminder added');
     }
   } catch(e) {
     if (inp) inp.value = text;
-    toast('Could not add task', 'err');
+    toast('Could not add reminder', 'err');
   }
   if (inp) inp.disabled = false;
 }

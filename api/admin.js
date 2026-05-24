@@ -2839,10 +2839,26 @@ body {
   <button class="bn-item" data-view="billing" onclick="navigateTo('billing')">
     <span class="bn-icon">$</span><span>Billing</span>
   </button>
-  <button class="bn-item" data-view="settings" onclick="navigateTo('settings')">
-    <span class="bn-icon">⚙</span><span>Settings</span>
+  <button class="bn-item" id="bn-more-btn" onclick="toggleMoreSheet()">
+    <span class="bn-icon">⋯</span><span>More</span>
   </button>
 </nav>
+
+<!-- ── More sheet (secondary nav drawer) ── -->
+<div class="bn-more-sheet" id="bn-more-sheet" onclick="if(event.target===this)closeMoreSheet()">
+  <div class="bn-more-panel">
+    <div class="bn-more-handle"></div>
+    <div class="bn-more-section-title">Settings &amp; More</div>
+    <button class="bn-more-item" onclick="navigateTo('settings')">
+      <span class="bn-more-icon">⚙</span>
+      <span>Settings</span>
+    </button>
+    <a class="bn-more-item" href="https://www.halaxy.com" target="_blank" rel="noopener" onclick="closeMoreSheet()">
+      <span class="bn-more-icon">↗</span>
+      <span>Open Halaxy</span>
+    </a>
+  </div>
+</div>
 
 <!-- ── Detail modal ── -->
 <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeDetailPanel()">
