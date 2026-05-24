@@ -49,12 +49,13 @@ export default async function handler(req, res) {
     }
 
     // ── Normal task creation ──────────────────────────────────────
-    const { title, enquiry_id, client_label } = body;
+    const { title, enquiry_id, client_label, description } = body;
     if (!title?.trim()) return res.status(400).json({ error: 'Title required' });
     const { data, error } = await db
       .from('tasks')
       .insert({
         title:        title.trim(),
+        description:  description  || null,
         completed:    false,
         created_by:   actor,
         enquiry_id:   enquiry_id   || null,
@@ -68,12 +69,13 @@ export default async function handler(req, res) {
 
   if (req.method === 'PATCH') {
     if (!id) return res.status(400).json({ error: 'Missing id' });
-    const { completed, title, enquiry_id, client_label } = req.body || {};
+    const { completed, title, enquiry_id, client_label, description } = req.body || {};
     const update = {};
     if (completed     !== undefined) update.completed     = completed;
     if (title         !== undefined) update.title         = title.trim();
     if (enquiry_id    !== undefined) update.enquiry_id    = enquiry_id    || null;
     if (client_label  !== undefined) update.client_label  = client_label  || null;
+    if (description   !== undefined) update.description   = description   || null;
     const { error } = await db.from('tasks').update(update).eq('id', id);
     if (error) return res.status(500).json({ error: error.message });
     return res.status(200).json({ ok: true });

@@ -1173,14 +1173,14 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 /* ─── REMINDERS TABLE LAYOUT ─────────────────────────────────── */
 .dh-remind-table-wrap { overflow: hidden; }
 .dh-rt-head {
-  display: grid; grid-template-columns: 1fr 120px 64px;
+  display: grid; grid-template-columns: 1fr 110px 64px 60px;
   padding: 6px 28px 6px 52px; /* left indent aligns with checkbox+title */
   border-bottom: 1px solid rgba(255,255,255,0.05);
   font-size: 9.5px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.12em; color: var(--t3);
 }
 .dh-rt-row {
-  display: grid; grid-template-columns: 24px 1fr 120px 64px;
+  display: grid; grid-template-columns: 24px 1fr 110px 64px 60px;
   align-items: center; gap: 4px;
   padding: 9px 28px; border-bottom: 1px solid var(--sep);
   transition: background 0.12s;
@@ -1188,20 +1188,28 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .dh-rt-row:last-of-type { border-bottom: none; }
 .dh-rt-row:hover { background: rgba(255,255,255,0.025); }
 .dh-rt-row .dh-task-chk { width: 15px; height: 15px; border-radius: 4px; flex-shrink: 0; }
-.dh-rt-title {
-  display: flex; align-items: center; gap: 5px;
+/* Title cell — stacks title + description */
+.dh-rt-title-wrap { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.dh-rt-title-text {
   font-size: 12px; color: var(--t1); font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dh-rt-desc {
+  font-size: 10.5px; color: var(--t3); font-weight: 400;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .dh-rt-client {
   font-size: 11px; color: var(--t2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.dh-rt-prio { display: flex; align-items: center; }
 .dh-rt-date { font-size: 10.5px; color: var(--t3); text-align: right; white-space: nowrap; }
-.dh-rt-row.done .dh-rt-title { opacity: 0.35; text-decoration: line-through; }
+.dh-rt-row.done .dh-rt-title-text { opacity: 0.35; text-decoration: line-through; }
 .dh-rt-row.done .dh-task-chk { background: var(--teal); border-color: var(--teal); color: #051c11; }
+/* Column header labels */
+.dh-rt-h-prio { text-align: left; }
 
-/* Priority dot */
+/* Priority dot (legacy — kept for compatibility) */
 .dh-prio-dot {
   width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
   background: rgba(255,255,255,0.12); cursor: pointer; transition: background 0.13s;
@@ -1209,6 +1217,32 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 }
 .dh-prio-dot.high { background: var(--amber); color: var(--amber); }
 .dh-prio-dot.high::after { content: '!'; font-size: 9px; font-weight: 800; color: #7a4b00; position: relative; top: -1px; left: -0.5px; }
+
+/* Priority badge */
+.dh-prio-badge {
+  font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px;
+  background: rgba(245,158,11,0.18); color: var(--amber); letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.dh-prio-badge.dim { background: transparent; color: var(--t3); font-weight: 400; }
+
+/* ─── TASK DETAIL PANEL (rdp) FIELD STYLES ───────────────────── */
+.rdp-field-group { display: flex; flex-direction: column; margin-top: 14px; }
+.rdp-field-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #7A948F; margin-bottom: 5px;
+}
+.rdp-task-desc { resize: vertical; min-height: 68px; }
+.rdp-prio-pills { display: flex; gap: 8px; }
+.rdp-prio-pill {
+  flex: 1; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid rgba(42,88,80,0.18);
+  background: rgba(42,88,80,0.04); color: #7A948F;
+  font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer;
+  transition: all 0.12s;
+}
+.rdp-prio-pill.active { background: rgba(42,88,80,0.1); color: #192E2A; border-color: rgba(42,88,80,0.3); }
+.rdp-prio-pill.high.active { background: rgba(245,158,11,0.1); color: #b45309; border-color: rgba(245,158,11,0.3); }
 
 /* ─── BILLING BENTO — LIVE INVOICE LIST ──────────────────────── */
 /* billing-live: flex container so bar + invoice list fill the card */

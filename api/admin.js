@@ -1118,51 +1118,46 @@ body {
   }
   /* Column header row */
   .mob-rt-head {
-    display: grid; grid-template-columns: 26px 1fr 88px 52px;
+    display: grid; grid-template-columns: 28px 1fr 72px 38px 46px;
     padding: 5px 0 5px 0;
     border-bottom: 1px solid rgba(255,255,255,0.08);
     margin-bottom: 2px;
   }
-  .mob-rt-h-task, .mob-rt-h-client, .mob-rt-h-date {
+  .mob-rt-h-task, .mob-rt-h-client, .mob-rt-h-prio, .mob-rt-h-date {
     font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--t3);
   }
+  .mob-rt-h-prio { text-align: center; }
   .mob-rt-h-date { text-align: right; }
-  /* Task rows */
+  /* Task rows — checkbox | title+desc | client | priority | date */
   .mob-rt-row {
-    display: grid; grid-template-columns: 26px 1fr 88px 52px;
-    align-items: center; min-height: 40px;
+    display: grid; grid-template-columns: 28px 1fr 72px 38px 46px;
+    align-items: center; min-height: 42px;
     border-bottom: 1px solid rgba(255,255,255,0.04);
-    padding: 3px 0;
+    padding: 4px 0; cursor: pointer;
   }
-  .mob-rt-title {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 13px; color: var(--t1); line-height: 1.3;
-    padding-right: 8px;
+  .mob-rt-row:active { background: rgba(255,255,255,0.03); }
+  /* Title cell — stacks title + description */
+  .mob-rt-title-wrap { display: flex; flex-direction: column; gap: 1px; padding-right: 6px; }
+  .mob-rt-title-text { font-size: 12.5px; color: var(--t1); line-height: 1.3; }
+  .mob-rt-desc { font-size: 10.5px; color: var(--t3); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mob-rt-client { font-size: 10.5px; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mob-rt-prio   { display: flex; align-items: center; justify-content: center; }
+  .mob-rt-date   { font-size: 10px; color: var(--t3); text-align: right; }
+  /* Priority badge */
+  .mob-prio-badge {
+    font-size: 9px; font-weight: 700; padding: 1px 5px;
+    border-radius: 4px; background: rgba(245,158,11,0.18); color: var(--amber);
+    letter-spacing: 0.03em;
   }
-  .mob-rt-client { font-size: 11px; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mob-rt-date   { font-size: 10.5px; color: var(--t3); text-align: right; }
-  /* Priority dots */
-  .mob-prio-dot {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
-    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18);
-  }
-  .mob-prio-dot.high {
-    background: var(--amber); border-color: var(--amber); color: #000;
-    font-size: 7px; font-weight: 900; width: 14px; height: 14px;
-  }
+  .mob-prio-badge.dim { background: transparent; color: var(--t3); font-weight: 400; }
   .mob-remind-section-sub {
     font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--t3); margin: 14px 0 4px 26px;
+    color: var(--t3); margin: 14px 0 4px;
   }
   .mob-remind-all-done { font-size: 12px; color: var(--t3); padding: 20px 0; text-align: center; }
-
-  /* Shared task checkbox (reused from dh-task-chk but slightly bigger for touch) */
-  .mob-rt-row .dh-task-chk {
-    width: 20px; height: 20px; border-radius: 50%;
-    font-size: 10px;
-  }
+  /* Shared task checkbox */
+  .mob-rt-row .dh-task-chk { width: 20px; height: 20px; border-radius: 50%; font-size: 10px; }
 
   /* ── Mobile billing view ── */
   .mob-billing-view { padding: 14px 16px calc(env(safe-area-inset-bottom, 20px) + 80px); }
@@ -1243,6 +1238,37 @@ body {
     cursor: pointer; font-family: var(--sans); transition: background 0.12s;
   }
   .mob-sheet-submit:active { background: rgba(52,211,153,0.2); }
+  /* Field labels inside sheet */
+  .mob-sheet-field-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--t3); margin-bottom: 5px; margin-top: 12px;
+  }
+  .mob-sheet-field-label:first-of-type { margin-top: 0; }
+  .mob-sheet-textarea { min-height: 72px; resize: vertical; }
+  /* Priority pills inside sheet */
+  .mob-sheet-prio-pills { display: flex; gap: 8px; }
+  .mob-sheet-prio-pill {
+    flex: 1; padding: 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04); color: var(--t2);
+    font-size: 12px; font-weight: 500; font-family: var(--sans); cursor: pointer;
+    transition: all 0.12s;
+  }
+  .mob-sheet-prio-pill.active { background: rgba(255,255,255,0.1); color: var(--t1); border-color: rgba(255,255,255,0.2); }
+  .mob-sheet-prio-pill.high.active { background: rgba(245,158,11,0.15); color: var(--amber); border-color: rgba(245,158,11,0.35); }
+  /* Complete toggle button */
+  .mob-sheet-complete-btn {
+    width: 100%; padding: 10px; border-radius: 9px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: var(--t2); font-size: 13px; font-family: var(--sans); cursor: pointer;
+    margin-bottom: 4px; transition: all 0.12s;
+  }
+  .mob-sheet-complete-btn.done { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.25); color: var(--teal); }
+  /* Delete button */
+  .mob-sheet-delete {
+    width: 100%; padding: 11px; border-radius: 10px;
+    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+    color: #ef4444; font-size: 13px; font-weight: 500; font-family: var(--sans); cursor: pointer;
+  }
   @keyframes sheetBgIn    { from { opacity: 0 } to { opacity: 1 } }
   @keyframes sheetSlideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
 }
@@ -3207,7 +3233,7 @@ body {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Appointment
       </button>
-      <button class="mob-action-tile" onclick="closeMobActionSheet();mobSwitchApp('reminders');setTimeout(function(){var i=document.getElementById('dh-task-inp');if(i){i.scrollIntoView({block:'nearest'});i.focus();}},350)">
+      <button class="mob-action-tile" onclick="closeMobActionSheet();if(_mobCurrentApp==='reminders'){_mobOpenAddReminderModal();}else{mobSwitchApp('reminders');setTimeout(_mobOpenAddReminderModal,350);}">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         Reminder
       </button>

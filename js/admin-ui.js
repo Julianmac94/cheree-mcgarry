@@ -771,34 +771,37 @@ function _mobRenderReminders() {
     return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
   }
 
-  var sortLabel = _dhRemindSort === 'name' ? 'A–Z' : 'Date';
+  var sortLabel = _dhRemindSort === 'priority' ? 'Priority' : 'Date';
 
   var html = '<div class="mob-remind-view">';
 
-  /* Header row with sort + add */
+  /* Header row — sort only, no "+ Add" (use ^ action sheet) */
   html += '<div class="mob-remind-hd">'
     + '<span class="mob-remind-title">Reminders</span>'
-    + '<div style="display:flex;gap:8px;align-items:center">'
-    + '<button class="mob-remind-sort-btn" onclick="dhRemindCycleSort();_mobRenderReminders()">↕ ' + sortLabel + '</button>'
-    + '<button class="mob-remind-add-btn" onclick="_mobOpenAddReminderModal()">+ Add</button>'
-    + '</div>'
+    + '<button class="mob-remind-sort-btn" onclick="dhRemindCycleSort()">↕ ' + sortLabel + '</button>'
     + '</div>';
 
   if (!tasks.length) {
-    html += '<div class="mob-empty-state" style="padding:40px 20px;text-align:center;color:var(--t3)">No reminders yet</div>';
+    html += '<div class="mob-empty-state" style="padding:40px 20px;text-align:center;color:var(--t3)">No reminders yet — tap ^ to add one</div>';
   } else {
     /* Column header */
     html += '<div class="mob-rt-head">'
       + '<span></span>'
       + '<span class="mob-rt-h-task">Task</span>'
       + '<span class="mob-rt-h-client">Client</span>'
+      + '<span class="mob-rt-h-prio">Prio</span>'
       + '<span class="mob-rt-h-date">Added</span>'
       + '</div>';
 
     /* Sort pending tasks */
     var sortedPending = pending.slice();
-    if (_dhRemindSort === 'name') {
-      sortedPending.sort(function(a, b) { return (a.title || '').localeCompare(b.title || ''); });
+    if (_dhRemindSort === 'priority') {
+      sortedPending.sort(function(a, b) {
+        var pa = _dhGetPrio(a.id) === 'high' ? 0 : 1;
+        var pb = _dhGetPrio(b.id) === 'high' ? 0 : 1;
+        if (pa !== pb) return pa - pb;
+        return (b.created_at || '').localeCompare(a.created_at || '');
+      });
     } else {
       sortedPending.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); });
     }
@@ -809,14 +812,14 @@ function _mobRenderReminders() {
 
     sortedPending.forEach(function(t) {
       var prio    = _dhGetPrio(t.id);
-      var prioDot = prio === 'high'
-        ? '<span class="mob-prio-dot high" onclick="event.stopPropagation();dhSetTaskPrio(' + JSON.stringify(t.id) + ',\'normal\');_mobRenderReminders()">!</span>'
-        : '<span class="mob-prio-dot" onclick="event.stopPropagation();dhSetTaskPrio(' + JSON.stringify(t.id) + ',\'high\');_mobRenderReminders()"></span>';
-      var client = t.client_label ? escHtml(t.client_label) : '<span style="color:var(--t3)">—</span>';
-      html += '<div class="mob-rt-row">'
-        + '<button class="dh-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',true);_mobRenderReminders()" type="button"></button>'
-        + '<div class="mob-rt-title">' + prioDot + escHtml(t.title || t.text || '') + '</div>'
+      var prioLabel = prio === 'high' ? '<span class="mob-prio-badge">High</span>' : '<span class="mob-prio-badge dim">—</span>';
+      var client  = t.client_label ? escHtml(t.client_label) : '<span style="color:var(--t3)">—</span>';
+      var descHtml = t.description ? '<div class="mob-rt-desc">' + escHtml(t.description) + '</div>' : '';
+      html += '<div class="mob-rt-row" onclick="_mobOpenEditReminderModal(' + JSON.stringify(t.id) + ')">'
+        + '<button class="dh-task-chk" onclick="event.stopPropagation();dhToggleTask(' + JSON.stringify(t.id) + ',true);_mobRenderReminders()" type="button"></button>'
+        + '<div class="mob-rt-title-wrap"><div class="mob-rt-title-text">' + escHtml(t.title || t.text || '') + '</div>' + descHtml + '</div>'
         + '<div class="mob-rt-client">' + client + '</div>'
+        + '<div class="mob-rt-prio">' + prioLabel + '</div>'
         + '<div class="mob-rt-date">' + _fmtAdded(t.created_at) + '</div>'
         + '</div>';
     });
@@ -825,11 +828,14 @@ function _mobRenderReminders() {
     if (done.length) {
       html += '<div class="mob-remind-section-sub">Completed</div>';
       done.forEach(function(t) {
-        var client = t.client_label ? escHtml(t.client_label) : '<span style="color:var(--t3)">—</span>';
-        html += '<div class="mob-rt-row mob-rt-row-done">'
-          + '<button class="dh-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',false);_mobRenderReminders()" type="button" style="opacity:0.45">✓</button>'
-          + '<div class="mob-rt-title" style="text-decoration:line-through;opacity:0.35">' + escHtml(t.title || t.text || '') + '</div>'
+        var client  = t.client_label ? escHtml(t.client_label) : '<span style="color:var(--t3)">—</span>';
+        var prio    = _dhGetPrio(t.id);
+        var prioLabel = prio === 'high' ? '<span class="mob-prio-badge" style="opacity:0.4">High</span>' : '<span class="mob-prio-badge dim" style="opacity:0.35">—</span>';
+        html += '<div class="mob-rt-row mob-rt-row-done" onclick="_mobOpenEditReminderModal(' + JSON.stringify(t.id) + ')">'
+          + '<button class="dh-task-chk" onclick="event.stopPropagation();dhToggleTask(' + JSON.stringify(t.id) + ',false);_mobRenderReminders()" type="button" style="opacity:0.45">✓</button>'
+          + '<div class="mob-rt-title-wrap" style="opacity:0.35"><div class="mob-rt-title-text" style="text-decoration:line-through">' + escHtml(t.title || t.text || '') + '</div></div>'
           + '<div class="mob-rt-client" style="opacity:0.35">' + client + '</div>'
+          + prioLabel
           + '<div class="mob-rt-date" style="opacity:0.35">' + _fmtAdded(t.created_at) + '</div>'
           + '</div>';
       });
@@ -890,6 +896,134 @@ async function _mobSubmitAddReminder() {
     }
   } catch(e) {
     toast('Could not add reminder', 'err');
+  }
+  if (_mobCurrentApp === 'reminders') _mobRenderReminders();
+}
+
+/* ── Mobile: edit reminder bottom sheet ── */
+function _mobOpenEditReminderModal(taskId) {
+  var existing = document.getElementById('mob-edit-remind-sheet');
+  if (existing) existing.remove();
+
+  var t = _dhTasks.find(function(x) { return String(x.id) === String(taskId); });
+  if (!t) return;
+
+  var prio = _dhGetPrio(t.id);
+  var tid  = String(t.id);
+
+  var sheet = document.createElement('div');
+  sheet.id = 'mob-edit-remind-sheet';
+  sheet.className = 'mob-sheet-overlay';
+  sheet.innerHTML = '<div class="mob-sheet">'
+    + '<div class="mob-sheet-hd">'
+    + '<span class="mob-sheet-title">Edit Reminder</span>'
+    + '<button class="mob-sheet-close" onclick="document.getElementById(\'mob-edit-remind-sheet\').remove()">✕</button>'
+    + '</div>'
+    + '<div class="mob-sheet-body">'
+
+    /* Complete toggle */
+    + '<button class="mob-sheet-complete-btn' + (t.completed ? ' done' : '') + '" id="mob-edit-complete-btn" onclick="_mobToggleEditComplete(\'' + tid + '\')">'
+    + (t.completed ? '✓ Mark as active' : 'Mark as done')
+    + '</button>'
+
+    /* Title */
+    + '<div class="mob-sheet-field-label">Title</div>'
+    + '<input class="mob-sheet-inp" id="mob-edit-title" type="text" value="' + escHtml(t.title || '') + '" placeholder="Reminder title…">'
+
+    /* Description */
+    + '<div class="mob-sheet-field-label">Description</div>'
+    + '<textarea class="mob-sheet-inp mob-sheet-textarea" id="mob-edit-desc" placeholder="Add notes or context…" rows="3">' + escHtml(t.description || '') + '</textarea>'
+
+    /* Client */
+    + '<div class="mob-sheet-field-label">Client</div>'
+    + '<input class="mob-sheet-inp" id="mob-edit-client" type="text" value="' + escHtml(t.client_label || '') + '" placeholder="Client name (optional)">'
+
+    /* Priority */
+    + '<div class="mob-sheet-field-label">Priority</div>'
+    + '<div class="mob-sheet-prio-pills" id="mob-edit-prio" data-prio="' + prio + '" data-tid="' + escHtml(tid) + '">'
+    + '<button class="mob-sheet-prio-pill' + (prio === 'normal' ? ' active' : '') + '" onclick="mobSheetSetPrio(\'normal\')" type="button">Normal</button>'
+    + '<button class="mob-sheet-prio-pill high' + (prio === 'high' ? ' active' : '') + '" onclick="mobSheetSetPrio(\'high\')" type="button">High</button>'
+    + '</div>'
+
+    /* Actions */
+    + '<button class="mob-sheet-submit" onclick="_mobSubmitEditReminder(\'' + tid + '\')">Save changes</button>'
+    + '<button class="mob-sheet-delete" onclick="_mobDeleteReminder(\'' + tid + '\')">Delete reminder</button>'
+    + '</div>'
+    + '</div>';
+
+  sheet.addEventListener('click', function(e) {
+    if (e.target === sheet) sheet.remove();
+  });
+  document.body.appendChild(sheet);
+}
+
+function mobSheetSetPrio(prio) {
+  var wrap = document.getElementById('mob-edit-prio');
+  if (!wrap) return;
+  wrap.dataset.prio = prio;
+  wrap.querySelectorAll('.mob-sheet-prio-pill').forEach(function(btn) {
+    btn.classList.toggle('active', btn.textContent.trim().toLowerCase() === prio);
+  });
+}
+
+function _mobToggleEditComplete(tid) {
+  var t = _dhTasks.find(function(x) { return String(x.id) === tid; });
+  if (!t) return;
+  var newCompleted = !t.completed;
+  t.completed = newCompleted;
+  var btn = document.getElementById('mob-edit-complete-btn');
+  if (btn) {
+    btn.textContent = newCompleted ? '✓ Mark as active' : 'Mark as done';
+    btn.classList.toggle('done', newCompleted);
+  }
+  apiFetch('/api/admin-tasks?id=' + encodeURIComponent(tid), { method: 'PATCH', body: { completed: newCompleted } })
+    .catch(function() { t.completed = !newCompleted; });
+}
+
+async function _mobSubmitEditReminder(tid) {
+  var titleInp  = document.getElementById('mob-edit-title');
+  var descInp   = document.getElementById('mob-edit-desc');
+  var clientInp = document.getElementById('mob-edit-client');
+  var prioWrap  = document.getElementById('mob-edit-prio');
+
+  var newTitle  = titleInp  ? titleInp.value.trim()   : '';
+  var newDesc   = descInp   ? descInp.value.trim()    : '';
+  var newClient = clientInp ? clientInp.value.trim()  : '';
+  var newPrio   = prioWrap  ? (prioWrap.dataset.prio || 'normal') : 'normal';
+
+  if (!newTitle) { toast('Title is required', 'err'); return; }
+
+  var sheet = document.getElementById('mob-edit-remind-sheet');
+  if (sheet) sheet.remove();
+
+  try {
+    await apiFetch('/api/admin-tasks?id=' + encodeURIComponent(tid), {
+      method: 'PATCH',
+      body: {
+        title:        newTitle,
+        description:  newDesc   || null,
+        client_label: newClient || null,
+      }
+    });
+    var t = _dhTasks.find(function(x) { return String(x.id) === tid; });
+    if (t) { t.title = newTitle; t.description = newDesc || null; t.client_label = newClient || null; }
+    dhSetTaskPrio(tid, newPrio);
+    toast('Reminder saved');
+  } catch(e) {
+    toast('Could not save: ' + e.message, 'err');
+  }
+  if (_mobCurrentApp === 'reminders') _mobRenderReminders();
+}
+
+async function _mobDeleteReminder(tid) {
+  var sheet = document.getElementById('mob-edit-remind-sheet');
+  if (sheet) sheet.remove();
+  try {
+    await apiFetch('/api/admin-tasks?id=' + encodeURIComponent(tid), { method: 'DELETE' });
+    _dhTasks = _dhTasks.filter(function(x) { return String(x.id) !== tid; });
+    toast('Reminder deleted');
+  } catch(e) {
+    toast('Could not delete: ' + e.message, 'err');
   }
   if (_mobCurrentApp === 'reminders') _mobRenderReminders();
 }
@@ -4242,7 +4376,7 @@ var _dhHalaxyNoInvoice  = []; // past Halaxy appts with no invoice → CRITICAL
 var _dhNonHalaxyActions = []; // non-Halaxy appts needing merge/dismiss → action
 
 /* ── Reminders sort + priority state ─────────────────────────────── */
-var _dhRemindSort = 'date'; // 'date' | 'name'
+var _dhRemindSort = 'date'; // 'date' | 'priority'
 var _dhTaskPrios  = JSON.parse(localStorage.getItem('task_prios') || '{}');
 
 function _dhGetPrio(id) { return _dhTaskPrios[String(id)] || 'normal'; }
@@ -4250,10 +4384,12 @@ function dhSetTaskPrio(id, prio) {
   _dhTaskPrios[String(id)] = prio;
   localStorage.setItem('task_prios', JSON.stringify(_dhTaskPrios));
   _dhRenderRemindBento();
+  if (window.innerWidth <= 768) _mobRenderReminders();
 }
 function dhRemindCycleSort() {
-  _dhRemindSort = _dhRemindSort === 'date' ? 'name' : 'date';
+  _dhRemindSort = _dhRemindSort === 'date' ? 'priority' : 'date';
   _dhRenderRemindBento();
+  if (typeof _mobRenderReminders === 'function' && window.innerWidth <= 768) _mobRenderReminders();
 }
 
 /* ── Module-level AUD formatter ───────────────────────────────────── */
@@ -4678,7 +4814,7 @@ function renderHomeView() {
     + '<button class="dh-remind-sort-btn" onclick="event.stopPropagation();dhRemindCycleSort()" title="Sort" id="dh-remind-sort-btn" style="margin-left:auto;font-size:10px;color:var(--t3);background:none;border:none;cursor:pointer;padding:0 4px;white-space:nowrap">Sort: date</button>'
     + '</div>'
     + '<div class="dh-tasks-card dh-remind-table-wrap" style="flex:1;min-height:0;cursor:default">'
-    + '<div class="dh-rt-head"><span class="dh-rt-h-task">Task</span><span class="dh-rt-h-client">Client</span><span class="dh-rt-h-date">Added</span></div>'
+    + '<div class="dh-rt-head"><span class="dh-rt-h-task">Task</span><span class="dh-rt-h-client">Client</span><span class="dh-rt-h-prio">Priority</span><span class="dh-rt-h-date">Added</span></div>'
     + '<div class="dh-tasks-body" id="dh-util-remind-list"><div class="dh-tasks-loading">Loading…</div></div>'
     + '<div class="dh-tasks-add">'
     + '<span class="dh-tasks-plus">+</span>'
@@ -4778,8 +4914,14 @@ function _dhRenderRemindBento() {
 
   // Sort
   var sorted = _dhTasks.slice();
-  if (_dhRemindSort === 'name') {
-    sorted.sort(function(a, b) { return (a.title || '').localeCompare(b.title || ''); });
+  if (_dhRemindSort === 'priority') {
+    // High priority first, then newest date
+    sorted.sort(function(a, b) {
+      var pa = _dhGetPrio(a.id) === 'high' ? 0 : 1;
+      var pb = _dhGetPrio(b.id) === 'high' ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return (b.created_at || '').localeCompare(a.created_at || '');
+    });
   } else {
     // date: newest first
     sorted.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); });
@@ -4797,10 +4939,13 @@ function _dhRenderRemindBento() {
     var prioDot = prio === 'high' ? '<span class="dh-prio-dot high" onclick="event.stopPropagation();dhSetTaskPrio(' + JSON.stringify(t.id) + ',\'normal\')" title="High priority — click to clear">!</span> '
                 : '<span class="dh-prio-dot" onclick="event.stopPropagation();dhSetTaskPrio(' + JSON.stringify(t.id) + ',\'high\')" title="Set high priority"></span> ';
     var client  = t.client_label ? escHtml(t.client_label) : '<span style="color:var(--t3)">—</span>';
-    return '<div class="dh-rt-row' + done + '" data-id="' + escHtml(String(t.id)) + '">'
-      + '<button class="dh-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',' + !t.completed + ')" type="button">' + (t.completed ? '✓' : '') + '</button>'
-      + '<div class="dh-rt-title">' + prioDot + escHtml(t.title || t.text || '') + '</div>'
+    var prioLabel = prio === 'high' ? '<span class="dh-prio-badge">High</span>' : '<span class="dh-prio-badge dim">—</span>';
+    var descHtml  = t.description ? '<div class="dh-rt-desc">' + escHtml(t.description) + '</div>' : '';
+    return '<div class="dh-rt-row' + done + '" data-id="' + escHtml(String(t.id)) + '" onclick="openDetailPanel(\'task\',\'' + escHtml(String(t.id)) + '\')" style="cursor:pointer">'
+      + '<button class="dh-task-chk" onclick="event.stopPropagation();dhToggleTask(' + JSON.stringify(t.id) + ',' + !t.completed + ')" type="button">' + (t.completed ? '✓' : '') + '</button>'
+      + '<div class="dh-rt-title-wrap">' + prioDot + '<div><div class="dh-rt-title-text">' + escHtml(t.title || t.text || '') + '</div>' + descHtml + '</div></div>'
       + '<div class="dh-rt-client">' + client + '</div>'
+      + '<div class="dh-rt-prio">' + prioLabel + '</div>'
       + '<div class="dh-rt-date">' + _fmtAdded(t.created_at) + '</div>'
       + '</div>';
   }).join('');
@@ -4886,57 +5031,109 @@ function _dhRenderBillingBento() {
   inner.innerHTML = html;
 }
 
-/* ── Task detail panel ───────────────────────────────────────── */
+/* ── Task detail panel (desktop right-panel edit form) ───────── */
 function _renderTaskDetailPanel(t) {
   var created = t.created_at
     ? new Date(t.created_at).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
     : '—';
-  var due = t.due_date
-    ? new Date(t.due_date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
-    : null;
+  var prio = _dhGetPrio(t.id);
+  var tid  = escHtml(String(t.id));
 
   var html = '';
 
   html += '<div class="m-meta">'
     + escHtml(created)
-    + (due ? ' · Due ' + escHtml(due) : '')
     + ' · ' + (t.completed
       ? '<span class="m-chip m-chip-teal">Done</span>'
       : '<span class="m-chip m-chip-dim">Active</span>')
     + '</div>';
 
+  /* Complete toggle */
   if (!t.completed) {
     html += '<button class="m-btn-primary" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',true);closeDetailPanel()">Mark as done</button>';
   } else {
     html += '<button class="m-btn-ghost" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',false);closeDetailPanel()">Mark as active</button>';
   }
 
-  html += '<input class="m-input" id="rdp-task-title-' + escHtml(String(t.id)) + '" type="text" value="' + escHtml(t.title || '') + '" placeholder="Task title…" style="margin-top:12px">'
-    + '<button class="m-btn-teal m-btn-sm" onclick="dhUpdateTaskTitle(' + JSON.stringify(t.id) + ')">Save</button>';
+  html += '<div class="rdp-field-group">';
 
-  html += '<div class="m-foot"><button class="m-btn-danger" onclick="dhDeleteTaskFromPanel(' + JSON.stringify(t.id) + ')">Delete task</button></div>';
+  /* Title */
+  html += '<div class="rdp-field-label">Title</div>'
+    + '<input class="m-input" id="rdp-task-title-' + tid + '" type="text" value="' + escHtml(t.title || '') + '" placeholder="Reminder title…">';
+
+  /* Description */
+  html += '<div class="rdp-field-label" style="margin-top:10px">Description</div>'
+    + '<textarea class="m-input rdp-task-desc" id="rdp-task-desc-' + tid + '" placeholder="Add notes or context…" rows="3">' + escHtml(t.description || '') + '</textarea>';
+
+  /* Client */
+  html += '<div class="rdp-field-label" style="margin-top:10px">Client</div>'
+    + '<input class="m-input" id="rdp-task-client-' + tid + '" type="text" value="' + escHtml(t.client_label || '') + '" placeholder="Client name (optional)">';
+
+  /* Priority */
+  html += '<div class="rdp-field-label" style="margin-top:10px">Priority</div>'
+    + '<div class="rdp-prio-pills" id="rdp-task-prio-' + tid + '" data-prio="' + prio + '">'
+    + '<button class="rdp-prio-pill' + (prio === 'normal' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'normal\')" type="button">Normal</button>'
+    + '<button class="rdp-prio-pill high' + (prio === 'high' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'high\')" type="button">High</button>'
+    + '</div>';
+
+  html += '</div>'; /* rdp-field-group */
+
+  /* Save */
+  html += '<button class="m-btn-teal" onclick="dhSaveTaskEdit(' + JSON.stringify(t.id) + ')" style="margin-top:14px">Save changes</button>';
+
+  /* Delete */
+  html += '<div class="m-foot"><button class="m-btn-danger" onclick="dhDeleteTaskFromPanel(' + JSON.stringify(t.id) + ')">Delete reminder</button></div>';
 
   return html;
 }
 
-async function dhUpdateTaskTitle(id) {
-  var inp = document.getElementById('rdp-task-title-' + id);
-  if (!inp) return;
-  var newTitle = inp.value.trim();
-  if (!newTitle) return;
+function rdpSetPrio(tid, prio) {
+  var wrap = document.getElementById('rdp-task-prio-' + tid);
+  if (!wrap) return;
+  wrap.dataset.prio = prio;
+  wrap.querySelectorAll('.rdp-prio-pill').forEach(function(btn) {
+    btn.classList.toggle('active', btn.textContent.trim().toLowerCase() === prio);
+  });
+}
+
+async function dhSaveTaskEdit(id) {
+  var titleInp  = document.getElementById('rdp-task-title-'  + id);
+  var descInp   = document.getElementById('rdp-task-desc-'   + id);
+  var clientInp = document.getElementById('rdp-task-client-' + id);
+  var prioWrap  = document.getElementById('rdp-task-prio-'   + id);
+
+  var newTitle  = titleInp  ? titleInp.value.trim()  : '';
+  var newDesc   = descInp   ? descInp.value.trim()   : null;
+  var newClient = clientInp ? clientInp.value.trim()  : null;
+  var newPrio   = prioWrap  ? (prioWrap.dataset.prio || 'normal') : 'normal';
+
+  if (!newTitle) { toast('Title is required', 'err'); return; }
   try {
-    await apiFetch('/api/admin-tasks?id=' + encodeURIComponent(id), { method: 'PATCH', body: { title: newTitle } });
-    var t = _dhTasks.find(function(t) { return String(t.id) === String(id); });
-    if (t) t.title = newTitle;
-    var lbl = document.querySelector('.dh-task-item[data-id="' + id + '"] .dh-task-lbl');
-    if (lbl) lbl.textContent = newTitle;
+    await apiFetch('/api/admin-tasks?id=' + encodeURIComponent(id), {
+      method: 'PATCH',
+      body: {
+        title:        newTitle,
+        description:  newDesc   || null,
+        client_label: newClient || null,
+      }
+    });
+    /* Update local cache */
+    var t = _dhTasks.find(function(x) { return String(x.id) === String(id); });
+    if (t) { t.title = newTitle; t.description = newDesc; t.client_label = newClient; }
+    /* Update priority in localStorage */
+    dhSetTaskPrio(id, newPrio);
+    /* Update panel title */
     var titleEl = document.getElementById('rdp-title');
     if (titleEl) titleEl.textContent = newTitle;
-    toast('Task updated');
+    toast('Reminder saved');
+    closeDetailPanel();
   } catch(e) {
-    toast('Could not update: ' + e.message, 'err');
+    toast('Could not save: ' + e.message, 'err');
   }
 }
+
+/* Legacy alias kept for any remaining callers */
+async function dhUpdateTaskTitle(id) { return dhSaveTaskEdit(id); }
 
 async function dhDeleteTaskFromPanel(id) {
   try {
@@ -4972,7 +5169,7 @@ async function dhAddTask(ev) {
   if (!text) return;
   inp.value = ''; inp.disabled = true;
   try {
-    var t = await apiFetch('/api/admin-tasks', { method: 'POST', body: { text: text } });
+    var t = await apiFetch('/api/admin-tasks', { method: 'POST', body: { title: text } });
     if (t && t.id) {
       _dhTasks.push(t);
       _dhRenderRemindBento();
