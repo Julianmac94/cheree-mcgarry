@@ -1186,31 +1186,14 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   color: var(--t2);
   box-shadow: none;
   position: relative;
-  z-index: 2; /* tab above card so ::after (also z-index:2) renders above card border */
-}
-/* Concave notch — quadratic bezier arc via inline SVG background.
-   No fill at all: the canvas gradient shows through everywhere except
-   the 1.5px stroke that traces the curve.
-   Element sits in the canvas area just above the card, to the right
-   of the tab. Its TL corner (0,0) aligns with the tab's right border
-   at 20px above the junction; its BL corner (0,20) is the junction
-   itself; its BR corner (20,20) sits on the card's top surface.
-   The bezier M 0 0 Q 0 20 20 20 sweeps from the tab border through
-   the junction and lands on the card border — exactly the concave
-   arc in the reference. */
-.dh-fold-tab::after {
-  content: '';
-  position: absolute;
-  bottom: 0;      /* element bottom = tab bottom = card top */
-  right: -20px;   /* element left = tab right */
-  width: 20px;
-  height: 20px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='-1%20-1%2022%2022'%3E%3Cpath d='M%200%200%20Q%200%2020%2020%2020' fill='none' stroke='white' stroke-opacity='0.09' stroke-width='1.5'/%3E%3C/svg%3E");
-  background-size: 20px 20px;
-  background-repeat: no-repeat;
-  pointer-events: none;
   z-index: 2;
+  /* Concave notch: mask cuts a quarter-circle OUT of the bottom-right
+     corner of the tab shape itself. Canvas gradient shows through the
+     cut naturally — no colour-matching needed. */
+  -webkit-mask-image: radial-gradient(circle at 100% 100%, transparent 20px, white 20px);
+  mask-image: radial-gradient(circle at 100% 100%, transparent 20px, white 20px);
 }
+.dh-fold-tab::after { display: none; }
 .dh-fold-tab svg { opacity: 0.65; }
 .dh-fold-tab .dh-fold-badge {
   background: var(--amber-a); color: var(--amber);
