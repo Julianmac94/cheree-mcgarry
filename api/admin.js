@@ -2619,44 +2619,22 @@ body {
 }
 
 /* ── Initial page-load branded splash ── */
-@keyframes init-ring-spin {
-  to { transform: rotate(360deg); }
-}
 @keyframes init-logo-breathe {
-  0%,100% { opacity: 0.75; transform: scale(1); }
-  50%      { opacity: 1;    transform: scale(1.06); }
+  0%,100% { opacity: 0.05; }
+  50%      { opacity: 0.10; }
 }
 @keyframes init-skel-wave {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 .init-loader {
-  display: flex; flex-direction: column; align-items: center;
-  padding: 64px 0 32px;
-}
-.init-logo-wrap {
-  position: relative; width: 72px; height: 72px;
   display: flex; align-items: center; justify-content: center;
-  margin-bottom: 18px;
+  padding: 56px 0 24px;
 }
 .init-logo {
-  width: 40px; height: 40px; position: relative; z-index: 2;
-  animation: init-logo-breathe 2s ease-in-out infinite;
-}
-.init-ring {
-  position: absolute; inset: 0; border-radius: 50%;
-  border: 2px solid transparent;
-  border-top-color: #376B62;
-  border-right-color: rgba(55,107,98,0.25);
-  animation: init-ring-spin 1.1s linear infinite;
-}
-.init-ring-outer {
-  position: absolute; inset: -6px; border-radius: 50%;
-  border: 1px solid rgba(55,107,98,0.12);
-}
-.init-label {
-  font-family: Raleway, sans-serif; font-size: 12px; font-weight: 500;
-  color: rgba(122,148,143,0.6); letter-spacing: 0.06em; text-transform: uppercase;
+  width: 140px; height: 140px;
+  filter: brightness(12);
+  animation: init-logo-breathe 3.5s ease-in-out infinite;
 }
 .init-skel-grid {
   display: grid; grid-template-columns: repeat(4,1fr); gap: 12px;
@@ -2666,9 +2644,9 @@ body {
 .init-skel {
   border-radius: 12px;
   background: linear-gradient(90deg,
-    rgba(42,88,80,0.06) 25%, rgba(42,88,80,0.11) 50%, rgba(42,88,80,0.06) 75%);
+    rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 75%);
   background-size: 200% 100%;
-  animation: init-skel-wave 1.6s ease-in-out infinite;
+  animation: init-skel-wave 2.6s ease-in-out infinite;
 }
 .pl-empty { font-size: 11px; color: rgba(122,148,143,0.6); padding: 8px 2px; font-style: italic; }
 
@@ -2824,12 +2802,7 @@ body {
       <div class="view-content" id="view-content">
         <!-- branded loading state — replaced by JS on data load -->
         <div class="init-loader">
-          <div class="init-logo-wrap">
-            <div class="init-ring-outer"></div>
-            <div class="init-ring"></div>
-            <img src="/assets/logo.svg" class="init-logo" alt="">
-          </div>
-          <div class="init-label">Loading</div>
+          <img src="/assets/logo.svg" class="init-logo" alt="">
         </div>
         <div class="init-skel-grid">
           ${[80,80,80,80].map(h=>`<div class="init-skel" style="height:${h}px"></div>`).join('')}
