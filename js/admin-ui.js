@@ -3405,33 +3405,31 @@ function _renderTaskDetailPanel(t) {
     : '—';
   var due = t.due_date
     ? new Date(t.due_date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
-    : '—';
+    : null;
 
   var html = '';
-  html += '<div class="rdp-client">' + escHtml(t.title || '—') + '</div>';
-  html += '<div class="rdp-date">' + created + ' · ' + (t.completed ? 'Completed' : 'Active') + '</div>';
 
-  html += '<div class="rdp-action-zone">';
+  html += '<div class="m-meta">'
+    + escHtml(created)
+    + (due ? ' · Due ' + escHtml(due) : '')
+    + ' · ' + (t.completed
+      ? '<span class="m-chip m-chip-teal">Done</span>'
+      : '<span class="m-chip m-chip-dim">Active</span>')
+    + '</div>';
+
   if (!t.completed) {
-    html += '<button class="rdp-primary-btn" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',true);closeDetailPanel()">Mark as done ✓</button>';
+    html += '<button class="m-btn-primary" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',true);closeDetailPanel()">Mark as done</button>';
   } else {
-    html += '<button class="rdp-ghost-btn" style="margin-bottom:6px" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',false);closeDetailPanel()">Mark as active</button>';
+    html += '<button class="m-btn-ghost" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',false);closeDetailPanel()">Mark as active</button>';
   }
-  html += '<button class="rdp-ghost-btn" style="margin-top:6px;color:var(--db-red,#F87171)" onclick="dhDeleteTaskFromPanel(' + JSON.stringify(t.id) + ')">Delete task</button>';
-  html += '</div>';
 
-  html += '<div class="rdp-section">'
-    + '<div class="rdp-section-label">Details</div>'
-    + '<div class="rdp-row"><span class="rdp-row-label">Status</span><span class="rdp-row-val">' + (t.completed ? 'Done' : 'Active') + '</span></div>'
-    + '<div class="rdp-row"><span class="rdp-row-label">Created</span><span class="rdp-row-val">' + created + '</span></div>'
-    + '<div class="rdp-row"><span class="rdp-row-label">Due date</span><span class="rdp-row-val">' + due + '</span></div>'
+  html += '<div class="m-section">'
+    + '<div class="m-section-hd"><span class="m-section-label">Rename</span></div>'
+    + '<input class="m-input" id="rdp-task-title-' + escHtml(String(t.id)) + '" type="text" value="' + escHtml(t.title || '') + '" placeholder="Task title…">'
+    + '<button class="m-btn-teal m-btn-sm" onclick="dhUpdateTaskTitle(' + JSON.stringify(t.id) + ')">Save</button>'
     + '</div>';
 
-  html += '<div class="rdp-section">'
-    + '<div class="rdp-section-label">Edit task</div>'
-    + '<input class="cl-modal-input" id="rdp-task-title-' + escHtml(String(t.id)) + '" type="text" value="' + escHtml(t.title || '') + '" style="width:100%;margin-bottom:8px" placeholder="Task title…">'
-    + '<button class="rdp-ghost-btn" onclick="dhUpdateTaskTitle(' + JSON.stringify(t.id) + ')">Save title</button>'
-    + '</div>';
+  html += '<div class="m-foot"><button class="m-btn-danger" onclick="dhDeleteTaskFromPanel(' + JSON.stringify(t.id) + ')">Delete task</button></div>';
 
   return html;
 }
@@ -4824,16 +4822,9 @@ function renderSettingsView() {
    ═══════════════════════════════════════════════════ */
 
 function _renderSessionDetailPanel(sess) {
-  var html = '';
-  // Subtitle: date + time only — name is already in the slide-out header
-  html += '<div class="rdp-date" style="margin-bottom:16px">'
-    + escHtml(sess.dateLabel || sess.dateStr || '')
-    + (sess.timeStr ? ' · ' + escHtml(sess.timeStr) : '')
-    + '</div>';
-
+  var _calEvId = sess.eventId || sess.id;
   var _hUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
 
-  // Invoice lookup
   var _inv = null;
   if (sess.patientId && sess.dateStr && _halaxyData && _halaxyData.invoices) {
     _inv = (_halaxyData.invoices || []).find(function(i) {
@@ -4843,96 +4834,81 @@ function _renderSessionDetailPanel(sess) {
   var _fee = _inv ? parseFloat(_inv.totalPrice   || 0) : 0;
   var _bal = _inv ? parseFloat(_inv.totalBalance || 0) : 0;
 
-  // ── Edit button (GCal events only — Halaxy events are managed there) ──
-  var _calEvId = sess.eventId || sess.id;
-  if (sess.source === 'cal') {
-    html += '<div style="text-align:right;margin-bottom:10px">'
-      + '<button onclick="_calRenameEvent(\'' + escHtml(_calEvId) + '\',\'' + escHtml(sess.name || '') + '\')" '
-      + 'style="font-size:11px;color:#8a9a98;background:none;border:1px solid rgba(0,0,0,0.1);border-radius:5px;padding:3px 9px;cursor:pointer;font-family:inherit">✎ Edit name</button>'
-      + '</div>';
+  var html = '';
+
+  // Meta line — date + time + status chip
+  html += '<div class="m-meta">'
+    + escHtml(sess.dateLabel || sess.dateStr || '')
+    + (sess.timeStr ? ' · ' + escHtml(sess.timeStr) : '');
+
+  if (sess.isReminder) {
+    html += ' · <span class="m-chip m-chip-purple">📋 Reminder</span>';
+  } else if (sess.status === 'paid') {
+    html += ' · <span class="m-chip m-chip-teal">Paid ✓</span>';
+  } else if (sess.status === 'invoiced') {
+    html += ' · <span class="m-chip m-chip-amber">Invoice raised</span>';
+  } else if (sess.status === 'pending-invoice') {
+    html += ' · <span class="m-chip m-chip-purple">No invoice</span>';
+  } else if (sess.status === 'needs-recording') {
+    html += ' · <span class="m-chip m-chip-purple">Needs recording</span>';
+  } else if (sess.status === 'upcoming') {
+    html += ' · <span class="m-chip m-chip-blue">Upcoming</span>';
+  }
+  html += '</div>';
+
+  // Amount
+  if (_fee > 0 && sess.status === 'paid') {
+    html += '<div class="m-amount"><span class="m-amount-val m-amount-teal">$' + _fee.toFixed(2) + '</span></div>';
+  } else if (_bal > 0) {
+    html += '<div class="m-amount"><span class="m-amount-val m-amount-amber">$' + _bal.toFixed(2) + ' owing</span></div>';
   }
 
-  // ── Compact status + fee zone ──────────────────────────────────
-  html += '<div class="rdp-action-zone">';
-
-  // Reminder: no warning, just confirmation + undo
+  // Reminder state
   if (sess.isReminder) {
-    html += '<div style="display:flex;align-items:center;gap:8px">'
-      + '<span class="rdp-status-chip" style="background:rgba(167,139,250,0.15);color:#A78BFA">📋 Reminder</span>'
-      + '</div>';
-    html += '<div style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:8px;line-height:1.5">Marked as a reminder — visible in your schedule and Reminders list. Not counted as a client appointment.</div>';
-    html += '<button class="rdp-ghost-btn" style="margin-top:8px" onclick="_calMarkAsReminder_undo(\'' + escHtml(_calEvId) + '\')">Restore as appointment</button>';
-    html += '<button style="display:block;width:100%;margin-top:6px;padding:8px;border:none;background:none;cursor:pointer;font-size:11px;color:#F87171;font-family:inherit" onclick="deleteScheduleAppt(\'' + escHtml(_calEvId) + '\')">Delete from calendar</button>';
-    html += '</div>';
+    html += '<div class="m-info-box">Marked as a reminder — visible in your schedule but not counted as a client appointment.</div>';
+    html += '<button class="m-btn-ghost" onclick="_calMarkAsReminder_undo(\'' + escHtml(_calEvId) + '\')">Restore as appointment</button>';
+    html += '<div class="m-foot"><button class="m-btn-danger" onclick="deleteScheduleAppt(\'' + escHtml(_calEvId) + '\')">Delete from calendar</button></div>';
     return html;
   }
 
-  if (sess.status === 'paid') {
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
-      + '<span class="rdp-status-chip paid">Paid ✓</span>'
-      + (_fee > 0 ? '<span style="font-size:17px;font-weight:700;color:var(--teal)">$' + _fee.toFixed(2) + '</span>' : '')
-      + '</div>';
+  // Unlinked GCal events — delegate to _calUnlinkedActionHtml
+  var isUnlinkedCal = sess.source === 'cal' && !sess.patientId;
 
-  } else if (sess.status === 'invoiced') {
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
-      + '<span class="rdp-status-chip invoiced">Invoice raised ✓</span>'
-      + (_bal > 0 ? '<span style="font-size:17px;font-weight:700;color:var(--amber)">$' + _bal.toFixed(2) + ' owing</span>' : '')
-      + '</div>';
-    html += '<a class="rdp-ghost-btn" style="margin-top:10px" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
+  if (isUnlinkedCal && (sess.status === 'needs-recording' || sess.status === 'upcoming')) {
+    html += _calUnlinkedActionHtml(sess.eventId || sess.id, sess.name);
+    return html;
+  }
 
-  } else if (sess.status === 'pending-invoice') {
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
-      + '<span class="rdp-status-chip" style="background:rgba(167,139,250,0.15);color:#A78BFA">No invoice yet</span>'
-      + '</div>';
-    html += '<a class="rdp-primary-btn" style="margin-top:10px" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">Open in Halaxy to invoice →</a>';
-
-  } else if (sess.status === 'needs-recording') {
+  // Primary CTA per status
+  if (sess.status === 'needs-recording') {
     var _pid = sess.patientId || '';
-    if (sess.source === 'cal' && !sess.patientId) {
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
-        + '<span class="rdp-status-chip" style="background:rgba(167,139,250,0.15);color:#A78BFA">Google Calendar · Past</span>'
-        + '</div>';
-      html += _calUnlinkedActionHtml(sess.eventId || sess.id, sess.name);
-    } else {
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
-        + '<span class="rdp-status-chip" style="background:rgba(167,139,250,0.15);color:#A78BFA">Needs recording</span>'
-        + '</div>';
-      html += '<button class="rdp-primary-btn" style="margin-top:10px" onclick="openHalaxyApptLogPanel(\'' + escHtml(sess.id) + '\',\'' + escHtml(_pid) + '\',\'' + escHtml(sess.name || '') + '\',\'' + escHtml(sess.dateStr) + '\',\'' + escHtml(sess.startIso || (sess.dateStr + 'T09:00:00')) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Record this appointment →</button>';
-    }
-
-  } else if (sess.status === 'upcoming') {
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
-      + '<span class="rdp-status-chip upcoming">Upcoming</span>'
-      + (_fee > 0 ? '<span style="font-size:13px;color:var(--t2)">$' + _fee.toFixed(2) + '</span>' : '')
-      + '</div>';
-    if (sess.source === 'cal' && !sess.patientId) {
-      html += _calUnlinkedActionHtml(sess.eventId || sess.id, sess.name);
-    } else {
-      html += '<a class="rdp-ghost-btn" style="margin-top:10px" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
-    }
-
-  } else {
-    html += '<a class="rdp-ghost-btn" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
+    html += '<button class="m-btn-primary" onclick="openHalaxyApptLogPanel(\'' + escHtml(sess.id) + '\',\'' + escHtml(_pid) + '\',\'' + escHtml(sess.name || '') + '\',\'' + escHtml(sess.dateStr) + '\',\'' + escHtml(sess.startIso || (sess.dateStr + 'T09:00:00')) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Record this appointment</button>';
+  } else if (sess.status === 'pending-invoice') {
+    html += '<a class="m-btn-primary" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">Open in Halaxy to invoice</a>';
+  } else if (sess.status === 'invoiced' || sess.status === 'upcoming') {
+    html += '<a class="m-btn-ghost" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
+  } else if (sess.status !== 'paid') {
+    html += '<a class="m-btn-ghost" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
   }
 
-  html += '</div>';
+  // Rename (GCal events only)
+  if (sess.source === 'cal') {
+    html += '<div class="m-links"><button class="m-link" onclick="_calRenameEvent(\'' + escHtml(_calEvId) + '\',\'' + escHtml(sess.name || '') + '\')">✎ Rename event</button></div>';
+  }
 
-  // Minimal meta row — only Halaxy ID (small, unobtrusive)
+  // Halaxy ID
   if (sess.halaxyApptId) {
-    html += '<div class="rdp-section" style="margin-top:12px">'
-      + '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span>'
-      + '<span class="rdp-row-val" style="font-size:11px;color:rgba(255,255,255,0.35)">' + escHtml(sess.halaxyApptId) + '</span></div>'
-      + '</div>';
+    html += '<div class="m-section"><div class="m-row"><span class="m-key">Halaxy ID</span><span class="m-val m-val-mono">' + escHtml(sess.halaxyApptId) + '</span></div></div>';
   }
 
-  // How-to steps — only for states needing action
+  // How-to steps
   var howtoSteps = {
     'pending-invoice': [
       'Open Halaxy using the button above',
       'Navigate to this date in the Halaxy calendar',
       'Click the appointment and select Add Invoice / Add Fee',
       'Set the item, amount and funder (Medicare, private, etc.)',
-      'Save — the dashboard updates automatically on next refresh',
+      'Save — the dashboard updates on next refresh',
     ],
     'needs-recording': [
       'Click "Record this appointment" above',
@@ -4948,13 +4924,10 @@ function _renderSessionDetailPanel(sess) {
     ],
   }[sess.status];
 
-  // Don't show Halaxy-centric how-to steps for dashboard-only GCal appointments
-  var isDashboardCalAppt = sess.source === 'cal' && !sess.patientId;
-  if (howtoSteps && !isDashboardCalAppt) {
-    html += '<div class="rdp-howto"><details><summary>How to action this</summary>';
-    html += '<div class="rdp-howto-steps">';
+  if (howtoSteps) {
+    html += '<div class="m-howto"><details><summary>How to action this</summary><div class="m-howto-steps">';
     howtoSteps.forEach(function(step, i) {
-      html += '<div class="rdp-howto-step"><span class="rdp-howto-step-n">' + (i + 1) + '</span><span>' + escHtml(step) + '</span></div>';
+      html += '<div class="m-howto-step"><span class="m-howto-n">' + (i + 1) + '</span><span>' + escHtml(step) + '</span></div>';
     });
     html += '</div></details></div>';
   }
@@ -4968,8 +4941,6 @@ function _calUnlinkedActionHtml(eventId, calName) {
   var safeName = escHtml(calName || 'Calendar event');
   var listId   = 'cal-merge-list-' + safeId;
 
-  // Build merge list from upcoming Halaxy appointments — these are the actual merge targets.
-  // The assumption: the real appointment has already been created in Halaxy and synced here.
   var halaxyUpcoming = (_dhAppts || []).filter(function(s) {
     return s.source === 'halaxy' && s.patientId && s.status === 'upcoming';
   }).sort(function(a, b) { return (a.startMs || 0) - (b.startMs || 0); });
@@ -4977,57 +4948,43 @@ function _calUnlinkedActionHtml(eventId, calName) {
   var listHtml = halaxyUpcoming.slice(0, 25).map(function(s) {
     var pname    = s.name || ('Patient #' + s.patientId);
     var apptDate = s.dateLabel + (s.timeStr ? ' · ' + s.timeStr : '');
-    var ini      = pname.split(/\s+/).slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase();
-    // Find linked dashboard client
+    var ini      = pname.split(/\s+/).slice(0, 2).map(function(w) { return w[0]; }).join('').toUpperCase();
     var dashClient = (_pipelineData && _pipelineData.clients || []).find(function(c) {
       return c.halaxy_id && String(c.halaxy_id) === String(s.patientId);
     });
-    var clientNote = dashClient ? '· ' + escHtml(dashClient.display_name) + ' in dashboard' : '';
-    return '<div onclick="_calMergeConfirm(\'' + safeId + '\',\'' + escHtml(String(s.patientId)) + '\',\'' + escHtml(pname) + '\',\'' + escHtml(apptDate) + '\')" '
-      + 'style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid rgba(42,88,80,0.06);cursor:pointer;transition:background 0.12s" '
-      + 'onmouseover="this.style.background=\'rgba(42,88,80,0.06)\'" onmouseout="this.style.background=\'\'">'
-      + '<div style="width:32px;height:32px;border-radius:50%;background:rgba(42,88,80,0.12);color:#376B62;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">' + escHtml(ini) + '</div>'
+    return '<div class="m-merge-item" onclick="_calMergeConfirm(\'' + safeId + '\',\'' + escHtml(String(s.patientId)) + '\',\'' + escHtml(pname) + '\',\'' + escHtml(apptDate) + '\')">'
+      + '<div class="m-merge-av">' + escHtml(ini) + '</div>'
       + '<div style="flex:1;min-width:0">'
-      + '<div style="font-size:12px;font-weight:600;color:#1a2e2a">' + escHtml(pname) + '</div>'
-      + '<div style="font-size:11px;color:#376B62;font-weight:500">' + escHtml(apptDate) + '</div>'
-      + (dashClient ? '<div style="font-size:10px;color:#8a9a98;margin-top:1px">Dashboard record linked ✓</div>' : '')
+      + '<div class="m-merge-name">' + escHtml(pname) + '</div>'
+      + '<div class="m-merge-date">' + escHtml(apptDate) + '</div>'
+      + (dashClient ? '<div class="m-merge-badge">Dashboard record linked ✓</div>' : '')
       + '</div>'
-      + '<span style="color:#999;font-size:14px">›</span>'
+      + '<span class="m-merge-arr">›</span>'
       + '</div>';
   }).join('');
 
   if (!listHtml) {
     listHtml = halaxyUpcoming.length === 0
-      ? '<div style="font-size:12px;color:#999;padding:12px 10px">No upcoming Halaxy appointments found. Create the appointment in Halaxy first, then come back to merge.</div>'
-      : '<div style="font-size:12px;color:#999;padding:10px">No results.</div>';
+      ? '<div class="m-empty" style="padding:12px">No upcoming Halaxy appointments found. Create the appointment in Halaxy first, then come back to merge.</div>'
+      : '<div class="m-empty" style="padding:10px">No results.</div>';
   }
 
   var html = '';
 
-  // Warning box with explicit dark colours (not CSS vars — panel is light)
-  html += '<div style="margin-top:10px;padding:10px 12px;background:rgba(224,123,57,0.08);border:1px solid rgba(224,123,57,0.22);border-radius:8px">'
-    + '<div style="font-size:11px;font-weight:700;color:#FBBF24;margin-bottom:4px">⚠ No client linked</div>'
-    + '<div style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.55">This Google Calendar event has no Halaxy patient or dashboard client attached.</div>'
-    + '</div>';
+  html += '<div class="m-banner m-banner-amber">⚠ No client linked — this Google Calendar event has no Halaxy patient or dashboard client attached.</div>';
+  html += '<button class="m-btn-primary" onclick="_calToggleMergeList(\'' + safeId + '\')">Link to Halaxy patient</button>';
 
-  // Primary action: link to Halaxy patient
-  html += '<button class="rdp-primary-btn" style="margin-top:10px" onclick="_calToggleMergeList(\'' + safeId + '\')">Link to Halaxy patient →</button>';
-
-  // Inline Halaxy appointment list (hidden by default)
-  html += '<div id="' + listId + '" style="display:none;margin-top:8px;border:1px solid rgba(42,88,80,0.12);border-radius:8px;max-height:300px;overflow-y:auto">'
-    + '<div style="padding:8px 10px;font-size:10px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#8a9a98;border-bottom:1px solid rgba(42,88,80,0.08)">Select the Halaxy appointment to merge into</div>'
+  html += '<div id="' + listId + '" class="m-merge-list" style="display:none">'
+    + '<div class="m-merge-hd">Select the Halaxy appointment to merge into</div>'
     + listHtml
     + '</div>';
 
-  // Secondary: add as dashboard client
-  html += '<button class="rdp-ghost-btn" style="margin-top:8px" onclick="_calAddDashboardClient(\'' + safeName + '\')">Add as dashboard client</button>';
+  html += '<div class="m-links">'
+    + '<button class="m-link" onclick="_calAddDashboardClient(\'' + safeName + '\')">Add as new dashboard client</button>'
+    + '<button class="m-link m-link-dim" onclick="_calMarkAsReminder(\'' + safeId + '\',\'' + safeName + '\')">📋 This is a reminder — not a client appointment</button>'
+    + '</div>';
 
-  // Tertiary: mark as reminder
-  html += '<button class="rdp-ghost-btn" style="margin-top:6px;color:#6b7280" onclick="_calMarkAsReminder(\'' + safeId + '\',\'' + safeName + '\')">📋 This is a reminder — not a client appointment</button>';
-
-  // Quaternary: delete
-  html += '<button style="display:block;width:100%;margin-top:6px;padding:8px;border:none;background:none;cursor:pointer;font-size:11px;color:#F87171;font-family:inherit" '
-    + 'onclick="deleteScheduleAppt(\'' + safeId + '\')">Delete from calendar</button>';
+  html += '<div class="m-foot"><button class="m-btn-danger" onclick="deleteScheduleAppt(\'' + safeId + '\')">Delete from calendar</button></div>';
 
   return html;
 }
@@ -5121,84 +5078,77 @@ function _renderEnquiryDetailPanel(enq) {
   var name = [enq.first_name, enq.last_name].filter(Boolean).join(' ') || '—';
   var CLOSED_REASON_LABELS_RDP = { not_interested: 'Not interested', wrong_service: 'Wrong service', no_response: 'No response', converted_elsewhere: 'Converted elsewhere', duplicate: 'Duplicate enquiry', other: 'Other' };
   var STATUS_LABELS_RDP = { new: 'New', contacted: 'Contacted', in_halaxy: 'Awaiting first booking', closed: 'Closed', converted: 'Converted' };
-  var html = '';
-  html += '<div class="rdp-date" style="margin-bottom:14px">' + escHtml(_relativeDate(enq.created_at)) + (enq.source ? ' · ' + escHtml(enq.source) : '')
-    + (enq.status === 'closed' && enq.closed_reason ? ' · <span class="enq-closed-reason">' + escHtml(CLOSED_REASON_LABELS_RDP[enq.closed_reason] || enq.closed_reason) + '</span>' : '')
-    + '</div>';
-
-  // ── ACTION ZONE ────────────────────────────────────────────────────────
-  html += '<div class="rdp-action-zone">';
 
   var isClosed    = enq.status === 'closed' || enq.status === 'converted';
   var isNew       = enq.status === 'new' || !enq.status;
   var isContacted = enq.status === 'contacted';
   var isInHalaxy  = enq.status === 'in_halaxy';
 
+  var statusChipCls = isClosed ? 'm-chip-dim' : (enq.status === 'converted' ? 'm-chip-teal' : isInHalaxy ? 'm-chip-teal' : isContacted ? 'm-chip-blue' : 'm-chip-purple');
+
+  var html = '';
+
+  // Meta line
+  html += '<div class="m-meta">'
+    + escHtml(_relativeDate(enq.created_at))
+    + (enq.source ? ' · ' + escHtml(enq.source) : '')
+    + ' · <span class="m-chip ' + statusChipCls + '">' + escHtml(STATUS_LABELS_RDP[enq.status] || 'New') + '</span>'
+    + (enq.status === 'closed' && enq.closed_reason ? ' · ' + escHtml(CLOSED_REASON_LABELS_RDP[enq.closed_reason] || enq.closed_reason) : '')
+    + '</div>';
+
+  // Contact strip — phone + email as quick pill links
+  if (enq.phone || enq.email) {
+    html += '<div class="m-contact-strip">';
+    if (enq.phone) html += '<a class="m-contact-link" href="tel:' + escHtml(enq.phone) + '">' + escHtml(enq.phone) + '</a>';
+    if (enq.email) html += '<a class="m-contact-link" href="mailto:' + escHtml(enq.email) + '">' + escHtml(enq.email) + '</a>';
+    html += '</div>';
+  }
+
   if (!isClosed) {
-    // ── Send onboarding ──
-    html += '<div style="margin-bottom:12px">';
-    html += '<div style="font-size:12px;font-weight:600;color:#2A5850;margin-bottom:9px">Send onboarding email</div>';
+    // Send onboarding section
+    html += '<div class="m-section">';
+    html += '<div class="m-section-hd"><span class="m-section-label">Send onboarding</span></div>';
 
-    // Client person type
-    html += '<select id="rdp-ctype-' + enq.id + '" class="cl-modal-select" style="width:100%;margin-bottom:6px">';
-    html += '<option value="">Client type…</option>';
-    html += '<option value="individual">Individual</option>';
-    html += '<option value="couples">Couples / relationship</option>';
-    html += '<option value="child">Child / family</option>';
-    html += '</select>';
-
-    // Funder type
     var funderOpts = Object.entries(FUNDER_LABELS).map(function(kv) {
       return '<option value="' + kv[0] + '">' + kv[1] + '</option>';
     }).join('');
-    html += '<select id="rdp-intake-funder-' + enq.id + '" class="cl-modal-select" style="width:100%;margin-bottom:6px"'
-      + ' onchange="_rdpUpdateIntakeUrl(\'' + enq.id + '\')">';
-    html += '<option value="">Funding type…</option>' + funderOpts;
-    html += '</select>';
 
-    html += '<input id="rdp-intake-url-' + enq.id + '" type="url" class="cl-modal-input"'
-      + ' placeholder="Intake form URL (auto-fills for known funders)…"'
-      + ' style="width:100%;margin-bottom:6px;font-size:11px" />';
-    html += '<button class="rdp-primary-btn" style="margin-bottom:0" onclick="_rdpSendIntake(\'' + enq.id + '\')">Send onboarding email →</button>';
+    html += '<select class="m-select" id="rdp-ctype-' + enq.id + '">'
+      + '<option value="">Client type…</option>'
+      + '<option value="individual">Individual</option>'
+      + '<option value="couples">Couples / relationship</option>'
+      + '<option value="child">Child / family</option>'
+      + '</select>';
+    html += '<select class="m-select" id="rdp-intake-funder-' + enq.id + '" onchange="_rdpUpdateIntakeUrl(\'' + enq.id + '\')">'
+      + '<option value="">Funding type…</option>' + funderOpts
+      + '</select>';
+    html += '<input class="m-input m-input-sm" id="rdp-intake-url-' + enq.id + '" type="url" placeholder="Intake form URL (auto-fills for known funders)…">';
+    html += '<button class="m-btn-primary" onclick="_rdpSendIntake(\'' + enq.id + '\')">Send onboarding email</button>';
     html += '</div>';
 
-    // ── Stage-specific actions ──
-    if (isNew) {
-      html += '<button class="rdp-ghost-btn" onclick="advanceEnquiryStatus(\'' + enq.id + '\',\'contacted\');closeDetailPanel()">Mark as contacted →</button>';
-    }
-    if (isContacted) {
-      html += '<button class="rdp-ghost-btn" style="margin-bottom:6px" onclick="_openAddToHalaxyPanel(\'' + enq.id + '\')">Add to Halaxy →</button>';
-    }
-    if (isInHalaxy) {
-      html += '<button class="rdp-ghost-btn" style="margin-bottom:6px" onclick="convertEnquiryPl(\'' + enq.id + '\')">Convert to client →</button>';
-    }
-    html += '<button class="rdp-ghost-btn" style="font-size:10px;color:var(--soft)" onclick="_openCloseEnquiryModal(\'' + enq.id + '\')">Close enquiry…</button>';
+    // Stage-specific text links
+    html += '<div class="m-links">';
+    if (isNew)       html += '<button class="m-link" onclick="advanceEnquiryStatus(\'' + enq.id + '\',\'contacted\');closeDetailPanel()">Mark as contacted →</button>';
+    if (isContacted) html += '<button class="m-link" onclick="_openAddToHalaxyPanel(\'' + enq.id + '\')">Add to Halaxy →</button>';
+    if (isInHalaxy)  html += '<button class="m-link" onclick="convertEnquiryPl(\'' + enq.id + '\')">Convert to client →</button>';
+    html += '<button class="m-link m-link-dim" onclick="_openCloseEnquiryModal(\'' + enq.id + '\')">Close enquiry…</button>';
+    html += '</div>';
   }
 
-  html += '</div>';
-
-  // ── Add-to-Halaxy panel placeholder (rendered dynamically) ──
+  // Dynamic Halaxy panel placeholder
   html += '<div id="rdp-halaxy-link-' + enq.id + '"></div>';
 
-  // ── Contact details ──
-  html += '<div class="rdp-section">';
-  html += '<div class="rdp-section-label">Contact</div>';
-  if (enq.phone) html += '<div class="rdp-row"><span class="rdp-row-label">Phone</span><span class="rdp-row-val"><a href="tel:' + escHtml(enq.phone) + '" style="color:inherit">' + escHtml(enq.phone) + '</a></span></div>';
-  if (enq.email) html += '<div class="rdp-row"><span class="rdp-row-label">Email</span><span class="rdp-row-val" style="font-size:11px"><a href="mailto:' + escHtml(enq.email) + '" style="color:inherit">' + escHtml(enq.email) + '</a></span></div>';
-  if (enq.service) html += '<div class="rdp-row"><span class="rdp-row-label">Service</span><span class="rdp-row-val">' + escHtml(enq.service) + '</span></div>';
-  if (enq.reason)  html += '<div class="rdp-row"><span class="rdp-row-label">Reason</span><span class="rdp-row-val">' + escHtml(enq.reason) + '</span></div>';
-  html += '<div class="rdp-row"><span class="rdp-row-label">Status</span><span class="rdp-row-val">' + escHtml(STATUS_LABELS_RDP[enq.status] || enq.status || 'New') + '</span></div>';
-  if (enq.intake_funder) html += '<div class="rdp-row"><span class="rdp-row-label">Funder</span><span class="rdp-row-val">' + escHtml(FUNDER_LABELS[enq.intake_funder] || enq.intake_funder) + '</span></div>';
+  // Details section
+  html += '<div class="m-section">';
+  html += '<div class="m-section-hd"><span class="m-section-label">Details</span></div>';
+  if (enq.service)       html += '<div class="m-row"><span class="m-key">Service</span><span class="m-val">' + escHtml(enq.service) + '</span></div>';
+  if (enq.reason)        html += '<div class="m-row"><span class="m-key">Reason</span><span class="m-val">' + escHtml(enq.reason) + '</span></div>';
+  if (enq.intake_funder) html += '<div class="m-row"><span class="m-key">Funder</span><span class="m-val">' + escHtml(FUNDER_LABELS[enq.intake_funder] || enq.intake_funder) + '</span></div>';
+  if (enq.message)       html += '<div class="m-row m-row-block"><span class="m-key">Message</span><span class="m-val m-val-wrap">' + escHtml(enq.message) + '</span></div>';
+  if (!enq.service && !enq.reason && !enq.intake_funder && !enq.message) html += '<div class="m-empty">No details recorded</div>';
   html += '</div>';
 
-  if (enq.message) {
-    html += '<div class="rdp-section">';
-    html += '<div class="rdp-section-label">Message</div>';
-    html += '<div style="font-size:13px;color:#192E2A;line-height:1.5">' + escHtml(enq.message) + '</div>';
-    html += '</div>';
-  }
-
-  // ── Appointment history ──────────────────────────────────────────────
+  // Appointments (if linked Halaxy client)
   var _linkedClient = _dhEnqClientMap[enq.id];
   var _hxId = _linkedClient && _linkedClient.halaxy_id ? String(_linkedClient.halaxy_id) : null;
   if (_hxId) {
@@ -5207,65 +5157,61 @@ function _renderEnquiryDetailPanel(enq) {
       return String(s.patientId) === _hxId;
     }).sort(function(a, b) { return b.startMs - a.startMs; });
     if (_clientSess.length) {
-      html += '<div class="rdp-section">';
-      html += '<div class="rdp-section-label">Appointments</div>';
-      var _STAT_COLOUR = { paid: 'var(--teal)', invoiced: 'var(--amber)', 'pending-invoice': '#7c6fe0', upcoming: 'var(--t2)', cancelled: 'var(--t3)' };
-      var _STAT_LABEL  = { paid: 'Paid ✓', invoiced: 'Unpaid', 'pending-invoice': 'No invoice', upcoming: 'Upcoming', cancelled: 'Cancelled' };
+      var _STAT_COLOUR = { paid: 'var(--teal)', invoiced: 'var(--amber)', 'pending-invoice': 'var(--purple)', upcoming: 'var(--blue)', cancelled: 'var(--t3)' };
+      var _STAT_LABEL  = { paid: 'Paid', invoiced: 'Unpaid', 'pending-invoice': 'No invoice', upcoming: 'Upcoming', cancelled: 'Cancelled' };
+      html += '<div class="m-section">';
+      html += '<div class="m-section-hd"><span class="m-section-label">Appointments</span></div>';
       _clientSess.slice(0, 6).forEach(function(s) {
-        html += '<div class="rdp-row" style="cursor:pointer" onclick="openDetailPanel(\'session\',\'' + escHtml(String(s.id)) + '\')">'
-          + '<span class="rdp-row-label">' + escHtml(s.dateLabel || s.dateStr) + (s.timeStr ? ' · ' + s.timeStr : '') + '</span>'
-          + '<span class="rdp-row-val" style="color:' + (_STAT_COLOUR[s.status] || 'var(--t3)') + ';font-size:11px">' + escHtml(_STAT_LABEL[s.status] || s.status) + '</span>'
+        html += '<div class="m-row m-row-tap" onclick="openDetailPanel(\'session\',\'' + escHtml(String(s.id)) + '\')">'
+          + '<span class="m-key">' + escHtml(s.dateLabel || s.dateStr) + (s.timeStr ? ' · ' + s.timeStr : '') + '</span>'
+          + '<span class="m-val" style="color:' + (_STAT_COLOUR[s.status] || 'var(--t3)') + '">' + escHtml(_STAT_LABEL[s.status] || s.status) + '</span>'
           + '</div>';
       });
       html += '</div>';
     }
   }
 
-  // ── Tasks linked to this enquiry ─────────────────────────────────────
+  // Tasks
   var _enqTasks = (_dhTasks || []).filter(function(t) { return t.enquiry_id === enq.id; });
-  html += '<div class="rdp-section">';
-  html += '<div class="rdp-section-label" style="display:flex;align-items:center;justify-content:space-between">Tasks'
-    + '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(52,211,153,0.25);border-radius:6px;background:rgba(52,211,153,0.07);color:var(--teal,#34D399);cursor:pointer" '
-    + 'onclick="_rdpAddTask(\'' + escHtml(enq.id) + '\',\'' + escHtml(name) + '\')">+ Add</button></div>';
+  html += '<div class="m-section">';
+  html += '<div class="m-section-hd"><span class="m-section-label">Tasks</span>'
+    + '<button class="m-action-btn" onclick="_rdpAddTask(\'' + escHtml(enq.id) + '\',\'' + escHtml(name) + '\')">+ Add</button></div>';
   if (_enqTasks.length) {
     _enqTasks.forEach(function(t) {
-      html += '<div class="rdp-row" style="gap:8px;align-items:flex-start">'
-        + '<button style="border:none;background:none;cursor:pointer;font-size:14px;color:' + (t.completed ? 'var(--teal)' : 'var(--t3)') + ';padding:0;line-height:1" '
-        + 'onclick="dhToggleTask(\'' + escHtml(String(t.id)) + '\',' + !t.completed + ')">' + (t.completed ? '✓' : '○') + '</button>'
-        + '<span style="flex:1;font-size:12.5px;' + (t.completed ? 'text-decoration:line-through;color:var(--t3)' : 'color:var(--mid)') + '">' + escHtml(t.title || '') + '</span>'
+      html += '<div class="m-task-row">'
+        + '<button class="m-task-chk ' + (t.completed ? 'm-task-chk-done' : '') + '" onclick="dhToggleTask(\'' + escHtml(String(t.id)) + '\',' + !t.completed + ')">' + (t.completed ? '✓' : '') + '</button>'
+        + '<span class="m-task-lbl ' + (t.completed ? 'm-task-lbl-done' : '') + '">' + escHtml(t.title || '') + '</span>'
         + '</div>';
     });
   } else {
-    html += '<div style="font-size:12px;color:var(--t3);padding:2px 0">No tasks yet</div>';
+    html += '<div class="m-empty">No tasks yet</div>';
   }
   html += '</div>';
 
-  // ── Notes ──
-  html += '<div class="rdp-section">';
-  html += '<div class="rdp-section-label">Notes</div>';
-  html += '<textarea id="rdp-notes-' + enq.id + '" style="width:100%;min-height:70px;font-family:var(--sans);font-size:12.5px;padding:8px 10px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;resize:vertical;outline:none;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.85);color-scheme:dark" onblur="saveNotes(\'' + enq.id + '\',this.value)" placeholder="Add notes…">' + escHtml(enq.notes || '') + '</textarea>';
+  // Notes
+  html += '<div class="m-section">';
+  html += '<div class="m-section-hd"><span class="m-section-label">Notes</span></div>';
+  html += '<textarea class="m-textarea" id="rdp-notes-' + enq.id + '" onblur="saveNotes(\'' + enq.id + '\',this.value)" placeholder="Add notes…">' + escHtml(enq.notes || '') + '</textarea>';
   html += '</div>';
 
-  // ── Activity / interaction timeline ──
+  // Activity timeline
   var activity = enq.activity || [];
-  html += '<div class="rdp-section">';
-  html += '<div class="rdp-section-label" style="display:flex;align-items:center;justify-content:space-between">'
-    + 'Activity'
-    + (isClosed ? '' : '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(52,211,153,0.25);border-radius:6px;background:rgba(52,211,153,0.07);color:var(--teal,#34D399);cursor:pointer" onclick="_toggleLogInteractionForm(\'' + enq.id + '\')">+ Log</button>')
+  html += '<div class="m-section">';
+  html += '<div class="m-section-hd"><span class="m-section-label">Activity</span>'
+    + (isClosed ? '' : '<button class="m-action-btn" onclick="_toggleLogInteractionForm(\'' + enq.id + '\')">+ Log</button>')
     + '</div>';
 
-  // Log form (hidden by default, toggled)
   if (!isClosed) {
-    html += '<div id="rdp-log-form-' + enq.id + '" class="enq-log-form" style="display:none">';
-    html += '<select id="rdp-log-type-' + enq.id + '">'
+    html += '<div id="rdp-log-form-' + enq.id + '" class="m-log-form" style="display:none">';
+    html += '<select class="m-select" id="rdp-log-type-' + enq.id + '">'
       + '<option value="call">📞 Phone call</option>'
       + '<option value="email">✉ Email</option>'
       + '<option value="note">📝 Note</option>'
       + '</select>';
-    html += '<textarea id="rdp-log-text-' + enq.id + '" placeholder="What happened? e.g. Left voicemail, client confirmed Thursday…"></textarea>';
-    html += '<div style="display:flex;justify-content:flex-end;gap:6px">'
-      + '<button style="font-size:11px;padding:4px 10px;border:1px solid rgba(0,0,0,0.12);border-radius:5px;background:transparent;color:var(--soft);cursor:pointer" onclick="_toggleLogInteractionForm(\'' + enq.id + '\')">Cancel</button>'
-      + '<button style="font-size:11px;padding:4px 12px;border:none;border-radius:5px;background:var(--teal);color:#fff;cursor:pointer" onclick="_submitLogInteraction(\'' + enq.id + '\')">Save</button>'
+    html += '<textarea class="m-textarea" id="rdp-log-text-' + enq.id + '" placeholder="What happened? e.g. Left voicemail, client confirmed Thursday…"></textarea>';
+    html += '<div class="m-log-actions">'
+      + '<button class="m-btn-ghost m-btn-sm" onclick="_toggleLogInteractionForm(\'' + enq.id + '\')">Cancel</button>'
+      + '<button class="m-btn-teal m-btn-sm" onclick="_submitLogInteraction(\'' + enq.id + '\')">Save</button>'
       + '</div>';
     html += '</div>';
   }
@@ -5276,7 +5222,7 @@ function _renderEnquiryDetailPanel(enq) {
       status:    function(a) { var s = (a.detail || '').split(':')[0]; var reason = (a.detail || '').split(':')[1]; var sl = { new: 'Enquiry received', contacted: 'Marked as contacted', in_halaxy: 'Added to Halaxy', closed: 'Enquiry closed' + (reason ? ' — ' + (CLOSED_REASON_LABELS_RDP[reason] || reason) : ''), converted: 'Converted to client' }; return sl[s] || ('Status → ' + escHtml(s)); },
       notes:     function() { return 'Notes updated'; },
       halaxy:    function(a) { return a.detail === 'linked' ? 'Halaxy patient linked' : 'Halaxy link cleared'; },
-      converted: function(a) { return 'Converted to client'; },
+      converted: function() { return 'Converted to client'; },
       intake:    function(a) { return 'Onboarding sent' + (a.detail ? ' — ' + escHtml(FUNDER_LABELS[a.detail] || a.detail) : ''); },
       call:      function(a) { return '📞 ' + escHtml(a.detail || 'Phone call'); },
       email:     function(a) { return '✉ ' + escHtml(a.detail || 'Email'); },
@@ -5296,7 +5242,7 @@ function _renderEnquiryDetailPanel(enq) {
     });
     html += '</div>';
   } else {
-    html += '<div style="font-size:12px;color:var(--soft);margin-top:6px">No activity yet</div>';
+    html += '<div class="m-empty" style="margin-top:4px">No activity yet</div>';
   }
   html += '</div>';
 
@@ -5437,125 +5383,111 @@ function _renderClientDetailPanel(cl) {
   var dbSessions  = (cl.sessions || []).slice().sort(function(a, b) { return b.session_date.localeCompare(a.session_date); });
   var funderLabel = FUNDER_LABELS[cl.funder] || cl.funder || '—';
 
-  // ── Pull Halaxy data for this client ──
   var hid = cl.halaxy_id ? String(cl.halaxy_id) : null;
   var halaxyVerified = false;
   var halaxyInvs     = [];
 
   if (hid && _halaxyData) {
-    // Verify: patient appears in full patient list or appointment patientMap
     var allPts = _halaxyData.patients || [];
     halaxyVerified = allPts.some(function(p) { return String(p.id) === hid; });
     if (!halaxyVerified && _halaxyData.patientMap && _halaxyData.patientMap[hid]) halaxyVerified = true;
-
     halaxyInvs = (_halaxyData.invoices || [])
       .filter(function(i) { return String(i.patientId) === hid; })
       .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
   }
 
   var html = '';
-  html += '<div class="rdp-client">' + escHtml(cl.display_name || '—') + '</div>';
-  html += '<div class="rdp-date">' + escHtml(funderLabel)
-    + (hid ? (' · Halaxy' + (halaxyVerified ? ' ✓' : ' ⚠')) : '')
+
+  // Meta line
+  html += '<div class="m-meta">'
+    + escHtml(funderLabel)
+    + (hid ? (' · Halaxy ' + (halaxyVerified
+        ? '<span class="m-chip m-chip-teal">Linked ✓</span>'
+        : '<span class="m-chip m-chip-amber">⚠ Unverified</span>'))
+      : '')
     + '</div>';
-  // Edit name — only for dashboard clients, not Halaxy-managed ones
-  if (!hid) {
-    html += '<div style="text-align:right;margin-bottom:8px">'
-      + '<button onclick="_dhRenameClient(\'' + escHtml(cl.id) + '\',\'' + escHtml(cl.display_name || '') + '\')" '
-      + 'style="font-size:11px;color:#8a9a98;background:none;border:1px solid rgba(0,0,0,0.1);border-radius:5px;padding:3px 9px;cursor:pointer;font-family:inherit">✎ Edit name</button>'
-      + '</div>';
-  }
 
-  // Unverified link warning
+  // Warning banner for unverified Halaxy link
   if (hid && !halaxyVerified) {
-    html += '<div class="rdp-warn-box">'
-      + '⚠ Halaxy ID <strong>' + escHtml(hid) + '</strong> was not found in the current patient list. '
-      + 'This may be a stale test record — remove it below.'
-      + '</div>';
+    html += '<div class="m-banner m-banner-amber">Halaxy ID <strong>' + escHtml(hid) + '</strong> was not found in the current patient list. This may be a stale test record — remove it below.</div>';
   }
 
-  // Actions
-  html += '<div class="rdp-action-zone">';
+  // Primary CTA
   if (hid && _halaxyWebUrl) {
-    html += '<a class="rdp-primary-btn" href="' + escHtml(_halaxyWebUrl + '/clients') + '" target="_blank" rel="noopener">Open in Halaxy →</a>';
+    html += '<a class="m-btn-primary" href="' + escHtml(_halaxyWebUrl + '/clients') + '" target="_blank" rel="noopener">Open in Halaxy</a>';
   }
-  html += '<button class="rdp-ghost-btn" onclick="openNewSessionModal()" style="margin-top:6px">+ Log appointment</button>';
-  html += '</div>';
+  html += '<button class="m-btn-ghost" onclick="openNewSessionModal()">Log appointment</button>';
 
-  // Client details
+  // Edit name (non-Halaxy clients only)
+  if (!hid) {
+    html += '<div class="m-links"><button class="m-link" onclick="_dhRenameClient(\'' + escHtml(cl.id) + '\',\'' + escHtml(cl.display_name || '') + '\')">✎ Edit name</button></div>';
+  }
+
+  // Details section
   var TYPE_LABELS = { individual: 'Individual', couples: 'Couples', child: 'Child' };
-  html += '<div class="rdp-section">';
-  html += '<div class="rdp-section-label">Details</div>';
-  html += '<div class="rdp-row"><span class="rdp-row-label">Type</span><span class="rdp-row-val">'
-    + (cl.is_contact ? '<span class="cl-card-type-tag contact" style="font-size:10px">Contact (non-billable)</span>' : (TYPE_LABELS[cl.client_type] || 'Individual'))
+  html += '<div class="m-section">';
+  html += '<div class="m-section-hd"><span class="m-section-label">Details</span>'
+    + '<button class="m-action-btn" onclick="openEditClientTypePanel(\'' + escHtml(cl.id) + '\')">Edit</button></div>';
+  html += '<div class="m-row"><span class="m-key">Type</span><span class="m-val">'
+    + (cl.is_contact ? '<span class="m-chip m-chip-dim">Contact (non-billable)</span>' : escHtml(TYPE_LABELS[cl.client_type] || 'Individual'))
     + '</span></div>';
   if (cl.parent_client_id) {
-    var parentName = '';
     var parentRec2 = (_pipelineData && _pipelineData.clients || []).find(function(x) { return x.id === cl.parent_client_id; });
-    if (parentRec2) parentName = parentRec2.display_name;
-    html += '<div class="rdp-row"><span class="rdp-row-label">Parent/Guardian</span><span class="rdp-row-val">' + escHtml(parentName || cl.parent_client_id) + '</span></div>';
+    html += '<div class="m-row"><span class="m-key">Parent/Guardian</span><span class="m-val">' + escHtml(parentRec2 ? parentRec2.display_name : cl.parent_client_id) + '</span></div>';
   }
-  if (cl.plan_manager) html += '<div class="rdp-row"><span class="rdp-row-label">Plan manager</span><span class="rdp-row-val">' + escHtml(cl.plan_manager) + '</span></div>';
-  if (cl.notes)        html += '<div class="rdp-row"><span class="rdp-row-label">Notes</span><span class="rdp-row-val">' + escHtml(cl.notes) + '</span></div>';
-  if (hid)             html += '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span><span class="rdp-row-val" style="font-size:11px;color:rgba(255,255,255,0.3);font-family:monospace">' + escHtml(hid) + '</span></div>';
-  html += '<div style="margin-top:8px">'
-    + '<button class="rdp-ghost-btn" style="font-size:11px;padding:4px 10px" onclick="openEditClientTypePanel(\'' + escHtml(cl.id) + '\')">Edit type / parent…</button>'
-    + '</div>';
+  if (cl.plan_manager) html += '<div class="m-row"><span class="m-key">Plan manager</span><span class="m-val">' + escHtml(cl.plan_manager) + '</span></div>';
+  if (cl.notes)        html += '<div class="m-row m-row-block"><span class="m-key">Notes</span><span class="m-val m-val-wrap">' + escHtml(cl.notes) + '</span></div>';
+  if (hid)             html += '<div class="m-row"><span class="m-key">Halaxy ID</span><span class="m-val m-val-mono">' + escHtml(hid) + '</span></div>';
   html += '</div>';
 
-  // ── Halaxy billing history ──────────────────────────────────────────
+  // Halaxy billing
   if (halaxyInvs.length) {
     var totalPaid  = halaxyInvs.reduce(function(s, i) { return s + (parseFloat(i.totalPaid)    || 0); }, 0);
     var totalOwing = halaxyInvs.reduce(function(s, i) { return s + (parseFloat(i.totalBalance) || 0); }, 0);
-    html += '<div class="rdp-section">';
-    html += '<div class="rdp-section-label">Halaxy billing — ' + halaxyInvs.length + ' invoice' + (halaxyInvs.length !== 1 ? 's' : '');
-    if (totalPaid > 0)   html += ' · <span style="color:var(--s-complete)">$' + totalPaid.toFixed(0) + ' paid</span>';
-    if (totalOwing > 0.005) html += ' · <span style="color:#BE6E44">$' + totalOwing.toFixed(0) + ' owing</span>';
-    html += '</div>';
+    html += '<div class="m-section">';
+    html += '<div class="m-section-hd"><span class="m-section-label">Halaxy billing — ' + halaxyInvs.length + ' invoice' + (halaxyInvs.length !== 1 ? 's' : '') + '</span></div>';
+    if (totalPaid > 0 || totalOwing > 0.005) {
+      html += '<div class="m-billing-summary">';
+      if (totalPaid > 0)      html += '<span class="m-billing-val m-billing-paid">$' + totalPaid.toFixed(0) + ' paid</span>';
+      if (totalOwing > 0.005) html += '<span class="m-billing-val m-billing-owing">$' + totalOwing.toFixed(0) + ' owing</span>';
+      html += '</div>';
+    }
     halaxyInvs.slice(0, 15).forEach(function(inv) {
       var owing = parseFloat(inv.totalBalance) || 0;
       var paid  = owing < 0.01;
-      html += '<div class="rdp-row">'
-        + '<span class="rdp-row-label">' + escHtml(inv.date || '—') + '</span>'
-        + '<span class="rdp-row-val">'
+      html += '<div class="m-row"><span class="m-key">' + escHtml(inv.date || '—') + '</span>'
+        + '<span class="m-val">'
         + (inv.amount != null ? '$' + parseFloat(inv.amount).toFixed(0) : '—')
-        + (paid
-            ? ' <span style="color:var(--s-complete);font-size:10px">✓</span>'
-            : (owing > 0 ? ' <span style="color:#BE6E44;font-size:10px">$' + owing.toFixed(0) + ' owing</span>' : ''))
+        + (paid ? '<span class="m-tick">✓</span>' : (owing > 0 ? '<span class="m-owing"> $' + owing.toFixed(0) + '</span>' : ''))
         + '</span></div>';
     });
     html += '</div>';
   } else if (hid && halaxyVerified) {
-    // Client IS in Halaxy but no invoices in the 90-day window
-    html += '<div class="rdp-section"><div class="rdp-section-label">Halaxy billing</div>';
-    html += '<div style="color:#9AABA8;font-size:12px;padding:4px 0">No invoices in the last 90 days</div>';
-    html += '</div>';
+    html += '<div class="m-section"><div class="m-section-hd"><span class="m-section-label">Halaxy billing</span></div>';
+    html += '<div class="m-empty">No invoices in the last 90 days</div></div>';
   }
 
-  // ── Dashboard sessions (manually logged) ────────────────────────────
+  // Dashboard sessions
   if (dbSessions.length) {
-    html += '<div class="rdp-section">';
-    html += '<div class="rdp-section-label">Logged sessions (' + dbSessions.length + ')</div>';
+    html += '<div class="m-section">';
+    html += '<div class="m-section-hd"><span class="m-section-label">Logged sessions (' + dbSessions.length + ')</span></div>';
     dbSessions.slice(0, 10).forEach(function(s) {
-      html += '<div class="rdp-row"><span class="rdp-row-label">' + escHtml(s.session_date || '') + '</span>'
-        + '<span class="rdp-row-val">' + escHtml(s.status || '') + (s.amount ? ' · $' + s.amount : '') + '</span></div>';
+      html += '<div class="m-row"><span class="m-key">' + escHtml(s.session_date || '') + '</span>'
+        + '<span class="m-val">' + escHtml(s.status || '') + (s.amount ? ' · $' + s.amount : '') + '</span></div>';
     });
     html += '</div>';
   }
 
-  // If truly nothing
   if (!halaxyInvs.length && !dbSessions.length && !(hid && halaxyVerified)) {
-    html += '<div class="rdp-section"><div style="color:#9AABA8;font-size:12px;padding:4px 0">No billing history or logged sessions yet.</div></div>';
+    html += '<div class="m-section"><div class="m-empty">No billing history or logged sessions yet.</div></div>';
   }
 
-  // Danger zone
-  html += '<div class="rdp-danger-zone">';
-  html += '<button class="rdp-danger-btn"'
-    + ' data-cid="' + escHtml(cl.id) + '"'
-    + ' data-cn="'  + escHtml(cl.display_name || '') + '"'
-    + ' onclick="deleteClient(this.dataset.cid,this.dataset.cn)">🗑 Remove dashboard record</button>';
-  html += '<div style="font-size:10px;color:#9AABA8;margin-top:4px">Does not affect Halaxy</div>';
-  html += '</div>';
+  // Footer — danger
+  html += '<div class="m-foot">'
+    + '<button class="m-btn-danger" data-cid="' + escHtml(cl.id) + '" data-cn="' + escHtml(cl.display_name || '') + '" onclick="deleteClient(this.dataset.cid,this.dataset.cn)">Remove dashboard record</button>'
+    + '<div class="m-foot-note">Does not affect Halaxy</div>'
+    + '</div>';
+
   return html;
 }
 
