@@ -884,28 +884,114 @@ body {
 }
 .cmd-footer kbd { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 3px; font-family: var(--sans); }
 
-/* ── Mobile bottom nav ── */
-.bottom-nav { display: none; }
+/* ── Mobile: kill legacy nav elements, show new dock ── */
+.bottom-nav, .bn-more-sheet { display: none !important; }
+.mob-logo-bar { display: none; }
+#mob-hd       { display: none; }
+.mob-dock     { display: none; }
+.mob-action-sheet { display: none; }
+
+/* ── Mobile dock styles ── */
 @media (max-width: 768px) {
-  .sidebar { display: none; }
-  .app-topbar { padding: 0 14px; }
-  .queue-view { padding: 12px 12px 80px; }
+  .sidebar { display: none !important; }
+  .app-topbar { display: none !important; }
   .modal-card { max-width: 100%; margin: 0; border-radius: 16px; }
-  .bottom-nav {
-    display: flex; position: fixed; bottom: 0; left: 0; right: 0;
-    height: 58px; background: rgba(245,242,238,0.96);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(0,0,0,0.07);
-    z-index: 100;
+
+  /* Full-height flex column */
+  .app-main { display: flex; flex-direction: column; height: 100svh; overflow: hidden; }
+
+  /* Logo bar — always visible at very top */
+  .mob-logo-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 10px;
+    background: rgba(8,12,24,0.97);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
   }
-  .bn-item {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 3px; background: none; border: none; cursor: pointer;
-    color: rgba(0,0,0,0.35); font-family: var(--sans); font-size: 9.5px; font-weight: 500;
-    transition: color 0.12s;
+  .mob-logo-img { width: 22px; height: 22px; flex-shrink: 0; }
+  .mob-logo-brand { font-family: var(--serif); font-size: 15px; color: rgba(255,255,255,0.82); font-weight: 400; }
+  .mob-logo-brand em { font-style: italic; color: var(--teal); font-weight: 300; }
+
+  /* Persistent header below logo */
+  #mob-hd {
+    display: block; flex-shrink: 0;
+    padding: 14px 16px 12px;
+    background: rgba(8,12,24,0.7);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
   }
-  .bn-item.active { color: var(--teal); }
-  .bn-icon { font-size: 18px; line-height: 1; }
+  .mob-hd-greeting { font-size: 20px; font-weight: 700; color: var(--t1); letter-spacing: -0.02em; line-height: 1.2; }
+  .mob-hd-date     { font-size: 11px; color: var(--t3); margin-top: 2px; font-weight: 400; }
+  .mob-hd-meta     { font-size: 11px; color: var(--t3); margin-top: 3px; line-height: 1.4; }
+  .mob-hd-meta strong { color: var(--t2); font-weight: 500; }
+
+  /* Scrollable app content */
+  .app-content { flex: 1; overflow-y: auto; min-height: 0; padding: 0 !important; }
+  #view-content { transition: opacity 0.14s ease, transform 0.14s ease; min-height: 100%; }
+
+  /* Dock */
+  .mob-dock {
+    display: flex; align-items: center; flex-shrink: 0;
+    height: calc(58px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(8,12,24,0.97);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  }
+  .mob-dock-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 3px;
+    background: none; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.3); font-family: var(--sans); font-size: 9px; font-weight: 500;
+    letter-spacing: 0.01em; transition: color 0.12s; padding-top: 5px;
+  }
+  .mob-dock-item.active { color: var(--teal); }
+  .mob-dock-item svg { opacity: 0.5; flex-shrink: 0; transition: opacity 0.12s; }
+  .mob-dock-item.active svg { opacity: 1; }
+  .mob-dock-center {
+    width: 52px; height: 38px; margin: 0 4px; flex-shrink: 0;
+    background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.22);
+    border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    color: var(--teal); cursor: pointer; transition: background 0.12s;
+  }
+  .mob-dock-center:active { background: rgba(52,211,153,0.22); }
+
+  /* Action sheet from ^ button */
+  .mob-action-sheet {
+    display: flex; position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+  }
+  .mob-action-sheet.open { opacity: 1; pointer-events: all; }
+  .mob-action-panel {
+    width: 100%; background: rgba(10,14,26,0.98);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 22px 22px 0 0;
+    padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 16px);
+    transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+  }
+  .mob-action-sheet.open .mob-action-panel { transform: translateY(0); }
+  .mob-action-handle { width: 36px; height: 4px; background: rgba(255,255,255,0.16); border-radius: 2px; margin: 0 auto 14px; }
+  .mob-action-section { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--t3); padding: 4px 4px 8px; }
+  .mob-action-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 4px; }
+  .mob-action-tile {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 15px 8px 13px; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+    cursor: pointer; font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--t1);
+    transition: background 0.12s;
+  }
+  .mob-action-tile:active { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.2); }
+  .mob-action-tile svg { opacity: 0.65; }
+  .mob-action-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 10px 0 6px; }
+  .mob-action-rows { display: flex; flex-direction: column; gap: 2px; }
+  .mob-action-row {
+    display: flex; align-items: center; gap: 12px; padding: 11px 10px;
+    border-radius: 10px; background: none; border: none; cursor: pointer;
+    width: 100%; font-family: var(--sans); font-size: 13px; font-weight: 500;
+    color: var(--t1); text-decoration: none; text-align: left; transition: background 0.1s;
+  }
+  .mob-action-row:active { background: rgba(255,255,255,0.05); }
+  .mob-action-row svg { opacity: 0.4; flex-shrink: 0; }
 }
 
 @keyframes pulse { 0%,100% { opacity:0.3 } 50% { opacity:0.9 } }
@@ -2819,7 +2905,16 @@ body {
   <!-- ── App main ── -->
   <div class="app-main" id="app-main">
 
-    <!-- Top bar -->
+    <!-- ── Mobile logo bar (always visible on mobile, hidden on desktop) ── -->
+    <div class="mob-logo-bar" id="mob-logo-bar">
+      <img src="/assets/logo.svg" class="mob-logo-img" alt="" width="22" height="22">
+      <span class="mob-logo-brand"><em>Cheree</em> McGarry</span>
+    </div>
+
+    <!-- ── Mobile persistent header (greeting, date, summary) ── -->
+    <div id="mob-hd"></div>
+
+    <!-- Top bar (desktop only) -->
     <header class="app-topbar" id="app-topbar">
       <div class="db-topbar-title" id="db-topbar-title">
         Onboarding <span class="db-topbar-sub" id="db-topbar-sub"></span>
@@ -2867,41 +2962,66 @@ body {
 
 </div><!-- /.app-shell -->
 
-<!-- ── Mobile bottom nav ── -->
-<nav class="bottom-nav">
-  <button class="bn-item active" data-view="home" onclick="navigateTo('home')">
-    <span class="bn-icon">⌂</span><span>Home</span>
+<!-- ── Mobile dock ── -->
+<nav class="mob-dock" id="mob-dock">
+  <button class="mob-dock-item active" data-app="home" onclick="mobSwitchApp('home')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <span>Schedule</span>
   </button>
-  <button class="bn-item" data-view="queue" onclick="navigateTo('queue')">
-    <span class="bn-icon">≡</span><span>Inbox</span>
+  <button class="mob-dock-item" data-app="queue" onclick="mobSwitchApp('queue')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+    <span>Inbox</span>
   </button>
-  <button class="bn-item" data-view="clients" onclick="navigateTo('clients')">
-    <span class="bn-icon">◎</span><span>Clients</span>
+  <button class="mob-dock-center" onclick="toggleMobActionSheet()" title="Add / More">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
   </button>
-  <button class="bn-item" data-view="billing" onclick="navigateTo('billing')">
-    <span class="bn-icon">$</span><span>Billing</span>
+  <button class="mob-dock-item" data-app="reminders" onclick="mobSwitchApp('reminders')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    <span>Reminders</span>
   </button>
-  <button class="bn-item" id="bn-more-btn" onclick="toggleMoreSheet()">
-    <span class="bn-icon">⋯</span><span>More</span>
+  <button class="mob-dock-item" data-app="billing" onclick="mobSwitchApp('billing')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
+    <span>Billing</span>
   </button>
 </nav>
 
-<!-- ── More sheet (secondary nav drawer) ── -->
-<div class="bn-more-sheet" id="bn-more-sheet" onclick="if(event.target===this)closeMoreSheet()">
-  <div class="bn-more-panel">
-    <div class="bn-more-handle"></div>
-    <button class="bn-more-item" onclick="navigateTo('clients')">
-      <span class="bn-more-icon">◎</span>
-      <span>Clients</span>
-    </button>
-    <button class="bn-more-item" onclick="navigateTo('settings')">
-      <span class="bn-more-icon">⚙</span>
-      <span>Settings</span>
-    </button>
-    <a class="bn-more-item" href="https://www.halaxy.com" target="_blank" rel="noopener" onclick="closeMoreSheet()">
-      <span class="bn-more-icon">↗</span>
-      <span>Open Halaxy</span>
-    </a>
+<!-- ── Mobile action sheet (^ button) ── -->
+<div class="mob-action-sheet" id="mob-action-sheet" onclick="if(event.target===this)closeMobActionSheet()">
+  <div class="mob-action-panel">
+    <div class="mob-action-handle"></div>
+
+    <div class="mob-action-section">Add</div>
+    <div class="mob-action-grid">
+      <button class="mob-action-tile" onclick="closeMobActionSheet();openDbModal('client')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Client
+      </button>
+      <button class="mob-action-tile" onclick="closeMobActionSheet();openDbModal('appt')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Appointment
+      </button>
+      <button class="mob-action-tile" onclick="closeMobActionSheet();mobSwitchApp('reminders');setTimeout(function(){var i=document.getElementById('dh-task-inp');if(i){i.scrollIntoView({block:'nearest'});i.focus();}},350)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Reminder
+      </button>
+    </div>
+
+    <div class="mob-action-divider"></div>
+    <div class="mob-action-section">More</div>
+    <div class="mob-action-rows">
+      <button class="mob-action-row" onclick="closeMobActionSheet();navigateTo('clients')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Clients
+      </button>
+      <button class="mob-action-row" onclick="closeMobActionSheet();navigateTo('settings')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Settings
+      </button>
+      <a class="mob-action-row" href="https://www.halaxy.com" target="_blank" rel="noopener" onclick="closeMobActionSheet()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Open Halaxy
+      </a>
+    </div>
   </div>
 </div>
 

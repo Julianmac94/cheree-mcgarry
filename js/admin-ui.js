@@ -540,28 +540,34 @@ var _currentView = 'home';
 
 var _SECONDARY_VIEWS = { settings: true, vendors: true, reports: true, reminders: true };
 
+/* ── Mobile app-switch primary views ──────────────────────────── */
+var _MOB_APPS = { home: true, queue: true, reminders: true, billing: true };
+
 function navigateTo(view) {
   _currentView = view;
-  closeMoreSheet();
-  // Update sidebar + primary bottom-nav active states
-  document.querySelectorAll('.sidebar-item, .bn-item[data-view]').forEach(function(el) {
+  closeMoreSheet(); closeMobActionSheet();
+  // Update desktop sidebar active states
+  document.querySelectorAll('.sidebar-item').forEach(function(el) {
     el.classList.toggle('active', el.dataset.view === view);
   });
-  // More button gets a dim highlight when a secondary view is active
-  var moreBtn = document.getElementById('bn-more-btn');
-  if (moreBtn) moreBtn.classList.toggle('more-active', !!_SECONDARY_VIEWS[view]);
   closeDetailPanel();
   _dbUpdateTopbar(view);
-  _updateMobileDock(view);
-  if (!_pipelineData) return; // data not loaded yet — will render when loaded
-  if (view === 'home')          renderHomeView();
+
+  // On mobile: primary apps go through mobSwitchApp for the fade transition
+  if (window.innerWidth <= 768 && _MOB_APPS[view]) {
+    mobSwitchApp(view);
+    return;
+  }
+
+  if (!_pipelineData) return; // data not loaded yet — renders when loaded
+  if (view === 'home')           renderHomeView();
   else if (view === 'reminders') renderRemindersView();
-  else if (view === 'queue')    renderQueueView();
-  else if (view === 'clients')  renderClientsView();
-  else if (view === 'billing')  renderBillingView();
-  else if (view === 'settings') renderSettingsView();
-  else if (view === 'vendors')  renderFundersView();
-  else if (view === 'reports')  renderStubView('reports', 'Reports', 'Practice reports and insights coming soon.')
+  else if (view === 'queue')     renderQueueView();
+  else if (view === 'clients')   renderClientsView();
+  else if (view === 'billing')   renderBillingView();
+  else if (view === 'settings')  renderSettingsView();
+  else if (view === 'vendors')   renderFundersView();
+  else if (view === 'reports')   renderStubView('reports', 'Reports', 'Practice reports and insights coming soon.');
 }
 
 function toggleMoreSheet() {
@@ -570,10 +576,110 @@ function toggleMoreSheet() {
   if (sheet.classList.contains('open')) closeMoreSheet();
   else sheet.classList.add('open');
 }
-
 function closeMoreSheet() {
   var sheet = document.getElementById('bn-more-sheet');
   if (sheet) sheet.classList.remove('open');
+}
+
+/* ── Mobile action sheet (^ button) ─────────────────────────── */
+function toggleMobActionSheet() {
+  var sheet = document.getElementById('mob-action-sheet');
+  if (!sheet) return;
+  if (sheet.classList.contains('open')) closeMobActionSheet();
+  else sheet.classList.add('open');
+}
+function closeMobActionSheet() {
+  var sheet = document.getElementById('mob-action-sheet');
+  if (sheet) sheet.classList.remove('open');
+}
+
+/* ── Mobile: switch app with fade, update dock ───────────────── */
+var _mobCurrentApp = 'home';
+
+function mobSwitchApp(app) {
+  // Update dock active state
+  document.querySelectorAll('.mob-dock-item[data-app]').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.app === app);
+  });
+
+  var content = document.getElementById('view-content');
+  if (!content || !_pipelineData) { _mobCurrentApp = app; return; }
+
+  if (_mobCurrentApp === app) {
+    // Already on this app — just re-render (e.g. after data refresh)
+    _mobRenderApp(app);
+    return;
+  }
+
+  // Fade out
+  content.style.opacity = '0';
+  content.style.transform = 'translateY(6px)';
+  _mobCurrentApp = app;
+  _currentView   = app;
+
+  setTimeout(function() {
+    _mobRenderApp(app);
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        content.style.opacity = '1';
+        content.style.transform = 'translateY(0)';
+      });
+    });
+  }, 140);
+}
+
+function _mobRenderApp(app) {
+  if (app === 'home')       _mobRenderSchedule();
+  else if (app === 'queue')     renderQueueView();
+  else if (app === 'reminders') renderRemindersView();
+  else if (app === 'billing')   renderBillingView();
+}
+
+/* ── Mobile: schedule app renderer ──────────────────────────── */
+function _mobRenderSchedule() {
+  var content = document.getElementById('view-content');
+  if (!content) return;
+  content.innerHTML = '<div class="mob-app-sched"><div class="dh-sched-card" id="dh-sched-inner"></div></div>';
+  _dhAppts = (_halaxyData && _halaxyData.connected)
+    ? _buildUnifiedSessions().upcoming.concat(_buildUnifiedSessions().past)
+    : [];
+  _dhSchedWeekOff = 0;
+  _dhSchedDateStr = '';
+  _dhRenderSchedCard();
+}
+
+/* ── Mobile: populate persistent header ─────────────────────── */
+function _mobUpdateHeader() {
+  if (window.innerWidth > 768) return;
+  var hd = document.getElementById('mob-hd');
+  if (!hd || !_pipelineData) return;
+
+  var now   = new Date();
+  var h     = now.getHours();
+  var greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  var firstName = ((window.ADMIN_USER || '').split(' ')[0]) || '';
+  var dateLabel = now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  var todayIso = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  var appts = (_halaxyData && _halaxyData.connected)
+    ? _buildUnifiedSessions().upcoming.concat(_buildUnifiedSessions().past)
+    : ((_pipelineData && _pipelineData.appointments) || []);
+  var todayAppts = appts.filter(function(a){ return a.dateStr === todayIso && a.status !== 'cancelled'; });
+  var todaySummary = todayAppts.length
+    ? todayAppts.length + ' session' + (todayAppts.length !== 1 ? 's' : '') + ' today'
+    : 'No sessions today';
+  var nextAppt = appts.filter(function(a){ return a.status !== 'cancelled' && a.startMs && a.startMs > Date.now(); })
+    .sort(function(a,b){ return a.startMs - b.startMs; })[0];
+  var nextSummary = '';
+  if (nextAppt) {
+    var nm = nextAppt.name || nextAppt.patientName || 'Client';
+    var nT = nextAppt.timeStr || (nextAppt.startIso ? (function(iso){ var d=new Date(iso),hh=d.getHours(),mm=d.getMinutes(); return (hh%12||12)+':'+(mm<10?'0':'')+mm+(hh>=12?'pm':'am'); })(nextAppt.startIso) : '');
+    nextSummary = ' &middot; Next: <strong>' + escHtml(nm) + '</strong>' + (nT ? ' at ' + escHtml(nT) : '');
+  }
+
+  hd.innerHTML = '<div class="mob-hd-greeting">' + escHtml(greeting) + (firstName ? ', ' + escHtml(firstName) : '') + '</div>'
+    + '<div class="mob-hd-date">' + escHtml(dateLabel) + '</div>'
+    + '<div class="mob-hd-meta">' + escHtml(todaySummary) + nextSummary + '</div>';
 }
 
 /* ── + Add popup menu — desktop sidebar ─────────────────────── */
@@ -627,36 +733,12 @@ function focusReminderInp() {
   setTimeout(function() { inp.focus(); }, 280);
 }
 
-/* ── Mobile dock: swap nav items based on view ────────────────── */
+/* ── Mobile dock: static HTML — active state managed by mobSwitchApp ── */
 function _updateMobileDock(view) {
-  if (window.innerWidth > 768) return;
-  var nav = document.querySelector('.bottom-nav');
-  if (!nav) return;
-
-  function _bn(v, icon, label, active) {
-    return '<button class="bn-item' + (active ? ' active' : '') + '" data-view="' + v + '" onclick="navigateTo(\'' + v + '\')">'
-      + '<span class="bn-icon">' + icon + '</span><span>' + label + '</span></button>';
-  }
-
-  if (view === 'home' || view === 'reminders') {
-    // Home dock: Inbox | Reminders | Billing | More
-    nav.innerHTML =
-      _bn('queue',   '≡', 'Inbox',      false)
-      + '<button class="bn-item' + (view === 'reminders' ? ' active' : '') + '" onclick="navigateTo(\'reminders\')">'
-      + '<span class="bn-icon">◻</span><span>Reminders</span></button>'
-      + _bn('billing', '$', 'Billing',    false)
-      + '<button class="bn-item" id="bn-more-btn" onclick="toggleMoreSheet()">'
-      + '<span class="bn-icon">⋯</span><span>More</span></button>';
-  } else {
-    // Standard dock: Home | Inbox | Clients | Billing | More
-    nav.innerHTML =
-      _bn('home',    '⌂', 'Home',       false)
-      + _bn('queue',   '≡', 'Inbox',    view === 'queue')
-      + _bn('clients', '◎', 'Clients',  view === 'clients')
-      + _bn('billing', '$', 'Billing',  view === 'billing')
-      + '<button class="bn-item' + (_SECONDARY_VIEWS[view] ? ' more-active' : '') + '" id="bn-more-btn" onclick="toggleMoreSheet()">'
-      + '<span class="bn-icon">⋯</span><span>More</span></button>';
-  }
+  // Dock is now static HTML; just update active states
+  document.querySelectorAll('.mob-dock-item[data-app]').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.app === view);
+  });
 }
 
 /* ── Reminders view (mobile-optimised task list) ──────────────── */
@@ -668,10 +750,13 @@ function renderRemindersView() {
   var pending = tasks.filter(function(t) { return !t.completed; });
   var done    = tasks.filter(function(t) { return t.completed; }).slice(0, 8);
 
-  var html = '<div class="home-view">'
-    + '<div class="dh-hd-row" style="margin-bottom:20px">'
-    + '<div class="dh-hd-left"><div class="dh-hd-greeting">Reminders</div></div>'
-    + '</div>';
+  var html = '<div class="home-view">';
+  // On desktop, show a section heading; on mobile the dock label handles context
+  if (window.innerWidth > 768) {
+    html += '<div class="dh-hd-row" style="margin-bottom:20px">'
+      + '<div class="dh-hd-left"><div class="dh-hd-greeting">Reminders</div></div>'
+      + '</div>';
+  }
 
   // Add input
   html += '<div class="dh-util-widget" style="margin-bottom:12px">'
@@ -1634,6 +1719,7 @@ function updateSidebarBadge() {
 
 function renderPipeline() {
   if (!_pipelineData) return;
+  _mobUpdateHeader(); // populate persistent mobile header first
   navigateTo(_currentView); // re-render current view with fresh data
   updateSidebarBadge();
 }
@@ -3335,6 +3421,14 @@ function _dhRenderSchedCard() {
 function renderHomeView() {
   var content = document.getElementById('view-content');
   if (!content || !_pipelineData) return;
+
+  // On mobile: just render the schedule app and update the persistent header
+  if (window.innerWidth <= 768) {
+    _mobUpdateHeader();
+    _mobRenderSchedule();
+    _updateMobileDock('home');
+    return;
+  }
 
   var enquiries = (_pipelineData.enquiries || []);
   var invoices  = (_halaxyData && _halaxyData.invoices) || [];
