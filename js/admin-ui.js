@@ -644,6 +644,10 @@ function mobSwitchApp(app) {
   _mobCurrentApp = app;
   _currentView   = app;
 
+  // Scroll app-content to top so new view starts at the top
+  var appContent = document.querySelector('.app-content');
+  if (appContent) appContent.scrollTop = 0;
+
   setTimeout(function() {
     _mobRenderApp(app);
     requestAnimationFrame(function() {
@@ -778,7 +782,9 @@ function _mobRenderReminders() {
   /* Header row — sort only, no "+ Add" (use ^ action sheet) */
   html += '<div class="mob-remind-hd">'
     + '<span class="mob-remind-title">Reminders</span>'
-    + '<button class="mob-remind-sort-btn" onclick="dhRemindCycleSort()">↕ ' + sortLabel + '</button>'
+    + '<button class="mob-remind-sort-btn" onclick="dhRemindCycleSort()">'
+    + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M7 12h10M11 18h2"/></svg>'
+    + 'Sort: ' + sortLabel + '</button>'
     + '</div>';
 
   if (!tasks.length) {
@@ -1254,9 +1260,9 @@ function _cdpBuildCalHtml(inputId, selectedIso) {
   var escapedId = inputId.replace(/'/g, "\\'");
   var h = '<div class="cdp-cal" data-input="' + inputId + '" data-year="' + year + '" data-month="' + month + '">'
     + '<div class="cdp-nav">'
-    + '<button class="cdp-nav-btn" onclick="_cdpNav(\'' + escapedId + '\',-1)" type="button">‹</button>'
+    + '<button class="cdp-nav-btn" onclick="event.stopPropagation();_cdpNav(\'' + escapedId + '\',-1)" type="button">‹</button>'
     + '<span class="cdp-month-lbl">' + monthLabel + '</span>'
-    + '<button class="cdp-nav-btn" onclick="_cdpNav(\'' + escapedId + '\',1)" type="button">›</button>'
+    + '<button class="cdp-nav-btn" onclick="event.stopPropagation();_cdpNav(\'' + escapedId + '\',1)" type="button">›</button>'
     + '</div>'
     + '<div class="cdp-grid">';
   ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(function(d){ h += '<div class="cdp-dh">' + d + '</div>'; });
@@ -1273,47 +1279,42 @@ function _cdpBuildCalHtml(inputId, selectedIso) {
 }
 
 function _cdpNav(inputId, dir) {
+  /* Find the calendar grid — it may be inside a popup that was moved to body */
   var cal = document.querySelector('.cdp-cal[data-input="' + inputId + '"]');
   if (!cal) return;
   var y = parseInt(cal.dataset.year), m = parseInt(cal.dataset.month) + dir;
   if (m < 0)  { m = 11; y--; }
   if (m > 11) { m = 0;  y++; }
-  var inp = document.getElementById(inputId);
-  var sel = inp ? inp.value : '';
+  var inp  = document.getElementById(inputId);
+  var sel  = inp ? inp.value : '';
   var popup = document.getElementById(inputId + '-popup');
-  if (popup) popup.innerHTML = _cdpBuildCalHtml(inputId, sel);
-  // update year/month on new cal element
-  var newCal = popup && popup.querySelector('.cdp-cal');
-  if (newCal) { newCal.dataset.year = y; newCal.dataset.month = m; }
-  var tempSel = y + '-' + String(m+1).padStart(2,'0') + '-01';
-  if (popup) popup.innerHTML = _cdpBuildCalHtml(inputId, sel);
-  // rebuild at new month
-  var fakeIso = y + '-' + String(m+1).padStart(2,'0') + '-' + String(new Date(y,m,1).getDate()).padStart(2,'0');
-  var d2 = new Date(y, m, 1);
-  var tempCal = popup.querySelector('.cdp-cal');
-  if (tempCal) { tempCal.dataset.year = y; tempCal.dataset.month = m; }
-  // direct rebuild
-  if (popup) popup.innerHTML = (function(){
-    var today2 = new Date(), todayStr2 = today2.toISOString().slice(0,10);
-    var firstDow2 = new Date(y,m,1).getDay();
-    var days2 = new Date(y,m+1,0).getDate();
-    var off2 = firstDow2 === 0 ? 6 : firstDow2 - 1;
-    var ml2 = new Date(y,m,1).toLocaleDateString('en-AU',{month:'long',year:'numeric'});
-    var eid = inputId.replace(/'/g,"\\'");
-    var hh = '<div class="cdp-cal" data-input="'+inputId+'" data-year="'+y+'" data-month="'+m+'">'
-      +'<div class="cdp-nav"><button class="cdp-nav-btn" onclick="_cdpNav(\''+eid+'\',-1)" type="button">‹</button>'
-      +'<span class="cdp-month-lbl">'+ml2+'</span>'
-      +'<button class="cdp-nav-btn" onclick="_cdpNav(\''+eid+'\',1)" type="button">›</button></div>'
-      +'<div class="cdp-grid">';
-    ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(function(dd){ hh += '<div class="cdp-dh">'+dd+'</div>'; });
-    for(var ii=0;ii<off2;ii++) hh += '<div class="cdp-day cdp-empty"></div>';
-    for(var dd2=1;dd2<=days2;dd2++){
-      var iso2 = y+'-'+String(m+1).padStart(2,'0')+'-'+String(dd2).padStart(2,'0');
-      var cls2='cdp-day'; if(iso2===todayStr2)cls2+=' cdp-today'; if(iso2===sel)cls2+=' cdp-sel';
-      hh += '<button class="'+cls2+'" type="button" onclick="_cdpPick(\''+eid+'\',\''+iso2+'\')">'+dd2+'</button>';
-    }
-    hh += '</div></div>'; return hh;
-  })();
+  if (!popup) return;
+
+  /* Rebuild calendar at new month — do NOT touch popup display or position */
+  var today = new Date(), todayStr = today.toISOString().slice(0, 10);
+  var firstDow = new Date(y, m, 1).getDay();
+  var days     = new Date(y, m + 1, 0).getDate();
+  var off      = firstDow === 0 ? 6 : firstDow - 1;
+  var ml       = new Date(y, m, 1).toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+  var eid      = inputId.replace(/'/g, "\\'");
+  var hh = '<div class="cdp-cal" data-input="' + inputId + '" data-year="' + y + '" data-month="' + m + '">'
+    + '<div class="cdp-nav"><button class="cdp-nav-btn" onclick="event.stopPropagation();_cdpNav(\'' + eid + '\',-1)" type="button">‹</button>'
+    + '<span class="cdp-month-lbl">' + ml + '</span>'
+    + '<button class="cdp-nav-btn" onclick="event.stopPropagation();_cdpNav(\'' + eid + '\',1)" type="button">›</button></div>'
+    + '<div class="cdp-grid">';
+  ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(function(d) { hh += '<div class="cdp-dh">' + d + '</div>'; });
+  for (var ii = 0; ii < off; ii++) hh += '<div class="cdp-day cdp-empty"></div>';
+  for (var dd = 1; dd <= days; dd++) {
+    var iso = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(dd).padStart(2, '0');
+    var cls = 'cdp-day';
+    if (iso === todayStr) cls += ' cdp-today';
+    if (iso === sel)      cls += ' cdp-sel';
+    hh += '<button class="' + cls + '" type="button" onclick="_cdpPick(\'' + eid + '\',\'' + iso + '\')">' + dd + '</button>';
+  }
+  hh += '</div></div>';
+  popup.innerHTML = hh;
+  /* Ensure popup stays visible after innerHTML replacement */
+  popup.style.display = 'block';
 }
 
 function _cdpPick(inputId, iso) {
@@ -1336,11 +1337,22 @@ function _cdpToggle(inputId) {
   var isHidden = popup.style.display === 'none' || !popup.style.display;
   document.querySelectorAll('.cdp-popup, .ctp-popup').forEach(function(p) { p.style.display = 'none'; });
   if (isHidden) {
+    /* Move popup to <body> so position:fixed escapes any CSS transform
+       stacking context created by modal animation (e.g. translateY on .db-modal). */
+    if (popup.parentNode !== document.body) {
+      document.body.appendChild(popup);
+    }
+    /* Find the trigger button — it may still be in its original DOM position */
     var btn = document.querySelector('#' + inputId + '-cdp .cdp-btn');
+    if (!btn) {
+      /* Fallback: find by data attribute stored on popup */
+      var wrap = document.querySelector('[id="' + inputId + '-cdp"]');
+      if (wrap) btn = wrap.querySelector('.cdp-btn');
+    }
     if (btn) {
       var r = btn.getBoundingClientRect();
-      var pw = Math.max(242, Math.min(r.width, 280));
-      var ph = 290; // approx popup height
+      var pw = Math.max(242, Math.min(window.innerWidth - 16, 300));
+      var ph = 300; // approx popup height
       popup.style.position = 'fixed';
       popup.style.width = pw + 'px';
       var left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
@@ -1395,10 +1407,18 @@ function _ctpToggle(inputId) {
   var isHidden = popup.style.display === 'none' || !popup.style.display;
   document.querySelectorAll('.cdp-popup, .ctp-popup').forEach(function(p) { p.style.display = 'none'; });
   if (isHidden) {
+    /* Move to <body> to escape CSS transform stacking context from modal animations */
+    if (popup.parentNode !== document.body) {
+      document.body.appendChild(popup);
+    }
     var btn = document.querySelector('#' + inputId + '-ctp .ctp-btn');
+    if (!btn) {
+      var wrap = document.querySelector('[id="' + inputId + '-ctp"]');
+      if (wrap) btn = wrap.querySelector('.ctp-btn');
+    }
     if (btn) {
       var r = btn.getBoundingClientRect();
-      var pw = 160;
+      var pw = 170;
       var ph = 240; // approx popup height
       popup.style.position = 'fixed';
       popup.style.width = pw + 'px';
@@ -1431,13 +1451,19 @@ function _cclToggle(inputId) {
   var isHidden = popup.style.display === 'none' || !popup.style.display;
   document.querySelectorAll('.ccl-popup, .cdp-popup, .ctp-popup').forEach(function(p) { p.style.display = 'none'; });
   if (isHidden) {
+    /* Move to <body> to escape CSS transform stacking context from modal animations */
+    if (popup.parentNode !== document.body) {
+      document.body.appendChild(popup);
+    }
     var btn = document.getElementById(inputId + '-btn');
     if (btn) {
       var r = btn.getBoundingClientRect();
+      var pw = Math.max(r.width, 220);
       popup.style.position = 'fixed';
-      popup.style.left = r.left + 'px';
-      popup.style.width = r.width + 'px';
-      var ph = 260;
+      var left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
+      popup.style.left = left + 'px';
+      popup.style.width = pw + 'px';
+      var ph = 280;
       if (window.innerHeight - r.bottom - 8 >= ph || r.top < ph) {
         popup.style.top = (r.bottom + 4) + 'px';
         popup.style.bottom = 'auto';
@@ -1909,7 +1935,7 @@ async function dbSaveApptOnboarding() {
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
   try {
-    await apiFetch('/api/sessions', {
+    var sessResult = await apiFetch('/api/sessions', {
       method: 'POST',
       body: {
         client_id:    clientId   || null,
@@ -1924,6 +1950,7 @@ async function dbSaveApptOnboarding() {
     // ✓ success tick + chime
     if (btn) { btn.textContent = '✓'; btn.style.cssText += ';background:var(--teal);color:#051c11'; }
     _playSuccessChime();
+    if (sessResult && sessResult.gcal_event_id) toast('Appointment saved + Google Calendar event created', 'ok');
 
     // Push new appt into schedule cache so it shows immediately
     _dhAppts.push({
@@ -2000,12 +2027,13 @@ async function _dbSavePromptAppt(modalId, clientId, clientName, enquiryId) {
   var btn = document.getElementById('db-ap-prmt-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   try {
-    await apiFetch('/api/sessions', {
+    var promptSessResult = await apiFetch('/api/sessions', {
       method: 'POST',
       body: { client_id: clientId || null, session_date: date, session_time: time || null, client_name: clientName || null, status: 'upcoming' },
     });
     _dhAppts.push({ dateStr: date, startIso: date + 'T' + (time || '09:00') + ':00', startMs: new Date(date + 'T' + (time || '09:00') + ':00').getTime(), timeStr: time || '', name: clientName || 'Client', status: 'upcoming' });
     _playSuccessChime();
+    if (promptSessResult && promptSessResult.gcal_event_id) toast('Appointment + calendar event saved', 'ok');
     _dbShowTaskPrompt(modalId, enquiryId || null, clientName);
   } catch (err) {
     if (btn) { btn.disabled = false; btn.textContent = 'Add appointment →'; }
@@ -2689,7 +2717,7 @@ function _mobAnimHeader() {
     if (metaEl) _mobSlideIn(metaEl, 200);
     /* Animation fully complete — allow future header updates */
     setTimeout(function() { _mobAnimRunning = false; }, 300);
-  }, 46);
+  }, 70);
 }
 
 /**
@@ -2746,6 +2774,10 @@ function _mobRunIntro() {
         translateY   = targetCY - splashCY;
         scale        = targetRect.height / splashRect.height;
       }
+
+      /* Fade out the loading pulse just before the logo animates away */
+      var splashLoader = document.getElementById('mob-splash-loader');
+      if (splashLoader) { splashLoader.style.transition = 'opacity 0.2s'; splashLoader.style.opacity = '0'; }
 
       /* Phase 1: animate splash logo to exactly where the logo bar logo lives */
       if (splashLogo) {

@@ -962,6 +962,26 @@ body {
     /* transition is set by JS only after data loads — avoids flash on page render */
     will-change: transform;
   }
+  .mob-splash-loader {
+    position: absolute;
+    top: calc(50% + 80px); /* just below the bottom edge of the 130px logo */
+    left: 50%; transform: translateX(-50%);
+    width: 56px; height: 3px; overflow: hidden;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.07);
+  }
+  .mob-splash-pulse {
+    width: 40%; height: 100%;
+    background: var(--teal, #34d399);
+    border-radius: 2px;
+    animation: splashPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes splashPulse {
+    0%   { transform: translateX(-100%); opacity: 0; }
+    20%  { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: translateX(350%); opacity: 0; }
+  }
 
   /* Logo bar — starts invisible; revealed by _mobRunIntro after animation */
   .mob-logo-bar {
@@ -1095,6 +1115,7 @@ body {
     border-top: 1px solid rgba(255,255,255,0.06);
     padding-bottom: env(safe-area-inset-bottom, 0px);
     display: flex; flex-direction: column; align-items: stretch;
+    justify-content: flex-start; align-content: flex-start;
   }
   .mob-inbox-view .dh-attn-item { padding: 12px 16px; }
   .mob-inbox-view .dh-attn-empty { padding: 28px 20px; }
@@ -1107,10 +1128,15 @@ body {
   }
   .mob-remind-title { font-size: 17px; font-weight: 700; color: var(--t1); letter-spacing: -0.02em; }
   .mob-remind-sort-btn {
-    font-size: 10.5px; color: var(--t3); background: none;
-    border: 1px solid rgba(255,255,255,0.1); border-radius: 7px;
-    padding: 4px 9px; cursor: pointer; font-family: var(--sans);
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 500; color: var(--t2);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.11); border-radius: 8px;
+    padding: 5px 11px; cursor: pointer; font-family: var(--sans);
+    transition: background 0.12s, border-color 0.12s;
+    white-space: nowrap; flex-shrink: 0;
   }
+  .mob-remind-sort-btn:active { background: rgba(255,255,255,0.1); }
   .mob-remind-add-btn {
     font-size: 11.5px; font-weight: 600; color: var(--teal);
     background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.22);
@@ -3233,7 +3259,7 @@ body {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Appointment
       </button>
-      <button class="mob-action-tile" onclick="closeMobActionSheet();if(_mobCurrentApp==='reminders'){_mobOpenAddReminderModal();}else{mobSwitchApp('reminders');setTimeout(_mobOpenAddReminderModal,350);}">
+      <button class="mob-action-tile" onclick="closeMobActionSheet();openAddReminderModal()">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         Reminder
       </button>
@@ -3261,6 +3287,9 @@ body {
 <!-- ── Mobile splash (fixed overlay, shown during initial load on mobile only) ── -->
 <div id="mob-splash">
   <img src="/assets/logo.svg" id="mob-splash-logo" alt="">
+  <div class="mob-splash-loader" id="mob-splash-loader">
+    <div class="mob-splash-pulse"></div>
+  </div>
 </div>
 
 <!-- ── Detail modal ── -->
