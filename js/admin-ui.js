@@ -750,7 +750,6 @@ function _mobRenderInbox() {
   var newEnqs   = enquiries.filter(function(e) { return (e.status || 'new') === 'new'; });
   var cntContacted = enquiries.filter(function(e) { return e.status === 'contacted'; }).length;
   var cntClosed    = enquiries.filter(function(e) { return e.status === 'closed'; }).length;
-  var unpaidCount   = _dhBillingSessions ? _dhBillingSessions.length : 0;
   var unlinkedCount = _dhUnlinkedCalAppts ? _dhUnlinkedCalAppts.length : 0;
   var cntUpcoming = enquiries.filter(function(e) {
     var c = _dhEnqClientMap[e.id];
@@ -772,7 +771,6 @@ function _mobRenderInbox() {
     + _tab('contacted',    'Contacted', cntContacted)
     + _tab('upcoming_appt','Upcoming',  cntUpcoming)
     + _tab('unlinked',     'Unlinked',  unlinkedCount, ' style="color:#b85a1e"')
-    + _tab('unpaid',       'Unpaid',    unpaidCount,   ' style="color:var(--amber)"')
     + _tab('closed',       'Closed',    cntClosed)
     + _tab('all',          'All',       enquiries.length)
     + '</div>'
@@ -2359,17 +2357,24 @@ function _mobAnimHeader() {
   var dateEl     = mobHd.querySelector('.mob-hd-date');
   var metaEl     = mobHd.querySelector('.mob-hd-meta');
 
-  /* Pre-hide date and meta before the animation starts */
+  /* Capture text, then immediately clear it so when we make mob-hd visible
+     the user sees an empty greeting — no flash of the pre-filled text. */
+  var fullGreeting = greetingEl ? greetingEl.textContent : '';
+  if (greetingEl) greetingEl.textContent = '';
+
+  /* Pre-hide date and meta (slide in after typing) */
   if (dateEl) { dateEl.style.opacity = '0'; dateEl.style.transform = 'translateY(8px)'; }
   if (metaEl) { metaEl.style.opacity = '0'; metaEl.style.transform = 'translateY(8px)'; }
 
-  if (!greetingEl) {
+  /* Reveal mob-hd now that greeting is cleared — clean entry point */
+  mobHd.style.opacity = '1';
+
+  if (!greetingEl || !fullGreeting) {
     if (dateEl) _mobSlideIn(dateEl, 0);
     if (metaEl) _mobSlideIn(metaEl, 120);
     _mobAnimRunning = false;
     return;
   }
-  var fullGreeting = greetingEl.textContent;
   _mobTypewriter(greetingEl, fullGreeting, function() {
     if (dateEl) _mobSlideIn(dateEl, 60);
     if (metaEl) _mobSlideIn(metaEl, 200);
@@ -2399,10 +2404,15 @@ function _mobRunIntro() {
   var splashLogo = document.getElementById('mob-splash-logo');
   var logoBar    = document.getElementById('mob-logo-bar');
 
-  /* Populate header content first so the DOM nodes exist for animation */
+  /* Populate header DOM now so nodes exist, but keep it invisible until
+     the splash is fully gone — prevents the full greeting text from flashing
+     through the fading splash overlay before the typewriter starts. */
   _mobUpdateHeader();
+  var _introMobHd = document.getElementById('mob-hd');
+  if (_introMobHd) _introMobHd.style.opacity = '0';
 
   if (!splash) {
+    if (_introMobHd) _introMobHd.style.opacity = '1';
     if (logoBar) logoBar.style.opacity = '1';
     _mobAnimHeader();
     return;
@@ -2423,9 +2433,11 @@ function _mobRunIntro() {
         splash.style.opacity    = '0';
       }, 550);
 
-      /* Phase 3: once splash gone — swap to persistent logo bar, animate header */
+      /* Phase 3: once splash gone — show logo bar, then hand off to typewriter */
       setTimeout(function() {
         splash.style.display = 'none';
+        /* Keep mob-hd hidden — _mobAnimHeader reveals it after clearing the text
+           so there's no flash of pre-filled greeting before typing starts */
         if (logoBar) {
           logoBar.style.transition = 'opacity 0.3s ease';
           logoBar.style.opacity    = '1';
@@ -3997,6 +4009,44 @@ var _dhUnlinkedCalAppts = [];  // upcoming GCal events with no Halaxy patient (f
 var _dhSchedDateStr     = '';  // selected day ISO string ('' = auto-select today/first)
 var _dhSchedWeekOff     = 0;   // week offset: 0=this week, 1=next week
 
+/* ── Module-level patient/client name resolver (used by billing bento + panel) ── */
+function _resolvePatientName(patientId) {
+  if (!patientId) return 'Unknown';
+  var pm = (_halaxyData && _halaxyData.patientMap) || {};
+  if (pm[patientId]) return pm[patientId];
+  var pts = (_halaxyData && _halaxyData.patients) || [];
+  var p = pts.find(function(pt) { return String(pt.id) === String(patientId); });
+  if (p) return p.name;
+  var clients = (_pipelineData && _pipelineData.clients) || [];
+  var c = clients.find(function(cl) { return String(cl.halaxy_id) === String(patientId); });
+  return c ? (c.display_name || c.first_name || 'Client') : 'Client #' + patientId;
+}
+
+/* ── Reminders sort + priority state ─────────────────────────────── */
+var _dhRemindSort = 'date'; // 'date' | 'name'
+var _dhTaskPrios  = JSON.parse(localStorage.getItem('task_prios') || '{}');
+
+function _dhGetPrio(id) { return _dhTaskPrios[String(id)] || 'normal'; }
+function dhSetTaskPrio(id, prio) {
+  _dhTaskPrios[String(id)] = prio;
+  localStorage.setItem('task_prios', JSON.stringify(_dhTaskPrios));
+  _dhRenderRemindBento();
+}
+function dhRemindCycleSort() {
+  _dhRemindSort = _dhRemindSort === 'date' ? 'name' : 'date';
+  _dhRenderRemindBento();
+}
+
+/* ── Module-level AUD formatter ───────────────────────────────────── */
+function _fmtAUD(n) { return '$' + Math.round(n || 0).toLocaleString('en-AU'); }
+
+/* ── Billing bento paid-period toggle ─────────────────────────────── */
+var _dhBillMode = 'mtd'; // 'mtd' | 'fy'
+function dhBillToggleMode() {
+  _dhBillMode = _dhBillMode === 'mtd' ? 'fy' : 'mtd';
+  _dhRenderBillingBento();
+}
+
 function dhSchedSelectDay(iso) {
   _dhSchedDateStr = iso;
   _dhRenderSchedCard();
@@ -4186,21 +4236,22 @@ function renderHomeView() {
     var d = new Date(iso), h = d.getHours(), m = d.getMinutes();
     return (h%12||12) + ':' + (m<10?'0':'') + m + (h>=12?'pm':'am');
   }
-  function _fmt$(n) { return '$' + Math.round(n).toLocaleString('en-AU'); }
+  function _fmt$(n) { return _fmtAUD(n); }
 
   var now        = new Date();
   var todayStr   = now.toDateString();
   var activeClients = clients.filter(function(c) { return c.active !== false; });
   var newEnquiries  = enquiries.filter(function(e) { return (e.status||'new') === 'new'; });
 
-  // Billing breakdown — use totalBalance directly so all invoice statuses are captured
+  // Billing breakdown
   var bPending = 0, bPaid = 0;
-  var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  var _billMonthStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
   invoices.forEach(function(inv) {
     var bal = parseFloat(inv.totalBalance != null ? inv.totalBalance : 0);
     if (bal > 0) bPending += bal;
-    if (inv.status === 'paid' && inv.paidDate && new Date(inv.paidDate) >= monthStart) {
-      bPaid += parseFloat(inv.totalPrice || inv.totalPaid || 0);
+    // Halaxy marks paid via totalBalance=0; no paidDate field — use invoice date for month filter
+    if (_invIsPaid(inv) && inv.date && inv.date.startsWith(_billMonthStr)) {
+      bPaid += parseFloat(inv.totalPaid != null ? inv.totalPaid : (inv.amount || 0));
     }
   });
 
@@ -4343,7 +4394,6 @@ function renderHomeView() {
     + '<div class="dh-fold-tab">'
     + IC.inbox + 'Inbox'
     + (newEnquiries.length ? '<span class="dh-fold-badge">' + newEnquiries.length + ' new</span>' : '')
-    + (unpaidCount ? '<span class="dh-fold-badge" style="background:rgba(245,158,11,0.18);color:var(--amber)">' + unpaidCount + ' unpaid</span>' : '')
     + (unlinkedCount ? '<span class="dh-fold-badge" style="background:rgba(224,123,57,0.15);color:#b85a1e">' + unlinkedCount + ' unlinked</span>' : '')
     + '</div>'
     + '<div class="dh-attn-card">';
@@ -4356,8 +4406,6 @@ function renderHomeView() {
     + '<span class="dh-if-label">Upcoming</span><span class="dh-if-count"' + (upcomingApptEnqs.length ? ' style="color:var(--teal)"' : '') + '>' + upcomingApptEnqs.length + '</span></div>'
     + '<div class="dh-inbox-folder" data-status="unlinked" onclick="dhInboxFilter(\'unlinked\',this)">'
     + '<span class="dh-if-label">Unlinked</span><span class="dh-if-count"' + (unlinkedCount ? ' style="color:#b85a1e"' : '') + '>' + unlinkedCount + '</span></div>'
-    + '<div class="dh-inbox-folder" data-status="unpaid" onclick="dhInboxFilter(\'unpaid\',this)">'
-    + '<span class="dh-if-label">Unpaid</span><span class="dh-if-count"' + (unpaidCount ? ' style="color:var(--amber)"' : '') + '>' + unpaidCount + '</span></div>'
     + '<div class="dh-inbox-folder" data-status="closed" onclick="dhInboxFilter(\'closed\',this)">'
     + '<span class="dh-if-label">Closed</span><span class="dh-if-count">' + closedEnqs.length + '</span></div>'
     + '<div class="dh-inbox-folder" data-status="all" onclick="dhInboxFilter(\'all\',this)">'
@@ -4366,14 +4414,16 @@ function renderHomeView() {
   html += '<div class="dh-inbox-list" id="dh-inbox-list"></div>';
   html += '</div></div>'; // .dh-attn-card + dh-b-6.dh-fold
 
-  // BL: Reminders (full quadrant)
+  // BL: Reminders — table layout with sort
   html += '<div class="dh-b-6 dh-fold" id="dh-q-util">'
     + '<div class="dh-fold-tab">'
     + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>'
     + 'Reminders'
     + '<span class="dh-fold-badge" id="dh-util-remind-badge" style="display:none"></span>'
+    + '<button class="dh-remind-sort-btn" onclick="event.stopPropagation();dhRemindCycleSort()" title="Sort" id="dh-remind-sort-btn" style="margin-left:auto;font-size:10px;color:var(--t3);background:none;border:none;cursor:pointer;padding:0 4px;white-space:nowrap">Sort: date</button>'
     + '</div>'
-    + '<div class="dh-tasks-card" style="flex:1;min-height:0;cursor:default" onclick="">'
+    + '<div class="dh-tasks-card dh-remind-table-wrap" style="flex:1;min-height:0;cursor:default">'
+    + '<div class="dh-rt-head"><span class="dh-rt-h-task">Task</span><span class="dh-rt-h-client">Client</span><span class="dh-rt-h-date">Added</span></div>'
     + '<div class="dh-tasks-body" id="dh-util-remind-list"><div class="dh-tasks-loading">Loading…</div></div>'
     + '<div class="dh-tasks-add">'
     + '<span class="dh-tasks-plus">+</span>'
@@ -4382,25 +4432,17 @@ function renderHomeView() {
     + '</div>'
     + '</div>'; // .dh-fold
 
-    // BR: Billing card — with fold tab
+  // BR: Billing bento — live invoice list + paid/FY toggle
   html += '<div class="dh-b-6 dh-fold" id="dh-q-bill">'
     + '<div class="dh-fold-tab">'
     + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>'
     + 'Billing'
     + (awaitingPayCount ? '<span class="dh-fold-badge" style="background:rgba(245,158,11,0.18);color:var(--amber)">' + awaitingPayCount + ' unpaid</span>' : '')
     + '</div>'
-    + '<div class="dh-billing-card" onclick="navigateTo(\'billing\')">'
-    + '<div class="dh-billing-body">'
-    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Paid this month</div>'
-    + '<div class="dh-bs-amt" style="color:var(--teal)">' + _fmt$(bPaid) + '</div>'
-    + '<div class="dh-bs-sub">' + escHtml(now.toLocaleDateString('en-AU',{month:'long'})) + '</div></div>'
-    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Outstanding</div>'
-    + '<div class="dh-bs-amt" style="color:' + (bPending > 0 ? 'var(--amber)' : 'var(--teal)') + '">' + _fmt$(bPending) + '</div>'
-    + '<div class="dh-bs-sub">' + escHtml(awaitingPayCount ? awaitingPayCount + ' invoice' + (awaitingPayCount !== 1 ? 's' : '') : 'All clear') + '</div></div>'
-    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Needs invoice</div>'
-    + '<div class="dh-bs-amt" style="color:' + (needsInvoiceCount ? 'var(--amber)' : 'var(--teal)') + '">' + needsInvoiceCount + '</div>'
-    + '<div class="dh-bs-sub">' + escHtml(needsInvoiceCount ? 'Sessions pending' : 'All invoiced') + '</div></div>'
-    + '</div></div></div>'; // .dh-billing-card + dh-fold
+    + '<div class="dh-billing-card dh-billing-live" style="cursor:default;flex:1;min-height:0;display:flex;flex-direction:column">'
+    + '<div id="dh-bill-bento-inner"></div>'
+    + '</div>'
+    + '</div>'; // .dh-fold
 
   html += '</div>'; // .dh-bento
   html += '</div>'; // .dh-wrap
@@ -4410,6 +4452,7 @@ function renderHomeView() {
   _dhSchedDateStr = '';
   _dhRenderSchedCard();
   _dhLoadTasks();
+  _dhRenderBillingBento();
   var _inboxListEl = document.getElementById('dh-inbox-list');
   if (_inboxListEl) _dhRenderInboxItems(_inboxListEl, newEnquiries);
   _updateMobileDock('home');
@@ -4455,25 +4498,126 @@ function _dhRenderRemindBento() {
   var pending = _dhTasks.filter(function(t){ return !t.completed; });
   var badge   = document.getElementById('dh-util-remind-badge');
   if (badge) {
-    if (pending.length) {
-      badge.textContent = pending.length;
-      badge.style.display = '';
-    } else {
-      badge.style.display = 'none';
-    }
+    badge.textContent = pending.length || '';
+    badge.style.display = pending.length ? '' : 'none';
   }
+  // Update sort button label
+  var sortBtn = document.getElementById('dh-remind-sort-btn');
+  if (sortBtn) sortBtn.textContent = 'Sort: ' + _dhRemindSort;
+
   if (!_dhTasks.length) {
     listEl.innerHTML = '<div class="dh-tasks-empty">No reminders yet</div>';
     return;
   }
-  listEl.innerHTML = _dhTasks.map(function(t) {
-    var done = t.completed ? ' done' : '';
-    var chk  = t.completed ? '✓' : '';
-    return '<div class="dh-task-item' + done + '" data-id="' + escHtml(String(t.id)) + '">'
-      + '<button class="dh-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',' + !t.completed + ')" type="button">' + chk + '</button>'
-      + '<span class="dh-task-lbl">' + escHtml(t.title || t.text || '') + '</span>'
+
+  // Sort
+  var sorted = _dhTasks.slice();
+  if (_dhRemindSort === 'name') {
+    sorted.sort(function(a, b) { return (a.title || '').localeCompare(b.title || ''); });
+  } else {
+    // date: newest first
+    sorted.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); });
+  }
+
+  function _fmtAdded(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+  }
+
+  listEl.innerHTML = sorted.map(function(t) {
+    var done   = t.completed ? ' done' : '';
+    var prio   = _dhGetPrio(t.id);
+    var prioDot = prio === 'high' ? '<span class="dh-prio-dot high" onclick="event.stopPropagation();dhSetTaskPrio(' + JSON.stringify(t.id) + ',\'normal\')" title="High priority — click to clear">!</span> '
+                : '<span class="dh-prio-dot" onclick="event.stopPropagation();dhSetTaskPrio(' + JSON.stringify(t.id) + ',\'high\')" title="Set high priority"></span> ';
+    var client  = t.client_label ? escHtml(t.client_label) : '<span style="color:var(--t3)">—</span>';
+    return '<div class="dh-rt-row' + done + '" data-id="' + escHtml(String(t.id)) + '">'
+      + '<button class="dh-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',' + !t.completed + ')" type="button">' + (t.completed ? '✓' : '') + '</button>'
+      + '<div class="dh-rt-title">' + prioDot + escHtml(t.title || t.text || '') + '</div>'
+      + '<div class="dh-rt-client">' + client + '</div>'
+      + '<div class="dh-rt-date">' + _fmtAdded(t.created_at) + '</div>'
       + '</div>';
   }).join('');
+}
+
+/* ── Billing bento — live invoice list + paid toggle ─────────────── */
+function _dhRenderBillingBento() {
+  var inner = document.getElementById('dh-bill-bento-inner');
+  if (!inner) return;
+
+  var now      = new Date();
+  var invoices = (_halaxyData && _halaxyData.invoices) || [];
+  var monthStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  var fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  var fyStart  = fyStartYear + '-07-01';
+  var fyLabel  = 'FY' + fyStartYear + '–' + String(fyStartYear + 1).slice(2);
+
+  // Paid amount (togglable MTD / FY)
+  var paidAmt = invoices.reduce(function(sum, inv) {
+    if (!_invIsPaid(inv) || !inv.date) return sum;
+    if (_dhBillMode === 'mtd' && !inv.date.startsWith(monthStr)) return sum;
+    if (_dhBillMode === 'fy'  && inv.date < fyStart) return sum;
+    return sum + (parseFloat(inv.totalPaid != null ? inv.totalPaid : (inv.amount || 0)));
+  }, 0);
+
+  var periodLabel = _dhBillMode === 'mtd'
+    ? now.toLocaleDateString('en-AU', { month: 'long' })
+    : fyLabel;
+
+  // Outstanding — no date limit
+  var outstanding = invoices.filter(function(inv) {
+    return !_invIsPaid(inv) && inv.status !== 'cancelled' && inv.status !== 'draft';
+  }).sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); });
+
+  var totalOwing = outstanding.reduce(function(s, inv) {
+    return s + (parseFloat(inv.totalBalance != null ? inv.totalBalance : 0) || 0);
+  }, 0);
+
+  var html = '<div class="dh-bill-bento-bar">'
+    + '<div class="dh-bill-bento-stat dh-bill-paid-toggle" onclick="dhBillToggleMode()" title="Toggle month / financial year">'
+    + '<div class="dh-bbs-val teal">' + _fmtAUD(paidAmt) + '</div>'
+    + '<div class="dh-bbs-lbl">Paid · ' + escHtml(periodLabel) + ' <span class="dh-bill-swap">↔</span></div>'
+    + '</div>'
+    + '<div class="dh-bill-bento-stat" onclick="navigateTo(\'billing\')" style="cursor:pointer">'
+    + '<div class="dh-bbs-val ' + (totalOwing ? 'amber' : 'teal') + '">' + _fmtAUD(totalOwing) + '</div>'
+    + '<div class="dh-bbs-lbl">Outstanding · ' + outstanding.length + ' inv.</div>'
+    + '</div>'
+    + '</div>';
+
+  // Invoice rows
+  if (!outstanding.length && (_halaxyData && _halaxyData.connected)) {
+    html += '<div class="dh-tasks-empty">No outstanding invoices ✓</div>';
+  } else if (!_halaxyData || !_halaxyData.connected) {
+    html += '<div class="dh-tasks-empty">Connect Halaxy in Settings</div>';
+  } else {
+    html += '<div class="dh-bill-inv-rows">';
+    outstanding.slice(0, 10).forEach(function(inv) {
+      var name = _resolvePatientName(inv.patientId);
+      var dt   = inv.date ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
+      var bal  = parseFloat(inv.totalBalance != null ? inv.totalBalance : (inv.amount || 0));
+      var sub  = _getSubStatus(inv.id);
+      var subBadge = sub
+        ? '<span class="dh-inv-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
+        : '<button class="dh-inv-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\')">Mark submitted</button>';
+      html += '<div class="dh-bill-inv-row" onclick="navigateTo(\'billing\')">'
+        + '<div class="dh-bir-name">' + escHtml(name) + '</div>'
+        + '<div class="dh-bir-mid">'
+        + (inv.payorOrg ? '<span class="dh-bir-org">' + escHtml(inv.payorOrg) + '</span>' : '')
+        + subBadge
+        + '</div>'
+        + '<div class="dh-bir-right">'
+        + '<span class="dh-bir-amt">' + (bal ? _fmtAUD(bal) : '—') + '</span>'
+        + '<span class="dh-bir-date">' + escHtml(dt) + '</span>'
+        + '</div>'
+        + '</div>';
+    });
+    if (outstanding.length > 10) {
+      html += '<div class="dh-bill-see-all" onclick="navigateTo(\'billing\')">See all ' + outstanding.length + ' outstanding →</div>';
+    }
+    html += '</div>';
+  }
+
+  inner.innerHTML = html;
 }
 
 /* ── Task detail panel ───────────────────────────────────────── */
@@ -5807,21 +5951,25 @@ function renderBillingView() {
   var fyStart = fyStartYear + '-07-01';
   var fyLabel = 'FY' + fyStartYear + '–' + String(fyStartYear + 1).slice(2);
 
-  // YTD: sum of totalPaid for invoices in the current Australian financial year
+  // Paid amounts — only count invoices where totalBalance=0 (fully paid)
+  // Halaxy has no payment-date field; invoice date is the best proxy
   var ytd = invoices.reduce(function(sum, inv) {
     if (!inv.date || inv.date < fyStart) return sum;
-    return sum + (parseFloat(inv.totalPaid) || 0);
+    if (!_invIsPaid(inv)) return sum;
+    return sum + (parseFloat(inv.totalPaid != null ? inv.totalPaid : (inv.amount || 0)));
   }, 0);
 
-  // MTD: sum of totalPaid for invoices in the current month
   var mtd = invoices.reduce(function(sum, inv) {
     if (!inv.date || !inv.date.startsWith(monthStr)) return sum;
-    return sum + (parseFloat(inv.totalPaid) || 0);
+    if (!_invIsPaid(inv)) return sum;
+    return sum + (parseFloat(inv.totalPaid != null ? inv.totalPaid : (inv.amount || 0)));
   }, 0);
 
-  // Owing: sum of totalBalance for all unpaid/partial invoices
-  var owing = invoices.reduce(function(sum, inv) {
-    if (inv.status === 'cancelled' || inv.status === 'draft') return sum;
+  // Outstanding — all unpaid, no date limit
+  var outstandingInvs = invoices.filter(function(inv) {
+    return !_invIsPaid(inv) && inv.status !== 'cancelled' && inv.status !== 'draft';
+  });
+  var owing = outstandingInvs.reduce(function(sum, inv) {
     var bal = parseFloat(inv.totalBalance);
     return sum + (bal > 0 ? bal : 0);
   }, 0);
@@ -5831,22 +5979,17 @@ function renderBillingView() {
   var html = '<div class="billing-view">';
   html += '<div class="billing-view-hd"><span class="view-title">Billing</span></div>';
 
-  // Summary cards
+  // Summary cards — paid stat is a toggle card
   html += '<div class="bill-summary">';
-  html += '<div class="bill-stat">'
-    + '<div class="bill-stat-label">Month to Date</div>'
-    + '<div class="bill-stat-val' + (mtd === 0 ? ' zero' : '') + '">' + fmt(mtd) + '</div>'
-    + '<div class="bill-stat-sub">' + now.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }) + '</div>'
+  html += '<div class="bill-stat bill-stat-toggle" onclick="dhBillToggleMode();renderBillingView()" title="Toggle period" style="cursor:pointer">'
+    + '<div class="bill-stat-label">' + (_dhBillMode === 'mtd' ? 'Paid · Month to Date' : 'Paid · Financial Year') + ' <span style="font-size:10px;opacity:0.5">↔</span></div>'
+    + '<div class="bill-stat-val' + ((_dhBillMode === 'mtd' ? mtd : ytd) === 0 ? ' zero' : '') + '">' + fmt(_dhBillMode === 'mtd' ? mtd : ytd) + '</div>'
+    + '<div class="bill-stat-sub">' + (_dhBillMode === 'mtd' ? now.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }) : fyLabel + ' total') + '</div>'
     + '</div>';
   html += '<div class="bill-stat">'
-    + '<div class="bill-stat-label">Financial Year to Date</div>'
-    + '<div class="bill-stat-val' + (ytd === 0 ? ' zero' : '') + '">' + fmt(ytd) + '</div>'
-    + '<div class="bill-stat-sub">' + fyLabel + ' total earned</div>'
-    + '</div>';
-  html += '<div class="bill-stat">'
-    + '<div class="bill-stat-label">Owing</div>'
+    + '<div class="bill-stat-label">Outstanding</div>'
     + '<div class="bill-stat-val' + (owing > 0 ? ' owing' : ' zero') + '">' + fmt(owing) + '</div>'
-    + '<div class="bill-stat-sub">across ' + invoices.filter(function(i) { return parseFloat(i.totalBalance) > 0 && i.status !== 'cancelled'; }).length + ' invoice' + (invoices.filter(function(i) { return parseFloat(i.totalBalance) > 0 && i.status !== 'cancelled'; }).length !== 1 ? 's' : '') + '</div>'
+    + '<div class="bill-stat-sub">across ' + outstandingInvs.length + ' invoice' + (outstandingInvs.length !== 1 ? 's' : '') + '</div>'
     + '</div>';
   html += '</div>';
 

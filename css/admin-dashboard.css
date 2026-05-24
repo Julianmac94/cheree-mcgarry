@@ -100,6 +100,7 @@ body::before {
 .app-topbar { display: none !important; }
 
 /* ─── FLOATING SETTINGS COG (desktop only) ──────────────────── */
+.dh-desk-settings-btn { display: none; } /* hidden on mobile by default */
 @media (min-width: 769px) {
   .dh-desk-settings-btn {
     position: fixed;
@@ -1168,6 +1169,101 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   font-variant-numeric: tabular-nums;
 }
 .dh-bs-sub { font-size: 11px; color: var(--t3); font-weight: 500; }
+
+/* ─── REMINDERS TABLE LAYOUT ─────────────────────────────────── */
+.dh-remind-table-wrap { overflow: hidden; }
+.dh-rt-head {
+  display: grid; grid-template-columns: 1fr 120px 64px;
+  padding: 6px 28px 6px 52px; /* left indent aligns with checkbox+title */
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--t3);
+}
+.dh-rt-row {
+  display: grid; grid-template-columns: 24px 1fr 120px 64px;
+  align-items: center; gap: 4px;
+  padding: 9px 28px; border-bottom: 1px solid var(--sep);
+  transition: background 0.12s;
+}
+.dh-rt-row:last-of-type { border-bottom: none; }
+.dh-rt-row:hover { background: rgba(255,255,255,0.025); }
+.dh-rt-row .dh-task-chk { width: 15px; height: 15px; border-radius: 4px; flex-shrink: 0; }
+.dh-rt-title {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--t1); font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dh-rt-client {
+  font-size: 11px; color: var(--t2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dh-rt-date { font-size: 10.5px; color: var(--t3); text-align: right; white-space: nowrap; }
+.dh-rt-row.done .dh-rt-title { opacity: 0.35; text-decoration: line-through; }
+.dh-rt-row.done .dh-task-chk { background: var(--teal); border-color: var(--teal); color: #051c11; }
+
+/* Priority dot */
+.dh-prio-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(255,255,255,0.12); cursor: pointer; transition: background 0.13s;
+  display: inline-block;
+}
+.dh-prio-dot.high { background: var(--amber); color: var(--amber); }
+.dh-prio-dot.high::after { content: '!'; font-size: 9px; font-weight: 800; color: #7a4b00; position: relative; top: -1px; left: -0.5px; }
+
+/* ─── BILLING BENTO — LIVE INVOICE LIST ──────────────────────── */
+/* billing-live: flex container so bar + invoice list fill the card */
+.dh-billing-live { padding: 0 !important; overflow: hidden; }
+#dh-bill-bento-inner { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.dh-bill-bento-bar {
+  display: grid; grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0;
+}
+.dh-bill-bento-stat {
+  padding: 18px 22px; display: flex; flex-direction: column; gap: 4px;
+}
+.dh-bill-bento-stat:first-child { border-right: 1px solid rgba(255,255,255,0.06); }
+.dh-bill-paid-toggle { cursor: pointer; transition: background 0.12s; }
+.dh-bill-paid-toggle:hover { background: rgba(255,255,255,0.03); }
+.dh-bbs-val {
+  font-size: 22px; font-weight: 800; letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.dh-bbs-val.teal  { color: var(--teal); }
+.dh-bbs-val.amber { color: var(--amber); }
+.dh-bbs-lbl { font-size: 10px; color: var(--t3); font-weight: 500; }
+.dh-bill-swap { font-size: 9px; opacity: 0.5; }
+
+.dh-bill-inv-rows { flex: 1; overflow-y: auto; min-height: 0; }
+.dh-bill-inv-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 18px 9px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  cursor: pointer; transition: background 0.12s;
+}
+.dh-bill-inv-row:hover { background: rgba(255,255,255,0.03); }
+.dh-bill-inv-row:last-of-type { border-bottom: none; }
+.dh-bir-name { flex: 1; font-size: 12px; color: var(--t1); font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.dh-bir-mid { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.dh-bir-org { font-size: 9.5px; color: var(--t3); background: rgba(255,255,255,0.06);
+  padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+.dh-bir-right { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; gap: 2px; }
+.dh-bir-amt { font-size: 12px; font-weight: 700; color: var(--amber); font-variant-numeric: tabular-nums; }
+.dh-bir-date { font-size: 10px; color: var(--t3); }
+.dh-inv-sub { font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+.dh-inv-sub.ok { background: rgba(52,211,153,0.1); color: var(--teal); }
+.dh-inv-sub.chase { background: rgba(245,158,11,0.15); color: var(--amber); }
+.dh-inv-mark {
+  font-size: 9.5px; padding: 2px 7px; border-radius: 5px; cursor: pointer;
+  background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.2);
+  color: var(--teal); white-space: nowrap;
+}
+.dh-bill-see-all {
+  padding: 10px 18px; font-size: 11px; color: var(--t3);
+  cursor: pointer; text-align: center;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.dh-bill-see-all:hover { color: var(--t1); }
 
 /* ─── HOME — transparent glass-bleed cards, flat (no float) ─── */
 .dh-sched-card,

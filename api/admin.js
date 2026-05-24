@@ -1062,16 +1062,13 @@ body {
     height: 100%; min-height: 0;
   }
   .mob-inbox-tabs {
-    display: flex; flex-shrink: 0;
-    overflow-x: auto; -webkit-overflow-scrolling: touch;
-    padding: 14px 14px 0; gap: 6px;
-    scrollbar-width: none;
+    display: flex; flex-wrap: wrap; flex-shrink: 0;
+    padding: 12px 14px 8px; gap: 7px;
   }
-  .mob-inbox-tabs::-webkit-scrollbar { display: none; }
   .mob-inbox-tab {
     display: flex; align-items: center; gap: 5px;
-    white-space: nowrap; padding: 6px 13px; border-radius: 20px;
-    font-family: var(--sans); font-size: 11.5px; font-weight: 500;
+    white-space: nowrap; padding: 5px 12px; border-radius: 20px;
+    font-family: var(--sans); font-size: 11px; font-weight: 500;
     background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
     color: var(--t2); cursor: pointer; transition: all 0.12s; flex-shrink: 0;
   }
