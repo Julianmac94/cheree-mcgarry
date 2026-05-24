@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1240">
+<title>Invoice Header &amp; Footer — Cheree McGarry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #d4cfc4;
+  padding: 48px 40px;
+  font-family: 'Raleway', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Guide labels ── */
+.guide {
+  font-family: -apple-system, sans-serif;
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #888; margin-bottom: 6px;
+}
+.guide span { font-weight: 400; color: #aaa; letter-spacing: 0; text-transform: none; }
+.spacer { height: 48px; }
+
+/* ══════════════════════════════════════════
+   HEADER  —  1240 × 413px  (70mm @ 150dpi)
+   Dark teal brand colour
+   ══════════════════════════════════════════ */
+.inv-header {
+  width: 1240px;
+  height: 413px;
+  background: #192E2A;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 52px 0 40px;
+  position: relative;
+  overflow: hidden;
+  zoom: 2;
+}
+
+/* Mint shimmer accent line along top */
+.inv-header::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 11px;
+  background: linear-gradient(90deg, #77CFBD 0%, rgba(119,207,189,0.4) 55%, transparent 100%);
+}
+
+/* Large botanical mark, faded right-side watermark */
+.inv-header::after {
+  content: '';
+  position: absolute; right: -80px; top: -60px;
+  width: 380px; height: 380px;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 1080 1080' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%2377cfbd' fill-rule='evenodd' d='M 735.736084 512.392212 C 676.061768 577.293213 598.49823 523.03479 598.49823 523.03479 C 598.49823 523.03479 612.322327 508.543945 630 498 C 646.032043 488.437561 669.021362 478.22937 679.074707 473.315369 C 688.516296 468.700378 656.192139 478.900635 630 494 C 612.035095 504.356506 597.013367 519.230591 597.013367 519.230591 C 597.013367 519.230591 584.866272 465.973206 647.813232 428.377014 C 701.679199 396.204529 794.351318 414.700134 794.351318 414.700134 C 794.351318 414.700134 791.469971 451.776733 735.736084 512.392212 Z'/%3E%3Cpath fill='%2377cfbd' fill-rule='evenodd' d='M 679.045715 345.056763 C 648.786743 413.421936 572.207703 397.35968 572.207703 397.35968 C 572.207703 397.35968 581.517395 376.354614 594 361 C 602.804871 350.169373 619.901855 333.983643 622 332 C 624.823303 329.330811 604.58606 341.639648 591 357 C 579.364746 370.154724 568.753418 392.178284 568.753418 392.178284 C 568.753418 392.178284 545.246826 348.843323 585.566223 301.515991 C 620.069031 261.016235 699.528625 250.645264 699.528625 250.645264 C 699.528625 250.645264 707.306641 281.205872 679.045715 345.056763 Z'/%3E%3Cpath fill='%23ffffff' fill-rule='evenodd' d='M 555.503784 182.203552 C 610.197449 273.183472 513 340 513 340 C 513 340 497.506805 299.91571 490 264 C 481.042755 221.144775 479.826141 181.719788 480 189 C 480.629791 215.371521 479.606232 240.349243 484 265 C 491.224792 305.534119 505 340 505 340 C 505 340 430.339874 325.225464 419.948456 237.559631 C 411.056091 162.540833 488.455322 67.061646 488.455322 67.061646 C 488.455322 67.061646 515.25885 115.258118 555.503784 182.203552 Z'/%3E%3Cpath fill='%23ffffff' fill-rule='evenodd' d='M 392 306 C 474.701843 331.603149 469.152557 421.668945 466 419 C 463.151672 416.588562 448.969208 404.579895 431 396 C 403.161804 382.707947 368.954865 372.156433 374.772858 375.784912 C 384.208069 381.66925 409.238403 388.761169 429 399 C 449.181091 409.456177 464 423 464 423 C 464 423 368.712311 456.209534 338 413 C 297.298279 355.736267 274.231171 298.211914 274.231171 298.211914 C 274.231171 298.211914 314.759125 282.087463 392 306 Z'/%3E%3Cpath fill='%2377cfbd' fill-rule='evenodd' d='M 362 480 C 439.176422 440.770874 470 506 470 506 C 470 506 451.416656 511.184387 433 512 C 410.410919 513.000427 387.541534 509.763123 393 511 C 400.407379 512.678467 417.681396 517.358765 434 517 C 452.623505 516.590515 470 511 470 511 C 470 511 465.552002 550.01239 394 558 C 340.003998 564.027771 297 538 297 538 C 297 538 318.342407 502.191345 362 480 Z'/%3E%3Cpath fill='%23de9e59' fill-rule='evenodd' d='M 457 719 C 457 719 389.320953 770.628357 287 742 C 167.036407 708.435425 145.290359 586.965088 143.332504 575.215698 C 143.249557 574.717957 187.960052 669.36261 304 705 C 409.923401 737.530457 457 719 457 719 Z'/%3E%3Cpath fill='%23de9e59' fill-rule='evenodd' d='M 923 709 C 923 709 851.19458 668.818115 729 718 C 682.848328 736.5755 567.568481 843.423096 407 839 C 227.489029 834.055115 178.290359 719.965088 176.332489 708.215698 C 176.249557 707.717957 249.486969 785.217163 353 781 C 531.134521 773.742798 571.692322 659.395874 715 632 C 873.054382 601.785034 923 709 923 709 Z'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.09;
+  pointer-events: none;
+}
+
+.inv-hd-left {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  position: relative; z-index: 1;
+}
+
+.inv-logo {
+  width: 136px; height: 136px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.inv-brand-divider {
+  width: 1px; height: 104px;
+  background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.16), transparent);
+  flex-shrink: 0;
+}
+
+.inv-brand {
+  text-align: left;
+}
+
+.inv-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 46px; font-weight: 400; letter-spacing: 0.01em;
+  color: #ffffff; line-height: 1;
+  display: block; margin-bottom: 10px;
+}
+
+.inv-sub {
+  font-size: 18px; font-weight: 600;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: #77CFBD; display: block; margin-bottom: 14px;
+}
+
+.inv-creds {
+  font-size: 20px; font-weight: 400; color: rgba(255,255,255,0.45);
+  line-height: 1.65;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 12px;
+}
+
+.inv-hd-right {
+  position: relative; z-index: 1;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 158px;
+}
+
+.inv-contact-row {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 10px;
+}
+
+.inv-contact-row--addr { }
+
+/* Thin rule separating address from phone/email/web */
+.inv-contact-sep {
+  width: 100%;
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+}
+
+.inv-contact-icon {
+  width: 18px; height: 18px;
+  color: #77CFBD; opacity: 0.55; flex-shrink: 0;
+}
+
+.inv-contact-text {
+  font-size: 18px; font-weight: 400;
+  color: rgba(255,255,255,0.75); letter-spacing: 0.01em;
+}
+
+/* Address text — slightly softer */
+.inv-contact-text--addr {
+  color: rgba(255,255,255,0.55);
+  font-size: 16px;
+}
+
+
+/* ══════════════════════════════════════════
+   FOOTER  —  1240 × 330px  (56mm @ 150dpi, ≤70mm)
+   ══════════════════════════════════════════ */
+.inv-footer {
+  width: 1240px;
+  height: 330px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 60px;
+  position: relative;
+  overflow: hidden;
+  zoom: 2;
+}
+
+/* Bottom teal rule */
+.inv-footer::before {
+  content: '';
+  position: absolute; bottom: 0; top: auto; left: 0; right: 0;
+  height: 11px;
+  background: linear-gradient(90deg, #192E2A 0%, #2A5850 45%, rgba(42,88,80,0.15) 100%);
+}
+
+/* Botanical stroke art — inline SVG in HTML */
+.inv-footer-art {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
+}
+
+.inv-ft-left {
+  position: relative; z-index: 1;
+}
+
+.inv-ft-regards {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px; font-style: italic; font-weight: 300;
+  color: #3E5C56; margin-bottom: 5px;
+}
+
+.inv-ft-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 38px; font-weight: 400;
+  color: #192E2A; line-height: 1; margin-bottom: 6px;
+}
+
+.inv-ft-practice {
+  font-size: 15px; font-weight: 600;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: #2A5850; margin-bottom: 16px;
+}
+
+.inv-ft-reg {
+  font-size: 18px; font-weight: 400;
+  color: #7A948F; line-height: 1.7;
+}
+
+.inv-ft-bank {
+  position: relative; z-index: 1;
+  text-align: right;
+  border-left: 1px solid rgba(42,88,80,0.1);
+  padding-left: 44px;
+}
+
+.inv-ft-bank-lbl {
+  font-size: 14px; font-style: italic;
+  color: #7A948F; margin-bottom: 12px;
+  letter-spacing: 0.01em;
+}
+
+.inv-ft-bank-table { }
+
+.inv-ft-bank-row {
+  display: flex; align-items: baseline;
+  justify-content: flex-end; gap: 12px;
+  margin-bottom: 8px;
+}
+.inv-ft-bank-row:last-child { margin-bottom: 0; }
+
+.inv-ft-bank-key {
+  font-size: 13px; font-weight: 600;
+  letter-spacing: 0.09em; text-transform: uppercase;
+  color: #7A948F; flex-shrink: 0;
+}
+
+.inv-ft-bank-val {
+  font-size: 17px; font-weight: 400;
+  color: #192E2A; letter-spacing: 0.02em;
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════ HEADER ════════════════════ -->
+<div class="guide">Invoice Header &nbsp;<span>— screenshot this box exactly &nbsp;·&nbsp; renders at 2480 × 826 px (2×) &nbsp;·&nbsp; 70mm @ A4</span></div>
+
+<div class="inv-header">
+
+  <div class="inv-hd-left">
+    <svg class="inv-logo" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#1e5e63" fill-rule="evenodd" d="M 735.736084 512.392212 C 676.061768 577.293213 598.49823 523.03479 598.49823 523.03479 C 598.49823 523.03479 612.322327 508.543945 630 498 C 646.032043 488.437561 669.021362 478.22937 679.074707 473.315369 C 688.516296 468.700378 656.192139 478.900635 630 494 C 612.035095 504.356506 597.013367 519.230591 597.013367 519.230591 C 597.013367 519.230591 584.866272 465.973206 647.813232 428.377014 C 701.679199 396.204529 794.351318 414.700134 794.351318 414.700134 C 794.351318 414.700134 791.469971 451.776733 735.736084 512.392212 Z"/>
+      <path fill="#1e5e63" fill-rule="evenodd" d="M 679.045715 345.056763 C 648.786743 413.421936 572.207703 397.35968 572.207703 397.35968 C 572.207703 397.35968 581.517395 376.354614 594 361 C 602.804871 350.169373 619.901855 333.983643 622 332 C 624.823303 329.330811 604.58606 341.639648 591 357 C 579.364746 370.154724 568.753418 392.178284 568.753418 392.178284 C 568.753418 392.178284 545.246826 348.843323 585.566223 301.515991 C 620.069031 261.016235 699.528625 250.645264 699.528625 250.645264 C 699.528625 250.645264 707.306641 281.205872 679.045715 345.056763 Z"/>
+      <path fill="#77cfbd" fill-rule="evenodd" d="M 555.503784 182.203552 C 610.197449 273.183472 513 340 513 340 C 513 340 497.506805 299.91571 490 264 C 481.042755 221.144775 479.826141 181.719788 480 189 C 480.629791 215.371521 479.606232 240.349243 484 265 C 491.224792 305.534119 505 340 505 340 C 505 340 430.339874 325.225464 419.948456 237.559631 C 411.056091 162.540833 488.455322 67.061646 488.455322 67.061646 C 488.455322 67.061646 515.25885 115.258118 555.503784 182.203552 Z"/>
+      <path fill="#77cfbd" fill-rule="evenodd" d="M 392 306 C 474.701843 331.603149 469.152557 421.668945 466 419 C 463.151672 416.588562 448.969208 404.579895 431 396 C 403.161804 382.707947 368.954865 372.156433 374.772858 375.784912 C 384.208069 381.66925 409.238403 388.761169 429 399 C 449.181091 409.456177 464 423 464 423 C 464 423 368.712311 456.209534 338 413 C 297.298279 355.736267 274.231171 298.211914 274.231171 298.211914 C 274.231171 298.211914 314.759125 282.087463 392 306 Z"/>
+      <path fill="#1e5e63" fill-rule="evenodd" d="M 362 480 C 439.176422 440.770874 470 506 470 506 C 470 506 451.416656 511.184387 433 512 C 410.410919 513.000427 387.541534 509.763123 393 511 C 400.407379 512.678467 417.681396 517.358765 434 517 C 452.623505 516.590515 470 511 470 511 C 470 511 465.552002 550.01239 394 558 C 340.003998 564.027771 297 538 297 538 C 297 538 318.342407 502.191345 362 480 Z"/>
+      <path fill="#1e5e63" fill-rule="evenodd" d="M 473 712 C 465.82843 716.282104 512.104187 682.079407 521 614 C 523.609741 594.027588 528.243103 541.154358 522 501 C 521.610046 498.492004 474.534485 509.376892 475 507 C 475.224579 505.85321 475 507 475 507 C 475 507 521.095215 495.064819 521 494 C 519.408691 476.204834 514 473 514 473 L 468 423 L 468 423 C 468 423 514.671082 461.06781 517 456 C 517.578247 454.74176 519.422913 428.11322 518 404 C 516.219666 373.828125 511 345 511 345 L 511 345 C 511 345 519.123901 372.510925 525 403 C 529.493042 426.312744 531.890564 454.439941 533 455 C 536.237061 456.634094 567 399 567 399 L 566 402 C 566 402 548.415283 440.400696 544 463 C 541.954712 473.46875 540 481.834473 540 498 C 540 511.834473 546 562 546 562 L 594 524 L 594 524 C 594 524 562.24408 556.442078 556 564 C 548.50177 573.075928 553.299011 615.497681 571 626 C 590.760071 637.723999 622 638 622 638 C 622 638 568.87207 654.519043 540 670 C 516.369141 682.670654 479.543915 708.092651 473 712 Z"/>
+      <path fill="#de9e59" fill-rule="evenodd" d="M 457 719 C 457 719 389.320953 770.628357 287 742 C 167.036407 708.435425 145.290359 586.965088 143.332504 575.215698 C 143.249557 574.717957 187.960052 669.36261 304 705 C 409.923401 737.530457 457 719 457 719 Z"/>
+      <path fill="#de9e59" fill-rule="evenodd" d="M 923 709 C 923 709 851.19458 668.818115 729 718 C 682.848328 736.5755 567.568481 843.423096 407 839 C 227.489029 834.055115 178.290359 719.965088 176.332489 708.215698 C 176.249557 707.717957 249.486969 785.217163 353 781 C 531.134521 773.742798 571.692322 659.395874 715 632 C 873.054382 601.785034 923 709 923 709 Z"/>
+      <path fill="#b66f62" fill-rule="evenodd" d="M 909 738 C 909 738 837.638367 709.269043 742 753 C 717.974304 763.98584 573.36084 853.330322 487 865 C 357.270569 882.529968 287.077515 846.988525 287 847 C 286.500793 847.073608 428.692596 988.511841 646 938 C 834.350403 894.219055 909 738 909 738 Z"/>
+    </svg>
+
+    <div class="inv-brand-divider"></div>
+
+    <div class="inv-brand">
+      <span class="inv-name">Cheree McGarry</span>
+      <span class="inv-sub">Counselling &amp; Wellness</span>
+      <div class="inv-creds">
+        Accredited Mental Health Social Worker (BSW/AMHSW)<br>
+        Registered Member AASW
+      </div>
+    </div>
+  </div>
+
+  <div class="inv-hd-right">
+    <!-- Address — sits above the rule -->
+    <div class="inv-contact-row inv-contact-row--addr">
+      <!-- Pin — Feather map-pin -->
+      <svg class="inv-contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+        <path fill="none" d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
+        <circle fill="none" cx="12" cy="10" r="3"/>
+      </svg>
+      <span class="inv-contact-text inv-contact-text--addr">22 Aramac Plaza, Karalee QLD 4306</span>
+    </div>
+
+    <!-- Divider -->
+    <div class="inv-contact-sep"></div>
+
+    <!-- Phone — Feather phone -->
+    <div class="inv-contact-row">
+      <svg class="inv-contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+        <path fill="none" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72c.13 1 .37 1.97.71 2.9a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.12 6.12l.99-.99a2 2 0 0 1 2.11-.45c.93.34 1.9.58 2.9.71a2 2 0 0 1 1.72 2.02z"/>
+      </svg>
+      <span class="inv-contact-text">0418 742 087</span>
+    </div>
+    <!-- Email — Feather mail -->
+    <div class="inv-contact-row">
+      <svg class="inv-contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+        <rect fill="none" x="2" y="4" width="20" height="16" rx="2"/>
+        <path fill="none" d="M22 6l-10 7L2 6"/>
+      </svg>
+      <span class="inv-contact-text">reachout@chereemcgarry.com</span>
+    </div>
+    <!-- Website — Feather globe -->
+    <div class="inv-contact-row">
+      <svg class="inv-contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+        <circle fill="none" cx="12" cy="12" r="10"/>
+        <line fill="none" x1="2" y1="12" x2="22" y2="12"/>
+        <path fill="none" d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      </svg>
+      <span class="inv-contact-text">chereemcgarry.com</span>
+    </div>
+  </div>
+
+</div><!-- /.inv-header -->
+
+
+<!-- ════════════════════ FOOTER ════════════════════ -->
+<div class="spacer"></div>
+<div class="guide">Invoice Footer &nbsp;<span>— screenshot this box exactly &nbsp;·&nbsp; renders at 2480 × 660 px (2×) &nbsp;·&nbsp; 56mm @ A4</span></div>
+
+<div class="inv-footer">
+
+  <!-- Botanical stroke line art -->
+  <div class="inv-footer-art">
+    <svg width="1240" height="330" viewBox="0 0 1240 330" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- All strokes single-tone tealDeep for embossed card effect.
+           Each form is drawn as paired/tripled close lines — the slight
+           gap between them reads as pressed relief on white stock. -->
+
+      <!-- ── MAIN LONG ARC — sweeps bottom-centre up to upper-right ── -->
+      <path d="M 520 330 C 536 268 564 218 604 176 C 644 134 686 104 734 66" fill="none" stroke="#192E2A" stroke-opacity="0.13" stroke-width="1.4" stroke-linecap="round"/>
+      <path d="M 526 330 C 542 266 570 216 610 174 C 650 132 692 102 740 64" fill="none" stroke="#192E2A" stroke-opacity="0.07" stroke-width="0.9" stroke-linecap="round"/>
+      <path d="M 514 330 C 530 270 558 220 598 178 C 638 136 680 106 728 68" fill="none" stroke="#192E2A" stroke-opacity="0.05" stroke-width="0.7" stroke-linecap="round"/>
+
+      <!-- ── SECOND ARC — offset, crossing the first ── -->
+      <path d="M 548 330 C 560 274 580 228 612 192 C 644 156 678 128 714 94 C 740 72 762 58 788 44" fill="none" stroke="#192E2A" stroke-opacity="0.10" stroke-width="1.2" stroke-linecap="round"/>
+      <path d="M 556 330 C 568 272 588 226 620 190 C 652 154 686 126 722 92 C 748 70 770 56 796 42" fill="none" stroke="#192E2A" stroke-opacity="0.06" stroke-width="0.8" stroke-linecap="round"/>
+
+      <!-- ── TALL CENTRE STEM — rises straight with slight curve ── -->
+      <path d="M 616 330 C 618 286 614 240 610 192 C 606 144 610 108 617 62" fill="none" stroke="#192E2A" stroke-opacity="0.12" stroke-width="1.3" stroke-linecap="round"/>
+      <path d="M 622 330 C 624 284 620 238 616 190 C 612 142 616 106 623 60" fill="none" stroke="#192E2A" stroke-opacity="0.06" stroke-width="0.8" stroke-linecap="round"/>
+
+      <!-- ── BRANCH RIGHT — off centre stem, arcing out ── -->
+      <path d="M 612 192 C 626 172 646 150 666 126 C 686 102 698 82 700 58" fill="none" stroke="#192E2A" stroke-opacity="0.11" stroke-width="1.2" stroke-linecap="round"/>
+      <path d="M 612 192 C 628 174 648 152 668 128 C 688 104 700 84 702 60" fill="none" stroke="#192E2A" stroke-opacity="0.06" stroke-width="0.8" stroke-linecap="round"/>
+
+      <!-- ── BRANCH LEFT — off centre stem, arcing out ── -->
+      <path d="M 614 224 C 598 206 578 188 556 172 C 534 156 514 146 494 134" fill="none" stroke="#192E2A" stroke-opacity="0.10" stroke-width="1.1" stroke-linecap="round"/>
+      <path d="M 614 224 C 598 208 578 190 556 174 C 534 158 514 148 494 136" fill="none" stroke="#192E2A" stroke-opacity="0.05" stroke-width="0.7" stroke-linecap="round"/>
+
+      <!-- ── RIGHT SWEEP — separate arc, far right ── -->
+      <path d="M 758 330 C 766 282 778 244 796 204 C 814 164 836 130 862 90" fill="none" stroke="#192E2A" stroke-opacity="0.11" stroke-width="1.2" stroke-linecap="round"/>
+      <path d="M 766 330 C 774 280 786 242 804 202 C 822 162 844 128 870 88" fill="none" stroke="#192E2A" stroke-opacity="0.06" stroke-width="0.8" stroke-linecap="round"/>
+      <path d="M 750 330 C 758 284 770 246 788 206 C 806 166 828 132 854 92" fill="none" stroke="#192E2A" stroke-opacity="0.04" stroke-width="0.6" stroke-linecap="round"/>
+
+      <!-- ── LEFT SWEEP — arcing in from lower-left ── -->
+      <path d="M 350 330 C 374 290 412 260 452 232 C 492 204 524 182 544 152" fill="none" stroke="#192E2A" stroke-opacity="0.10" stroke-width="1.1" stroke-linecap="round"/>
+      <path d="M 340 330 C 364 292 402 262 442 234 C 482 206 514 184 534 154" fill="none" stroke="#192E2A" stroke-opacity="0.06" stroke-width="0.7" stroke-linecap="round"/>
+
+      <!-- ── SMALL TIP DOTS — pressed into the stock ── -->
+      <circle cx="734" cy="66" r="2"   fill="#192E2A" fill-opacity="0.14"/>
+      <circle cx="788" cy="44" r="1.6" fill="#192E2A" fill-opacity="0.10"/>
+      <circle cx="700" cy="58" r="1.8" fill="#192E2A" fill-opacity="0.12"/>
+      <circle cx="617" cy="62" r="1.8" fill="#192E2A" fill-opacity="0.11"/>
+      <circle cx="862" cy="90" r="1.6" fill="#192E2A" fill-opacity="0.10"/>
+      <circle cx="544" cy="152" r="1.4" fill="#192E2A" fill-opacity="0.09"/>
+
+    </svg>
+  </div>
+
+  <div class="inv-ft-left">
+    <div class="inv-ft-regards">Warm regards,</div>
+    <div class="inv-ft-name">Cheree McGarry</div>
+    <div class="inv-ft-practice">Counselling &amp; Wellness</div>
+    <div class="inv-ft-reg">
+      ABN: 37 676 399 871<br>
+      Provider No: 6094961L
+    </div>
+  </div>
+
+  <div class="inv-ft-bank">
+    <div class="inv-ft-bank-lbl">For organisational payments, bank details are below:</div>
+    <div class="inv-ft-bank-table">
+      <div class="inv-ft-bank-row">
+        <span class="inv-ft-bank-key">Account Name</span>
+        <span class="inv-ft-bank-val">Cheree McGarry</span>
+      </div>
+      <div class="inv-ft-bank-row">
+        <span class="inv-ft-bank-key">BSB</span>
+        <span class="inv-ft-bank-val">014125</span>
+      </div>
+      <div class="inv-ft-bank-row">
+        <span class="inv-ft-bank-key">Account Number</span>
+        <span class="inv-ft-bank-val">319457678</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /.inv-footer -->
+
+</body>
+</html>

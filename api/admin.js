@@ -286,6 +286,24 @@ body {
   background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 3px;
 }
 
+/* ── Sidebar + Add button ── */
+.sidebar-add-wrap {
+  position: relative;
+  margin: 2px 10px 6px;
+}
+.sidebar-add-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: 9px;
+  background: rgba(42,88,80,0.1);
+  border: 1px solid rgba(42,88,80,0.2);
+  cursor: pointer; width: 100%;
+  color: var(--teal); font-family: var(--sans); font-size: 12px; font-weight: 600;
+  transition: background 0.13s, border-color 0.13s;
+  text-align: left;
+}
+.sidebar-add-btn:hover { background: rgba(42,88,80,0.17); border-color: rgba(42,88,80,0.32); }
+.sidebar-add-btn svg { flex-shrink: 0; opacity: 0.85; }
+
 .sidebar-section-label {
   font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
   color: rgba(0,0,0,0.35); padding: 12px 16px 4px;
@@ -2715,6 +2733,30 @@ body {
       <span>Search…</span>
       <span class="sidebar-search-shortcut">⌘K</span>
     </button>
+
+    <!-- ── + Add button ── -->
+    <div class="sidebar-add-wrap" id="sb-add-wrap">
+      <button class="sidebar-add-btn" onclick="toggleAddMenu()" title="Add new">
+        <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+          <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+        New
+      </button>
+      <div class="dh-add-menu" id="dh-add-menu" style="display:none">
+        <button class="dh-add-item" onclick="closeAddMenu();openDbModal('client')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          Client
+        </button>
+        <button class="dh-add-item" onclick="closeAddMenu();openDbModal('appt')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Appointment
+        </button>
+        <button class="dh-add-item" onclick="closeAddMenu();focusReminderInp()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          Reminder
+        </button>
+      </div>
+    </div>
 
     <div class="sidebar-nav">
       <div class="sidebar-section-label">Workspace</div>

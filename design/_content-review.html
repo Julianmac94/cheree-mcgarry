@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sessions Guide — Content Review</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;1,400&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --teal:  #2A5850;
+    --cream: #F3EFE6;
+    --terra: #BE6E44;
+    --mint:  #77CFBD;
+    --ink:   #192E2A;
+    --mid:   #3E5C56;
+    --muted: #7A948F;
+    --sans: 'Raleway', sans-serif;
+    --serif: 'Cormorant Garamond', serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: #f0ece3;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ── Page layout ── */
+  .doc-header {
+    background: var(--teal);
+    color: white;
+    padding: 40px 64px 36px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+  }
+  .doc-header h1 { font-family: var(--serif); font-size: 28px; font-weight: 400; margin-bottom: 6px; }
+  .doc-header p  { font-size: 13px; color: rgba(255,255,255,0.6); }
+  .doc-header-meta { display: flex; align-items: center; gap: 24px; margin-top: 14px; flex-wrap: wrap; }
+  .doc-meta-chip {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 5px 14px; border-radius: 100px;
+    background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.7);
+  }
+  .save-btn {
+    margin-left: auto;
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+    color: white; font-family: var(--sans); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 8px 20px; border-radius: 100px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .save-btn:hover { background: rgba(255,255,255,0.25); }
+
+  .doc-body { max-width: 960px; margin: 0 auto; padding: 48px 32px 96px; }
+
+  /* ── Section wrappers ── */
+  .section { margin-bottom: 48px; }
+  .section-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 18px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: rgba(42,88,80,0.14); }
+
+  /* ── Content + notes layout ── */
+  .review-block {
+    background: white;
+    border-radius: 18px;
+    border: 1px solid rgba(42,88,80,0.1);
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .rb-content { padding: 26px 30px 22px; }
+  .rb-title {
+    font-family: var(--serif); font-size: 20px; font-weight: 400; color: var(--ink);
+    margin-bottom: 14px;
+  }
+  .rb-sub { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+
+  /* Content rows */
+  .content-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(42,88,80,0.06); }
+  .content-row:last-child { border-bottom: none; }
+  .cr-key { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: var(--muted); min-width: 120px; flex-shrink: 0; }
+  .cr-val { font-size: 13.5px; color: var(--mid); line-height: 1.55; }
+  .cr-val em { color: var(--ink); font-style: normal; font-weight: 500; }
+
+  /* Tags / pills */
+  .tag-row { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0 4px; }
+  .tag {
+    font-size: 12px; padding: 4px 12px; border-radius: 100px;
+    background: rgba(42,88,80,0.07); color: var(--mid); font-style: italic;
+  }
+  .tag--off {
+    background: rgba(0,0,0,0.04); color: #aaa;
+    text-decoration: line-through;
+  }
+  .tag--on { background: rgba(42,88,80,0.1); color: var(--teal); }
+
+  /* Warning box */
+  .warn-box {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: rgba(190,110,68,0.07); border-radius: 10px;
+    padding: 12px 14px; margin: 12px 0;
+    font-size: 13px; color: var(--mid); line-height: 1.6;
+  }
+  .warn-box svg { flex-shrink: 0; margin-top: 2px; }
+
+  /* Highlights list */
+  .hi-list { list-style: none; padding: 0; margin: 10px 0 0; }
+  .hi-list li {
+    font-size: 13.5px; color: var(--mid); padding: 5px 0 5px 18px; position: relative;
+    border-bottom: 1px solid rgba(42,88,80,0.05); line-height: 1.55;
+  }
+  .hi-list li:last-child { border-bottom: none; }
+  .hi-list li::before { content: '—'; position: absolute; left: 0; color: var(--mint); }
+
+  /* CTA tag */
+  .cta-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 4px 12px; border-radius: 100px;
+  }
+  .cta-tag--form { background: rgba(42,88,80,0.1); color: var(--teal); }
+  .cta-tag--contact { background: rgba(190,110,68,0.12); color: var(--terra); }
+
+  /* Notes area */
+  .rb-notes {
+    border-top: 2px solid #f0ece3;
+    background: #faf8f4;
+    padding: 16px 30px;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .rb-notes-icon { flex-shrink: 0; margin-top: 3px; opacity: 0.45; }
+  .rb-notes textarea {
+    flex: 1; border: none; background: transparent;
+    font-family: var(--sans); font-size: 13px; color: var(--ink);
+    line-height: 1.65; resize: none; outline: none; min-height: 40px;
+  }
+  .rb-notes textarea::placeholder { color: var(--muted); }
+
+  /* Status dropdown */
+  .rb-status { padding: 10px 30px; border-top: 1px solid rgba(42,88,80,0.07); display: flex; align-items: center; gap: 10px; }
+  .rb-status label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .rb-status select {
+    font-family: var(--sans); font-size: 12px; font-weight: 500; color: var(--mid);
+    border: 1px solid rgba(42,88,80,0.2); border-radius: 100px;
+    padding: 4px 12px; background: white; cursor: pointer; outline: none;
+  }
+
+  /* Table */
+  .avail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .avail-table th {
+    text-align: left; font-weight: 600; font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted); padding: 10px 14px;
+    background: rgba(42,88,80,0.04); border-bottom: 1px solid rgba(42,88,80,0.1);
+  }
+  .avail-table td { padding: 10px 14px; border-bottom: 1px solid rgba(42,88,80,0.06); color: var(--mid); vertical-align: middle; }
+  .avail-table tr:last-child td { border-bottom: none; }
+  .avail-table td:first-child { font-weight: 500; color: var(--ink); }
+  .check { color: var(--teal); font-size: 16px; }
+  .cross { color: #ccc; font-size: 16px; }
+
+  /* Combo header */
+  .combo-header {
+    background: var(--cream); border-radius: 12px 12px 0 0;
+    padding: 14px 30px 12px; display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid rgba(42,88,80,0.1);
+  }
+  .combo-svc { font-size: 12px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--teal); }
+  .combo-fund { font-size: 14px; font-weight: 500; color: var(--ink); }
+  .combo-arrow { color: var(--muted); }
+  .combo-cta { margin-left: auto; }
+
+  /* Divider */
+  .section-divider {
+    text-align: center; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+    margin: 56px 0 40px; display: flex; align-items: center; gap: 16px;
+  }
+  .section-divider::before, .section-divider::after {
+    content: ''; flex: 1; height: 1px; background: rgba(42,88,80,0.14);
+  }
+
+  /* Print */
+  @media print {
+    .doc-header { position: static; }
+    .rb-notes textarea { border: 1px solid #ddd; }
+    .save-btn { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="doc-header">
+  <h1>Sessions Guide — Content Review</h1>
+  <p>Every step and combination in the interactive sessions guide. Add your notes in the feedback areas below each block.</p>
+  <div class="doc-header-meta">
+    <span class="doc-meta-chip">Step 0 — Who</span>
+    <span class="doc-meta-chip">Step 1 — Service</span>
+    <span class="doc-meta-chip">Service insight</span>
+    <span class="doc-meta-chip">Step 2 — Funding</span>
+    <span class="doc-meta-chip">Funding insight &amp; outcome</span>
+    <button class="save-btn" onclick="window.print()">Print / Save PDF</button>
+  </div>
+</div>
+
+<div class="doc-body">
+
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <div class="section-label">Step 0 — Who are you?</div>
+
+  <div class="review-block">
+    <div class="rb-content">
+      <div class="rb-title">Three starting-point buttons</div>
+      <div class="content-row"><span class="cr-key">Button 1</span><span class="cr-val"><em>I'm a new client</em> — advances to Step 1 (service picker)</span></div>
+      <div class="content-row"><span class="cr-key">Button 2</span><span class="cr-val"><em>I'm an existing client</em> — jumps to existing client contact form</span></div>
+      <div class="content-row"><span class="cr-key">Button 3</span><span class="cr-val"><em>Just have a question</em> — opens the reach-out modal</span></div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <div class="section-divider">Step 1 — Service type cards</div>
+
+  <div class="review-block">
+    <div class="rb-content">
+      <div class="rb-title">Individual therapy</div>
+      <div class="content-row"><span class="cr-key">Sub-label</span><span class="cr-val">One-to-one sessions for adults (16+)</span></div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+  <div class="review-block">
+    <div class="rb-content">
+      <div class="rb-title">Child therapy</div>
+      <div class="content-row"><span class="cr-key">Sub-label</span><span class="cr-val">Counselling for children under 16</span></div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+  <div class="review-block">
+    <div class="rb-content">
+      <div class="rb-title">Couple &amp; family</div>
+      <div class="content-row"><span class="cr-key">Sub-label</span><span class="cr-val">Sessions involving partners or family members</span></div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+  <div class="review-block">
+    <div class="rb-content">
+      <div class="rb-title">Professional mediation</div>
+      <div class="content-row"><span class="cr-key">Sub-label</span><span class="cr-val">Workplace and interpersonal dispute resolution</span></div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <div class="section-divider">Service insight panels</div>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:28px">These appear immediately after picking a service type, before the funding step.</p>
+
+  <!-- Individual insight -->
+  <div class="review-block">
+    <div class="combo-header">
+      <span class="combo-svc">Individual therapy</span>
+      <span class="combo-arrow">→</span>
+      <span class="combo-fund">Service insight panel</span>
+    </div>
+    <div class="rb-content">
+      <div class="rb-sub" style="margin-bottom:10px">Facts shown</div>
+      <div class="tag-row">
+        <span class="tag">60 minute sessions</span>
+        <span class="tag">Karalee (QLD) or online</span>
+        <span class="tag">Medicare &amp; NDIS available</span>
+        <span class="tag">No referral needed for private</span>
+      </div>
+      <div class="rb-sub" style="margin-top:16px;margin-bottom:6px">Note</div>
+      <div class="cr-val">"For children under 16, select Child therapy — a parent or guardian intake is required first."</div>
+      <div class="rb-sub" style="margin-top:16px;margin-bottom:6px">Link</div>
+      <div class="cr-val">How sessions work → practice-information.html</div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+  <!-- Child insight -->
+  <div class="review-block">
+    <div class="combo-header">
+      <span class="combo-svc">Child therapy</span>
+      <span class="combo-arrow">→</span>
+      <span class="combo-fund">Service insight panel</span>
+    </div>
+    <div class="rb-content">
+      <div class="rb-sub" style="margin-bottom:10px">Facts shown</div>
+      <div class="tag-row">
+        <span class="tag">60 minute sessions</span>
+        <span class="tag">Art therapy &amp; sandtray available</span>
+        <span class="tag">Parent or guardian intake first</span>
+        <span class="tag">Medicare &amp; NDIS available</span>
+      </div>
+      <div class="rb-sub" style="margin-top:16px;margin-bottom:6px">Note</div>
+      <div class="cr-val">"A parent or guardian intake session is required before your child's first appointment — this is a separate booking."</div>
+      <div class="rb-sub" style="margin-top:16px;margin-bottom:6px">Link</div>
+      <div class="cr-val">What to know about child intake → practice-information.html#pi-children</div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+  <!-- Couple & family insight -->
+  <div class="review-block">
+    <div class="combo-header">
+      <span class="combo-svc">Couple &amp; family</span>
+      <span class="combo-arrow">→</span>
+      <span class="combo-fund">Service insight panel</span>
+    </div>
+    <div class="rb-content">
+      <div class="rb-sub" style="margin-bottom:10px">Facts shown</div>
+      <div class="tag-row">
+        <span class="tag">60 minute sessions</span>
+        <span class="tag">Individual intake per person first</span>
+        <span class="tag">$195 per session — not per person</span>
+        <span class="tag">Private, QFES &amp; DVA available</span>
+      </div>
+      <div class="rb-sub" style="margin-top:16px;margin-bottom:6px">Note</div>
+      <div class="cr-val">"Medicare does not cover couple or family therapy. Each person completes a brief individual intake before joint sessions begin."</div>
+      <div class="rb-sub" style="margin-top:16px;margin-bottom:6px">Link</div>
+      <div class="cr-val">What to know about couple &amp; family intake → practice-information.html#pi-couples</div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+  <!-- Mediation insight -->
+  <div class="review-block">
+    <div class="combo-header">
+      <span class="combo-svc">Professional mediation</span>
+      <span class="combo-arrow">→</span>
+      <span class="combo-fund">Service insight panel</span>
+    </div>
+    <div class="rb-content">
+      <div class="rb-sub" style="margin-bottom:10px">Facts shown</div>
+      <div class="tag-row">
+        <span class="tag">2-hour minimum per session</span>
+        <span class="tag">Individual intake required first</span>
+        <span class="tag">Professional &amp; workplace settings</span>
+        <span class="tag">Private, QFES &amp; DVA available</span>
+      </div>
+      <div class="rb-sub" style="margin-top:16px;margin-bottom:6px">Note</div>
+      <div class="cr-val">"Medicare does not cover mediation. An individual intake session is required before mediation sessions begin."</div>
+      <div class="rb-sub" style="margin-top:16px;margin-bottom:6px">Link</div>
+      <div class="cr-val">How mediation works → practice-information.html</div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <div class="section-divider">Step 2 — Funding availability</div>
+
+  <div class="review-block">
+    <div class="rb-content">
+      <div class="rb-title">Which funding options appear per service</div>
+      <div style="overflow-x:auto;margin-top:12px">
+        <table class="avail-table">
+          <thead>
+            <tr>
+              <th>Funding option</th>
+              <th>Individual</th>
+              <th>Child</th>
+              <th>Couple &amp; family</th>
+              <th>Mediation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Medicare (MHCP)</td><td class="check">✓</td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+            <tr><td>Private / self-funded</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+            <tr><td>NDIS — self-managed</td><td class="check">✓</td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+            <tr><td>NDIS — plan-managed</td><td class="check">✓</td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+            <tr><td>QFES</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+            <tr><td>ADFHSC &amp; DVA</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+            <tr><td>Not sure</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <div class="section-divider">Funding insight panels + Step 3 outcome &nbsp;—&nbsp; Individual therapy</div>
+
+  <!-- Individual + Medicare -->
+  <div class="review-block">
+    <div class="combo-header">
+      <span class="combo-svc">Individual</span>
+      <span class="combo-arrow">+</span>
+      <span class="combo-fund">Medicare (MHCP)</span>
+      <span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span>
+    </div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">$195 / session</span></div>
+      <div class="content-row"><span class="cr-key">Out of pocket</span><span class="cr-val">$107.75 after $87.25 Medicare rebate</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> GP or psychiatrist Mental Health Care Plan (MHCP) naming <em>Cheree McGarry — AMHSW</em> is required before your first session.</span>
+      </div>
+      <div class="rb-sub" style="margin-top:14px;margin-bottom:6px">Key points shown</div>
+      <ul class="hi-list">
+        <li>Up to 10 sessions per calendar year — GP review required after the first 6</li>
+        <li>Rebate of $87.25 claimed via Services Australia — or ask Cheree to submit on your behalf (case-by-case)</li>
+        <li>Cannot claim both Medicare and private health for the same session</li>
+        <li>Medicare rebates cannot be applied to cancellation fees</li>
+      </ul>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+  <!-- Individual + Private -->
+  <div class="review-block">
+    <div class="combo-header">
+      <span class="combo-svc">Individual</span>
+      <span class="combo-arrow">+</span>
+      <span class="combo-fund">Private / self-funded</span>
+      <span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span>
+    </div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">$195 / session</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">Payment processed on the day — tax invoice issued immediately</span></div>
+      <div class="content-row"><span class="cr-key">Before booking</span><span class="cr-val">Nothing required</span></div>
+      <div class="rb-sub" style="margin-top:14px;margin-bottom:6px">Key points shown</div>
+      <ul class="hi-list">
+        <li>No referral required — book directly via Halaxy</li>
+        <li>Private health extras may apply — check with your insurer</li>
+        <li>Cannot claim both Medicare and private health for the same session</li>
+      </ul>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+  <!-- Individual + NDIS self -->
+  <div class="review-block">
+    <div class="combo-header">
+      <span class="combo-svc">Individual</span>
+      <span class="combo-arrow">+</span>
+      <span class="combo-fund">NDIS — self-managed</span>
+      <span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span>
+    </div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">$195 / session</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">Paid on the day — NDIS-compliant invoice issued for your records</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> Confirm counselling is within your funded supports before booking. Have your NDIS plan number and support budget line item ready.</span>
+      </div>
+      <div class="rb-sub" style="margin-top:14px;margin-bottom:6px">Key points shown</div>
+      <ul class="hi-list">
+        <li>Rate is the same as private — $195 per session</li>
+        <li>NDIS-compliant invoice provided for self-managed reimbursement</li>
+        <li>Bring your NDIS plan number and support budget line item</li>
+      </ul>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+  <!-- Individual + NDIS plan -->
+  <div class="review-block">
+    <div class="combo-header">
+      <span class="combo-svc">Individual</span>
+      <span class="combo-arrow">+</span>
+      <span class="combo-fund">NDIS — plan-managed</span>
+      <span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span>
+    </div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">NDIS price guide rate</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">Rate confirmed before first session — invoiced directly to your plan manager</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> Written approval from your plan manager is required before your first booking. Confirm counselling is within your funded supports and have your plan number and plan manager contact details ready.</span>
+      </div>
+      <div class="rb-sub" style="margin-top:14px;margin-bottom:6px">Key points shown</div>
+      <ul class="hi-list">
+        <li>Invoiced directly to your plan manager in NDIS-compliant format</li>
+        <li>Bring your plan number and plan manager name and contact details</li>
+        <li>Cancellations: may be covered by your plan or charged to you directly — check with your plan manager</li>
+      </ul>
+      <div style="margin-top:12px;font-size:12.5px;color:var(--muted);font-style:italic">After form submit: "We'll contact you to confirm once your plan manager approval has been reviewed."</div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+  <!-- Individual + QFES -->
+  <div class="review-block">
+    <div class="combo-header">
+      <span class="combo-svc">Individual</span>
+      <span class="combo-arrow">+</span>
+      <span class="combo-fund">QFES</span>
+      <span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span>
+    </div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">Billed to QFES</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">You are not charged for sessions you attend</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> Contact your QFES EAP coordinator to confirm your referral is in place before booking.</span>
+      </div>
+      <div class="rb-sub" style="margin-top:14px;margin-bottom:6px">Key points shown</div>
+      <ul class="hi-list">
+        <li>Sessions billed directly to QFES under your EAP entitlement</li>
+        <li>Cancellations: may be covered by QFES or charged to you directly — check your EAP terms</li>
+      </ul>
+      <div style="margin-top:12px;font-size:12.5px;color:var(--muted);font-style:italic">After form submit: "We'll contact you to confirm after reviewing your EAP referral."</div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+  <!-- Individual + DVA -->
+  <div class="review-block">
+    <div class="combo-header">
+      <span class="combo-svc">Individual</span>
+      <span class="combo-arrow">+</span>
+      <span class="combo-fund">ADFHSC &amp; DVA</span>
+      <span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span>
+    </div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">Billed to your funder</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">You are not charged for sessions you attend</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> Contact your unit health officer, Medical Officer, or DVA case manager to arrange your referral before booking.</span>
+      </div>
+      <div class="rb-sub" style="margin-top:14px;margin-bottom:6px">Key points shown</div>
+      <ul class="hi-list">
+        <li>Sessions billed directly to ADFHSC or DVA</li>
+        <li>Cancellations: may be covered by your funder or charged to you directly</li>
+      </ul>
+      <div style="margin-top:12px;font-size:12.5px;color:var(--muted);font-style:italic">After form submit: "We'll contact you to confirm after reviewing your referral."</div>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+  <!-- Individual + Not sure -->
+  <div class="review-block">
+    <div class="combo-header">
+      <span class="combo-svc">Individual</span>
+      <span class="combo-arrow">+</span>
+      <span class="combo-fund">Not sure</span>
+      <span class="combo-cta"><span class="cta-tag cta-tag--contact">→ Reach out button</span></span>
+    </div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">None</span></div>
+      <div class="rb-sub" style="margin-top:14px;margin-bottom:6px">Message shown</div>
+      <ul class="hi-list">
+        <li>Common pathways: Private ($195/session, no referral), Medicare ($107.75 out-of-pocket with a GP referral), NDIS, or employer-funded (QFES, DVA/ADFHSC)</li>
+        <li>That's completely fine — reach out and Cheree will help you work through your options</li>
+      </ul>
+    </div>
+    <div class="rb-status">
+      <label>Status</label>
+      <select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select>
+    </div>
+    <div class="rb-notes">
+      <svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg>
+      <textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <div class="section-divider">Funding insight panels + Step 3 outcome &nbsp;—&nbsp; Child therapy</div>
+
+  <!-- Child + Medicare -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Child</span><span class="combo-arrow">+</span><span class="combo-fund">Medicare (MHCP)</span><span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">$195 / session</span></div>
+      <div class="content-row"><span class="cr-key">Out of pocket</span><span class="cr-val">$107.75 after $87.25 rebate</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> A parent or guardian intake with Cheree is required first. Then a GP or psychiatrist MHCP naming <em>Cheree McGarry — AMHSW</em> for the child.</span>
+      </div>
+      <ul class="hi-list">
+        <li>One parent/guardian intake required — both parents welcome to attend together</li>
+        <li>Bring the child's and a parent/guardian's Medicare card (required for children under 14)</li>
+        <li>Up to 10 sessions per calendar year — GP review required after the first 6</li>
+        <li>Parent intake may also be claimable under Medicare — discuss with your GP</li>
+      </ul>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+  <!-- Child + Private -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Child</span><span class="combo-arrow">+</span><span class="combo-fund">Private / self-funded</span><span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">$195 / session</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">Payment on the day — tax invoice immediately</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> A parent or guardian intake session with Cheree is required before child counselling begins.</span>
+      </div>
+      <ul class="hi-list">
+        <li>One parent/guardian intake required — both parents welcome to attend together</li>
+        <li>Intake covers background information, consent, and treatment planning</li>
+        <li>Private health extras may apply — check with your insurer</li>
+      </ul>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+  <!-- Child + NDIS self -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Child</span><span class="combo-arrow">+</span><span class="combo-fund">NDIS — self-managed</span><span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">$195 / session</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">Paid on the day — NDIS-compliant invoice for your records</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> A parent/guardian intake is required first. Confirm counselling is within the child's funded supports. Have the NDIS plan number and support budget line item ready.</span>
+      </div>
+      <ul class="hi-list">
+        <li>Parent/guardian intake required before child sessions begin</li>
+        <li>Rate is same as private — $195 per session</li>
+        <li>NDIS-compliant invoice issued for self-managed reimbursement</li>
+      </ul>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+  <!-- Child + NDIS plan -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Child</span><span class="combo-arrow">+</span><span class="combo-fund">NDIS — plan-managed</span><span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">NDIS price guide rate</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">Rate confirmed before first session — invoiced to plan manager</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> A parent/guardian intake is required first. Written approval from the plan manager must be in place before booking. Confirm counselling is within funded supports.</span>
+      </div>
+      <ul class="hi-list">
+        <li>Parent/guardian intake required before child sessions begin</li>
+        <li>Written plan manager approval must be confirmed before first booking</li>
+        <li>Bring plan number and plan manager name and contact details</li>
+        <li>Cancellations: may be covered by plan or charged directly — check with plan manager</li>
+      </ul>
+      <div style="margin-top:12px;font-size:12.5px;color:var(--muted);font-style:italic">After form submit: "We'll contact you to confirm after reviewing your plan manager approval."</div>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+  <!-- Child + QFES -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Child</span><span class="combo-arrow">+</span><span class="combo-fund">QFES</span><span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">Billed to QFES</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">You are not charged for sessions your child attends</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> Parent/guardian intake required first. Contact your QFES EAP coordinator to arrange referral before booking.</span>
+      </div>
+      <ul class="hi-list">
+        <li>Parent/guardian intake required before child counselling begins</li>
+        <li>Sessions billed to QFES under EAP entitlement</li>
+        <li>Cancellations: may be covered by QFES or charged to you — check your EAP terms</li>
+      </ul>
+      <div style="margin-top:12px;font-size:12.5px;color:var(--muted);font-style:italic">After form submit: "We'll contact you to confirm after reviewing your EAP referral."</div>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+  <!-- Child + DVA -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Child</span><span class="combo-arrow">+</span><span class="combo-fund">ADFHSC &amp; DVA</span><span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">Billed to your funder</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">You are not charged for sessions your child attends</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> Parent/guardian intake required first. Contact your unit health officer or DVA case manager to arrange referral.</span>
+      </div>
+      <ul class="hi-list">
+        <li>Parent/guardian intake required before child counselling begins</li>
+        <li>Sessions billed to ADFHSC/DVA</li>
+        <li>Cancellations: may be covered by funder or charged to you directly</li>
+      </ul>
+      <div style="margin-top:12px;font-size:12.5px;color:var(--muted);font-style:italic">After form submit: "We'll contact you to confirm after reviewing your referral."</div>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+  <!-- Child + Not sure -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Child</span><span class="combo-arrow">+</span><span class="combo-fund">Not sure</span><span class="combo-cta"><span class="cta-tag cta-tag--contact">→ Reach out button</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">None</span></div>
+      <ul class="hi-list" style="margin-top:10px">
+        <li>Reach out and Cheree will help identify the right funding path for your child's sessions</li>
+      </ul>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <div class="section-divider">Funding insight panels + Step 3 outcome &nbsp;—&nbsp; Couple &amp; family</div>
+
+  <!-- Couple + Private -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Couple &amp; family</span><span class="combo-arrow">+</span><span class="combo-fund">Private / self-funded</span><span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">$195 / session</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">Charged per session — not per person — payment on the day</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> Each partner completes a separate individual intake session first. Both intakes must be completed before joint sessions begin.</span>
+      </div>
+      <ul class="hi-list">
+        <li>Individual intake required for each person — both partners welcome to attend together for the intake</li>
+        <li>Sessions are 60 minutes at $195 — charged once per session, not per person</li>
+        <li>Tax invoice issued immediately after each session</li>
+      </ul>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+  <!-- Couple + QFES -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Couple &amp; family</span><span class="combo-arrow">+</span><span class="combo-fund">QFES</span><span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">Billed to QFES</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">You are not charged for sessions you attend</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> Contact your QFES EAP coordinator first. An individual intake session for each partner is also required before joint sessions begin.</span>
+      </div>
+      <ul class="hi-list">
+        <li>Individual intake required for each partner before joint sessions</li>
+        <li>Sessions billed to QFES — confirm couple/family counselling is covered under your EAP</li>
+        <li>Cancellations: may be covered by QFES or charged to you — check your EAP terms</li>
+      </ul>
+      <div style="margin-top:12px;font-size:12.5px;color:var(--muted);font-style:italic">After form submit: "We'll contact you to confirm after reviewing your EAP referral."</div>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+  <!-- Couple + DVA -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Couple &amp; family</span><span class="combo-arrow">+</span><span class="combo-fund">ADFHSC &amp; DVA</span><span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">Billed to your funder</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">You are not charged for sessions you attend</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> Contact your unit health officer or DVA case manager. Individual intake for each partner is required before joint sessions begin.</span>
+      </div>
+      <ul class="hi-list">
+        <li>Individual intake required for each partner before joint sessions</li>
+        <li>Sessions billed to ADFHSC/DVA</li>
+        <li>Cancellations: may be covered by your funder or charged to you directly</li>
+      </ul>
+      <div style="margin-top:12px;font-size:12.5px;color:var(--muted);font-style:italic">After form submit: "We'll contact you to confirm after reviewing your referral."</div>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+  <!-- Couple + Not sure -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Couple &amp; family</span><span class="combo-arrow">+</span><span class="combo-fund">Not sure</span><span class="combo-cta"><span class="cta-tag cta-tag--contact">→ Reach out button</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">None</span></div>
+      <ul class="hi-list" style="margin-top:10px">
+        <li>Reach out — Cheree will help you work out the right funding path for couple or family sessions</li>
+      </ul>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <div class="section-divider">Funding insight panels + Step 3 outcome &nbsp;—&nbsp; Professional mediation</div>
+
+  <!-- Mediation + Private -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Mediation</span><span class="combo-arrow">+</span><span class="combo-fund">Private / self-funded</span><span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">$195 / session</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">Sessions are $195/hr with a 2-hour minimum after intake — payment on the day</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> An individual intake session is required first before mediation sessions begin.</span>
+      </div>
+      <ul class="hi-list">
+        <li>Individual intake required before mediation proceeds</li>
+        <li>Mediation sessions: $195/hr, 2-hour minimum</li>
+        <li>Tax invoice issued immediately after each session</li>
+      </ul>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+  <!-- Mediation + QFES -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Mediation</span><span class="combo-arrow">+</span><span class="combo-fund">QFES</span><span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">Billed to QFES</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">You are not charged for sessions you attend</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> Individual intake required first. Contact your QFES EAP coordinator to confirm mediation is within your entitlement before booking.</span>
+      </div>
+      <ul class="hi-list">
+        <li>Individual intake required before mediation sessions begin</li>
+        <li>Confirm mediation is covered under your QFES EAP</li>
+        <li>Cancellations: may be covered by QFES or charged to you — check EAP terms</li>
+      </ul>
+      <div style="margin-top:12px;font-size:12.5px;color:var(--muted);font-style:italic">After form submit: "We'll contact you to confirm after reviewing your EAP referral."</div>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+  <!-- Mediation + DVA -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Mediation</span><span class="combo-arrow">+</span><span class="combo-fund">ADFHSC &amp; DVA</span><span class="combo-cta"><span class="cta-tag cta-tag--form">→ Request form</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">Billed to your funder</span></div>
+      <div class="content-row"><span class="cr-key">Payment line</span><span class="cr-val">You are not charged for sessions you attend</span></div>
+      <div class="warn-box">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#BE6E44" stroke-width="1.3" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="6.5"/><path d="M7.5 5v4M7.5 10.5v.5"/></svg>
+        <span><strong>Before booking:</strong> Individual intake required first. Contact your unit health officer or DVA case manager to arrange referral for mediation.</span>
+      </div>
+      <ul class="hi-list">
+        <li>Individual intake required before mediation sessions begin</li>
+        <li>Confirm mediation is covered by your ADFHSC/DVA entitlement</li>
+        <li>Cancellations: may be covered by funder or charged to you directly</li>
+      </ul>
+      <div style="margin-top:12px;font-size:12.5px;color:var(--muted);font-style:italic">After form submit: "We'll contact you to confirm after reviewing your referral."</div>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+  <!-- Mediation + Not sure -->
+  <div class="review-block">
+    <div class="combo-header"><span class="combo-svc">Mediation</span><span class="combo-arrow">+</span><span class="combo-fund">Not sure</span><span class="combo-cta"><span class="cta-tag cta-tag--contact">→ Reach out button</span></span></div>
+    <div class="rb-content">
+      <div class="content-row"><span class="cr-key">Price shown</span><span class="cr-val">None</span></div>
+      <ul class="hi-list" style="margin-top:10px">
+        <li>Reach out — Cheree can advise on the right path for professional mediation services</li>
+      </ul>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <div class="section-divider">Existing client form</div>
+
+  <div class="review-block">
+    <div class="rb-content">
+      <div class="rb-title">Existing client — contact form</div>
+      <p style="font-size:13px;color:var(--mid);margin-bottom:16px">Shown when "I'm an existing client" is selected at Step 0. No service or funding steps — goes straight to a message form.</p>
+      <div class="content-row"><span class="cr-key">Heading</span><span class="cr-val">Send a message to the practice</span></div>
+      <div class="content-row"><span class="cr-key">Sub-text</span><span class="cr-val">Let Cheree know you'd like to reconnect. You'll hear back within 1–2 business days.</span></div>
+      <div class="rb-sub" style="margin-top:14px;margin-bottom:6px">Form fields</div>
+      <div class="tag-row">
+        <span class="tag">First name</span>
+        <span class="tag">Last name (optional)</span>
+        <span class="tag">Email address</span>
+        <span class="tag">What would you like to book?</span>
+        <span class="tag">Anything else? (optional)</span>
+      </div>
+    </div>
+    <div class="rb-status"><label>Status</label><select><option>— unreviewed —</option><option>✓ Looks good</option><option>✎ Needs changes</option><option>? Question</option></select></div>
+    <div class="rb-notes"><svg class="rb-notes-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 12.5V11l8.5-8.5 1.5 1.5L3.5 12.5H2zM11 3.5l1 1"/></svg><textarea placeholder="Your feedback or notes…" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+  </div>
+
+
+</div><!-- /doc-body -->
+
+<script>
+  // Auto-grow all textareas on load
+  document.querySelectorAll('textarea').forEach(function(t) {
+    t.style.height = 'auto';
+    t.style.height = t.scrollHeight + 'px';
+  });
+</script>
+</body>
+</html>

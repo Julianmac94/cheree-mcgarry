@@ -576,7 +576,7 @@ function closeMoreSheet() {
   if (sheet) sheet.classList.remove('open');
 }
 
-/* ── + Add popup menu ────────────────────────────────────────── */
+/* ── + Add popup menu — desktop sidebar ─────────────────────── */
 function toggleAddMenu() {
   var menu = document.getElementById('dh-add-menu');
   if (!menu) return;
@@ -594,9 +594,31 @@ function closeAddMenu() {
   document.removeEventListener('click', _closeAddMenuOutside);
 }
 function _closeAddMenuOutside(e) {
-  var wrap = document.getElementById('dh-add-btn');
-  if (wrap) wrap = wrap.parentNode;
+  var wrap = document.getElementById('sb-add-wrap');
   if (!wrap || !wrap.contains(e.target)) closeAddMenu();
+}
+
+/* ── + Add popup menu — mobile header ───────────────────────── */
+function toggleMobAddMenu() {
+  var menu = document.getElementById('dh-mob-add-menu');
+  if (!menu) return;
+  var opening = menu.style.display === 'none';
+  menu.style.display = opening ? 'block' : 'none';
+  if (opening) {
+    setTimeout(function() {
+      document.addEventListener('click', _closeMobAddMenuOutside);
+    }, 10);
+  }
+}
+function closeMobAddMenu() {
+  var menu = document.getElementById('dh-mob-add-menu');
+  if (menu) menu.style.display = 'none';
+  document.removeEventListener('click', _closeMobAddMenuOutside);
+}
+function _closeMobAddMenuOutside(e) {
+  var wrap = document.getElementById('dh-mob-add-btn');
+  if (wrap) wrap = wrap.parentNode;
+  if (!wrap || !wrap.contains(e.target)) closeMobAddMenu();
 }
 function focusReminderInp() {
   var inp = document.getElementById('dh-task-inp');
@@ -3455,17 +3477,17 @@ function renderHomeView() {
     + '<div class="dh-hd-date">' + escHtml(dateLabel) + '</div>'
     + '<div class="dh-hd-meta">' + escHtml(_todaySummary) + _nextSummary + '</div>'
     + '</div>'
-    + '<div class="dh-add-wrap">'
-    + '<button class="dh-chip dh-chip--primary" id="dh-add-btn" onclick="toggleAddMenu()">'
+    + '<div class="dh-add-wrap dh-mob-add-wrap">'
+    + '<button class="dh-chip dh-chip--primary" id="dh-mob-add-btn" onclick="toggleMobAddMenu()">'
     + '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>'
     + '&nbsp;Add'
     + '</button>'
-    + '<div class="dh-add-menu" id="dh-add-menu" style="display:none">'
-    + '<button class="dh-add-item" onclick="closeAddMenu();openDbModal(\'client\')">'
+    + '<div class="dh-add-menu" id="dh-mob-add-menu" style="display:none">'
+    + '<button class="dh-add-item" onclick="closeMobAddMenu();openDbModal(\'client\')">'
     + IC.people + 'Client</button>'
-    + '<button class="dh-add-item" onclick="closeAddMenu();openDbModal(\'appt\')">'
+    + '<button class="dh-add-item" onclick="closeMobAddMenu();openDbModal(\'appt\')">'
     + IC.cal + 'Appointment</button>'
-    + '<button class="dh-add-item" onclick="closeAddMenu();focusReminderInp()">'
+    + '<button class="dh-add-item" onclick="closeMobAddMenu();focusReminderInp()">'
     + IC.tasks + 'Reminder</button>'
     + '</div>'
     + '</div>'
@@ -3521,10 +3543,9 @@ function renderHomeView() {
     + '</div>'
     + '</div></div>'; // .dh-util-col + dh-b-6
 
-  // BR: Billing card
-  html += '<div class="dh-b-6 dh-fold" id="dh-q-bill">'
-    + '<div class="dh-fold-tab">' + IC.card + 'Billing</div>'
-    + '<div class="dh-billing-card" onclick="navigateTo(\'billing\')">'
+  // BR: Billing card (flush — no fold-tab, like Reminders)
+  html += '<div class="dh-b-6" id="dh-q-bill" style="display:flex;flex-direction:column;">'
+    + '<div class="dh-billing-card" style="flex:1;" onclick="navigateTo(\'billing\')">'
     + '<div class="dh-billing-body">'
     + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Paid this month</div>'
     + '<div class="dh-bs-amt" style="color:var(--teal)">' + _fmt$(bPaid) + '</div>'
@@ -3535,7 +3556,7 @@ function renderHomeView() {
     + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Needs invoice</div>'
     + '<div class="dh-bs-amt" style="color:' + (needsInvoiceCount ? 'var(--amber)' : 'var(--teal)') + '">' + needsInvoiceCount + '</div>'
     + '<div class="dh-bs-sub">' + escHtml(needsInvoiceCount ? 'Sessions pending' : 'All invoiced') + '</div></div>'
-    + '</div></div></div>'; // .dh-billing-card + dh-b-6.dh-fold
+    + '</div></div></div>'; // .dh-billing-card + dh-b-6
 
   html += '</div>'; // .dh-bento
   html += '</div>'; // .dh-wrap

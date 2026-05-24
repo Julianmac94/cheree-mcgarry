@@ -393,6 +393,10 @@ body::before {
 
 /* + Add popup menu */
 .dh-add-wrap { position: relative; flex-shrink: 0; }
+/* Mobile header + Add is hidden on desktop — the sidebar button handles desktop */
+@media (min-width: 769px) { .dh-mob-add-wrap { display: none !important; } }
+/* Sidebar add menu opens left-aligned (extends right into content area) */
+.sidebar-add-wrap .dh-add-menu { left: 0; right: auto; }
 .dh-add-menu {
   position: absolute; top: calc(100% + 8px); right: 0;
   background: rgba(8,12,24,0.98); border: 1px solid rgba(255,255,255,0.12);
@@ -1181,6 +1185,21 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--t2);
   box-shadow: none;
+  position: relative; /* needed for ::after notch */
+}
+/* Concave notch where tab's right edge meets the card below */
+.dh-fold-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; /* sit flush with card top */
+  right: -13px;
+  width: 13px;
+  height: 13px;
+  background: rgba(8,12,24,0.55); /* match tab/card surface */
+  border-top-left-radius: 11px;   /* creates the concave curve */
+  border-left: 1px solid rgba(255,255,255,0.09); /* match card border */
+  pointer-events: none;
+  z-index: 1;
 }
 .dh-fold-tab svg { opacity: 0.65; }
 .dh-fold-tab .dh-fold-badge {
