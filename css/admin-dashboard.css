@@ -1189,19 +1189,27 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   z-index: 2; /* tab above card so ::after (also z-index:2) renders above card border */
 }
 /* Concave notch at the bottom-right of the tab.
-   A card-coloured rectangle sits in the canvas area just above the
-   card-top, to the right of the tab. border-bottom-left-radius curves
-   its bottom-left corner, revealing canvas through the arc and creating
-   the concave junction between the tab's right wall and the card's top. */
+   Every fill-based approach fails because body::before has a radial
+   gradient — no flat colour ever matches it perfectly, leaving a
+   visible dark box in the canvas area.
+   Solution: draw ONLY the arc border (1px, same colour as the card
+   border) using a radial-gradient. Everything else stays transparent
+   so the canvas gradient shows through unobstructed. */
 .dh-fold-tab::after {
   content: '';
   position: absolute;
-  bottom: 0;               /* bottom of element = tab's bottom = card's top */
-  right: -16px;            /* sticks out 16px to the right of the tab */
+  bottom: 0;      /* element's bottom sits at tab-bottom = card-top = junction y */
+  right: -16px;   /* element's left sits at tab-right = junction x */
   width: 16px;
   height: 16px;
-  background: rgba(13, 19, 38, 0.97); /* = var(--gc), card background */
-  border-bottom-left-radius: 13px;    /* concave arc at the junction */
+  /* Circle centred at bottom-left (0% 100%) = the exact junction point.
+     transparent 0–12px | 1px arc ring at card-border colour | transparent beyond */
+  background: radial-gradient(
+    circle at 0% 100%,
+    transparent 12px,
+    rgba(255,255,255,0.09) 12px 13px,
+    transparent 13px
+  );
   pointer-events: none;
   z-index: 2;
 }
