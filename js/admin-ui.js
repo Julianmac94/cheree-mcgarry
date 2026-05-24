@@ -641,8 +641,89 @@ function mobSwitchApp(app) {
 function _mobRenderApp(app) {
   if (app === 'home')           _mobRenderSchedule();
   else if (app === 'queue')     _mobRenderInbox();
-  else if (app === 'reminders') renderRemindersView();
+  else if (app === 'reminders') _mobRenderReminders();
   else if (app === 'billing')   renderBillingView();
+}
+
+/* ── Mobile reminders app ─────────────────────────────────────── */
+function _mobRenderReminders() {
+  var content = document.getElementById('view-content');
+  if (!content) return;
+
+  /* If tasks haven't loaded yet, show skeleton and load */
+  if (!_dhTasksLoaded) {
+    content.innerHTML = '<div class="mob-app-list">'
+      + '<div class="mob-section-hd">Reminders</div>'
+      + '<div class="mob-empty-state">Loading…</div>'
+      + '</div>';
+    _dhLoadTasks().then(function() {
+      if (_mobCurrentApp === 'reminders') _mobRenderReminders();
+    }).catch(function() {});
+    _updateMobileDock('reminders');
+    return;
+  }
+
+  var tasks   = _dhTasks || [];
+  var pending = tasks.filter(function(t) { return !t.completed; });
+  var done    = tasks.filter(function(t) { return t.completed; }).slice(0, 8);
+
+  var html = '<div class="mob-app-list">';
+  html += '<div class="mob-section-hd">Reminders</div>';
+
+  /* Add input */
+  html += '<div class="mob-remind-add">'
+    + '<input class="mob-remind-inp" id="mob-task-inp" placeholder="Add reminder…" '
+    + 'onkeydown="if(event.key===\'Enter\'&&this.value.trim()){dhAddTaskMob(this.value.trim());this.value=\'\'}">'
+    + '</div>';
+
+  /* Pending list */
+  if (pending.length) {
+    pending.forEach(function(t) {
+      html += '<div class="mob-task-row">'
+        + '<button class="mob-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',true);_mobRenderReminders()"></button>'
+        + '<span class="mob-task-lbl">' + escHtml(t.title || '') + '</span>'
+        + '</div>';
+    });
+  } else {
+    html += '<div class="mob-empty-state">All clear ✓</div>';
+  }
+
+  /* Completed list */
+  if (done.length) {
+    html += '<div class="mob-section-sub">Completed</div>';
+    done.forEach(function(t) {
+      html += '<div class="mob-task-row mob-task-row-done">'
+        + '<button class="mob-task-chk mob-task-chk-done" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',false);_mobRenderReminders()">✓</button>'
+        + '<span class="mob-task-lbl mob-task-lbl-done">' + escHtml(t.title || '') + '</span>'
+        + '</div>';
+    });
+  }
+
+  html += '</div>';
+  content.innerHTML = html;
+  _updateMobileDock('reminders');
+
+  /* Focus the input */
+  setTimeout(function() {
+    var inp = document.getElementById('mob-task-inp');
+    if (inp) inp.focus();
+  }, 120);
+}
+
+/* Add a task from the mobile reminders view */
+async function dhAddTaskMob(title) {
+  if (!title) return;
+  try {
+    var t = await apiFetch('/api/admin-tasks', { method: 'POST', body: { text: title } });
+    if (t && t.id) {
+      _dhTasks = _dhTasks || [];
+      _dhTasks.push(t);
+      toast('Reminder added');
+    }
+  } catch(e) {
+    toast('Could not add reminder', 'err');
+  }
+  if (_mobCurrentApp === 'reminders') _mobRenderReminders();
 }
 
 /* ── Mobile inbox app — mirrors the home bento inbox widget ── */
@@ -1204,7 +1285,8 @@ async function _armSave(enquiryId, clientLabel) {
     toast('Reminder added', 'ok');
     _dhLoadTasks();
     // If on reminders view, re-render it
-    if (_currentView === 'reminders' || _mobCurrentApp === 'reminders') renderRemindersView();
+    if (_mobCurrentApp === 'reminders') _mobRenderReminders();
+    else if (_currentView === 'reminders') renderRemindersView();
   } catch (e) {
     toast(e.message || 'Save failed', 'err');
   }

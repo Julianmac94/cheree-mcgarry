@@ -1091,6 +1091,68 @@ body {
     border-top: 1px solid rgba(255,255,255,0.06);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  /* ── Mobile reminders app ── */
+  .mob-app-list {
+    padding: 16px 16px 80px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .mob-section-hd {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--t3);
+    margin-bottom: 6px; padding: 0 2px;
+  }
+  .mob-section-sub {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--t3);
+    margin: 14px 0 4px; padding: 0 2px; opacity: 0.7;
+  }
+  .mob-remind-add {
+    margin-bottom: 8px;
+  }
+  .mob-remind-inp {
+    width: 100%; box-sizing: border-box;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 14px; color: var(--t1);
+    outline: none;
+  }
+  .mob-remind-inp:focus {
+    border-color: rgba(52,211,153,0.35);
+    background: rgba(255,255,255,0.07);
+  }
+  .mob-remind-inp::placeholder { color: var(--t3); }
+  .mob-task-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+  }
+  .mob-task-row-done { opacity: 0.45; }
+  .mob-task-chk {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.22);
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .mob-task-chk:hover { border-color: var(--teal); }
+  .mob-task-chk-done {
+    background: rgba(52,211,153,0.2);
+    border-color: rgba(52,211,153,0.5);
+    color: var(--teal); font-size: 11px; line-height: 1;
+  }
+  .mob-task-lbl { font-size: 14px; color: var(--t1); line-height: 1.4; }
+  .mob-task-lbl-done { text-decoration: line-through; color: var(--t3); }
+  .mob-empty-state {
+    text-align: center; color: var(--t3);
+    font-size: 13px; padding: 32px 0;
+  }
 }
 
 @keyframes pulse { 0%,100% { opacity:0.3 } 50% { opacity:0.9 } }
@@ -2919,7 +2981,7 @@ body {
     <!-- ── Brand topbar (desktop) ── -->
     <header class="app-topbar" id="app-topbar">
 
-      <!-- Brand -->
+      <!-- Brand (left) -->
       <div class="topbar-brand" onclick="navigateTo('home')" style="cursor:pointer">
         <img src="/assets/logo.svg" class="topbar-logo" alt="" width="28" height="28">
         <div>
@@ -2928,29 +2990,8 @@ body {
         </div>
       </div>
 
-      <div style="flex:1"></div>
-
-      <!-- Context: clients view search + add buttons -->
-      <div class="db-search-wrap" style="display:none" id="db-search-wrap">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="var(--db-t3)"><path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398l3.85 3.85a1 1 0 001.415-1.415l-3.868-3.833zm-5.242 1.656a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"/></svg>
-        <input type="text" placeholder="Search clients…" id="db-search-input">
-      </div>
-      <button class="db-btn-ghost" id="db-btn-appt" onclick="openDbModal('appt')" style="display:none">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 0a.5.5 0 01.5.5V1h8V.5a.5.5 0 011 0V1h1a2 2 0 012 2v11a2 2 0 01-2 2H2a2 2 0 01-2-2V3a2 2 0 012-2h1V.5a.5.5 0 01.5-.5zM1 4v10a1 1 0 001 1h12a1 1 0 001-1V4H1z"/></svg>
-        Add Appointment
-      </button>
-      <button class="db-btn-primary" id="db-btn-client" onclick="openDbModal('client')" style="display:none">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4a.5.5 0 01.5.5v3h3a.5.5 0 010 1h-3v3a.5.5 0 01-1 0v-3h-3a.5.5 0 010-1h3v-3A.5.5 0 018 4z"/><path d="M8 15A7 7 0 118 1a7 7 0 010 14zm0 1A8 8 0 108 0a8 8 0 000 16z"/></svg>
-        Add Client
-      </button>
-
-      <!-- Search -->
-      <button class="topbar-icon-btn" onclick="openCmdBar()" title="Search ⌘K">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398l3.85 3.85a1 1 0 001.415-1.415l-3.868-3.833zm-5.242 1.656a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"/></svg>
-      </button>
-
-      <!-- + Add -->
-      <div style="position:relative;flex-shrink:0" id="sb-add-wrap">
+      <!-- + Add (sits right next to brand) -->
+      <div style="position:relative;flex-shrink:0;margin-left:14px" id="sb-add-wrap">
         <button class="topbar-add-btn" onclick="toggleAddMenu()">
           <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
             <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
@@ -2973,25 +3014,33 @@ body {
         </div>
       </div>
 
-      <!-- Clients nav -->
-      <button class="topbar-nav-btn" data-view="clients" onclick="navigateTo('clients')">Clients</button>
-
-      <!-- Settings -->
-      <button class="topbar-icon-btn" data-view="settings" onclick="navigateTo('settings')" title="Settings">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <!-- Context: clients view search + add buttons (hidden by default) -->
+      <div class="db-search-wrap" style="display:none" id="db-search-wrap">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="var(--db-t3)"><path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398l3.85 3.85a1 1 0 001.415-1.415l-3.868-3.833zm-5.242 1.656a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"/></svg>
+        <input type="text" placeholder="Search clients…" id="db-search-input">
+      </div>
+      <button class="db-btn-ghost" id="db-btn-appt" onclick="openDbModal('appt')" style="display:none">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 0a.5.5 0 01.5.5V1h8V.5a.5.5 0 011 0V1h1a2 2 0 012 2v11a2 2 0 01-2 2H2a2 2 0 01-2-2V3a2 2 0 012-2h1V.5a.5.5 0 01.5-.5zM1 4v10a1 1 0 001 1h12a1 1 0 001-1V4H1z"/></svg>
+        Add Appointment
+      </button>
+      <button class="db-btn-primary" id="db-btn-client" onclick="openDbModal('client')" style="display:none">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4a.5.5 0 01.5.5v3h3a.5.5 0 010 1h-3v3a.5.5 0 01-1 0v-3h-3a.5.5 0 010-1h3v-3A.5.5 0 018 4z"/><path d="M8 15A7 7 0 118 1a7 7 0 010 14zm0 1A8 8 0 108 0a8 8 0 000 16z"/></svg>
+        Add Client
       </button>
 
-      <!-- Connection status dots -->
-      <div style="display:flex;align-items:center;gap:4px;margin:0 4px">
-        <span class="sidebar-dot loading" id="sb-halaxy-dot" title="Halaxy"></span>
-        <span id="sb-halaxy-label" style="display:none"></span>
-        <span class="sidebar-dot loading" id="sb-gcal-dot" title="Calendar"></span>
-        <span id="sb-gcal-label" style="display:none"></span>
-      </div>
+      <div style="flex:1"></div>
 
-      <!-- Refresh + sign out -->
-      <button class="topbar-refresh-btn" id="pl-refresh-btn" onclick="refreshPipeline()" title="Refresh">↺</button>
-      <a class="topbar-signout" href="/admin?logout=1">Sign out</a>
+      <!-- Settings (far right) -->
+      <button class="topbar-icon-btn" data-view="settings" onclick="navigateTo('settings')" title="Settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+
+      <!-- Hidden DOM nodes kept for JS state management -->
+      <span class="sidebar-dot loading" id="sb-halaxy-dot" style="display:none"></span>
+      <span id="sb-halaxy-label" style="display:none"></span>
+      <span class="sidebar-dot loading" id="sb-gcal-dot" style="display:none"></span>
+      <span id="sb-gcal-label" style="display:none"></span>
+      <button id="pl-refresh-btn" onclick="refreshPipeline()" style="display:none">↺</button>
 
     </header>
 
