@@ -363,35 +363,78 @@ body {
 }
 .sidebar-refresh-btn:hover { color: var(--teal); }
 
-/* ── App main (right of sidebar) ── */
+/* ── App main (full width — sidebar removed) ── */
 .app-main {
   flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100svh;
 }
 
-/* ── Top bar ── */
+/* ── Brand topbar (replaces sidebar) ── */
 .app-topbar {
-  height: 46px; flex-shrink: 0;
+  height: 50px; flex-shrink: 0;
   background: #ffffff;
   border-bottom: 1px solid rgba(0,0,0,0.08);
-  display: flex; align-items: center; padding: 0 20px; gap: 14px;
+  display: flex; align-items: center; padding: 0 16px; gap: 8px;
 }
-.topbar-metrics {
-  flex: 1; font-size: 12px; color: #7A9090;
-  display: flex; align-items: center; gap: 4px;
+/* Brand cluster */
+.topbar-brand {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0; cursor: default; margin-right: 4px;
 }
-.topbar-metric-val { font-weight: 600; color: #1A2F2B; }
-.topbar-metric-urgent { font-weight: 600; color: var(--s-urgent); }
-.topbar-sep { color: rgba(0,0,0,0.18); margin: 0 4px; }
-.topbar-sync { font-size: 11px; color: rgba(0,0,0,0.3); margin-left: auto; }
-.topbar-cmd-btn {
-  display: flex; align-items: center; gap: 7px;
-  padding: 6px 12px; border-radius: 7px;
-  background: rgba(255,255,255,0.8); border: 1px solid rgba(0,0,0,0.09);
-  font-family: var(--sans); font-size: 12px; color: #7A9090;
-  cursor: pointer; transition: all 0.13s; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+.topbar-logo { width: 28px; height: 28px; flex-shrink: 0; }
+.topbar-brand-nm {
+  font-family: var(--serif);
+  font-size: 16px; font-weight: 400; color: var(--tealDeep); line-height: 1.15; display: block;
 }
-.topbar-cmd-btn:hover { background: white; color: #1A2F2B; }
-.topbar-cmd-shortcut { font-size: 10px; opacity: 0.55; background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 3px; }
+.topbar-brand-nm em { font-style: italic; color: var(--teal); font-weight: 300; }
+.topbar-brand-sub {
+  font-size: 8.5px; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(0,0,0,0.35); display: block; margin-top: 2px;
+}
+/* Icon-only button */
+.topbar-icon-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 7px;
+  background: none; border: none;
+  color: rgba(0,0,0,0.4); cursor: pointer;
+  transition: background 0.12s, color 0.12s; flex-shrink: 0;
+}
+.topbar-icon-btn:hover { background: rgba(0,0,0,0.05); color: var(--teal); }
+/* + Add button */
+.topbar-add-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 7px;
+  background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.22);
+  cursor: pointer; color: var(--teal);
+  font-family: var(--sans); font-size: 12px; font-weight: 500;
+  transition: background 0.13s, border-color 0.13s; flex-shrink: 0;
+}
+.topbar-add-btn:hover { background: rgba(52,211,153,0.14); border-color: rgba(52,211,153,0.38); }
+/* Text nav buttons (Clients etc) */
+.topbar-nav-btn {
+  display: flex; align-items: center;
+  padding: 5px 10px; border-radius: 7px;
+  background: none; border: 1px solid transparent;
+  color: rgba(0,0,0,0.45); cursor: pointer;
+  font-family: var(--sans); font-size: 12px; font-weight: 400;
+  transition: all 0.12s; flex-shrink: 0; white-space: nowrap;
+}
+.topbar-nav-btn:hover { background: rgba(42,88,80,0.07); color: var(--teal); border-color: rgba(42,88,80,0.12); }
+.topbar-nav-btn.active { color: var(--teal); font-weight: 600; background: rgba(42,88,80,0.10); border-color: rgba(42,88,80,0.12); }
+/* Refresh + sign-out */
+.topbar-refresh-btn {
+  font-family: var(--sans); font-size: 13px; color: rgba(0,0,0,0.35);
+  background: none; border: none; cursor: pointer; padding: 4px 2px;
+  transition: color 0.12s; flex-shrink: 0;
+}
+.topbar-refresh-btn:hover { color: var(--teal); }
+.topbar-signout {
+  font-family: var(--sans); font-size: 11px; color: rgba(0,0,0,0.35);
+  background: none; border: none; cursor: pointer; padding: 0; text-decoration: none;
+  white-space: nowrap; transition: color 0.12s; flex-shrink: 0;
+}
+.topbar-signout:hover { color: var(--teal); }
+/* Home view logo above greeting */
+.dh-hd-logo { width: 52px; height: 52px; display: block; margin-bottom: 16px; opacity: 0.88; }
 
 /* ── App content area ── */
 .app-content {
@@ -916,8 +959,7 @@ body {
   }
   #mob-splash-logo {
     width: 130px; height: 130px;
-    /* coloured logo — no brightness filter */
-    transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+    /* transition is set by JS only after data loads — avoids flash on page render */
     will-change: transform;
   }
 
@@ -1013,6 +1055,42 @@ body {
   }
   .mob-action-row:active { background: rgba(255,255,255,0.05); }
   .mob-action-row svg { opacity: 0.4; flex-shrink: 0; }
+
+  /* ── Mobile inbox app ── */
+  .mob-inbox-view {
+    display: flex; flex-direction: column;
+    height: 100%; min-height: 0;
+  }
+  .mob-inbox-tabs {
+    display: flex; flex-shrink: 0;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: 14px 14px 0; gap: 6px;
+    scrollbar-width: none;
+  }
+  .mob-inbox-tabs::-webkit-scrollbar { display: none; }
+  .mob-inbox-tab {
+    display: flex; align-items: center; gap: 5px;
+    white-space: nowrap; padding: 6px 13px; border-radius: 20px;
+    font-family: var(--sans); font-size: 11.5px; font-weight: 500;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    color: var(--t2); cursor: pointer; transition: all 0.12s; flex-shrink: 0;
+  }
+  .mob-inbox-tab.active {
+    background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.25); color: var(--teal);
+  }
+  .mob-inbox-tab-cnt {
+    font-size: 10px; font-weight: 700;
+    min-width: 16px; height: 16px; border-radius: 8px;
+    background: rgba(255,255,255,0.1); color: inherit;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0 4px;
+  }
+  .mob-inbox-tab.active .mob-inbox-tab-cnt { background: rgba(52,211,153,0.18); }
+  .mob-inbox-view .dh-attn-card {
+    flex: 1; overflow-y: auto; margin-top: 10px;
+    min-height: 0; border-radius: 0; border: none;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
 @keyframes pulse { 0%,100% { opacity:0.3 } 50% { opacity:0.9 } }
@@ -2825,90 +2903,7 @@ body {
 
 <div class="app-shell" id="app-shell">
 
-  <!-- ── Desktop sidebar ── -->
-  <nav class="sidebar" id="sidebar">
-    <div class="sidebar-brand">
-      <img src="/assets/logo.svg" class="sidebar-logo" alt="" width="26" height="26">
-      <div>
-        <span class="sidebar-brand-nm"><em>Cheree</em> McGarry</span>
-        <span class="sidebar-brand-sub">Practice Admin</span>
-      </div>
-    </div>
-
-    <button class="sidebar-search-btn" onclick="openCmdBar()">
-      <span class="sidebar-search-icon">⌕</span>
-      <span>Search…</span>
-      <span class="sidebar-search-shortcut">⌘K</span>
-    </button>
-
-    <!-- ── + Add button ── -->
-    <div class="sidebar-add-wrap" id="sb-add-wrap">
-      <button class="sidebar-add-btn" onclick="toggleAddMenu()" title="Add new">
-        <svg width="15" height="15" viewBox="0 0 12 12" fill="none">
-          <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-        </svg>
-      </button>
-      <div class="dh-add-menu" id="dh-add-menu" style="display:none">
-        <button class="dh-add-item" onclick="closeAddMenu();openDbModal('client')">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-          Client
-        </button>
-        <button class="dh-add-item" onclick="closeAddMenu();openDbModal('appt')">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          Appointment
-        </button>
-        <button class="dh-add-item" onclick="closeAddMenu();focusReminderInp()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-          Reminder
-        </button>
-      </div>
-    </div>
-
-    <div class="sidebar-nav">
-      <div class="sidebar-section-label">Workspace</div>
-      <button class="sidebar-item active" data-view="home" title="Home" onclick="navigateTo('home')">
-        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg></span>
-        <span class="si-label">Home</span>
-      </button>
-      <button class="sidebar-item" data-view="queue" title="Inbox" onclick="navigateTo('queue')">
-        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg></span>
-        <span class="si-label">Inbox</span>
-        <span class="si-badge" id="sib-queue"></span>
-      </button>
-      <button class="sidebar-item" data-view="clients" title="Clients" onclick="navigateTo('clients')">
-        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span>
-        <span class="si-label">Clients</span>
-      </button>
-
-      <div class="sidebar-divider"></div>
-      <div class="sidebar-section-label">Finance</div>
-      <button class="sidebar-item" data-view="billing" title="Billing" onclick="navigateTo('billing')">
-        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg></span>
-        <span class="si-label">Billing</span>
-      </button>
-
-      <div class="sidebar-divider"></div>
-      <button class="sidebar-item" data-view="settings" title="Settings" onclick="navigateTo('settings')">
-        <span class="si-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
-        <span class="si-label">Settings</span>
-      </button>
-    </div>
-
-    <div class="sidebar-footer">
-      <div class="sidebar-status-row">
-        <span class="sidebar-dot loading" id="sb-halaxy-dot"></span>
-        <span id="sb-halaxy-label">Halaxy</span>
-      </div>
-      <div class="sidebar-status-row">
-        <span class="sidebar-dot loading" id="sb-gcal-dot"></span>
-        <span id="sb-gcal-label">Calendar</span>
-      </div>
-      <div class="sidebar-util-row">
-        <button class="sidebar-refresh-btn" id="pl-refresh-btn" onclick="refreshPipeline()">↺ Refresh</button>
-        <a class="sidebar-signout" href="/admin?logout=1">Sign out</a>
-      </div>
-    </div>
-  </nav>
+  <!-- sidebar removed — navigation lives in app-topbar -->
 
   <!-- ── App main ── -->
   <div class="app-main" id="app-main">
@@ -2921,11 +2916,21 @@ body {
     <!-- ── Mobile persistent header (greeting, date, summary) ── -->
     <div id="mob-hd"></div>
 
-    <!-- Top bar (desktop only) -->
+    <!-- ── Brand topbar (desktop) ── -->
     <header class="app-topbar" id="app-topbar">
-      <div class="db-topbar-title" id="db-topbar-title">
-        Onboarding <span class="db-topbar-sub" id="db-topbar-sub"></span>
+
+      <!-- Brand -->
+      <div class="topbar-brand" onclick="navigateTo('home')" style="cursor:pointer">
+        <img src="/assets/logo.svg" class="topbar-logo" alt="" width="28" height="28">
+        <div>
+          <span class="topbar-brand-nm"><em>Cheree</em> McGarry</span>
+          <span class="topbar-brand-sub">Practice Admin</span>
+        </div>
       </div>
+
+      <div style="flex:1"></div>
+
+      <!-- Context: clients view search + add buttons -->
       <div class="db-search-wrap" style="display:none" id="db-search-wrap">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="var(--db-t3)"><path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398l3.85 3.85a1 1 0 001.415-1.415l-3.868-3.833zm-5.242 1.656a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"/></svg>
         <input type="text" placeholder="Search clients…" id="db-search-input">
@@ -2938,7 +2943,56 @@ body {
         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4a.5.5 0 01.5.5v3h3a.5.5 0 010 1h-3v3a.5.5 0 01-1 0v-3h-3a.5.5 0 010-1h3v-3A.5.5 0 018 4z"/><path d="M8 15A7 7 0 118 1a7 7 0 010 14zm0 1A8 8 0 108 0a8 8 0 000 16z"/></svg>
         Add Client
       </button>
-      <div id="topbar-metrics" style="display:none"></div>
+
+      <!-- Search -->
+      <button class="topbar-icon-btn" onclick="openCmdBar()" title="Search ⌘K">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398l3.85 3.85a1 1 0 001.415-1.415l-3.868-3.833zm-5.242 1.656a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"/></svg>
+      </button>
+
+      <!-- + Add -->
+      <div style="position:relative;flex-shrink:0" id="sb-add-wrap">
+        <button class="topbar-add-btn" onclick="toggleAddMenu()">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+            <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+          Add
+        </button>
+        <div class="dh-add-menu" id="dh-add-menu" style="display:none">
+          <button class="dh-add-item" onclick="closeAddMenu();openDbModal('client')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            Client
+          </button>
+          <button class="dh-add-item" onclick="closeAddMenu();openDbModal('appt')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Appointment
+          </button>
+          <button class="dh-add-item" onclick="closeAddMenu();focusReminderInp()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            Reminder
+          </button>
+        </div>
+      </div>
+
+      <!-- Clients nav -->
+      <button class="topbar-nav-btn" data-view="clients" onclick="navigateTo('clients')">Clients</button>
+
+      <!-- Settings -->
+      <button class="topbar-icon-btn" data-view="settings" onclick="navigateTo('settings')" title="Settings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+
+      <!-- Connection status dots -->
+      <div style="display:flex;align-items:center;gap:4px;margin:0 4px">
+        <span class="sidebar-dot loading" id="sb-halaxy-dot" title="Halaxy"></span>
+        <span id="sb-halaxy-label" style="display:none"></span>
+        <span class="sidebar-dot loading" id="sb-gcal-dot" title="Calendar"></span>
+        <span id="sb-gcal-label" style="display:none"></span>
+      </div>
+
+      <!-- Refresh + sign out -->
+      <button class="topbar-refresh-btn" id="pl-refresh-btn" onclick="refreshPipeline()" title="Refresh">↺</button>
+      <a class="topbar-signout" href="/admin?logout=1">Sign out</a>
+
     </header>
 
     <!-- Content + right detail panel -->

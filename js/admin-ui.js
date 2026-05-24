@@ -639,10 +639,53 @@ function mobSwitchApp(app) {
 }
 
 function _mobRenderApp(app) {
-  if (app === 'home')       _mobRenderSchedule();
-  else if (app === 'queue')     renderQueueView();
+  if (app === 'home')           _mobRenderSchedule();
+  else if (app === 'queue')     _mobRenderInbox();
   else if (app === 'reminders') renderRemindersView();
   else if (app === 'billing')   renderBillingView();
+}
+
+/* ── Mobile inbox app — mirrors the home bento inbox widget ── */
+function _mobRenderInbox() {
+  var content = document.getElementById('view-content');
+  if (!content || !_pipelineData) return;
+
+  var enquiries = _pipelineData.enquiries || [];
+  var newEnqs   = enquiries.filter(function(e) { return (e.status || 'new') === 'new'; });
+  var cntContacted = enquiries.filter(function(e) { return e.status === 'contacted'; }).length;
+  var cntClosed    = enquiries.filter(function(e) { return e.status === 'closed'; }).length;
+  var unpaidCount   = _dhBillingSessions ? _dhBillingSessions.length : 0;
+  var unlinkedCount = _dhUnlinkedCalAppts ? _dhUnlinkedCalAppts.length : 0;
+  var cntUpcoming = enquiries.filter(function(e) {
+    var c = _dhEnqClientMap[e.id];
+    return c && c.halaxy_id && (_dhPatientApptMap[String(c.halaxy_id)] || []).length > 0;
+  }).length;
+
+  function _tab(status, label, cnt, extra) {
+    var cntHtml = cnt
+      ? '<span class="mob-inbox-tab-cnt"' + (extra || '') + '>' + cnt + '</span>'
+      : '';
+    return '<button class="dh-inbox-folder mob-inbox-tab' + (status === 'new' ? ' active' : '')
+      + '" data-status="' + status + '" onclick="dhInboxFilter(\'' + status + '\',this)">'
+      + label + cntHtml + '</button>';
+  }
+
+  var html = '<div class="mob-inbox-view">'
+    + '<div class="mob-inbox-tabs">'
+    + _tab('new',          'New',       newEnqs.length)
+    + _tab('contacted',    'Contacted', cntContacted)
+    + _tab('upcoming_appt','Upcoming',  cntUpcoming)
+    + _tab('unlinked',     'Unlinked',  unlinkedCount, ' style="color:#b85a1e"')
+    + _tab('unpaid',       'Unpaid',    unpaidCount,   ' style="color:var(--amber)"')
+    + _tab('closed',       'Closed',    cntClosed)
+    + _tab('all',          'All',       enquiries.length)
+    + '</div>'
+    + '<div class="dh-attn-card" id="dh-inbox-list"></div>'
+    + '</div>';
+
+  content.innerHTML = html;
+  _dhRenderInboxItems(document.getElementById('dh-inbox-list'), newEnqs);
+  _updateMobileDock('queue');
 }
 
 /* ── Collect locally-added dashboard sessions from all clients ── */
@@ -1242,42 +1285,20 @@ function renderRemindersView() {
 
 /* ── Topbar: hide on home (inline header used), show on other views ── */
 function _dbUpdateTopbar(view) {
-  var topbar   = document.getElementById('app-topbar');
-  var titleEl  = document.getElementById('db-topbar-title');
-  var btnAppt  = document.getElementById('db-btn-appt');
+  var btnAppt   = document.getElementById('db-btn-appt');
   var btnClient = document.getElementById('db-btn-client');
-  var srchWrap = document.getElementById('db-search-wrap');
+  var srchWrap  = document.getElementById('db-search-wrap');
 
-  var now = new Date();
-  var dateStr = now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+  // Show clients-specific actions when on the clients view
+  var showClients = (view === 'clients');
+  if (btnAppt)   btnAppt.style.display   = showClients ? 'flex' : 'none';
+  if (btnClient) btnClient.style.display = showClients ? 'flex' : 'none';
+  if (srchWrap)  srchWrap.style.display  = showClients ? 'flex' : 'none';
 
-  var titles = {
-    home:     'Dashboard',
-    queue:    'Inbox',
-    clients:  'Clients',
-    billing:  'Billing',
-    vendors:  'Funders',
-    settings: 'Settings',
-    reports:  'Reports',
-  };
-
-  // Home view uses its own inline header — topbar not needed
-  if (topbar) {
-    if (view === 'home') {
-      topbar.classList.remove('is-visible');
-    } else {
-      topbar.classList.add('is-visible');
-    }
-  }
-
-  if (titleEl) {
-    titleEl.innerHTML = (titles[view] || 'Practice Hub') + ' <span class="db-topbar-sub">' + dateStr + '</span>';
-  }
-
-  var showActions = (view === 'clients');
-  if (btnAppt)   btnAppt.style.display   = showActions ? 'flex' : 'none';
-  if (btnClient) btnClient.style.display = showActions ? 'flex' : 'none';
-  if (srchWrap)  srchWrap.style.display  = (view === 'clients') ? 'flex' : 'none';
+  // Active state on topbar nav buttons
+  document.querySelectorAll('.topbar-nav-btn[data-view]').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.view === view);
+  });
 }
 
 function renderStubView(view, title, msg) {
@@ -2211,7 +2232,7 @@ function _mobTypewriter(el, text, cb, speed) {
   if (!el) { if (cb) cb(); return; }
   el.textContent = '';
   var i = 0;
-  speed = speed || 30;
+  speed = speed || 48; /* 48ms per char — deliberate, readable pace */
   var t = setInterval(function() {
     el.textContent += text[i];
     i++;
@@ -2251,15 +2272,17 @@ function _mobAnimHeader() {
   }
   var fullGreeting = greetingEl.textContent;
   _mobTypewriter(greetingEl, fullGreeting, function() {
-    if (dateEl) _mobSlideIn(dateEl, 40);
-    if (metaEl) _mobSlideIn(metaEl, 170);
-  }, 28);
+    if (dateEl) _mobSlideIn(dateEl, 60);
+    if (metaEl) _mobSlideIn(metaEl, 200);
+  }, 46);
 }
 
 /**
- * One-shot mobile intro: fly the splash logo to the top, fade the
- * splash out, reveal mob-logo-bar, then typewrite the greeting.
- * No-ops on desktop or after first run.
+ * One-shot mobile intro: fires AFTER data loads (renderPipeline).
+ * The splash logo has been sitting centred and still until this point.
+ * Now gently shrink + lift it toward the top, cross-fade to the
+ * persistent logo bar, then typewrite the greeting.
+ * No-ops on desktop or after the first run.
  */
 function _mobRunIntro() {
   if (window.innerWidth > 768) return;
@@ -2270,33 +2293,41 @@ function _mobRunIntro() {
   var splashLogo = document.getElementById('mob-splash-logo');
   var logoBar    = document.getElementById('mob-logo-bar');
 
-  /* Populate header content first (creates the DOM nodes for animation) */
+  /* Populate header content first so the DOM nodes exist for animation */
   _mobUpdateHeader();
 
   if (!splash) {
-    /* No splash element — just reveal logo bar and animate header */
     if (logoBar) logoBar.style.opacity = '1';
     _mobAnimHeader();
     return;
   }
 
-  /* Phase 1: fly logo toward the top and shrink it by ~50% */
-  if (splashLogo) {
-    splashLogo.style.transform = 'translateY(-38vh) scale(0.52)';
-  }
-  /* Fade out splash bg with a short head-start delay */
-  splash.style.transition = 'opacity 0.38s ease 0.18s';
-  splash.style.opacity = '0';
+  /* Wait two frames to ensure the splash is fully painted before animating */
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      /* Phase 1: gently shift logo toward the top at a natural pace */
+      if (splashLogo) {
+        splashLogo.style.transition = 'transform 1.0s cubic-bezier(0.4, 0, 0.2, 1)';
+        splashLogo.style.transform  = 'translateY(-36vh) scale(0.52)';
+      }
 
-  /* Phase 2: after animation completes — hide splash, show logo bar, animate header */
-  setTimeout(function() {
-    splash.style.display = 'none';
-    if (logoBar) {
-      logoBar.style.transition = 'opacity 0.22s ease';
-      logoBar.style.opacity = '1';
-    }
-    setTimeout(_mobAnimHeader, 80);
-  }, 640);
+      /* Phase 2: start fading the splash overlay once the logo is mid-way */
+      setTimeout(function() {
+        splash.style.transition = 'opacity 0.55s ease';
+        splash.style.opacity    = '0';
+      }, 550);
+
+      /* Phase 3: once splash gone — swap to persistent logo bar, animate header */
+      setTimeout(function() {
+        splash.style.display = 'none';
+        if (logoBar) {
+          logoBar.style.transition = 'opacity 0.3s ease';
+          logoBar.style.opacity    = '1';
+        }
+        setTimeout(_mobAnimHeader, 140);
+      }, 1150);
+    });
+  });
 }
 
 function renderPipeline() {
@@ -4169,6 +4200,7 @@ function renderHomeView() {
 
   html += '<div class="dh-hd-row">'
     + '<div class="dh-hd-left">'
+    + '<img src="/assets/logo.svg" class="dh-hd-logo" alt="" width="52" height="52">'
     + '<div class="dh-hd-greeting">' + escHtml(greeting) + (firstName ? ', ' + escHtml(firstName) : '') + '</div>'
     + '<div class="dh-hd-date">' + escHtml(dateLabel) + '</div>'
     + '<div class="dh-hd-meta">' + escHtml(_todaySummary) + _nextSummary + '</div>'
