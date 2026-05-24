@@ -561,6 +561,35 @@ function closeMoreSheet() {
   if (sheet) sheet.classList.remove('open');
 }
 
+/* ── + Add popup menu ────────────────────────────────────────── */
+function toggleAddMenu() {
+  var menu = document.getElementById('dh-add-menu');
+  if (!menu) return;
+  var opening = menu.style.display === 'none';
+  menu.style.display = opening ? 'block' : 'none';
+  if (opening) {
+    setTimeout(function() {
+      document.addEventListener('click', _closeAddMenuOutside);
+    }, 10);
+  }
+}
+function closeAddMenu() {
+  var menu = document.getElementById('dh-add-menu');
+  if (menu) menu.style.display = 'none';
+  document.removeEventListener('click', _closeAddMenuOutside);
+}
+function _closeAddMenuOutside(e) {
+  var wrap = document.getElementById('dh-add-btn');
+  if (wrap) wrap = wrap.parentNode;
+  if (!wrap || !wrap.contains(e.target)) closeAddMenu();
+}
+function focusReminderInp() {
+  var inp = document.getElementById('dh-task-inp');
+  if (!inp) return;
+  inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(function() { inp.focus(); }, 280);
+}
+
 /* ── Topbar: hide on home (inline header used), show on other views ── */
 function _dbUpdateTopbar(view) {
   var topbar   = document.getElementById('app-topbar');
@@ -3302,16 +3331,44 @@ function renderHomeView() {
   var needsInvoiceCount = _uni.past.filter(function(s) { return s.status === 'pending-invoice'; }).length;
   var awaitingPayCount  = invoices.filter(function(i) { return parseFloat(i.totalBalance || 0) > 0; }).length;
 
-  // ── Header — greeting + single primary action ─────────────────
+  // ── Header — greeting + text summary + Add popup ─────────────
+  var _todaySummary = todayAppts.length === 0
+    ? 'No sessions today'
+    : todayAppts.length + ' session' + (todayAppts.length !== 1 ? 's' : '') + ' today';
+  var _nextSummary = '';
+  if (nextAppt) {
+    var _nN = escHtml(nextAppt.name || nextAppt.patientName || 'Client');
+    var _nT = nextAppt.timeStr || (nextAppt.startIso ? _fmtT(nextAppt.startIso) : '');
+    var _nD = (nextAppt.dateStr && nextAppt.dateStr !== todayIso)
+      ? new Date(nextAppt.dateStr + 'T00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+      : '';
+    _nextSummary = ' &middot; Next: <strong>' + _nN + '</strong>'
+      + (_nT ? ' at ' + escHtml(_nT) : '')
+      + (_nD ? ' &middot; ' + escHtml(_nD) : '');
+  } else {
+    _nextSummary = ' &middot; Calendar is clear';
+  }
+
   html += '<div class="dh-hd-row">'
     + '<div class="dh-hd-left">'
     + '<div class="dh-hd-greeting">' + escHtml(greeting) + (firstName ? ', ' + escHtml(firstName) : '') + '</div>'
     + '<div class="dh-hd-date">' + escHtml(dateLabel) + '</div>'
+    + '<div class="dh-hd-meta">' + escHtml(_todaySummary) + _nextSummary + '</div>'
     + '</div>'
-    + '<button class="dh-chip dh-chip--primary" onclick="openDbModal(\'appt\')">'
-    + '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-    + 'New Appointment'
+    + '<div class="dh-add-wrap">'
+    + '<button class="dh-chip dh-chip--primary" id="dh-add-btn" onclick="toggleAddMenu()">'
+    + '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>'
+    + '&nbsp;Add'
     + '</button>'
+    + '<div class="dh-add-menu" id="dh-add-menu" style="display:none">'
+    + '<button class="dh-add-item" onclick="closeAddMenu();openDbModal(\'client\')">'
+    + IC.people + 'Client</button>'
+    + '<button class="dh-add-item" onclick="closeAddMenu();openDbModal(\'appt\')">'
+    + IC.cal + 'Appointment</button>'
+    + '<button class="dh-add-item" onclick="closeAddMenu();focusReminderInp()">'
+    + IC.tasks + 'Reminder</button>'
+    + '</div>'
+    + '</div>'
     + '</div>';
 
   // ── 4-quadrant bento grid ─────────────────────────────────────
@@ -3352,55 +3409,17 @@ function renderHomeView() {
   html += '<div class="dh-inbox-list" id="dh-inbox-list"></div>';
   html += '</div></div>'; // .dh-attn-card + dh-b-6.dh-fold
 
-  // BL: Utility column — Today / Next Session / Reminders stacked
-  var todayDateStr = now.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-  html += '<div class="dh-b-6"><div class="dh-util-col">';
-
-  html += '<div class="dh-util-widget">'
-    + '<div class="dh-util-title">Today</div>'
-    + '<div class="dh-util-main">' + todayAppts.length + ' session' + (todayAppts.length !== 1 ? 's' : '') + '</div>'
-    + '<div class="dh-util-sub">' + escHtml(todayDateStr) + '</div>';
-  if (todayAppts.length) {
-    html += '<div class="dh-util-pills">'
-      + todayAppts.slice(0,2).map(function(a) {
-          var nm = a.name || a.patientName || 'Client';
-          var t  = a.timeStr || (a.startIso ? _fmtT(a.startIso) : a.start ? _fmtT(a.start) : '');
-          return '<span class="dh-util-pill">' + escHtml((t ? t + ' · ' : '') + nm) + '</span>';
-        }).join('')
-      + (todayAppts.length > 2 ? '<span class="dh-util-pill dh-util-pill--more">+' + (todayAppts.length - 2) + '</span>' : '')
-      + '</div>';
-  }
-  html += '</div>';
-
-  if (nextAppt) {
-    var nxtName = escHtml(nextAppt.name || nextAppt.patientName || 'Client');
-    var nxtTime = nextAppt.timeStr || (nextAppt.startIso ? _fmtT(nextAppt.startIso) : nextAppt.start ? _fmtT(nextAppt.start) : '');
-    var nxtDate = nextAppt.dateStr && nextAppt.dateStr !== todayIso
-      ? new Date(nextAppt.dateStr + 'T00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
-      : 'Today';
-    html += '<div class="dh-util-widget dh-util-widget--link" onclick="openDetailPanel(\'session\',\'' + escHtml(String(nextAppt.id||'')) + '\')">'
-      + '<div class="dh-util-title">Next Session</div>'
-      + '<div class="dh-util-main">' + nxtName + '</div>'
-      + '<div class="dh-util-sub">' + escHtml(nxtTime + (nxtTime ? ' · ' : '') + nxtDate) + '</div>'
-      + '</div>';
-  } else {
-    html += '<div class="dh-util-widget">'
-      + '<div class="dh-util-title">Next Session</div>'
-      + '<div class="dh-util-main" style="color:var(--t3)">None scheduled</div>'
-      + '<div class="dh-util-sub">Calendar is clear</div>'
-      + '</div>';
-  }
-
-  html += '<div class="dh-util-widget">'
+  // BL: Reminders (full quadrant)
+  html += '<div class="dh-b-6"><div class="dh-util-col">'
+    + '<div class="dh-util-widget">'
     + '<div class="dh-util-title">Reminders</div>'
     + '<div class="dh-util-main" id="dh-util-remind-val" style="color:var(--t3)">—</div>'
     + '<div class="dh-util-sub" id="dh-util-remind-sub">Loading…</div>'
     + '<div class="dh-util-add">'
     + '<input class="dh-util-add-inp" id="dh-task-inp" placeholder="Add reminder…" onkeydown="dhAddTask(event)">'
     + '</div>'
-    + '</div>';
-
-  html += '</div></div>'; // .dh-util-col + dh-b-6
+    + '</div>'
+    + '</div></div>'; // .dh-util-col + dh-b-6
 
   // BR: Billing card
   html += '<div class="dh-b-6 dh-fold">'

@@ -387,7 +387,27 @@ body::before {
   letter-spacing: -0.03em; line-height: 1;
 }
 .dh-hd-date { font-size: 13px; color: var(--t3); margin-top: 7px; font-weight: 400; }
+.dh-hd-meta { font-size: 12px; color: var(--t3); margin-top: 6px; font-weight: 400; line-height: 1.5; }
+.dh-hd-meta strong { color: var(--t2); font-weight: 500; }
 .dh-hd-actions { display: flex; align-items: stretch; gap: 10px; flex-shrink: 0; }
+
+/* + Add popup menu */
+.dh-add-wrap { position: relative; flex-shrink: 0; }
+.dh-add-menu {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: rgba(8,12,24,0.98); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px; padding: 6px; z-index: 150;
+  min-width: 176px; box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+}
+.dh-add-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 10px 14px; background: none; border: none;
+  border-radius: 9px; font-family: inherit; font-size: 13px; font-weight: 500;
+  color: var(--t1); text-align: left; cursor: pointer; transition: background 0.12s;
+}
+.dh-add-item:hover { background: rgba(255,255,255,0.07); }
+.dh-add-item svg { opacity: 0.55; flex-shrink: 0; }
 
 /* ── Row 1: 4 stat cards ── */
 .dh-stats-row {
