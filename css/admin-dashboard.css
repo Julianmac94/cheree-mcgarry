@@ -1645,10 +1645,40 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .settings-danger-btn:not(:disabled):hover { background: rgba(248,113,113,0.18); }
 .settings-danger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-/* ══ Mobile — dark bottom nav + responsive layout ═════════════════════
-   Overrides the light-themed bottom-nav and fixes layout for ≤768px. */
+/* ══ Mobile ≤768px ════════════════════════════════════════════════════
+   The base CSS has .sidebar { display:flex !important } and
+   .view-content { padding: 80px 36px 60px !important } — both need
+   explicit !important overrides here to take effect on mobile.       */
 @media (max-width: 768px) {
-  /* Dark bottom nav */
+
+  /* ── Kill the sidebar — it has display:flex !important globally ── */
+  .sidebar {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* ── Full-width main area ── */
+  .app-shell  { flex-direction: column !important; }
+  .app-main   { width: 100% !important; }
+  .app-content { overflow-x: hidden !important; }
+
+  /* ── View-content: strip the big desktop padding ── */
+  .view-content { padding: 0 !important; overflow-x: hidden !important; }
+
+  /* ── Individual views handle their own padding ── */
+  .home-view,
+  .queue-view,
+  .clients-view,
+  .billing-view,
+  .settings-view {
+    padding: 18px 16px 84px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ── Dark bottom nav ── */
   .bottom-nav {
     background: rgba(6,10,22,0.96) !important;
     border-top: 1px solid rgba(255,255,255,0.07) !important;
@@ -1657,87 +1687,69 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
     height: 60px !important;
     padding-bottom: env(safe-area-inset-bottom, 0px) !important;
   }
-  .bn-item { color: rgba(255,255,255,0.28) !important; font-size: 9.5px !important; }
+  .bn-item       { color: rgba(255,255,255,0.28) !important; font-size: 9px !important; }
   .bn-item.active { color: var(--teal) !important; }
-  .bn-icon { font-size: 20px !important; }
+  .bn-icon       { font-size: 20px !important; }
 
-  /* View content — tighter on mobile */
-  .view-content { padding: 14px 14px 82px !important; }
+  /* ── Bento grid — single column ── */
+  .dh-bento { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .dh-b-3, .dh-b-4, .dh-b-5, .dh-b-6, .dh-b-7, .dh-b-8 { grid-column: span 1 !important; }
 
-  /* Home view heading */
-  .home-view, .queue-view, .clients-view, .billing-view, .settings-view {
-    padding: 14px 0 82px !important;
-  }
-
-  /* Bento grid — single column on mobile */
-  .dh-bento {
-    grid-template-columns: 1fr !important;
-    gap: 12px !important;
-  }
-  .dh-b-3, .dh-b-4, .dh-b-5, .dh-b-6, .dh-b-7, .dh-b-8 {
-    grid-column: span 1 !important;
-  }
-
-  /* Stats row — 2×2 on mobile */
+  /* ── Stats — 2×2 ── */
   .dh-stats-row { grid-template-columns: repeat(2,1fr) !important; gap: 10px !important; }
+  .dh-stat      { padding: 16px !important; border-radius: 16px !important; }
+  .dh-stat-val  { font-size: 26px !important; }
 
-  /* Week strip — smaller text */
-  .dh-wd-name { font-size: 8px !important; letter-spacing: 0.06em !important; }
-  .dh-wd-num  { font-size: 13px !important; }
-  .dh-week-strip { padding: 12px 12px 10px !important; gap: 1px !important; }
+  /* ── Week strip — squeeze it ── */
+  .dh-week-strip { padding: 10px 10px 8px !important; gap: 0 !important; overflow-x: auto !important; }
+  .dh-week-day   { padding: 6px 2px !important; min-width: 36px !important; }
+  .dh-wd-name    { font-size: 8px !important; }
+  .dh-wd-num     { font-size: 14px !important; }
 
-  /* Schedule rows */
-  .dh-sched-row { padding: 9px 14px !important; }
+  /* ── Schedule & attention items ── */
+  .dh-sched-row  { padding: 9px 14px !important; }
   .dh-sched-name { font-size: 13px !important; }
-
-  /* Attention cards */
-  .dh-attn-item { padding: 10px 14px !important; }
-
-  /* Pipeline / queue */
   .dh-sched-card, .dh-attn-card { border-radius: 16px !important; }
+  .dh-attn-item  { padding: 10px 14px !important; }
 
-  /* Stat cards */
-  .dh-stat { border-radius: 16px !important; padding: 16px !important; }
-  .dh-stat-val { font-size: 28px !important; }
+  /* ── Pipeline / kanban board — single column on phones ── */
+  .dkb-board { grid-template-columns: 1fr !important; gap: 10px !important; }
 
-  /* Modal — full-width on small screens */
-  .modal-overlay { padding: 10px 6px !important; align-items: flex-end !important; }
-  .modal-card {
-    max-width: 100% !important;
-    max-height: 88dvh !important;
-    border-radius: 20px 20px 14px 14px !important;
-  }
+  /* ── Queue items ── */
+  .q-item    { padding: 10px 14px !important; }
+  .q-folder  { border-radius: 16px !important; }
 
-  /* Settings */
-  .settings-view { padding-left: 0 !important; padding-right: 0 !important; }
-  .settings-section { border-radius: 12px !important; }
+  /* ── Client list ── */
+  .cl-list-hd { padding: 12px 14px 10px !important; }
+  .cl-list    { padding: 8px 0 84px !important; }
+
+  /* ── Billing table — allow horizontal scroll ── */
+  .db-tbl-wrap { overflow-x: auto !important; }
+  .db-clients-tbl { min-width: 480px !important; }
+
+  /* ── Settings ── */
+  .settings-section      { border-radius: 12px !important; }
   .settings-danger-confirm { flex-direction: column !important; }
 
-  /* Client list */
-  .cl-list { padding: 8px 0 82px !important; }
-  .cl-list-hd { padding: 12px 14px 10px !important; }
-
-  /* Pipeline board — scroll horizontally if needed */
-  .dkb-board {
-    grid-template-columns: repeat(2,1fr) !important;
-    gap: 10px !important;
+  /* ── Modal — slide up from bottom ── */
+  .modal-overlay { padding: 0 0 0 !important; align-items: flex-end !important; }
+  .modal-card {
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 92dvh !important;
+    border-radius: 22px 22px 0 0 !important;
+    margin: 0 !important;
   }
 
-  /* Queue items */
-  .q-item { padding: 10px 14px !important; }
-
-  /* View title */
-  .view-title { font-size: 22px !important; }
-
-  /* Topbar — show on mobile with minimal info */
-  .app-topbar {
-    display: none !important;
-  }
+  /* ── Typography ── */
+  .view-title { font-size: 20px !important; }
+  .db-sec-title { font-size: 9px !important; }
 }
 
-/* Very small phones */
+/* ── Very small phones (≤390px) ── */
 @media (max-width: 390px) {
   .dh-stats-row { grid-template-columns: 1fr !important; }
-  .dkb-board { grid-template-columns: 1fr !important; }
-  .view-content { padding: 12px 12px 82px !important; }
+  .home-view, .queue-view, .clients-view, .billing-view, .settings-view {
+    padding: 14px 12px 84px !important;
+  }
 }
