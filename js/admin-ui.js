@@ -34,20 +34,33 @@ function _clearBillingSubmission(invId) {
   renderBillingPanel();
 }
 
-/* ── Toast notifications ── */
+/* ── Toast notifications — frosted glass, top-centre ── */
 function toast(msg, type) {
-  var el = document.createElement('div');
-  var bg = type === 'err' ? '#BE6E44' : '#2A5850';
-  el.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;max-width:340px;'
-    + 'padding:11px 18px;border-radius:9px;font-family:Inter,system-ui,sans-serif;font-size:13px;'
-    + 'font-weight:500;color:#fff;background:' + bg + ';'
-    + 'box-shadow:0 4px 20px rgba(0,0,0,0.22);opacity:1;transition:opacity 0.35s;pointer-events:none;';
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(function () {
-    el.style.opacity = '0';
-    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 380);
-  }, type === 'err' ? 5000 : 2500);
+  var container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  var pill = document.createElement('div');
+  pill.className = 'toast-pill';
+
+  var dot = document.createElement('span');
+  dot.className = 'toast-dot ' + (type === 'err' ? 'toast-dot--err' : type === 'ok' ? 'toast-dot--ok' : 'toast-dot--def');
+  pill.appendChild(dot);
+
+  var text = document.createElement('span');
+  text.textContent = msg;
+  pill.appendChild(text);
+
+  container.appendChild(pill);
+
+  var ttl = type === 'err' ? 5000 : 2600;
+  setTimeout(function() {
+    pill.classList.add('toast-out');
+    setTimeout(function() { if (pill.parentNode) pill.parentNode.removeChild(pill); }, 280);
+  }, ttl);
 }
 
 /* ── Success overlay (Apple Pay-style) ── */
