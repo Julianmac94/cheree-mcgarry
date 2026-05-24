@@ -4107,8 +4107,8 @@ async function _fetchHalaxyInvoices(hxId) {
             payorBadge = '<span style="font-size:10px;color:#7A50A0;margin-left:4px">' + escHtml(payorLabel2) + '</span>';
           }
           return '<div class="cl-detail-inv-row">'
-            + '<span style="flex:1;font-size:12px;color:#7A948F">' + escHtml(dateStr) + '</span>'
-            + '<span style="font-weight:600;color:#1A2F2B">' + (amount > 0 ? '$' + amount.toFixed(2) : '—') + '</span>'
+            + '<span style="flex:1;font-size:12px;color:rgba(255,255,255,0.4)">' + escHtml(dateStr) + '</span>'
+            + '<span style="font-weight:600;color:rgba(255,255,255,0.85)">' + (amount > 0 ? '$' + amount.toFixed(2) : '—') + '</span>'
             + payorBadge
             + '<span class="cl-detail-inv-badge ' + statusCls + '">' + escHtml(statusLbl) + '</span></div>';
         }).join('');
@@ -4858,11 +4858,11 @@ function _renderSessionDetailPanel(sess) {
   // Reminder: no warning, just confirmation + undo
   if (sess.isReminder) {
     html += '<div style="display:flex;align-items:center;gap:8px">'
-      + '<span class="rdp-status-chip" style="background:rgba(0,0,0,0.06);color:#6b7280">📋 Reminder</span>'
+      + '<span class="rdp-status-chip" style="background:rgba(167,139,250,0.15);color:#A78BFA">📋 Reminder</span>'
       + '</div>';
-    html += '<div style="font-size:12px;color:#888;margin-top:8px;line-height:1.5">Marked as a reminder — visible in your schedule and Reminders list. Not counted as a client appointment.</div>';
+    html += '<div style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:8px;line-height:1.5">Marked as a reminder — visible in your schedule and Reminders list. Not counted as a client appointment.</div>';
     html += '<button class="rdp-ghost-btn" style="margin-top:8px" onclick="_calMarkAsReminder_undo(\'' + escHtml(_calEvId) + '\')">Restore as appointment</button>';
-    html += '<button style="display:block;width:100%;margin-top:6px;padding:8px;border:none;background:none;cursor:pointer;font-size:11px;color:#c0534a;font-family:inherit" onclick="deleteScheduleAppt(\'' + escHtml(_calEvId) + '\')">Delete from calendar</button>';
+    html += '<button style="display:block;width:100%;margin-top:6px;padding:8px;border:none;background:none;cursor:pointer;font-size:11px;color:#F87171;font-family:inherit" onclick="deleteScheduleAppt(\'' + escHtml(_calEvId) + '\')">Delete from calendar</button>';
     html += '</div>';
     return html;
   }
@@ -4882,7 +4882,7 @@ function _renderSessionDetailPanel(sess) {
 
   } else if (sess.status === 'pending-invoice') {
     html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
-      + '<span class="rdp-status-chip" style="background:rgba(108,92,231,0.12);color:#7c6fe0">No invoice yet</span>'
+      + '<span class="rdp-status-chip" style="background:rgba(167,139,250,0.15);color:#A78BFA">No invoice yet</span>'
       + '</div>';
     html += '<a class="rdp-primary-btn" style="margin-top:10px" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">Open in Halaxy to invoice →</a>';
 
@@ -4890,12 +4890,12 @@ function _renderSessionDetailPanel(sess) {
     var _pid = sess.patientId || '';
     if (sess.source === 'cal' && !sess.patientId) {
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
-        + '<span class="rdp-status-chip" style="background:rgba(108,92,231,0.12);color:#7c6fe0">Google Calendar · Past</span>'
+        + '<span class="rdp-status-chip" style="background:rgba(167,139,250,0.15);color:#A78BFA">Google Calendar · Past</span>'
         + '</div>';
       html += _calUnlinkedActionHtml(sess.eventId || sess.id, sess.name);
     } else {
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
-        + '<span class="rdp-status-chip" style="background:rgba(108,92,231,0.12);color:#7c6fe0">Needs recording</span>'
+        + '<span class="rdp-status-chip" style="background:rgba(167,139,250,0.15);color:#A78BFA">Needs recording</span>'
         + '</div>';
       html += '<button class="rdp-primary-btn" style="margin-top:10px" onclick="openHalaxyApptLogPanel(\'' + escHtml(sess.id) + '\',\'' + escHtml(_pid) + '\',\'' + escHtml(sess.name || '') + '\',\'' + escHtml(sess.dateStr) + '\',\'' + escHtml(sess.startIso || (sess.dateStr + 'T09:00:00')) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Record this appointment →</button>';
     }
@@ -5006,8 +5006,8 @@ function _calUnlinkedActionHtml(eventId, calName) {
 
   // Warning box with explicit dark colours (not CSS vars — panel is light)
   html += '<div style="margin-top:10px;padding:10px 12px;background:rgba(224,123,57,0.08);border:1px solid rgba(224,123,57,0.22);border-radius:8px">'
-    + '<div style="font-size:11px;font-weight:700;color:#b85a1e;margin-bottom:4px">⚠ No client linked</div>'
-    + '<div style="font-size:11px;color:#5a4a3a;line-height:1.55">This Google Calendar event has no Halaxy patient or dashboard client attached.</div>'
+    + '<div style="font-size:11px;font-weight:700;color:#FBBF24;margin-bottom:4px">⚠ No client linked</div>'
+    + '<div style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.55">This Google Calendar event has no Halaxy patient or dashboard client attached.</div>'
     + '</div>';
 
   // Primary action: link to Halaxy patient
@@ -5026,7 +5026,7 @@ function _calUnlinkedActionHtml(eventId, calName) {
   html += '<button class="rdp-ghost-btn" style="margin-top:6px;color:#6b7280" onclick="_calMarkAsReminder(\'' + safeId + '\',\'' + safeName + '\')">📋 This is a reminder — not a client appointment</button>';
 
   // Quaternary: delete
-  html += '<button style="display:block;width:100%;margin-top:6px;padding:8px;border:none;background:none;cursor:pointer;font-size:11px;color:#c0534a;font-family:inherit" '
+  html += '<button style="display:block;width:100%;margin-top:6px;padding:8px;border:none;background:none;cursor:pointer;font-size:11px;color:#F87171;font-family:inherit" '
     + 'onclick="deleteScheduleAppt(\'' + safeId + '\')">Delete from calendar</button>';
 
   return html;
@@ -5497,7 +5497,7 @@ function _renderClientDetailPanel(cl) {
   }
   if (cl.plan_manager) html += '<div class="rdp-row"><span class="rdp-row-label">Plan manager</span><span class="rdp-row-val">' + escHtml(cl.plan_manager) + '</span></div>';
   if (cl.notes)        html += '<div class="rdp-row"><span class="rdp-row-label">Notes</span><span class="rdp-row-val">' + escHtml(cl.notes) + '</span></div>';
-  if (hid)             html += '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span><span class="rdp-row-val" style="font-size:11px;color:#7A948F">' + escHtml(hid) + '</span></div>';
+  if (hid)             html += '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span><span class="rdp-row-val" style="font-size:11px;color:rgba(255,255,255,0.3);font-family:monospace">' + escHtml(hid) + '</span></div>';
   html += '<div style="margin-top:8px">'
     + '<button class="rdp-ghost-btn" style="font-size:11px;padding:4px 10px" onclick="openEditClientTypePanel(\'' + escHtml(cl.id) + '\')">Edit type / parent…</button>'
     + '</div>';
@@ -6118,8 +6118,8 @@ function _renderMapToHalaxySearch(modal, clientId, c) {
   var displayName = escHtml(c.display_name || '');
 
   inner.innerHTML = '<div style="padding:28px 24px;max-width:480px;width:100%">'
-    + '<div style="font-size:22px;font-weight:600;color:#1A2F2B;margin-bottom:6px">Map to Halaxy</div>'
-    + '<div style="font-size:13px;color:#7A948F;margin-bottom:24px">Link <strong>' + displayName + '</strong> to their Halaxy patient record.</div>'
+    + '<div style="font-size:22px;font-weight:600;color:var(--t1,rgba(255,255,255,0.92));margin-bottom:6px">Map to Halaxy</div>'
+    + '<div style="font-size:13px;color:var(--t3,rgba(255,255,255,0.4));margin-bottom:24px">Link <strong>' + displayName + '</strong> to their Halaxy patient record.</div>'
 
     // Option 1 — Search existing
     + '<div style="margin-bottom:20px">'
@@ -6163,8 +6163,8 @@ function _showCreateHalaxyForm(clientId) {
 
   var inner = modal.querySelector('.cl-modal-inner') || modal;
   inner.innerHTML = '<div style="padding:28px 24px;max-width:480px;width:100%">'
-    + '<div style="font-size:22px;font-weight:600;color:#1A2F2B;margin-bottom:6px">Create in Halaxy</div>'
-    + '<div style="font-size:13px;color:#7A948F;margin-bottom:24px">A new patient record will be created in Halaxy and linked to this onboarding record.</div>'
+    + '<div style="font-size:22px;font-weight:600;color:var(--t1,rgba(255,255,255,0.92));margin-bottom:6px">Create in Halaxy</div>'
+    + '<div style="font-size:13px;color:var(--t3,rgba(255,255,255,0.4));margin-bottom:24px">A new patient record will be created in Halaxy and linked to this onboarding record.</div>'
 
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">'
     + '<div><label style="font-size:11px;font-weight:600;color:#9AABA8;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">First name <span style="color:#BE6E44">*</span></label>'
