@@ -1082,6 +1082,12 @@ body {
     display: inline-flex; align-items: center; justify-content: center; padding: 0 4px;
   }
   .mob-inbox-tab.active .mob-inbox-tab-cnt { background: rgba(52,211,153,0.18); }
+  /* Critical (Halaxy no-invoice) tab */
+  .mob-inbox-tab-crit { color: #ef4444 !important; border-color: rgba(239,68,68,0.25) !important; background: rgba(239,68,68,0.08) !important; }
+  .mob-inbox-tab-crit.active { background: rgba(239,68,68,0.15) !important; border-color: rgba(239,68,68,0.4) !important; }
+  /* Actions (merge/dismiss) tab */
+  .mob-inbox-tab-act { color: var(--amber) !important; border-color: rgba(245,158,11,0.25) !important; background: rgba(245,158,11,0.08) !important; }
+  .mob-inbox-tab-act.active { background: rgba(245,158,11,0.15) !important; border-color: rgba(245,158,11,0.4) !important; }
   .mob-inbox-view .dh-attn-card {
     flex: 1; overflow-y: auto; margin-top: 10px;
     min-height: 0; border-radius: 0; border: none;

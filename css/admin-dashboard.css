@@ -1484,6 +1484,30 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   padding: 1px 6px; border-radius: 10px;
   background: rgba(255,255,255,0.07); color: var(--t3);
 }
+
+/* ── Inbox issues section ── */
+.dh-if-section-label {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--t3);
+  padding: 6px 14px 4px;
+}
+.dh-if-divider {
+  margin: 8px 14px;
+  border-top: 1px solid var(--sep);
+}
+/* Critical: Halaxy no-invoice — red */
+.dh-if-critical { color: #ef4444; }
+.dh-if-critical:hover { background: rgba(239,68,68,0.07); color: #ef4444; }
+.dh-if-critical.active { color: #ef4444; font-weight: 700; }
+.dh-if-critical .dh-if-label::before { content: ''; }
+.dh-if-count-crit { background: rgba(239,68,68,0.15) !important; color: #ef4444 !important; }
+.dh-if-critical.active .dh-if-count { background: rgba(239,68,68,0.2) !important; color: #ef4444 !important; }
+/* Actions: non-Halaxy merge/dismiss — amber */
+.dh-if-actions { color: var(--amber); }
+.dh-if-actions:hover { background: rgba(245,158,11,0.07); color: var(--amber); }
+.dh-if-actions.active { color: var(--amber); font-weight: 700; }
+.dh-if-count-act { background: rgba(245,158,11,0.15) !important; color: var(--amber) !important; }
+.dh-if-actions.active .dh-if-count { background: rgba(245,158,11,0.2) !important; color: var(--amber) !important; }
 .dh-inbox-list {
   flex: 1; min-width: 0; overflow-y: auto;
   display: flex; flex-direction: column;

@@ -755,22 +755,38 @@ function _mobRenderInbox() {
     var c = _dhEnqClientMap[e.id];
     return c && c.halaxy_id && (_dhPatientApptMap[String(c.halaxy_id)] || []).length > 0;
   }).length;
+  var mobCritCount    = _dhHalaxyNoInvoice  ? _dhHalaxyNoInvoice.length  : 0;
+  var mobActionsCount = _dhNonHalaxyActions ? _dhNonHalaxyActions.length : 0;
 
-  function _tab(status, label, cnt, extra) {
+  // Default active: critical if issues exist, otherwise 'new'
+  var mobDefault = mobCritCount > 0 ? 'critical' : 'new';
+
+  function _tab(status, label, cnt, extraCntStyle, extraBtnStyle) {
     var cntHtml = cnt
-      ? '<span class="mob-inbox-tab-cnt"' + (extra || '') + '>' + cnt + '</span>'
+      ? '<span class="mob-inbox-tab-cnt"' + (extraCntStyle ? ' style="' + extraCntStyle + '"' : '') + '>' + cnt + '</span>'
       : '';
-    return '<button class="dh-inbox-folder mob-inbox-tab' + (status === 'new' ? ' active' : '')
+    return '<button class="dh-inbox-folder mob-inbox-tab' + (status === mobDefault ? ' active' : '')
+      + (extraBtnStyle ? ' ' + extraBtnStyle : '')
       + '" data-status="' + status + '" onclick="dhInboxFilter(\'' + status + '\',this)">'
       + label + cntHtml + '</button>';
   }
 
   var html = '<div class="mob-inbox-view">'
-    + '<div class="mob-inbox-tabs">'
-    + _tab('new',          'New',       newEnqs.length)
+    + '<div class="mob-inbox-tabs">';
+
+  // Issue tabs first (only shown when there are problems)
+  if (mobCritCount > 0) {
+    html += _tab('critical', '⚠ No Invoice', mobCritCount, 'color:#ef4444', 'mob-inbox-tab-crit');
+  }
+  if (mobActionsCount > 0) {
+    html += _tab('actions', 'Needs Action', mobActionsCount, 'color:var(--amber)', 'mob-inbox-tab-act');
+  }
+
+  // Pipeline tabs
+  html += _tab('new',          'New',       newEnqs.length)
     + _tab('contacted',    'Contacted', cntContacted)
     + _tab('upcoming_appt','Upcoming',  cntUpcoming)
-    + _tab('unlinked',     'Unlinked',  unlinkedCount, ' style="color:#b85a1e"')
+    + _tab('unlinked',     'Unlinked',  unlinkedCount, 'color:#b85a1e')
     + _tab('closed',       'Closed',    cntClosed)
     + _tab('all',          'All',       enquiries.length)
     + '</div>'
@@ -778,7 +794,13 @@ function _mobRenderInbox() {
     + '</div>';
 
   content.innerHTML = html;
-  _dhRenderInboxItems(document.getElementById('dh-inbox-list'), newEnqs);
+  var mobListEl = document.getElementById('dh-inbox-list');
+  if (mobCritCount > 0) {
+    _dhInboxFilter = 'critical';
+    _dhRenderSessionItems(mobListEl, _dhHalaxyNoInvoice, 'critical');
+  } else {
+    _dhRenderInboxItems(mobListEl, newEnqs);
+  }
   _updateMobileDock('queue');
 }
 
@@ -3930,21 +3952,45 @@ function _dhRenderInboxItems(listEl, items) {
   }).join('');
 }
 
-function _dhRenderSessionItems(listEl, sessions) {
+// mode: undefined/'billing' = normal, 'critical' = red, 'actions' = amber
+function _dhRenderSessionItems(listEl, sessions, mode) {
+  var emptyMsg = mode === 'critical' ? '🟢 No Halaxy invoice issues found'
+               : mode === 'actions'  ? 'No calendar/dashboard appointments need action'
+               : 'No unpaid appointments';
   if (!sessions || !sessions.length) {
-    listEl.innerHTML = '<div class="dh-attn-empty" style="padding:32px 20px;text-align:center;color:var(--t3);font-size:13px">No unpaid appointments</div>';
+    listEl.innerHTML = '<div class="dh-attn-empty" style="padding:32px 20px;text-align:center;color:var(--t3);font-size:13px">' + emptyMsg + '</div>';
     return;
   }
   var STAT_LABELS = { 'pending-invoice': 'No invoice yet', 'invoiced': 'Invoice unpaid', 'needs-recording': 'Needs recording' };
+  // Visual accent per mode
+  var accentStyle = mode === 'critical' ? 'border-left:3px solid #ef4444'
+                  : mode === 'actions'  ? 'border-left:3px solid var(--amber)'
+                  : '';
+  var metaStyle   = mode === 'critical' ? 'color:#ef4444'
+                  : mode === 'actions'  ? 'color:var(--amber)'
+                  : '';
+  var prefix      = mode === 'critical' ? '⚠ No invoice · '
+                  : mode === 'actions'  ? '↗ Needs action · '
+                  : '';
   listEl.innerHTML = sessions.slice(0, 12).map(function(s) {
     var nm       = s.name || 'Client';
     var label    = STAT_LABELS[s.status] || s.status;
     var dateStr  = s.dateLabel || s.dateStr || '';
     var sid      = escHtml(String(s.id || ''));
-    return '<div class="dh-attn-item" onclick="openDetailPanel(\'session\',\'' + sid + '\')">'
-      + '<div class="dh-attn-av ' + _dhAvCol(nm) + '">' + _dhIni(nm) + '</div>'
+    var avStyle  = mode === 'critical'
+      ? 'background:rgba(239,68,68,0.12);color:#ef4444;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0'
+      : mode === 'actions'
+      ? 'background:rgba(245,158,11,0.12);color:var(--amber);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0'
+      : '';
+    var avEl = avStyle
+      ? '<div class="dh-attn-av" style="' + avStyle + '">' + escHtml((nm[0] || '?').toUpperCase()) + '</div>'
+      : '<div class="dh-attn-av ' + _dhAvCol(nm) + '">' + _dhIni(nm) + '</div>';
+    return '<div class="dh-attn-item" onclick="openDetailPanel(\'session\',\'' + sid + '\')"'
+      + (accentStyle ? ' style="' + accentStyle + '"' : '') + '>'
+      + avEl
       + '<div class="dh-attn-body"><div class="dh-attn-name">' + escHtml(nm) + '</div>'
-      + '<div class="dh-attn-meta">' + escHtml(dateStr) + ' · ' + escHtml(label) + '</div></div>'
+      + '<div class="dh-attn-meta"' + (metaStyle ? ' style="' + metaStyle + '"' : '') + '>'
+      + prefix + escHtml(dateStr) + ' · ' + escHtml(label) + '</div></div>'
       + '<span class="dh-attn-arrow">›</span></div>';
   }).join('');
 }
@@ -3975,8 +4021,12 @@ function dhInboxFilter(status, el) {
   });
   var listEl = document.getElementById('dh-inbox-list');
   if (!listEl) return;
-  if (status === 'unpaid') {
-    _dhRenderSessionItems(listEl, _dhBillingSessions);
+  if (status === 'critical') {
+    _dhRenderSessionItems(listEl, _dhHalaxyNoInvoice, 'critical');
+    return;
+  }
+  if (status === 'actions') {
+    _dhRenderSessionItems(listEl, _dhNonHalaxyActions, 'actions');
     return;
   }
   if (status === 'unlinked') {
@@ -4021,6 +4071,10 @@ function _resolvePatientName(patientId) {
   var c = clients.find(function(cl) { return String(cl.halaxy_id) === String(patientId); });
   return c ? (c.display_name || c.first_name || 'Client') : 'Client #' + patientId;
 }
+
+/* ── Inbox issue buckets (populated in renderHomeView) ────────────── */
+var _dhHalaxyNoInvoice  = []; // past Halaxy appts with no invoice → CRITICAL
+var _dhNonHalaxyActions = []; // non-Halaxy appts needing merge/dismiss → action
 
 /* ── Reminders sort + priority state ─────────────────────────────── */
 var _dhRemindSort = 'date'; // 'date' | 'name'
@@ -4285,6 +4339,17 @@ function renderHomeView() {
   _dhBillingSessions = _uni.past.filter(function(s) {
     return s.status === 'pending-invoice' || s.status === 'invoiced' || s.status === 'needs-recording';
   });
+
+  // ── Issue buckets ─────────────────────────────────────────────
+  // Halaxy appointment with no invoice = critical data integrity problem
+  _dhHalaxyNoInvoice  = _uni.past.filter(function(s) {
+    return s.source === 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
+  });
+  // Non-Halaxy appointment needing merge or dismiss (calendar / dashboard)
+  _dhNonHalaxyActions = _uni.past.filter(function(s) {
+    return s.source !== 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
+  });
+
   _dhEnqClientMap = {};
   clients.forEach(function(c) { if (c.enquiry_id) _dhEnqClientMap[c.enquiry_id] = c; });
   _dhPatientApptMap = {};
@@ -4393,12 +4458,37 @@ function renderHomeView() {
   html += '<div class="dh-b-6 dh-fold" id="dh-q-inbox">'
     + '<div class="dh-fold-tab">'
     + IC.inbox + 'Inbox'
+    + (critCount > 0 ? '<span class="dh-fold-badge" style="background:rgba(239,68,68,0.15);color:#ef4444">⚠ ' + critCount + ' critical</span>' : '')
+    + (actionsCount > 0 && !critCount ? '<span class="dh-fold-badge" style="background:rgba(245,158,11,0.15);color:var(--amber)">' + actionsCount + ' actions</span>' : '')
     + (newEnquiries.length ? '<span class="dh-fold-badge">' + newEnquiries.length + ' new</span>' : '')
     + (unlinkedCount ? '<span class="dh-fold-badge" style="background:rgba(224,123,57,0.15);color:#b85a1e">' + unlinkedCount + ' unlinked</span>' : '')
     + '</div>'
     + '<div class="dh-attn-card">';
-  html += '<div class="dh-inbox-sidebar">'
-    + '<div class="dh-inbox-folder active" data-status="new" onclick="dhInboxFilter(\'new\',this)">'
+  // Issue buckets used in sidebar
+  var critCount    = _dhHalaxyNoInvoice.length;
+  var actionsCount = _dhNonHalaxyActions.length;
+  var hasIssues    = critCount > 0 || actionsCount > 0;
+
+  html += '<div class="dh-inbox-sidebar">';
+
+  // ── Issues section (only rendered when there are problems) ──
+  if (hasIssues) {
+    html += '<div class="dh-if-section-label">Issues</div>';
+    if (critCount > 0) {
+      html += '<div class="dh-inbox-folder dh-if-critical" data-status="critical" onclick="dhInboxFilter(\'critical\',this)">'
+        + '<span class="dh-if-label">⚠ No Invoice</span>'
+        + '<span class="dh-if-count dh-if-count-crit">' + critCount + '</span></div>';
+    }
+    if (actionsCount > 0) {
+      html += '<div class="dh-inbox-folder dh-if-actions" data-status="actions" onclick="dhInboxFilter(\'actions\',this)">'
+        + '<span class="dh-if-label">Needs Action</span>'
+        + '<span class="dh-if-count dh-if-count-act">' + actionsCount + '</span></div>';
+    }
+    html += '<div class="dh-if-divider"></div>';
+  }
+
+  // ── Enquiry pipeline section ──
+  html += '<div class="dh-inbox-folder' + (!hasIssues ? ' active' : '') + '" data-status="new" onclick="dhInboxFilter(\'new\',this)">'
     + '<span class="dh-if-label">New</span><span class="dh-if-count">' + newEnquiries.length + '</span></div>'
     + '<div class="dh-inbox-folder" data-status="contacted" onclick="dhInboxFilter(\'contacted\',this)">'
     + '<span class="dh-if-label">Contacted</span><span class="dh-if-count">' + contactedEnqs.length + '</span></div>'
@@ -4454,7 +4544,18 @@ function renderHomeView() {
   _dhLoadTasks();
   _dhRenderBillingBento();
   var _inboxListEl = document.getElementById('dh-inbox-list');
-  if (_inboxListEl) _dhRenderInboxItems(_inboxListEl, newEnquiries);
+  if (_inboxListEl) {
+    if (critCount > 0) {
+      // Auto-open critical folder if there are Halaxy no-invoice issues
+      _dhInboxFilter = 'critical';
+      document.querySelectorAll('.dh-inbox-folder').forEach(function(f) {
+        f.classList.toggle('active', f.dataset.status === 'critical');
+      });
+      _dhRenderSessionItems(_inboxListEl, _dhHalaxyNoInvoice, 'critical');
+    } else {
+      _dhRenderInboxItems(_inboxListEl, newEnquiries);
+    }
+  }
   _updateMobileDock('home');
 }
 
