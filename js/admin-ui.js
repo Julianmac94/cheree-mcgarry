@@ -4351,16 +4351,20 @@ function renderHomeView() {
   html += '</div></div>'; // .dh-attn-card + dh-b-6.dh-fold
 
   // BL: Reminders (full quadrant)
-  html += '<div class="dh-b-6" id="dh-q-util"><div class="dh-util-col">'
-    + '<div class="dh-util-widget">'
-    + '<div class="dh-util-title">Reminders</div>'
-    + '<div class="dh-util-main" id="dh-util-remind-val" style="color:var(--t3)">—</div>'
-    + '<div class="dh-util-sub" id="dh-util-remind-sub">Loading…</div>'
-    + '<div class="dh-util-add">'
-    + '<input class="dh-util-add-inp" id="dh-task-inp" placeholder="Add reminder…" onkeydown="dhAddTask(event)">'
+  html += '<div class="dh-b-6 dh-fold" id="dh-q-util">'
+    + '<div class="dh-fold-tab">'
+    + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>'
+    + 'Reminders'
+    + '<span class="dh-fold-badge" id="dh-util-remind-badge" style="display:none"></span>'
+    + '</div>'
+    + '<div class="dh-tasks-card" style="flex:1;min-height:0;cursor:default" onclick="">'
+    + '<div class="dh-tasks-body" id="dh-util-remind-list"><div class="dh-tasks-loading">Loading…</div></div>'
+    + '<div class="dh-tasks-add">'
+    + '<span class="dh-tasks-plus">+</span>'
+    + '<input class="dh-task-inp" id="dh-task-inp" placeholder="Add reminder…" onkeydown="dhAddTask(event)">'
     + '</div>'
     + '</div>'
-    + '</div></div>'; // .dh-util-col + dh-b-6
+    + '</div>'; // .dh-fold
 
   // BR: Billing card (flush — no fold-tab, like Reminders)
   html += '<div class="dh-b-6" id="dh-q-bill" style="display:flex;flex-direction:column;">'
@@ -4402,18 +4406,8 @@ async function _dhLoadTasks() {
     var tasks = await apiFetch('/api/admin-tasks');
     _dhTasks = Array.isArray(tasks) ? tasks : [];
     _dhTasksLoaded = true;
-    var valEl = document.getElementById('dh-util-remind-val');
-    var subEl = document.getElementById('dh-util-remind-sub');
-    var pending = _dhTasks.filter(function(t){ return !t.completed; }).length;
-    if (valEl) {
-      valEl.style.color = pending > 0 ? 'var(--t1)' : 'var(--t3)';
-      valEl.textContent = pending;
-    }
-    if (subEl) {
-      subEl.textContent = pending === 0 ? 'All clear'
-        : pending === 1 ? '1 pending reminder' : pending + ' pending reminders';
-    }
-    // Legacy body target (settings view tasks widget)
+    _dhRenderRemindBento();
+    // Legacy settings view tasks widget
     var body = document.getElementById('dh-tasks-body');
     if (body) {
       body.innerHTML = !_dhTasks.length ? '<div class="dh-tasks-empty">No tasks yet</div>'
@@ -4428,11 +4422,37 @@ async function _dhLoadTasks() {
           }).join('');
     }
   } catch(e) {
-    var valEl = document.getElementById('dh-util-remind-val');
-    if (valEl) { valEl.textContent = '—'; valEl.style.color = 'var(--t3)'; }
-    var subEl = document.getElementById('dh-util-remind-sub');
-    if (subEl) subEl.textContent = 'Could not load';
+    var listEl = document.getElementById('dh-util-remind-list');
+    if (listEl) listEl.innerHTML = '<div class="dh-tasks-empty">Could not load</div>';
   }
+}
+
+/* Render the task list inside the home bento reminders widget */
+function _dhRenderRemindBento() {
+  var listEl = document.getElementById('dh-util-remind-list');
+  if (!listEl) return;
+  var pending = _dhTasks.filter(function(t){ return !t.completed; });
+  var badge   = document.getElementById('dh-util-remind-badge');
+  if (badge) {
+    if (pending.length) {
+      badge.textContent = pending.length;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  if (!_dhTasks.length) {
+    listEl.innerHTML = '<div class="dh-tasks-empty">No reminders yet</div>';
+    return;
+  }
+  listEl.innerHTML = _dhTasks.map(function(t) {
+    var done = t.completed ? ' done' : '';
+    var chk  = t.completed ? '✓' : '';
+    return '<div class="dh-task-item' + done + '" data-id="' + escHtml(String(t.id)) + '">'
+      + '<button class="dh-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',' + !t.completed + ')" type="button">' + chk + '</button>'
+      + '<span class="dh-task-lbl">' + escHtml(t.title || t.text || '') + '</span>'
+      + '</div>';
+  }).join('');
 }
 
 /* ── Task detail panel ───────────────────────────────────────── */
@@ -4501,15 +4521,17 @@ async function dhDeleteTaskFromPanel(id) {
 }
 
 function dhToggleTask(id, completed) {
-  var item = document.querySelector('.dh-task-item[data-id="' + id + '"]');
-  if (item) {
-    item.classList.toggle('done', completed);
-    var btn = item.querySelector('.dh-task-chk');
-    if (btn) btn.textContent = completed ? '✓' : '';
-  }
+  // Optimistic update in _dhTasks cache
+  var t = _dhTasks.find(function(x){ return String(x.id) === String(id); });
+  if (t) t.completed = completed;
+  _dhRenderRemindBento();
   if (completed) _showSuccess('mark', 'Done');
   apiFetch('/api/admin-tasks?id=' + id, { method: 'PATCH', body: { completed: completed } })
-    .catch(function() { if (item) item.classList.toggle('done', !completed); });
+    .catch(function() {
+      // Revert on failure
+      if (t) t.completed = !completed;
+      _dhRenderRemindBento();
+    });
 }
 
 async function dhAddTask(ev) {
@@ -4522,11 +4544,7 @@ async function dhAddTask(ev) {
     var t = await apiFetch('/api/admin-tasks', { method: 'POST', body: { text: text } });
     if (t && t.id) {
       _dhTasks.push(t);
-      var pending = _dhTasks.filter(function(x){ return !x.completed; }).length;
-      var valEl = document.getElementById('dh-util-remind-val');
-      var subEl = document.getElementById('dh-util-remind-sub');
-      if (valEl) { valEl.textContent = pending; valEl.style.color = 'var(--t1)'; }
-      if (subEl) subEl.textContent = pending + ' pending reminder' + (pending !== 1 ? 's' : '');
+      _dhRenderRemindBento();
       toast('Reminder added');
     }
   } catch(e) {

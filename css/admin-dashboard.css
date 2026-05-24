@@ -96,42 +96,28 @@ body::before {
   gap: 0 !important;
 }
 
-/* ─── BRAND TOPBAR ──────────────────────────────────────────── */
-.app-topbar {
-  display: flex !important;
-  height: 52px !important;
-  flex-shrink: 0 !important;
-  background: rgba(8,12,24,0.85) !important;
-  backdrop-filter: blur(20px) !important;
-  -webkit-backdrop-filter: blur(20px) !important;
-  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
-  padding: 0 20px !important;
-  gap: 10px !important;
-  align-items: center !important;
-  position: relative !important;
-  z-index: 20 !important;
+/* ─── BRAND TOPBAR — gone entirely ──────────────────────────── */
+.app-topbar { display: none !important; }
+
+/* ─── FLOATING SETTINGS COG (desktop only) ──────────────────── */
+@media (min-width: 769px) {
+  .dh-desk-settings-btn {
+    position: fixed;
+    top: 18px; right: 20px;
+    z-index: 50;
+    width: 34px; height: 34px;
+    border-radius: 9px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--t3);
+    transition: background 0.13s, color 0.13s;
+  }
+  .dh-desk-settings-btn:hover {
+    background: rgba(255,255,255,0.10);
+    color: var(--teal);
+  }
 }
-/* Brand text colours */
-.topbar-brand-nm { color: var(--t1) !important; }
-.topbar-brand-nm em { color: var(--teal) !important; }
-.topbar-brand-sub { color: var(--t3) !important; }
-/* Buttons */
-.topbar-icon-btn { color: var(--t3) !important; border-color: transparent !important; }
-.topbar-icon-btn:hover { background: rgba(255,255,255,0.07) !important; color: var(--teal) !important; }
-.topbar-add-btn {
-  background: rgba(52,211,153,0.1) !important;
-  border-color: rgba(52,211,153,0.22) !important;
-  color: var(--teal) !important;
-}
-.topbar-add-btn:hover { background: rgba(52,211,153,0.18) !important; }
-.topbar-nav-btn { color: var(--t3) !important; border-color: transparent !important; }
-.topbar-nav-btn:hover { background: rgba(255,255,255,0.07) !important; color: var(--t1) !important; border-color: transparent !important; }
-.topbar-nav-btn.active { background: rgba(52,211,153,0.1) !important; color: var(--teal) !important; border-color: rgba(52,211,153,0.2) !important; }
-.topbar-refresh-btn { color: var(--t3) !important; }
-.topbar-refresh-btn:hover { color: var(--teal) !important; }
-.topbar-signout { color: var(--t3) !important; }
-.topbar-signout:hover { color: var(--t1) !important; }
-/* Drop add-menu gets dark glass look automatically via existing .dh-add-menu styles */
 
 .app-main {
   flex: 1 !important;
@@ -427,8 +413,7 @@ body::before {
 
 /* + Add popup menu */
 .dh-add-wrap { position: relative; flex-shrink: 0; }
-/* Mobile header + Add is hidden on desktop — the sidebar button handles desktop */
-@media (min-width: 769px) { .dh-mob-add-wrap { display: none !important; } }
+/* + Add wrap shown on all sizes now that topbar is gone */
 /* Sidebar add menu opens left-aligned (extends right into content area) */
 .sidebar-add-wrap .dh-add-menu { left: 0; right: auto; }
 .dh-add-menu {
@@ -1223,22 +1208,23 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   z-index: 2;
 }
 /*
-  Concave notch — the RIGHT approach:
-  A 20×20 helper placed just to the right of the tab's bottom edge.
-  border-top-left-radius:20px makes its top-left corner a transparent
-  quarter-circle (the concave arc), exposing the canvas through that area.
-  The rest of the element (bottom-right sliver) carries the tab/card
-  background so it blends invisibly with the card below.
+  Concave notch:
+  20×20 element placed just below and to the right of the tab.
+  bottom: -20px  →  top edge aligns with the card's top edge.
+  background: var(--canvas)  →  solid canvas colour, NOT the tab colour.
+  border-top-left-radius: 20px  →  transparent quarter-circle at top-left
+  reveals the card behind it, while the remaining L-shaped area blends
+  with the canvas — creating the concave curve at the tab's bottom-right.
 */
 .dh-fold-tab::after {
   content: '';
   position: absolute;
-  bottom: -1px;          /* bottom edge aligns with card top */
-  right: -20px;          /* sits immediately to the right of the tab */
+  bottom: -20px;         /* element top = card top (correct) */
+  right: -20px;          /* 20px to the right of the tab */
   width: 20px;
   height: 20px;
-  background: rgba(8,12,24,0.55);  /* exact match with tab/card bg */
-  border-top-left-radius: 20px;    /* this IS the concave arc */
+  background: var(--canvas);       /* solid canvas — NOT tab colour */
+  border-top-left-radius: 20px;    /* the concave arc */
   pointer-events: none;
   z-index: 3;
 }
