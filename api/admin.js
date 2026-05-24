@@ -3106,9 +3106,20 @@ body {
       <div>
         <div class="db-form-row">
           <div class="db-form-grp full"><label class="db-form-lbl">Client</label>
-            <select class="db-form-input" id="db-ap-ob-client">
-              <option value="">Select from queue…</option>
-            </select>
+            <div class="ccl-wrap" id="db-ap-ob-client-wrap">
+              <input type="hidden" id="db-ap-ob-client" value="">
+              <button class="ccl-btn" type="button" id="db-ap-ob-client-btn" onclick="_cclToggle('db-ap-ob-client')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="ccl-btn-lbl" id="db-ap-ob-client-display">Select client…</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div class="ccl-popup" id="db-ap-ob-client-popup" style="display:none">
+                <div class="ccl-search-row">
+                  <input class="ccl-search" id="db-ap-ob-client-search" type="text" placeholder="Search clients…" oninput="_cclFilter('db-ap-ob-client')" autocomplete="off">
+                </div>
+                <div class="ccl-list" id="db-ap-ob-client-list"></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="db-form-row">

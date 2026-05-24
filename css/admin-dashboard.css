@@ -1185,24 +1185,24 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--t2);
   box-shadow: none;
-  position: relative; /* needed for ::after notch */
+  position: relative;
+  z-index: 1; /* tab must stack above card so ::after covers card border */
 }
-/* Concave notch where tab's right edge meets the card below.
-   Uses the card fill colour — its rounded top-left corner reveals
-   the canvas behind, producing the correct concave arc. */
+/* Concave notch at the bottom-right of the tab where the tab wall
+   transitions into the card's top surface.
+   A canvas-coloured square with border-bottom-left-radius masks the
+   90° corner, revealing the card below through the curved cutout. */
 .dh-fold-tab::after {
   content: '';
   position: absolute;
-  bottom: -13px;            /* element starts exactly at tab's bottom edge */
-  right:  -13px;            /* element starts exactly at tab's right edge  */
-  width:  13px;
-  height: 13px;
-  background: rgba(13,19,38,0.97); /* matches --gc card colour */
-  border-top-left-radius: 11px;    /* concave arc: reveals canvas at top-left */
-  border-top:  1px solid rgba(255,255,255,0.09);
-  border-left: 1px solid rgba(255,255,255,0.09);
+  bottom: 0;               /* bottom of element = tab's bottom */
+  right: -16px;            /* element sits to the right of the tab */
+  width: 16px;
+  height: 16px;
+  background: var(--canvas); /* page background — covers card corner */
+  border-bottom-left-radius: 13px; /* the concave curve */
   pointer-events: none;
-  z-index: 2;
+  z-index: 1;
 }
 .dh-fold-tab svg { opacity: 0.65; }
 .dh-fold-tab .dh-fold-badge {
@@ -2016,6 +2016,62 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   from { opacity: 1; transform: translateY(0) scale(1); }
   to   { opacity: 0; transform: translateY(-8px) scale(0.95); }
 }
+
+/* ─── CUSTOM CLIENT LIST PICKER ─────────────────────────────── */
+.ccl-wrap { position: relative; width: 100%; }
+.ccl-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--rxs);
+  color: var(--t1); font-family: inherit; font-size: 13px;
+  cursor: pointer; text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
+}
+.ccl-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
+.ccl-btn-lbl { flex: 1; color: var(--t3); }
+.ccl-btn-lbl.has-val { color: var(--t1); }
+.ccl-btn svg { opacity: 0.45; flex-shrink: 0; }
+.ccl-popup {
+  position: fixed;
+  z-index: 9999;
+  background: rgba(13,19,38,0.98);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.65), 0 1px 0 rgba(255,255,255,0.07) inset;
+  overflow: hidden;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+.ccl-search-row { padding: 8px 8px 4px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.ccl-search {
+  width: 100%; padding: 7px 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px;
+  color: var(--t1); font-family: inherit; font-size: 12.5px;
+  outline: none; box-sizing: border-box;
+}
+.ccl-search::placeholder { color: var(--t3); }
+.ccl-list {
+  max-height: 200px; overflow-y: auto; padding: 5px;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+.ccl-list::-webkit-scrollbar { width: 4px; }
+.ccl-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 2px; }
+.ccl-item {
+  display: flex; align-items: center;
+  padding: 7px 10px; border-radius: 7px;
+  font-size: 13px; color: var(--t1);
+  cursor: pointer; transition: background 0.1s;
+  border: none; background: transparent;
+  width: 100%; font-family: inherit; text-align: left;
+}
+.ccl-item:hover { background: rgba(255,255,255,0.09); }
+.ccl-item.ccl-active { background: rgba(52,211,153,0.12) !important; color: var(--teal) !important; }
+.ccl-empty { font-size: 12px; color: var(--t3); padding: 14px; text-align: center; }
 
 /* ─── CUSTOM DATE PICKER ─────────────────────────────────────── */
 .cdp-wrap {

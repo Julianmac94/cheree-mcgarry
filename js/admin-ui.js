@@ -486,12 +486,15 @@ document.addEventListener('click', function(e) {
     var res = document.getElementById('db-ap-hx-results');
     if (res) { res.innerHTML = ''; res.style.display = 'none'; }
   }
-  // Close date/time picker popups if clicking outside
+  // Close date/time/client picker popups if clicking outside
   if (!e.target.closest('.cdp-wrap') && !e.target.closest('.cdp-popup')) {
     document.querySelectorAll('.cdp-popup').forEach(function(p) { p.style.display = 'none'; });
   }
   if (!e.target.closest('.ctp-wrap') && !e.target.closest('.ctp-popup')) {
     document.querySelectorAll('.ctp-popup').forEach(function(p) { p.style.display = 'none'; });
+  }
+  if (!e.target.closest('.ccl-wrap') && !e.target.closest('.ccl-popup')) {
+    document.querySelectorAll('.ccl-popup').forEach(function(p) { p.style.display = 'none'; });
   }
 });
 
@@ -973,6 +976,74 @@ function _ctpToggle(inputId) {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   Custom Client List (CCL) picker
+   ═══════════════════════════════════════════════════════════════ */
+function _cclToggle(inputId) {
+  var popup = document.getElementById(inputId + '-popup');
+  if (!popup) return;
+  var isHidden = popup.style.display === 'none' || !popup.style.display;
+  document.querySelectorAll('.ccl-popup, .cdp-popup, .ctp-popup').forEach(function(p) { p.style.display = 'none'; });
+  if (isHidden) {
+    var btn = document.getElementById(inputId + '-btn');
+    if (btn) {
+      var r = btn.getBoundingClientRect();
+      popup.style.position = 'fixed';
+      popup.style.left = r.left + 'px';
+      popup.style.width = r.width + 'px';
+      var ph = 260;
+      if (window.innerHeight - r.bottom - 8 >= ph || r.top < ph) {
+        popup.style.top = (r.bottom + 4) + 'px';
+        popup.style.bottom = 'auto';
+      } else {
+        popup.style.top = 'auto';
+        popup.style.bottom = (window.innerHeight - r.top + 4) + 'px';
+      }
+    }
+    popup.style.display = 'block';
+    var search = document.getElementById(inputId + '-search');
+    if (search) { search.value = ''; _cclFilter(inputId); setTimeout(function() { search.focus(); }, 30); }
+  }
+}
+
+function _cclFilter(inputId) {
+  var search = document.getElementById(inputId + '-search');
+  var list   = document.getElementById(inputId + '-list');
+  if (!list) return;
+  var q = search ? search.value.toLowerCase() : '';
+  list.querySelectorAll('.ccl-item').forEach(function(item) {
+    item.style.display = item.dataset.label.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+  });
+}
+
+function _cclPick(inputId, value, label) {
+  var inp   = document.getElementById(inputId);
+  var disp  = document.getElementById(inputId + '-display');
+  var popup = document.getElementById(inputId + '-popup');
+  if (inp)  inp.value = value;
+  if (disp) { disp.textContent = label || 'Select client…'; disp.classList.toggle('has-val', !!label); }
+  if (popup) popup.style.display = 'none';
+  var list = document.getElementById(inputId + '-list');
+  if (list) list.querySelectorAll('.ccl-item').forEach(function(item) {
+    item.classList.toggle('ccl-active', item.dataset.value === String(value));
+  });
+}
+
+function _cclPopulate(inputId, items) {
+  var list = document.getElementById(inputId + '-list');
+  if (!list) return;
+  if (!items || !items.length) {
+    list.innerHTML = '<div class="ccl-empty">No clients in queue</div>';
+    return;
+  }
+  list.innerHTML = items.map(function(item) {
+    var eid = inputId.replace(/'/g, "\\'");
+    var lbl = (item.label || '').replace(/'/g, "\\'");
+    var val = String(item.value || '').replace(/'/g, "\\'");
+    return '<button class="ccl-item" type="button" data-value="' + escHtml(String(item.value)) + '" data-label="' + escHtml(item.label) + '" onclick="_cclPick(\'' + eid + '\',\'' + val + '\',\'' + lbl + '\')">' + escHtml(item.label) + '</button>';
+  }).join('');
+}
+
 /* Render a full date picker widget (hidden input + styled button + popup calendar) */
 function _buildDatePickerHtml(inputId, defaultIso) {
   return '<div class="cdp-wrap" id="' + inputId + '-cdp">'
@@ -1108,6 +1179,15 @@ function _updateMobileDock(view) {
 function renderRemindersView() {
   var content = document.getElementById('view-content');
   if (!content) return;
+
+  // If tasks haven't been fetched yet, load them then re-render
+  if (!_dhTasksLoaded) {
+    content.innerHTML = '<div class="home-view" style="display:flex;align-items:center;justify-content:center;padding:48px 0"><span style="color:var(--t3);font-size:13px">Loading reminders…</span></div>';
+    _dhLoadTasks().then(function() {
+      if (_currentView === 'reminders' || _mobCurrentApp === 'reminders') renderRemindersView();
+    }).catch(function() {});
+    return;
+  }
 
   var tasks   = _dhTasks || [];
   var pending = tasks.filter(function(t) { return !t.completed; });
@@ -1248,17 +1328,14 @@ function openDbModal(type) {
     if (timeGrp && !timeGrp.querySelector('.ctp-wrap')) {
       timeGrp.innerHTML = '<label class="db-form-lbl">Time</label>' + _buildTimePickerHtml('db-ap-ob-time', '10:00');
     }
-    // Populate client dropdown — exclude Halaxy-only patients
-    var obSel = document.getElementById('db-ap-ob-client');
-    if (obSel && _pipelineData && _pipelineData.clients) {
-      while (obSel.options.length > 1) obSel.remove(1);
-      (_pipelineData.clients || []).filter(function(c) { return !c._isHalaxyOnly && !c.halaxy_id; }).forEach(function(c) {
-        var opt = document.createElement('option');
-        opt.value = c.id || '';
-        opt.textContent = c.display_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || ('Client #' + c.id);
-        obSel.add(opt);
+    // Populate custom client picker — exclude Halaxy-only patients
+    var clientItems = ((_pipelineData && _pipelineData.clients) || [])
+      .filter(function(c) { return !c._isHalaxyOnly && !c.halaxy_id; })
+      .map(function(c) {
+        return { value: c.id || '', label: c.display_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || ('Client #' + c.id) };
       });
-    }
+    _cclPopulate('db-ap-ob-client', clientItems);
+    _cclPick('db-ap-ob-client', '', ''); // reset selection
   }
 
   var el = document.getElementById(id);
@@ -1389,17 +1466,16 @@ function _dbApptNextOrSave() {
 
 /** Save an onboarding/admin appointment to the dashboard */
 async function dbSaveApptOnboarding() {
-  var clientSel  = document.getElementById('db-ap-ob-client');
-  var clientId   = (clientSel || {}).value || '';
-  var date       = (document.getElementById('db-ap-ob-date')  || {}).value || '';
-  var time       = (document.getElementById('db-ap-ob-time')  || {}).value || '';
-  var apptType   = (document.getElementById('db-ap-ob-type')  || {}).value || 'intake';
-  var notes      = (document.getElementById('db-ap-ob-notes') || {}).value || '';
+  var clientId   = (document.getElementById('db-ap-ob-client')  || {}).value || '';
+  var date       = (document.getElementById('db-ap-ob-date')    || {}).value || '';
+  var time       = (document.getElementById('db-ap-ob-time')    || {}).value || '';
+  var apptType   = (document.getElementById('db-ap-ob-type')    || {}).value || 'intake';
+  var notes      = (document.getElementById('db-ap-ob-notes')   || {}).value || '';
 
   if (!date) { toast('Date is required', 'err'); return; }
 
-  var clientName = (clientSel && clientSel.selectedIndex > 0)
-    ? clientSel.options[clientSel.selectedIndex].text : '';
+  var dispEl = document.getElementById('db-ap-ob-client-display');
+  var clientName = (dispEl && clientId) ? dispEl.textContent.trim() : '';
 
   var typeLabel  = { intake: 'Intake call', session: 'Appointment', admin: 'Admin' }[apptType] || 'Appointment';
   var fullNotes  = typeLabel + (notes ? ' — ' + notes : '');
@@ -1937,9 +2013,18 @@ function openDetailPanel(type, id) {
   var html = '';
   var titleText = 'Detail';
   if (type === 'session') {
-    var unified = _buildUnifiedSessions();
-    var all = unified.upcoming.concat(unified.past);
-    var sess = all.find(function(s) { return s.id === id; });
+    // 1. Check the already-merged schedule array (fastest)
+    var sess = (_dhAppts || []).find(function(s) { return s.id === id; });
+    // 2. Halaxy/Cal unified sessions
+    if (!sess) {
+      var unified = _buildUnifiedSessions();
+      var all = unified.upcoming.concat(unified.past);
+      sess = all.find(function(s) { return s.id === id; });
+    }
+    // 3. Locally-added dashboard sessions
+    if (!sess) {
+      sess = _getLocalSessions().find(function(s) { return s.id === id; });
+    }
     if (sess) { html = _renderSessionDetailPanel(sess); titleText = sess.name || 'Appointment'; }
   } else if (type === 'enquiry') {
     var enqs = (_pipelineData && _pipelineData.enquiries) || [];
@@ -4086,12 +4171,14 @@ function renderHomeView() {
    Separate from the settings-view task system — these target the
    #dh-tasks-body widget on the dashboard home card.
 ────────────────────────────────────────────────────────────────── */
-var _dhTasks = []; // module-level cache for openDetailPanel lookup
+var _dhTasks = [];       // module-level cache for openDetailPanel lookup
+var _dhTasksLoaded = false; // true once the first successful fetch completes
 
 async function _dhLoadTasks() {
   try {
     var tasks = await apiFetch('/api/admin-tasks');
     _dhTasks = Array.isArray(tasks) ? tasks : [];
+    _dhTasksLoaded = true;
     var valEl = document.getElementById('dh-util-remind-val');
     var subEl = document.getElementById('dh-util-remind-sub');
     var pending = _dhTasks.filter(function(t){ return !t.completed; }).length;
