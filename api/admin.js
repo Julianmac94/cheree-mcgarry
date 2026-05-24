@@ -183,7 +183,7 @@ function adminPage({ enquiries = [], tasks = [], currentUser = null, activityByE
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Admin · Cheree McGarry</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -904,23 +904,22 @@ body {
   /* Full-height flex column */
   .app-main { display: flex; flex-direction: column; height: 100svh; overflow: hidden; }
 
-  /* Logo bar — always visible at very top */
+  /* Logo bar — centered logo, no text, no border */
   .mob-logo-bar {
-    display: flex; align-items: center; gap: 10px;
-    padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 10px;
-    background: rgba(8,12,24,0.97);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; justify-content: center; align-items: center;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 4px;
     flex-shrink: 0;
   }
-  .mob-logo-img { width: 22px; height: 22px; flex-shrink: 0; }
-  .mob-logo-brand { font-family: var(--serif); font-size: 15px; color: rgba(255,255,255,0.82); font-weight: 400; }
-  .mob-logo-brand em { font-style: italic; color: var(--teal); font-weight: 300; }
+  .mob-logo-img {
+    width: 68px; height: 68px;
+    filter: brightness(12);
+    opacity: 0.88;
+  }
 
   /* Persistent header below logo */
   #mob-hd {
     display: block; flex-shrink: 0;
-    padding: 14px 16px 12px;
-    background: rgba(8,12,24,0.7);
+    padding: 10px 18px 14px;
     border-bottom: 1px solid rgba(255,255,255,0.06);
   }
   .mob-hd-greeting { font-size: 20px; font-weight: 700; color: var(--t1); letter-spacing: -0.02em; line-height: 1.2; }
@@ -935,8 +934,8 @@ body {
   /* Dock */
   .mob-dock {
     display: flex; align-items: center; flex-shrink: 0;
-    height: calc(58px + env(safe-area-inset-bottom, 0px));
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    height: calc(58px + env(safe-area-inset-bottom, 20px));
+    padding-bottom: env(safe-area-inset-bottom, 20px);
     background: rgba(8,12,24,0.97);
     border-top: 1px solid rgba(255,255,255,0.08);
     backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
@@ -970,7 +969,7 @@ body {
     width: 100%; background: rgba(10,14,26,0.98);
     border: 1px solid rgba(255,255,255,0.09);
     border-radius: 22px 22px 0 0;
-    padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 16px);
+    padding: 8px 12px calc(env(safe-area-inset-bottom, 20px) + 16px);
     transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
   }
   .mob-action-sheet.open .mob-action-panel { transform: translateY(0); }
@@ -2910,8 +2909,7 @@ body {
 
     <!-- ── Mobile logo bar (always visible on mobile, hidden on desktop) ── -->
     <div class="mob-logo-bar" id="mob-logo-bar">
-      <img src="/assets/logo.svg" class="mob-logo-img" alt="" width="22" height="22">
-      <span class="mob-logo-brand"><em>Cheree</em> McGarry</span>
+      <img src="/assets/logo.svg" class="mob-logo-img" alt="">
     </div>
 
     <!-- ── Mobile persistent header (greeting, date, summary) ── -->
