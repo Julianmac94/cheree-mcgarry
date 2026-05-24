@@ -26,12 +26,14 @@ function _getSubStatus(invId) {
 function _markBillingSubmitted(invId) {
   _billingSubmissions[invId] = { date: new Date().toISOString().slice(0, 10) };
   localStorage.setItem('billing_submissions', JSON.stringify(_billingSubmissions));
-  renderBillingPanel();
+  if (window.innerWidth <= 768 && typeof _mobRenderBilling === 'function') _mobRenderBilling();
+  else renderBillingPanel();
 }
 function _clearBillingSubmission(invId) {
   delete _billingSubmissions[invId];
   localStorage.setItem('billing_submissions', JSON.stringify(_billingSubmissions));
-  renderBillingPanel();
+  if (window.innerWidth <= 768 && typeof _mobRenderBilling === 'function') _mobRenderBilling();
+  else renderBillingPanel();
 }
 
 /* ── Toast notifications — frosted glass, top-centre ── */
@@ -657,7 +659,90 @@ function _mobRenderApp(app) {
   if (app === 'home')           _mobRenderSchedule();
   else if (app === 'queue')     _mobRenderInbox();
   else if (app === 'reminders') _mobRenderReminders();
-  else if (app === 'billing')   renderBillingView();
+  else if (app === 'billing')   _mobRenderBilling();
+}
+
+/* ── Mobile billing — full dark-theme rebuild matching desktop bento/view ── */
+function _mobRenderBilling() {
+  var content = document.getElementById('view-content');
+  if (!content) return;
+
+  var now         = new Date();
+  var monthStr    = now.toISOString().slice(0, 7);
+  var invoices    = (_halaxyData && _halaxyData.invoices) || [];
+  var fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  var fyStart     = fyStartYear + '-07-01';
+  var fyLabel     = 'FY' + fyStartYear + '–' + String(fyStartYear + 1).slice(2);
+
+  /* Paid amount — togglable MTD / FY */
+  var paidAmt = invoices.reduce(function(sum, inv) {
+    if (!_invIsPaid(inv) || !inv.date) return sum;
+    if (_dhBillMode === 'mtd' && !inv.date.startsWith(monthStr)) return sum;
+    if (_dhBillMode === 'fy'  && inv.date < fyStart) return sum;
+    return sum + parseFloat(inv.totalPaid != null ? inv.totalPaid : (inv.amount || 0));
+  }, 0);
+
+  var periodLabel = _dhBillMode === 'mtd'
+    ? now.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' })
+    : fyLabel;
+
+  /* Outstanding — all unpaid, no date limit */
+  var outstanding = invoices.filter(function(inv) {
+    return !_invIsPaid(inv) && inv.status !== 'cancelled' && inv.status !== 'draft';
+  }).sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); });
+
+  var totalOwing = outstanding.reduce(function(s, inv) {
+    return s + (parseFloat(inv.totalBalance != null ? inv.totalBalance : 0) || 0);
+  }, 0);
+
+  var html = '<div class="mob-billing-view">';
+
+  /* ── Two-stat bar ── */
+  html += '<div class="mob-bill-stat-bar">'
+    + '<div class="mob-bill-stat mob-bill-paid-toggle" onclick="dhBillToggleMode();_mobRenderBilling()">'
+    + '<div class="mob-bill-stat-val teal">' + _fmtAUD(paidAmt) + '</div>'
+    + '<div class="mob-bill-stat-lbl">Paid · ' + escHtml(periodLabel) + ' <span style="opacity:0.45;font-size:10px">↔</span></div>'
+    + '</div>'
+    + '<div class="mob-bill-stat">'
+    + '<div class="mob-bill-stat-val ' + (totalOwing ? 'amber' : 'teal') + '">' + _fmtAUD(totalOwing) + '</div>'
+    + '<div class="mob-bill-stat-lbl">Outstanding · ' + outstanding.length + ' inv.</div>'
+    + '</div>'
+    + '</div>';
+
+  /* ── Invoice list ── */
+  if (!_halaxyData || !_halaxyData.connected) {
+    html += '<div class="mob-bill-empty">Connect Halaxy in Settings to see invoices.</div>';
+  } else if (!outstanding.length) {
+    html += '<div class="mob-bill-empty">No outstanding invoices ✓</div>';
+  } else {
+    html += '<div class="mob-bill-section-hd">Outstanding</div>'
+      + '<div class="mob-bill-inv-list">';
+    outstanding.forEach(function(inv) {
+      var name = _resolvePatientName(inv.patientId);
+      var dt   = inv.date ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
+      var bal  = parseFloat(inv.totalBalance != null ? inv.totalBalance : (inv.amount || 0));
+      var sub  = _getSubStatus(inv.id);
+      var subBadge = sub
+        ? '<span class="mob-bill-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
+        : '<button class="mob-bill-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\');_mobRenderBilling()">Mark submitted</button>';
+      html += '<div class="mob-bill-row">'
+        + '<div class="mob-bill-row-top">'
+        + '<span class="mob-bill-name">' + escHtml(name) + '</span>'
+        + '<span class="mob-bill-amt">' + (bal ? _fmtAUD(bal) : '—') + '</span>'
+        + '</div>'
+        + '<div class="mob-bill-row-bot">'
+        + (inv.payorOrg ? '<span class="mob-bill-org">' + escHtml(inv.payorOrg) + '</span>' : '<span></span>')
+        + subBadge
+        + '<span class="mob-bill-date">' + escHtml(dt) + '</span>'
+        + '</div>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+
+  html += '</div>';
+  content.innerHTML = html;
+  _updateMobileDock('billing');
 }
 
 /* ── Mobile reminders app ─────────────────────────────────────── */
@@ -665,11 +750,10 @@ function _mobRenderReminders() {
   var content = document.getElementById('view-content');
   if (!content) return;
 
-  /* If tasks haven't loaded yet, show skeleton and load */
   if (!_dhTasksLoaded) {
-    content.innerHTML = '<div class="mob-app-list">'
-      + '<div class="mob-section-hd">Reminders</div>'
-      + '<div class="mob-empty-state">Loading…</div>'
+    content.innerHTML = '<div class="mob-remind-view">'
+      + '<div class="mob-remind-hd"><span class="mob-remind-title">Reminders</span></div>'
+      + '<div class="mob-empty-state" style="padding:40px 20px;text-align:center;color:var(--t3)">Loading…</div>'
       + '</div>';
     _dhLoadTasks().then(function() {
       if (_mobCurrentApp === 'reminders') _mobRenderReminders();
@@ -682,54 +766,123 @@ function _mobRenderReminders() {
   var pending = tasks.filter(function(t) { return !t.completed; });
   var done    = tasks.filter(function(t) { return t.completed; }).slice(0, 8);
 
-  var html = '<div class="mob-app-list">';
-  html += '<div class="mob-section-hd">Reminders</div>';
-
-  /* Add input */
-  html += '<div class="mob-remind-add">'
-    + '<input class="mob-remind-inp" id="mob-task-inp" placeholder="Add reminder…" '
-    + 'onkeydown="if(event.key===\'Enter\'&&this.value.trim()){dhAddTaskMob(this.value.trim());this.value=\'\'}">'
-    + '</div>';
-
-  /* Pending list */
-  if (pending.length) {
-    pending.forEach(function(t) {
-      html += '<div class="mob-task-row">'
-        + '<button class="mob-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',true);_mobRenderReminders()"></button>'
-        + '<span class="mob-task-lbl">' + escHtml(t.title || '') + '</span>'
-        + '</div>';
-    });
-  } else {
-    html += '<div class="mob-empty-state">All clear ✓</div>';
+  function _fmtAdded(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
   }
 
-  /* Completed list */
-  if (done.length) {
-    html += '<div class="mob-section-sub">Completed</div>';
-    done.forEach(function(t) {
-      html += '<div class="mob-task-row mob-task-row-done">'
-        + '<button class="mob-task-chk mob-task-chk-done" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',false);_mobRenderReminders()">✓</button>'
-        + '<span class="mob-task-lbl mob-task-lbl-done">' + escHtml(t.title || '') + '</span>'
+  var sortLabel = _dhRemindSort === 'name' ? 'A–Z' : 'Date';
+
+  var html = '<div class="mob-remind-view">';
+
+  /* Header row with sort + add */
+  html += '<div class="mob-remind-hd">'
+    + '<span class="mob-remind-title">Reminders</span>'
+    + '<div style="display:flex;gap:8px;align-items:center">'
+    + '<button class="mob-remind-sort-btn" onclick="dhRemindCycleSort();_mobRenderReminders()">↕ ' + sortLabel + '</button>'
+    + '<button class="mob-remind-add-btn" onclick="_mobOpenAddReminderModal()">+ Add</button>'
+    + '</div>'
+    + '</div>';
+
+  if (!tasks.length) {
+    html += '<div class="mob-empty-state" style="padding:40px 20px;text-align:center;color:var(--t3)">No reminders yet</div>';
+  } else {
+    /* Column header */
+    html += '<div class="mob-rt-head">'
+      + '<span></span>'
+      + '<span class="mob-rt-h-task">Task</span>'
+      + '<span class="mob-rt-h-client">Client</span>'
+      + '<span class="mob-rt-h-date">Added</span>'
+      + '</div>';
+
+    /* Sort pending tasks */
+    var sortedPending = pending.slice();
+    if (_dhRemindSort === 'name') {
+      sortedPending.sort(function(a, b) { return (a.title || '').localeCompare(b.title || ''); });
+    } else {
+      sortedPending.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); });
+    }
+
+    if (!sortedPending.length) {
+      html += '<div class="mob-remind-all-done">All tasks complete ✓</div>';
+    }
+
+    sortedPending.forEach(function(t) {
+      var prio    = _dhGetPrio(t.id);
+      var prioDot = prio === 'high'
+        ? '<span class="mob-prio-dot high" onclick="event.stopPropagation();dhSetTaskPrio(' + JSON.stringify(t.id) + ',\'normal\');_mobRenderReminders()">!</span>'
+        : '<span class="mob-prio-dot" onclick="event.stopPropagation();dhSetTaskPrio(' + JSON.stringify(t.id) + ',\'high\');_mobRenderReminders()"></span>';
+      var client = t.client_label ? escHtml(t.client_label) : '<span style="color:var(--t3)">—</span>';
+      html += '<div class="mob-rt-row">'
+        + '<button class="dh-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',true);_mobRenderReminders()" type="button"></button>'
+        + '<div class="mob-rt-title">' + prioDot + escHtml(t.title || t.text || '') + '</div>'
+        + '<div class="mob-rt-client">' + client + '</div>'
+        + '<div class="mob-rt-date">' + _fmtAdded(t.created_at) + '</div>'
         + '</div>';
     });
+
+    /* Completed section */
+    if (done.length) {
+      html += '<div class="mob-remind-section-sub">Completed</div>';
+      done.forEach(function(t) {
+        var client = t.client_label ? escHtml(t.client_label) : '<span style="color:var(--t3)">—</span>';
+        html += '<div class="mob-rt-row mob-rt-row-done">'
+          + '<button class="dh-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',false);_mobRenderReminders()" type="button" style="opacity:0.45">✓</button>'
+          + '<div class="mob-rt-title" style="text-decoration:line-through;opacity:0.35">' + escHtml(t.title || t.text || '') + '</div>'
+          + '<div class="mob-rt-client" style="opacity:0.35">' + client + '</div>'
+          + '<div class="mob-rt-date" style="opacity:0.35">' + _fmtAdded(t.created_at) + '</div>'
+          + '</div>';
+      });
+    }
   }
 
   html += '</div>';
   content.innerHTML = html;
   _updateMobileDock('reminders');
-
-  /* Focus the input */
-  setTimeout(function() {
-    var inp = document.getElementById('mob-task-inp');
-    if (inp) inp.focus();
-  }, 120);
 }
 
-/* Add a task from the mobile reminders view */
-async function dhAddTaskMob(title) {
-  if (!title) return;
+/* ── Mobile: bottom-sheet modal to add a reminder ── */
+function _mobOpenAddReminderModal() {
+  var existing = document.getElementById('mob-add-remind-sheet');
+  if (existing) { existing.remove(); return; }
+
+  var sheet = document.createElement('div');
+  sheet.id = 'mob-add-remind-sheet';
+  sheet.className = 'mob-sheet-overlay';
+  sheet.innerHTML = '<div class="mob-sheet">'
+    + '<div class="mob-sheet-hd">'
+    + '<span class="mob-sheet-title">New Reminder</span>'
+    + '<button class="mob-sheet-close" onclick="document.getElementById(\'mob-add-remind-sheet\').remove()">✕</button>'
+    + '</div>'
+    + '<div class="mob-sheet-body">'
+    + '<input class="mob-sheet-inp" id="mob-add-remind-inp" placeholder="What do you need to do?" autocomplete="off">'
+    + '<button class="mob-sheet-submit" onclick="_mobSubmitAddReminder()">Add Reminder</button>'
+    + '</div>'
+    + '</div>';
+  sheet.addEventListener('click', function(e) {
+    if (e.target === sheet) sheet.remove();
+  });
+  document.body.appendChild(sheet);
+
+  setTimeout(function() {
+    var inp = document.getElementById('mob-add-remind-inp');
+    if (!inp) return;
+    inp.focus();
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && inp.value.trim()) _mobSubmitAddReminder();
+      if (e.key === 'Escape') { var s = document.getElementById('mob-add-remind-sheet'); if (s) s.remove(); }
+    });
+  }, 80);
+}
+
+async function _mobSubmitAddReminder() {
+  var inp   = document.getElementById('mob-add-remind-inp');
+  var sheet = document.getElementById('mob-add-remind-sheet');
+  if (!inp || !inp.value.trim()) return;
+  var title = inp.value.trim();
+  if (sheet) sheet.remove();
   try {
-    var t = await apiFetch('/api/admin-tasks', { method: 'POST', body: { text: title } });
+    var t = await apiFetch('/api/admin-tasks', { method: 'POST', body: { title: title } });
     if (t && t.id) {
       _dhTasks = _dhTasks || [];
       _dhTasks.push(t);
@@ -891,8 +1044,8 @@ function _mobUpdateHeader() {
     nextSummary = ' &middot; Next: <strong>' + escHtml(nm) + '</strong>' + (nT ? ' at ' + escHtml(nT) : '');
   }
 
+  // Date is intentionally omitted — meta line carries all the context needed
   hd.innerHTML = '<div class="mob-hd-greeting">' + escHtml(greeting) + (firstName ? ', ' + escHtml(firstName) : '') + '</div>'
-    + '<div class="mob-hd-date">' + escHtml(dateLabel) + '</div>'
     + '<div class="mob-hd-meta">' + escHtml(todaySummary) + nextSummary + '</div>';
 }
 
@@ -2443,29 +2596,41 @@ function _mobRunIntro() {
   /* Wait two frames to ensure the splash is fully painted before animating */
   requestAnimationFrame(function() {
     requestAnimationFrame(function() {
-      /* Phase 1: gently shift logo toward the top at a natural pace */
-      if (splashLogo) {
-        splashLogo.style.transition = 'transform 1.0s cubic-bezier(0.4, 0, 0.2, 1)';
-        splashLogo.style.transform  = 'translateY(-36vh) scale(0.52)';
+      /* Measure exact position of the logo bar image so we can animate the
+         splash logo precisely to that spot — no guesswork, no fade. */
+      var targetImg  = logoBar ? logoBar.querySelector('.mob-logo-img') : null;
+      var targetRect = targetImg  ? targetImg.getBoundingClientRect()  : null;
+      var splashRect = splashLogo ? splashLogo.getBoundingClientRect() : null;
+
+      var translateY = -0.36 * window.innerHeight; // safe fallback
+      var scale      = 0.52;
+
+      if (targetRect && splashRect && splashRect.height > 0) {
+        /* Centre-to-centre vertical delta */
+        var splashCY = splashRect.top  + splashRect.height / 2;
+        var targetCY = targetRect.top  + targetRect.height / 2;
+        translateY   = targetCY - splashCY;
+        scale        = targetRect.height / splashRect.height;
       }
 
-      /* Phase 2: start fading the splash overlay once the logo is mid-way */
-      setTimeout(function() {
-        splash.style.transition = 'opacity 0.55s ease';
-        splash.style.opacity    = '0';
-      }, 550);
+      /* Phase 1: animate splash logo to exactly where the logo bar logo lives */
+      if (splashLogo) {
+        splashLogo.style.transition = 'transform 0.88s cubic-bezier(0.4, 0, 0.2, 1)';
+        splashLogo.style.transform  = 'translateY(' + translateY + 'px) scale(' + scale + ')';
+      }
 
-      /* Phase 3: once splash gone — show logo bar, then hand off to typewriter */
+      /* Phase 2: once the animation lands, snap splash away — no fade */
       setTimeout(function() {
-        splash.style.display = 'none';
-        /* Keep mob-hd hidden — _mobAnimHeader reveals it after clearing the text
-           so there's no flash of pre-filled greeting before typing starts */
+        splash.style.transition = 'none';
+        splash.style.opacity    = '0';
+        splash.style.display    = 'none';
+        /* Reveal the persistent logo bar in place of where the splash logo just was */
         if (logoBar) {
-          logoBar.style.transition = 'opacity 0.3s ease';
+          logoBar.style.transition = 'none';
           logoBar.style.opacity    = '1';
         }
-        setTimeout(_mobAnimHeader, 140);
-      }, 1150);
+        setTimeout(_mobAnimHeader, 80);
+      }, 900);
     });
   });
 }

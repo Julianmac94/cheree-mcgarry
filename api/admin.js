@@ -1088,74 +1088,163 @@ body {
   /* Actions (merge/dismiss) tab */
   .mob-inbox-tab-act { color: var(--amber) !important; border-color: rgba(245,158,11,0.25) !important; background: rgba(245,158,11,0.08) !important; }
   .mob-inbox-tab-act.active { background: rgba(245,158,11,0.15) !important; border-color: rgba(245,158,11,0.4) !important; }
+  /* ── Inbox list — items pin to top ── */
   .mob-inbox-view .dh-attn-card {
-    flex: 1; overflow-y: auto; margin-top: 10px;
+    flex: 1; overflow-y: auto; margin-top: 0;
     min-height: 0; border-radius: 0; border: none;
     border-top: 1px solid rgba(255,255,255,0.06);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    display: flex; flex-direction: column; align-items: stretch;
+  }
+  .mob-inbox-view .dh-attn-item { padding: 12px 16px; }
+  .mob-inbox-view .dh-attn-empty { padding: 28px 20px; }
+
+  /* ── Mobile reminders — table layout ── */
+  .mob-remind-view { padding: 14px 16px calc(env(safe-area-inset-bottom, 20px) + 80px); }
+  .mob-remind-hd {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .mob-remind-title { font-size: 17px; font-weight: 700; color: var(--t1); letter-spacing: -0.02em; }
+  .mob-remind-sort-btn {
+    font-size: 10.5px; color: var(--t3); background: none;
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 7px;
+    padding: 4px 9px; cursor: pointer; font-family: var(--sans);
+  }
+  .mob-remind-add-btn {
+    font-size: 11.5px; font-weight: 600; color: var(--teal);
+    background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.22);
+    border-radius: 8px; padding: 5px 13px; cursor: pointer; font-family: var(--sans);
+  }
+  /* Column header row */
+  .mob-rt-head {
+    display: grid; grid-template-columns: 26px 1fr 88px 52px;
+    padding: 5px 0 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 2px;
+  }
+  .mob-rt-h-task, .mob-rt-h-client, .mob-rt-h-date {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--t3);
+  }
+  .mob-rt-h-date { text-align: right; }
+  /* Task rows */
+  .mob-rt-row {
+    display: grid; grid-template-columns: 26px 1fr 88px 52px;
+    align-items: center; min-height: 40px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    padding: 3px 0;
+  }
+  .mob-rt-title {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 13px; color: var(--t1); line-height: 1.3;
+    padding-right: 8px;
+  }
+  .mob-rt-client { font-size: 11px; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mob-rt-date   { font-size: 10.5px; color: var(--t3); text-align: right; }
+  /* Priority dots */
+  .mob-prio-dot {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18);
+  }
+  .mob-prio-dot.high {
+    background: var(--amber); border-color: var(--amber); color: #000;
+    font-size: 7px; font-weight: 900; width: 14px; height: 14px;
+  }
+  .mob-remind-section-sub {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--t3); margin: 14px 0 4px 26px;
+  }
+  .mob-remind-all-done { font-size: 12px; color: var(--t3); padding: 20px 0; text-align: center; }
+
+  /* Shared task checkbox (reused from dh-task-chk but slightly bigger for touch) */
+  .mob-rt-row .dh-task-chk {
+    width: 20px; height: 20px; border-radius: 50%;
+    font-size: 10px;
   }
 
-  /* ── Mobile reminders app ── */
-  .mob-app-list {
-    padding: 16px 16px 80px;
-    display: flex; flex-direction: column; gap: 6px;
+  /* ── Mobile billing view ── */
+  .mob-billing-view { padding: 14px 16px calc(env(safe-area-inset-bottom, 20px) + 80px); }
+  .mob-bill-stat-bar {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;
   }
-  .mob-section-hd {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--t3);
-    margin-bottom: 6px; padding: 0 2px;
+  .mob-bill-stat {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px; padding: 14px 16px;
   }
-  .mob-section-sub {
-    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--t3);
-    margin: 14px 0 4px; padding: 0 2px; opacity: 0.7;
+  .mob-bill-paid-toggle { cursor: pointer; }
+  .mob-bill-paid-toggle:active { background: rgba(255,255,255,0.07); }
+  .mob-bill-stat-val { font-size: 22px; font-weight: 800; line-height: 1; margin-bottom: 4px; color: var(--t1); }
+  .mob-bill-stat-val.teal  { color: var(--teal); }
+  .mob-bill-stat-val.amber { color: var(--amber); }
+  .mob-bill-stat-lbl { font-size: 10px; color: var(--t3); font-weight: 500; line-height: 1.3; }
+  .mob-bill-section-hd {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--t3); margin-bottom: 10px;
   }
-  .mob-remind-add {
-    margin-bottom: 8px;
+  .mob-bill-inv-list { display: flex; flex-direction: column; gap: 8px; }
+  .mob-bill-row {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px; padding: 12px 14px;
   }
-  .mob-remind-inp {
+  .mob-bill-row-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; gap: 8px; }
+  .mob-bill-name { font-size: 13.5px; font-weight: 600; color: var(--t1); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mob-bill-amt  { font-size: 13px; font-weight: 700; color: var(--amber); flex-shrink: 0; }
+  .mob-bill-row-bot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .mob-bill-org  { font-size: 10.5px; color: var(--t3); flex: 1; }
+  .mob-bill-date { font-size: 10.5px; color: var(--t3); margin-left: auto; }
+  .mob-bill-sub { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 5px; }
+  .mob-bill-sub.ok    { background: rgba(52,211,153,0.1); color: var(--teal); }
+  .mob-bill-sub.chase { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .mob-bill-mark {
+    font-size: 10px; background: rgba(52,211,153,0.07);
+    border: 1px solid rgba(52,211,153,0.2); color: var(--teal);
+    border-radius: 6px; padding: 2px 8px; cursor: pointer; font-family: var(--sans);
+  }
+  .mob-bill-empty { padding: 40px 20px; text-align: center; color: var(--t3); font-size: 13px; }
+
+  /* ── Bottom sheet modal (add reminder, etc.) ── */
+  .mob-sheet-overlay {
+    position: fixed; inset: 0; z-index: 8500;
+    background: rgba(0,0,0,0.55); display: flex; align-items: flex-end;
+    animation: sheetBgIn 0.2s ease;
+  }
+  .mob-sheet {
+    width: 100%; background: #111827;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 20px calc(env(safe-area-inset-bottom, 20px) + 20px);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    animation: sheetSlideUp 0.25s cubic-bezier(0.32,0.72,0,1);
+  }
+  .mob-sheet-hd {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;
+  }
+  .mob-sheet-title { font-size: 15px; font-weight: 700; color: var(--t1); }
+  .mob-sheet-close {
+    font-size: 14px; color: var(--t3); background: rgba(255,255,255,0.07);
+    border: none; border-radius: 50%; width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    font-family: var(--sans);
+  }
+  .mob-sheet-body { display: flex; flex-direction: column; gap: 12px; }
+  .mob-sheet-inp {
     width: 100%; box-sizing: border-box;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.09);
-    border-radius: 10px;
-    padding: 11px 14px;
-    font-size: 14px; color: var(--t1);
-    outline: none;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px; padding: 13px 14px;
+    font-size: 15px; color: var(--t1); font-family: var(--sans); outline: none;
   }
-  .mob-remind-inp:focus {
-    border-color: rgba(52,211,153,0.35);
-    background: rgba(255,255,255,0.07);
+  .mob-sheet-inp:focus { border-color: rgba(52,211,153,0.4); }
+  .mob-sheet-inp::placeholder { color: var(--t3); }
+  .mob-sheet-submit {
+    width: 100%; background: rgba(52,211,153,0.12);
+    border: 1px solid rgba(52,211,153,0.25); color: var(--teal);
+    font-size: 14px; font-weight: 600; border-radius: 11px; padding: 13px;
+    cursor: pointer; font-family: var(--sans); transition: background 0.12s;
   }
-  .mob-remind-inp::placeholder { color: var(--t3); }
-  .mob-task-row {
-    display: flex; align-items: center; gap: 12px;
-    padding: 13px 14px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 10px;
-  }
-  .mob-task-row-done { opacity: 0.45; }
-  .mob-task-chk {
-    flex-shrink: 0;
-    width: 20px; height: 20px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(255,255,255,0.22);
-    background: transparent;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-  }
-  .mob-task-chk:hover { border-color: var(--teal); }
-  .mob-task-chk-done {
-    background: rgba(52,211,153,0.2);
-    border-color: rgba(52,211,153,0.5);
-    color: var(--teal); font-size: 11px; line-height: 1;
-  }
-  .mob-task-lbl { font-size: 14px; color: var(--t1); line-height: 1.4; }
-  .mob-task-lbl-done { text-decoration: line-through; color: var(--t3); }
-  .mob-empty-state {
-    text-align: center; color: var(--t3);
-    font-size: 13px; padding: 32px 0;
-  }
+  .mob-sheet-submit:active { background: rgba(52,211,153,0.2); }
+  @keyframes sheetBgIn    { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes sheetSlideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
 }
 
 @keyframes pulse { 0%,100% { opacity:0.3 } 50% { opacity:0.9 } }
