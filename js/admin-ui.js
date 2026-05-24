@@ -635,14 +635,59 @@ function _mobRenderApp(app) {
   else if (app === 'billing')   renderBillingView();
 }
 
+/* ── Collect locally-added dashboard sessions from all clients ── */
+function _getLocalSessions() {
+  var result = [];
+  var now = new Date();
+  var past30  = new Date(now); past30.setDate(past30.getDate() - 30);
+  var future14 = new Date(now); future14.setDate(future14.getDate() + 14);
+  (_pipelineData && _pipelineData.clients || []).forEach(function(client) {
+    (client.sessions || []).forEach(function(sess) {
+      var dateStr = sess.session_date;
+      if (!dateStr) return;
+      var dateD = new Date(dateStr + 'T00:00:00');
+      if (dateD < past30 || dateD > future14) return;
+      var timeStr = sess.session_time || '';
+      var startIso = dateStr + 'T' + (timeStr || '00:00');
+      var startMs  = new Date(startIso).getTime();
+      var dateLabel = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+      var fmt = timeStr ? (function() {
+        var d = new Date(startIso), h = d.getHours(), m = d.getMinutes();
+        return (h % 12 || 12) + ':' + (m < 10 ? '0' : '') + m + (h >= 12 ? ' pm' : ' am');
+      })() : '';
+      var name = client.display_name || [client.first_name, client.last_name].filter(Boolean).join(' ') || sess.client_name || 'Client';
+      result.push({
+        id:        'db-sess-' + (sess.id || client.id + '-' + dateStr),
+        source:    'dashboard',
+        status:    sess.status || (startMs > now.getTime() ? 'upcoming' : 'needs-recording'),
+        dateMs:    dateD.getTime(),
+        startMs:   startMs,
+        dateStr:   dateStr,
+        dateLabel: dateLabel,
+        timeStr:   fmt,
+        name:      name,
+        patientId: null,
+        startIso:  startIso,
+      });
+    });
+  });
+  return result;
+}
+
 /* ── Mobile: schedule app renderer ──────────────────────────── */
 function _mobRenderSchedule() {
   var content = document.getElementById('view-content');
   if (!content) return;
   content.innerHTML = '<div class="mob-app-sched"><div class="dh-sched-card" id="dh-sched-inner"></div></div>';
-  _dhAppts = (_halaxyData && _halaxyData.connected)
-    ? _buildUnifiedSessions().upcoming.concat(_buildUnifiedSessions().past)
-    : [];
+  var uni = (_halaxyData && _halaxyData.connected)
+    ? _buildUnifiedSessions()
+    : { upcoming: [], past: [] };
+  // Always merge in locally-added dashboard sessions
+  var localSess = _getLocalSessions();
+  var uniIsoSet = new Set(uni.upcoming.concat(uni.past).map(function(s) { return s.startIso; }));
+  var extraLocal = localSess.filter(function(s) { return !uniIsoSet.has(s.startIso); });
+  var allSess = uni.upcoming.concat(uni.past).concat(extraLocal);
+  _dhAppts = allSess;
   _dhSchedWeekOff = 0;
   _dhSchedDateStr = '';
   _dhRenderSchedCard();
@@ -727,10 +772,283 @@ function _closeMobAddMenuOutside(e) {
   if (!wrap || !wrap.contains(e.target)) closeMobAddMenu();
 }
 function focusReminderInp() {
-  var inp = document.getElementById('dh-task-inp');
-  if (!inp) { navigateTo('reminders'); return; }
-  inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  setTimeout(function() { inp.focus(); }, 280);
+  openAddReminderModal();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Custom date + time picker helpers
+   ═══════════════════════════════════════════════════════════════ */
+
+function _cdpFormatDisplay(iso) {
+  if (!iso) return 'Select date';
+  var d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function _cdpBuildCalHtml(inputId, selectedIso) {
+  var today    = new Date();
+  var todayStr = today.toISOString().slice(0,10);
+  var sel      = selectedIso ? new Date(selectedIso + 'T12:00:00') : today;
+  var year     = sel.getFullYear();
+  var month    = sel.getMonth();
+  var firstDow = new Date(year, month, 1).getDay(); // 0=Sun
+  var daysInMonth = new Date(year, month+1, 0).getDate();
+  var startOff = (firstDow === 0 ? 6 : firstDow - 1); // Mon-first
+  var monthLabel = sel.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+  var escapedId = inputId.replace(/'/g, "\\'");
+  var h = '<div class="cdp-cal" data-input="' + inputId + '" data-year="' + year + '" data-month="' + month + '">'
+    + '<div class="cdp-nav">'
+    + '<button class="cdp-nav-btn" onclick="_cdpNav(\'' + escapedId + '\',-1)" type="button">‹</button>'
+    + '<span class="cdp-month-lbl">' + monthLabel + '</span>'
+    + '<button class="cdp-nav-btn" onclick="_cdpNav(\'' + escapedId + '\',1)" type="button">›</button>'
+    + '</div>'
+    + '<div class="cdp-grid">';
+  ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(function(d){ h += '<div class="cdp-dh">' + d + '</div>'; });
+  for (var i = 0; i < startOff; i++) h += '<div class="cdp-day cdp-empty"></div>';
+  for (var day = 1; day <= daysInMonth; day++) {
+    var iso = year + '-' + String(month+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+    var cls = 'cdp-day';
+    if (iso === todayStr)    cls += ' cdp-today';
+    if (iso === selectedIso) cls += ' cdp-sel';
+    h += '<button class="' + cls + '" type="button" onclick="_cdpPick(\'' + escapedId + '\',\'' + iso + '\')">' + day + '</button>';
+  }
+  h += '</div></div>';
+  return h;
+}
+
+function _cdpNav(inputId, dir) {
+  var cal = document.querySelector('.cdp-cal[data-input="' + inputId + '"]');
+  if (!cal) return;
+  var y = parseInt(cal.dataset.year), m = parseInt(cal.dataset.month) + dir;
+  if (m < 0)  { m = 11; y--; }
+  if (m > 11) { m = 0;  y++; }
+  var inp = document.getElementById(inputId);
+  var sel = inp ? inp.value : '';
+  var popup = document.getElementById(inputId + '-popup');
+  if (popup) popup.innerHTML = _cdpBuildCalHtml(inputId, sel);
+  // update year/month on new cal element
+  var newCal = popup && popup.querySelector('.cdp-cal');
+  if (newCal) { newCal.dataset.year = y; newCal.dataset.month = m; }
+  var tempSel = y + '-' + String(m+1).padStart(2,'0') + '-01';
+  if (popup) popup.innerHTML = _cdpBuildCalHtml(inputId, sel);
+  // rebuild at new month
+  var fakeIso = y + '-' + String(m+1).padStart(2,'0') + '-' + String(new Date(y,m,1).getDate()).padStart(2,'0');
+  var d2 = new Date(y, m, 1);
+  var tempCal = popup.querySelector('.cdp-cal');
+  if (tempCal) { tempCal.dataset.year = y; tempCal.dataset.month = m; }
+  // direct rebuild
+  if (popup) popup.innerHTML = (function(){
+    var today2 = new Date(), todayStr2 = today2.toISOString().slice(0,10);
+    var firstDow2 = new Date(y,m,1).getDay();
+    var days2 = new Date(y,m+1,0).getDate();
+    var off2 = firstDow2 === 0 ? 6 : firstDow2 - 1;
+    var ml2 = new Date(y,m,1).toLocaleDateString('en-AU',{month:'long',year:'numeric'});
+    var eid = inputId.replace(/'/g,"\\'");
+    var hh = '<div class="cdp-cal" data-input="'+inputId+'" data-year="'+y+'" data-month="'+m+'">'
+      +'<div class="cdp-nav"><button class="cdp-nav-btn" onclick="_cdpNav(\''+eid+'\',-1)" type="button">‹</button>'
+      +'<span class="cdp-month-lbl">'+ml2+'</span>'
+      +'<button class="cdp-nav-btn" onclick="_cdpNav(\''+eid+'\',1)" type="button">›</button></div>'
+      +'<div class="cdp-grid">';
+    ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(function(dd){ hh += '<div class="cdp-dh">'+dd+'</div>'; });
+    for(var ii=0;ii<off2;ii++) hh += '<div class="cdp-day cdp-empty"></div>';
+    for(var dd2=1;dd2<=days2;dd2++){
+      var iso2 = y+'-'+String(m+1).padStart(2,'0')+'-'+String(dd2).padStart(2,'0');
+      var cls2='cdp-day'; if(iso2===todayStr2)cls2+=' cdp-today'; if(iso2===sel)cls2+=' cdp-sel';
+      hh += '<button class="'+cls2+'" type="button" onclick="_cdpPick(\''+eid+'\',\''+iso2+'\')">'+dd2+'</button>';
+    }
+    hh += '</div></div>'; return hh;
+  })();
+}
+
+function _cdpPick(inputId, iso) {
+  var inp = document.getElementById(inputId);
+  if (inp) inp.value = iso;
+  var disp = document.getElementById(inputId + '-display');
+  if (disp) disp.textContent = _cdpFormatDisplay(iso);
+  var popup = document.getElementById(inputId + '-popup');
+  if (popup) { popup.style.display = 'none'; }
+  // Re-render sel in calendar
+  popup.querySelectorAll('.cdp-day').forEach(function(btn) {
+    btn.classList.remove('cdp-sel');
+    if (btn.textContent == parseInt(iso.slice(8))) btn.classList.add('cdp-sel');
+  });
+}
+
+function _cdpToggle(inputId) {
+  var popup = document.getElementById(inputId + '-popup');
+  if (!popup) return;
+  var isHidden = popup.style.display === 'none' || !popup.style.display;
+  document.querySelectorAll('.cdp-popup, .ctp-popup').forEach(function(p) { p.style.display = 'none'; });
+  if (isHidden) popup.style.display = 'block';
+}
+
+function _ctpFormatDisplay(val) {
+  if (!val) return 'Select time';
+  var parts = val.split(':');
+  var h = parseInt(parts[0]), m = parseInt(parts[1] || 0);
+  return (h % 12 || 12) + ':' + String(m).padStart(2,'0') + (h >= 12 ? ' pm' : ' am');
+}
+
+function _ctpBuildListHtml(inputId, selected) {
+  var h = '<div class="ctp-list">';
+  for (var hr = 6; hr <= 21; hr++) {
+    [0, 30].forEach(function(mn) {
+      if (hr === 21 && mn === 30) return;
+      var val = String(hr).padStart(2,'0') + ':' + String(mn).padStart(2,'0');
+      var label = _ctpFormatDisplay(val);
+      var eid = inputId.replace(/'/g,"\\'");
+      h += '<button class="ctp-item' + (val === selected ? ' ctp-sel' : '') + '" type="button" onclick="_ctpPick(\'' + eid + '\',\'' + val + '\')">' + label + '</button>';
+    });
+  }
+  h += '</div>';
+  return h;
+}
+
+function _ctpPick(inputId, val) {
+  var inp = document.getElementById(inputId);
+  if (inp) inp.value = val;
+  var disp = document.getElementById(inputId + '-display');
+  if (disp) disp.textContent = _ctpFormatDisplay(val);
+  var popup = document.getElementById(inputId + '-popup');
+  if (popup) popup.style.display = 'none';
+}
+
+function _ctpToggle(inputId) {
+  var popup = document.getElementById(inputId + '-popup');
+  if (!popup) return;
+  var isHidden = popup.style.display === 'none' || !popup.style.display;
+  document.querySelectorAll('.cdp-popup, .ctp-popup').forEach(function(p) { p.style.display = 'none'; });
+  if (isHidden) {
+    popup.style.display = 'block';
+    // Scroll to selected
+    setTimeout(function() {
+      var sel = popup.querySelector('.ctp-item.ctp-sel');
+      if (sel) sel.scrollIntoView({ block: 'nearest' });
+    }, 10);
+  }
+}
+
+/* Render a full date picker widget (hidden input + styled button + popup calendar) */
+function _buildDatePickerHtml(inputId, defaultIso) {
+  return '<div class="cdp-wrap" id="' + inputId + '-cdp">'
+    + '<input type="hidden" id="' + inputId + '" value="' + (defaultIso || '') + '">'
+    + '<button class="cdp-btn" type="button" onclick="_cdpToggle(\'' + inputId + '\')">'
+    + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'
+    + '<span id="' + inputId + '-display">' + _cdpFormatDisplay(defaultIso) + '</span>'
+    + '</button>'
+    + '<div class="cdp-popup" id="' + inputId + '-popup" style="display:none">'
+    + _cdpBuildCalHtml(inputId, defaultIso)
+    + '</div>'
+    + '</div>';
+}
+
+/* Render a full time picker widget (hidden input + styled button + popup list) */
+function _buildTimePickerHtml(inputId, defaultVal) {
+  return '<div class="ctp-wrap" id="' + inputId + '-ctp">'
+    + '<input type="hidden" id="' + inputId + '" value="' + (defaultVal || '') + '">'
+    + '<button class="ctp-btn" type="button" onclick="_ctpToggle(\'' + inputId + '\')">'
+    + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+    + '<span id="' + inputId + '-display">' + _ctpFormatDisplay(defaultVal) + '</span>'
+    + '</button>'
+    + '<div class="ctp-popup" id="' + inputId + '-popup" style="display:none">'
+    + _ctpBuildListHtml(inputId, defaultVal)
+    + '</div>'
+    + '</div>';
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Full reminder / task add modal
+   ═══════════════════════════════════════════════════════════════ */
+function openAddReminderModal(opts) {
+  opts = opts || {};
+  var existingId  = 'add-reminder-modal-overlay';
+  var existing = document.getElementById(existingId);
+  if (existing) existing.remove();
+
+  var today = new Date().toISOString().slice(0,10);
+  var overlay = document.createElement('div');
+  overlay.id = existingId;
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'display:flex;z-index:400';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var priorityOpts = [
+    { val: 'low',    label: 'Low',    color: 'var(--teal)' },
+    { val: 'medium', label: 'Medium', color: 'var(--amber)' },
+    { val: 'high',   label: 'High',   color: '#fb7185' },
+  ];
+
+  overlay.innerHTML = '<div class="modal-card" style="max-width:420px;width:100%">'
+    + '<div class="modal-header">'
+    + '<div class="modal-title">Add Reminder</div>'
+    + '<button class="modal-close" type="button" onclick="document.getElementById(\'' + existingId + '\').remove()">×</button>'
+    + '</div>'
+    + '<div class="rdp-body" style="padding:20px">'
+
+    // Note
+    + '<div class="m-field-grp">'
+    + '<label class="m-field-lbl">Reminder</label>'
+    + '<input class="m-input" id="arm-title" placeholder="What do you need to do?" value="' + escHtml(opts.title || '') + '">'
+    + '</div>'
+
+    // Date
+    + '<div class="m-field-grp">'
+    + '<label class="m-field-lbl">Due date <span style="opacity:.45;font-weight:400">(optional)</span></label>'
+    + _buildDatePickerHtml('arm-date', opts.date || today)
+    + '</div>'
+
+    // Time
+    + '<div class="m-field-grp">'
+    + '<label class="m-field-lbl">Time <span style="opacity:.45;font-weight:400">(optional)</span></label>'
+    + _buildTimePickerHtml('arm-time', opts.time || '')
+    + '</div>'
+
+    // Priority
+    + '<div class="m-field-grp">'
+    + '<label class="m-field-lbl">Priority</label>'
+    + '<div class="arm-priority-row">'
+    + priorityOpts.map(function(p) {
+        return '<button class="arm-prio-btn' + (p.val === (opts.priority || 'medium') ? ' active' : '') + '" '
+          + 'type="button" data-prio="' + p.val + '" style="--pcolor:' + p.color + '" '
+          + 'onclick="document.querySelectorAll(\'#' + existingId + ' .arm-prio-btn\').forEach(function(b){b.classList.remove(\'active\')});this.classList.add(\'active\')">'
+          + p.label + '</button>';
+      }).join('')
+    + '</div>'
+    + '</div>'
+
+    + '</div>'
+    + '<div class="db-modal-ftr" style="padding:14px 20px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;justify-content:flex-end">'
+    + '<button class="db-btn-ghost" type="button" onclick="document.getElementById(\'' + existingId + '\').remove()">Cancel</button>'
+    + '<button class="db-btn-primary" type="button" onclick="_armSave(\'' + escHtml(opts.enquiryId||'') + '\',\'' + escHtml(opts.clientLabel||'') + '\')">Add reminder →</button>'
+    + '</div>'
+    + '</div>';
+
+  document.body.appendChild(overlay);
+  setTimeout(function() { var t = document.getElementById('arm-title'); if (t) t.focus(); }, 80);
+}
+
+async function _armSave(enquiryId, clientLabel) {
+  var title   = (document.getElementById('arm-title') || {}).value || '';
+  var dueDate = (document.getElementById('arm-date')  || {}).value || '';
+  var dueTime = (document.getElementById('arm-time')  || {}).value || '';
+  var prioBtn = document.querySelector('#add-reminder-modal-overlay .arm-prio-btn.active');
+  var priority = prioBtn ? prioBtn.dataset.prio : 'medium';
+  title = title.trim();
+  if (!title) { toast('Please enter a reminder note', 'err'); return; }
+  try {
+    await apiFetch('/api/admin-tasks', {
+      method: 'POST',
+      body: { title: title, due_date: dueDate || null, due_time: dueTime || null, priority: priority, enquiry_id: enquiryId || null, client_label: clientLabel || null },
+    });
+    var overlay = document.getElementById('add-reminder-modal-overlay');
+    if (overlay) overlay.remove();
+    toast('Reminder added', 'ok');
+    _dhLoadTasks();
+    // If on reminders view, re-render it
+    if (_currentView === 'reminders' || _mobCurrentApp === 'reminders') renderRemindersView();
+  } catch (e) {
+    toast(e.message || 'Save failed', 'err');
+  }
 }
 
 /* ── Mobile dock: static HTML — active state managed by mobSwitchApp ── */
@@ -873,8 +1191,18 @@ function openDbModal(type) {
 
   if (type === 'appt') {
     var today = new Date().toISOString().slice(0, 10);
-    var dateEl = document.getElementById('db-ap-ob-date');
-    if (dateEl) dateEl.value = today;
+    // Replace native date/time inputs with custom pickers if not already done
+    var dateGrp = document.getElementById('db-ap-ob-date') && document.getElementById('db-ap-ob-date').closest('.db-form-grp');
+    if (dateGrp && !dateGrp.querySelector('.cdp-wrap')) {
+      dateGrp.innerHTML = '<label class="db-form-lbl">Date</label>' + _buildDatePickerHtml('db-ap-ob-date', today);
+    } else {
+      var dateEl = document.getElementById('db-ap-ob-date');
+      if (dateEl) { dateEl.value = today; var disp = document.getElementById('db-ap-ob-date-display'); if (disp) disp.textContent = _cdpFormatDisplay(today); }
+    }
+    var timeGrp = document.getElementById('db-ap-ob-time') && document.getElementById('db-ap-ob-time').closest('.db-form-grp');
+    if (timeGrp && !timeGrp.querySelector('.ctp-wrap')) {
+      timeGrp.innerHTML = '<label class="db-form-lbl">Time</label>' + _buildTimePickerHtml('db-ap-ob-time', '10:00');
+    }
     // Populate client dropdown — exclude Halaxy-only patients
     var obSel = document.getElementById('db-ap-ob-client');
     if (obSel && _pipelineData && _pipelineData.clients) {
@@ -1102,9 +1430,9 @@ function _dbShowApptPrompt(modalId, clientId, clientName, enquiryId) {
       + '<div style="font-size:12px;color:var(--t3);margin-bottom:16px;text-align:center">Schedule an appointment for <strong>' + escHtml(clientName) + '</strong>?</div>'
       + '<div class="db-form-row">'
       + '<div class="db-form-grp"><label class="db-form-lbl">Date</label>'
-      + '<input class="db-form-input" id="db-ap-prmt-date" type="date" value="' + today + '"></div>'
+      + _buildDatePickerHtml('db-ap-prmt-date', today) + '</div>'
       + '<div class="db-form-grp"><label class="db-form-lbl">Time <span style="color:var(--t3);font-weight:400">(optional)</span></label>'
-      + '<input class="db-form-input" id="db-ap-prmt-time" type="time"></div>'
+      + _buildTimePickerHtml('db-ap-prmt-time', '') + '</div>'
       + '</div>'
       + '</div>';
   }
@@ -1142,23 +1470,47 @@ async function _dbSavePromptAppt(modalId, clientId, clientName, enquiryId) {
 function _dbShowTaskPrompt(modalId, enquiryId, clientName) {
   var modal = document.getElementById(modalId);
   if (!modal) return;
+  var today = new Date().toISOString().slice(0,10);
+  var eid = escHtml(enquiryId || '');
+  var cnm = escHtml(clientName || '');
+  var mid = escHtml(modalId);
+  var priorityOpts = [
+    { val: 'low', label: 'Low' }, { val: 'medium', label: 'Medium' }, { val: 'high', label: 'High' },
+  ];
   var body = modal.querySelector('.db-modal-body');
   var ftr  = modal.querySelector('.db-modal-ftr');
   if (body) {
     body.innerHTML =
-      '<div style="padding:24px 20px 12px;text-align:center">'
-      + '<div style="font-size:22px;color:var(--teal);margin-bottom:6px">✓</div>'
-      + '<div style="font-weight:600;font-size:14px;margin-bottom:3px">' + escHtml(clientName || 'Saved') + '</div>'
-      + '<div style="font-size:12px;color:var(--t3);margin-bottom:16px">Add a follow-up task?</div>'
+      '<div style="padding:16px 20px 4px;text-align:center">'
+      + '<div style="font-size:22px;color:var(--teal);margin-bottom:4px">✓</div>'
+      + '<div style="font-weight:600;font-size:14px;margin-bottom:2px">' + escHtml(clientName || 'Saved') + '</div>'
+      + '<div style="font-size:12px;color:var(--t3);margin-bottom:16px">Add a follow-up reminder?</div>'
+      + '</div>'
+      + '<div style="padding:0 20px 8px">'
+      + '<div class="m-field-grp"><label class="m-field-lbl">Reminder</label>'
       + '<input id="db-ps-task-inp" class="db-form-input" placeholder="e.g. Send intake form, call to confirm…" '
-      + 'onkeydown="if(event.key===\'Enter\')_dbSavePostTask(\'' + escHtml(modalId) + '\',\'' + escHtml(enquiryId||'') + '\',\'' + escHtml(clientName||'') + '\')" />'
+      + 'onkeydown="if(event.key===\'Enter\')_dbSavePostTask(\'' + mid + '\',\'' + eid + '\',\'' + cnm + '\')" /></div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">'
+      + '<div class="m-field-grp"><label class="m-field-lbl">Due date</label>'
+      + _buildDatePickerHtml('ps-arm-date', today) + '</div>'
+      + '<div class="m-field-grp"><label class="m-field-lbl">Time</label>'
+      + _buildTimePickerHtml('ps-arm-time', '') + '</div>'
+      + '</div>'
+      + '<div class="m-field-grp" style="margin-top:8px"><label class="m-field-lbl">Priority</label>'
+      + '<div class="arm-priority-row">'
+      + priorityOpts.map(function(p) {
+          return '<button class="arm-prio-btn' + (p.val === 'medium' ? ' active' : '') + '" type="button" data-prio="' + p.val + '" '
+            + 'onclick="document.querySelectorAll(\'#' + modalId + ' .arm-prio-btn\').forEach(function(b){b.classList.remove(\'active\')});this.classList.add(\'active\')">'
+            + p.label + '</button>';
+        }).join('')
+      + '</div></div>'
       + '</div>';
     setTimeout(function() { var i = document.getElementById('db-ps-task-inp'); if (i) i.focus(); }, 80);
   }
   if (ftr) {
     ftr.innerHTML =
-      '<button class="db-btn-ghost" onclick="_dbPostSaveClose(\'' + escHtml(modalId) + '\')">Skip</button>'
-      + '<button class="db-btn-primary" id="db-ps-task-btn" onclick="_dbSavePostTask(\'' + escHtml(modalId) + '\',\'' + escHtml(enquiryId||'') + '\',\'' + escHtml(clientName||'') + '\')">Add task →</button>';
+      '<button class="db-btn-ghost" onclick="_dbPostSaveClose(\'' + mid + '\')">Skip</button>'
+      + '<button class="db-btn-primary" id="db-ps-task-btn" onclick="_dbSavePostTask(\'' + mid + '\',\'' + eid + '\',\'' + cnm + '\')">Add reminder →</button>';
   }
 }
 
@@ -1166,18 +1518,22 @@ async function _dbSavePostTask(modalId, enquiryId, clientName) {
   var inp = document.getElementById('db-ps-task-inp');
   var title = inp ? inp.value.trim() : '';
   if (!title) { _dbPostSaveClose(modalId); return; }
+  var dueDate  = (document.getElementById('ps-arm-date') || {}).value || '';
+  var dueTime  = (document.getElementById('ps-arm-time') || {}).value || '';
+  var prioBtn  = document.querySelector('#' + modalId + ' .arm-prio-btn.active');
+  var priority = prioBtn ? prioBtn.dataset.prio : 'medium';
   var btn = document.getElementById('db-ps-task-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
   try {
     await apiFetch('/api/admin-tasks', {
       method: 'POST',
-      body: { title: title, enquiry_id: enquiryId || null, client_label: clientName || null },
+      body: { title: title, due_date: dueDate || null, due_time: dueTime || null, priority: priority, enquiry_id: enquiryId || null, client_label: clientName || null },
     });
     _playSuccessChime();
     _dbPostSaveClose(modalId);
   } catch (err) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Add task →'; }
-    toast('Could not save task: ' + err.message, 'err');
+    if (btn) { btn.disabled = false; btn.textContent = 'Add reminder →'; }
+    toast('Could not save: ' + err.message, 'err');
   }
 }
 
@@ -3383,23 +3739,37 @@ function _dhRenderSchedCard() {
       var pillLabel, pillStyle;
       if (isReminder) {
         pillLabel = 'Reminder';
-        pillStyle = 'background:rgba(0,0,0,0.07);color:#8a9a98';
+        pillStyle = 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.35)';
       } else if (a.source === 'cal') {
         pillLabel = 'Google Cal';
-        pillStyle = 'background:rgba(224,123,57,0.15);color:#b85a1e';
-      } else if (a.source === 'halaxy' && a.patientId) {
+        pillStyle = 'background:rgba(224,123,57,0.15);color:#E07B39';
+      } else if (a.source === 'halaxy') {
         pillLabel = 'Halaxy';
-        pillStyle = 'background:rgba(55,107,98,0.12);color:#376B62';
+        pillStyle = 'background:rgba(59,130,246,0.14);color:#60a5fa';
+      } else if (a.source === 'dashboard') {
+        pillLabel = 'Added';
+        pillStyle = 'background:rgba(52,211,153,0.1);color:var(--teal)';
       } else {
         pillLabel = 'Personal';
-        pillStyle = 'background:rgba(0,0,0,0.07);color:#8a9a98';
+        pillStyle = 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.35)';
       }
 
-      // Status tag (only for non-upcoming)
+      // Status tag
       var statusTag = '';
-      var statusMap = { 'needs-recording': ['Needs recording', '#7c6fe0'], 'pending-invoice': ['No invoice', '#7c6fe0'], 'invoiced': ['Invoice unpaid', '#E07B39'] };
+      var statusMap = {
+        'needs-recording': ['Needs further action', '#a78bfa'],
+        'pending-invoice': ['Needs invoice',        '#a78bfa'],
+        'invoiced':        ['Invoice unpaid',        '#E07B39'],
+        'paid':            ['Paid',                  '#34d399'],
+      };
       if (statusMap[a.status]) {
-        statusTag = '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(108,92,231,0.1);color:' + statusMap[a.status][1] + ';white-space:nowrap">' + statusMap[a.status][0] + '</span>';
+        var sc = statusMap[a.status];
+        var bg = a.status === 'paid'
+          ? 'rgba(52,211,153,0.1)'
+          : a.status === 'invoiced'
+            ? 'rgba(224,123,57,0.12)'
+            : 'rgba(167,139,250,0.1)';
+        statusTag = '<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;background:' + bg + ';color:' + sc[1] + ';white-space:nowrap">' + sc[0] + '</span>';
       }
 
       h += '<div class="dh-sched-row' + srcCls + '" onclick="openDetailPanel(\'session\',\'' + sid + '\')" style="cursor:pointer">'
@@ -3433,8 +3803,10 @@ function renderHomeView() {
   var enquiries = (_pipelineData.enquiries || []);
   var invoices  = (_halaxyData && _halaxyData.invoices) || [];
   // Use the full unified session pipeline so patient names and statuses are resolved
-  var _uni  = (_halaxyData && _halaxyData.connected) ? _buildUnifiedSessions() : { upcoming: [], past: [] };
-  var appts = _uni.upcoming.concat(_uni.past);
+  var _uni = (_halaxyData && _halaxyData.connected) ? _buildUnifiedSessions() : { upcoming: [], past: [] };
+  var uniSet = new Set(_uni.upcoming.concat(_uni.past).map(function(s) { return s.startIso; }));
+  var extraLocal = _getLocalSessions().filter(function(s) { return !uniSet.has(s.startIso); });
+  var appts = _uni.upcoming.concat(_uni.past).concat(extraLocal);
   var clients   = (_pipelineData.clients || []);
 
   function _avCol(n) { return ['av-teal','av-blue','av-purple','av-amber','av-red'][(n||'').charCodeAt(0)%5]; }

@@ -2013,3 +2013,159 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   from { opacity: 1; transform: translateY(0) scale(1); }
   to   { opacity: 0; transform: translateY(-8px) scale(0.95); }
 }
+
+/* ─── CUSTOM DATE PICKER ─────────────────────────────────────── */
+.cdp-wrap {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+.cdp-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--rxs);
+  color: var(--t1); font-family: inherit; font-size: 13px;
+  cursor: pointer; text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
+}
+.cdp-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
+.cdp-btn svg { opacity: 0.55; flex-shrink: 0; }
+.cdp-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 9999;
+  background: rgba(13,19,38,0.98);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.65), 0 1px 0 rgba(255,255,255,0.07) inset;
+  min-width: 242px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+.cdp-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.cdp-nav-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 7px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.09);
+  cursor: pointer; color: var(--t1);
+  transition: background 0.13s;
+  font-size: 14px;
+}
+.cdp-nav-btn:hover { background: rgba(255,255,255,0.12); }
+.cdp-month-lbl {
+  font-size: 13px; font-weight: 600; color: var(--t1);
+}
+.cdp-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.cdp-dh {
+  font-size: 10px; font-weight: 600; text-align: center;
+  color: var(--t3); padding: 3px 0 6px;
+  letter-spacing: 0.04em;
+}
+.cdp-day {
+  display: flex; align-items: center; justify-content: center;
+  height: 32px; border-radius: 7px;
+  font-size: 12.5px; color: var(--t1);
+  cursor: pointer; transition: background 0.1s;
+  border: none; background: transparent; font-family: inherit;
+}
+.cdp-day:hover:not(.cdp-empty) { background: rgba(255,255,255,0.09); }
+.cdp-today { color: var(--teal); font-weight: 600; }
+.cdp-sel { background: var(--teal) !important; color: #080C18 !important; font-weight: 700; border-radius: 7px; }
+.cdp-sel:hover { background: var(--teal) !important; }
+.cdp-empty { pointer-events: none; }
+
+/* ─── CUSTOM TIME PICKER ─────────────────────────────────────── */
+.ctp-wrap {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+.ctp-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--rxs);
+  color: var(--t1); font-family: inherit; font-size: 13px;
+  cursor: pointer; text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
+}
+.ctp-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
+.ctp-btn svg { opacity: 0.55; flex-shrink: 0; }
+.ctp-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 9999;
+  background: rgba(13,19,38,0.98);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.65), 0 1px 0 rgba(255,255,255,0.07) inset;
+  width: 160px;
+  overflow: hidden;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+.ctp-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+.ctp-list::-webkit-scrollbar { width: 4px; }
+.ctp-list::-webkit-scrollbar-track { background: transparent; }
+.ctp-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 2px; }
+.ctp-item {
+  display: flex; align-items: center;
+  padding: 7px 10px; border-radius: 7px;
+  font-size: 13px; color: var(--t1);
+  cursor: pointer; transition: background 0.1s;
+  border: none; background: transparent; width: 100%;
+  font-family: inherit; text-align: left;
+}
+.ctp-item:hover { background: rgba(255,255,255,0.09); }
+.ctp-sel { background: rgba(52,211,153,0.14) !important; color: var(--teal) !important; font-weight: 600; }
+
+/* ─── MODAL FORM FIELDS ──────────────────────────────────────── */
+.m-field-grp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.m-field-lbl {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--t3);
+}
+
+/* ─── REMINDER PRIORITY SELECTOR ────────────────────────────── */
+.arm-priority-row {
+  display: flex;
+  gap: 6px;
+}
+.arm-prio-btn {
+  flex: 1; padding: 7px 6px; border-radius: 8px;
+  font-size: 11.5px; font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: var(--t2); cursor: pointer; font-family: inherit;
+  transition: all 0.15s; text-align: center;
+}
+.arm-prio-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); }
+.arm-prio-btn.active[data-p="low"]    { background: rgba(52,211,153,0.12);  color: var(--teal);   border-color: rgba(52,211,153,0.3); }
+.arm-prio-btn.active[data-p="medium"] { background: rgba(251,191,36,0.12);  color: var(--amber);  border-color: rgba(251,191,36,0.3); }
+.arm-prio-btn.active[data-p="high"]   { background: rgba(248,113,113,0.12); color: var(--red);    border-color: rgba(248,113,113,0.3); }

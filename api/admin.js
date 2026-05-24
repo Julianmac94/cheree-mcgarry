@@ -289,20 +289,24 @@ body {
 /* ── Sidebar + Add button ── */
 .sidebar-add-wrap {
   position: relative;
-  margin: 2px 10px 6px;
+  margin: 0 10px 4px;
 }
 .sidebar-add-btn {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 14px; border-radius: 9px;
-  background: rgba(42,88,80,0.1);
-  border: 1px solid rgba(42,88,80,0.2);
-  cursor: pointer; width: 100%;
-  color: var(--teal); font-family: var(--sans); font-size: 12px; font-weight: 600;
-  transition: background 0.13s, border-color 0.13s;
-  text-align: left;
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 9px;
+  background: rgba(52,211,153,0.07);
+  border: 1px solid rgba(52,211,153,0.22);
+  cursor: pointer;
+  color: var(--teal);
+  transition: background 0.13s, border-color 0.13s, box-shadow 0.13s;
+  flex-shrink: 0;
 }
-.sidebar-add-btn:hover { background: rgba(42,88,80,0.17); border-color: rgba(42,88,80,0.32); }
-.sidebar-add-btn svg { flex-shrink: 0; opacity: 0.85; }
+.sidebar-add-btn:hover {
+  background: rgba(52,211,153,0.14);
+  border-color: rgba(52,211,153,0.38);
+  box-shadow: 0 2px 10px rgba(52,211,153,0.14);
+}
+.sidebar-add-btn svg { flex-shrink: 0; }
 
 .sidebar-section-label {
   font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
@@ -2823,10 +2827,9 @@ body {
     <!-- ── + Add button ── -->
     <div class="sidebar-add-wrap" id="sb-add-wrap">
       <button class="sidebar-add-btn" onclick="toggleAddMenu()" title="Add new">
-        <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+        <svg width="15" height="15" viewBox="0 0 12 12" fill="none">
           <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
         </svg>
-        New
       </button>
       <div class="dh-add-menu" id="dh-add-menu" style="display:none">
         <button class="dh-add-item" onclick="closeAddMenu();openDbModal('client')">
