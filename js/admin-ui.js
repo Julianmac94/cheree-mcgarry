@@ -50,6 +50,58 @@ function toast(msg, type) {
   }, type === 'err' ? 5000 : 2500);
 }
 
+/* ── Success overlay (Apple Pay-style) ── */
+function _showSuccess(type, label) {
+  var C = {
+    save:     { bg: '#2A5850', stroke: '#77CFBD' },
+    mark:     { bg: '#27ae60', stroke: '#a8f0c4' },
+    send:     { bg: '#2E5FA3', stroke: '#8ABDE8' },
+    merge:    { bg: '#376B62', stroke: '#77CFBD' },
+    delete:   { bg: '#BE6E44', stroke: '#FFBF99' },
+    reminder: { bg: '#7C6FE0', stroke: '#C4BFFF' },
+  };
+  var c = C[type] || C.save;
+  var el = document.createElement('div');
+  el.className = 'suc-overlay';
+  el.innerHTML = '<div class="suc-ring" style="background:' + c.bg + '">'
+    + '<svg width="42" height="42" viewBox="0 0 42 42" fill="none">'
+    + '<path d="M10 21.5 L18.5 30 L32 14" stroke="' + c.stroke + '" stroke-width="3.2"'
+    + ' stroke-linecap="round" stroke-linejoin="round"'
+    + ' style="stroke-dasharray:52;stroke-dashoffset:52;animation:suc-check 0.32s 0.12s ease forwards"/>'
+    + '</svg></div>'
+    + (label ? '<div class="suc-label">' + label + '</div>' : '');
+  document.body.appendChild(el);
+  _playSnd(type);
+  setTimeout(function() {
+    el.style.animation = 'suc-dismiss 0.28s ease forwards';
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 290);
+  }, 1300);
+}
+
+/* ── Sound effects (Web Audio API — no external files) ── */
+function _playSnd(type) {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    function tone(freq, startT, dur, wave, vol) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = wave || 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, startT);
+      g.gain.linearRampToValueAtTime(vol || 0.18, startT + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.001, startT + dur);
+      o.start(startT); o.stop(startT + dur + 0.04);
+    }
+    var t = ctx.currentTime;
+    if (type === 'save')     { tone(440, t, 0.15); tone(660, t + 0.09, 0.15); }
+    else if (type === 'mark'){ tone(523, t, 0.10); tone(784, t + 0.07, 0.12); }
+    else if (type === 'send'){ tone(660, t, 0.14, 'sine', 0.14); tone(440, t + 0.1, 0.16, 'sine', 0.12); }
+    else if (type === 'merge'){ tone(440, t, 0.20); tone(554, t + 0.02, 0.20, 'sine', 0.10); tone(660, t + 0.04, 0.20, 'sine', 0.08); }
+    else if (type === 'delete'){ tone(440, t, 0.10, 'triangle'); tone(330, t + 0.08, 0.12, 'triangle', 0.12); }
+    else if (type === 'reminder'){ tone(528, t, 0.28, 'sine', 0.22); tone(528, t + 0.01, 0.35, 'triangle', 0.04); }
+    setTimeout(function() { try { ctx.close(); } catch(e) {} }, 700);
+  } catch(e) {}
+}
+
 /* ── Generic API helper ── */
 async function apiFetch(url, opts) {
   var defaults = { headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' };
@@ -390,6 +442,7 @@ var _pipelineData    = null;
 var _halaxyData      = { connected: false, appointments: [], patients: [], patientMap: {}, funders: [] };
 var _calEventMap     = {};    // eventId → event object
 var _calDismissed    = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
+var _calReminders    = new Set(JSON.parse(localStorage.getItem('cal_reminders')  || '[]'));
 window._completedExpanded = false; // toggle for completed section in queue view
 // Halaxy appointments actioned (recorded or cancelled) this session — persisted in localStorage
 // so they don't bounce back into "Needs Recording" after a pipeline refresh.
@@ -490,10 +543,10 @@ function navigateTo(view) {
   else if (view === 'reports')  renderStubView('reports', 'Reports', 'Practice reports and insights coming soon.')
 }
 
-/* ── Topbar: update title + action buttons per view ── */
+/* ── Topbar: hide on home (inline header used), show on other views ── */
 function _dbUpdateTopbar(view) {
+  var topbar   = document.getElementById('app-topbar');
   var titleEl  = document.getElementById('db-topbar-title');
-  var subEl    = document.getElementById('db-topbar-sub');
   var btnAppt  = document.getElementById('db-btn-appt');
   var btnClient = document.getElementById('db-btn-client');
   var srchWrap = document.getElementById('db-search-wrap');
@@ -511,15 +564,23 @@ function _dbUpdateTopbar(view) {
     reports:  'Reports',
   };
 
+  // Home view uses its own inline header — topbar not needed
+  if (topbar) {
+    if (view === 'home') {
+      topbar.classList.remove('is-visible');
+    } else {
+      topbar.classList.add('is-visible');
+    }
+  }
+
   if (titleEl) {
     titleEl.innerHTML = (titles[view] || 'Practice Hub') + ' <span class="db-topbar-sub">' + dateStr + '</span>';
   }
 
-  // Show/hide context buttons
-  var showActions = (view === 'home' || view === 'clients');
-  if (btnAppt)  btnAppt.style.display  = showActions ? 'flex' : 'none';
+  var showActions = (view === 'clients');
+  if (btnAppt)   btnAppt.style.display   = showActions ? 'flex' : 'none';
   if (btnClient) btnClient.style.display = showActions ? 'flex' : 'none';
-  if (srchWrap) srchWrap.style.display = (view === 'clients') ? 'flex' : 'none';
+  if (srchWrap)  srchWrap.style.display  = (view === 'clients') ? 'flex' : 'none';
 }
 
 function renderStubView(view, title, msg) {
@@ -545,29 +606,26 @@ function openDbModal(type) {
   var pfx = type === 'client' ? 'cl' : 'ap';
   _dbResetStep(pfx);
 
+  if (type === 'client') {
+    // Reset fields and any validation highlighting
+    ['db-cl-fname','db-cl-lname','db-cl-email','db-cl-phone','db-cl-notes'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.value = '';
+    });
+    var fSel = document.getElementById('db-cl-funder');
+    if (fSel) { fSel.selectedIndex = 0; fSel.style.outline = ''; }
+    var sSel = document.getElementById('db-cl-source');
+    if (sSel) sSel.selectedIndex = 0;
+  }
+
   if (type === 'appt') {
     var today = new Date().toISOString().slice(0, 10);
-    // Set today as default in both date fields
-    ['db-ap-ob-date', 'db-ap-hx-date'].forEach(function(elId) {
-      var el = document.getElementById(elId);
-      if (el) el.value = today;
-    });
-    // Clear Halaxy search + funder + fee state
-    var hxSearch   = document.getElementById('db-ap-hx-search');
-    var hxHidden   = document.getElementById('db-ap-hx-client');
-    var hxResults  = document.getElementById('db-ap-hx-results');
-    var hxFunder   = document.getElementById('db-ap-hx-funder');
-    if (hxSearch)  { hxSearch.value = ''; }
-    if (hxHidden)  { hxHidden.value = ''; }
-    if (hxResults) { hxResults.innerHTML = ''; hxResults.style.display = 'none'; }
-    if (hxFunder)  { hxFunder.value = ''; }
-    // Reset fee dropdown — empty until funder is chosen
-    _dbPopulateHxFees(null);
-    // Populate onboarding clients dropdown
+    var dateEl = document.getElementById('db-ap-ob-date');
+    if (dateEl) dateEl.value = today;
+    // Populate client dropdown — exclude Halaxy-only patients
     var obSel = document.getElementById('db-ap-ob-client');
     if (obSel && _pipelineData && _pipelineData.clients) {
       while (obSel.options.length > 1) obSel.remove(1);
-      (_pipelineData.clients || []).forEach(function(c) {
+      (_pipelineData.clients || []).filter(function(c) { return !c._isHalaxyOnly && !c.halaxy_id; }).forEach(function(c) {
         var opt = document.createElement('option');
         opt.value = c.id || '';
         opt.textContent = c.display_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || ('Client #' + c.id);
@@ -646,35 +704,9 @@ function dbSelectDest(el, dest, pfx) {
   _dbSelectedDest[pfx || 'cl'] = dest;
 }
 
-/** Handle Next / Save on the Add Client modal */
+/** Handle Save on the Add Client modal */
 function _dbClientNextOrSave() {
-  var s1 = document.getElementById('db-cl-s1');
-  var isOnStep1 = s1 && s1.classList.contains('active');
-  if (isOnStep1) {
-    if (!_dbSelectedDest['cl']) {
-      toast('Please choose a destination first', 'err');
-      return;
-    }
-    dbGoStep('cl', 2);
-    return;
-  }
-  // On step 2 — save based on selected destination
-  var dest = _dbSelectedDest['cl'] || 'onboarding';
-  if (dest === 'halaxy') {
-    var fname = (document.getElementById('db-cl-hx-fname') || {}).value || '';
-    var lname = (document.getElementById('db-cl-hx-lname') || {}).value || '';
-    var email = (document.getElementById('db-cl-hx-email') || {}).value || '';
-    closeDbModal('db-modal-client');
-    openAddClient();  // existing function — opens Halaxy patient modal
-    setTimeout(function() {
-      var nm = document.getElementById('cl-modal-name');
-      var em = document.getElementById('cl-modal-email');
-      if (nm) nm.value = [fname, lname].filter(Boolean).join(' ');
-      if (em) em.value = email;
-    }, 100);
-  } else {
-    dbSaveClientOnboarding();
-  }
+  dbSaveClientOnboarding();
 }
 
 /** Save the Add Client form — Onboarding queue destination */
@@ -688,75 +720,245 @@ async function dbSaveClientOnboarding() {
   var notes  = (document.getElementById('db-cl-notes')  || {}).value || '';
 
   if (!fname.trim()) { toast('First name is required', 'err'); return; }
-  if (!email.trim()) { toast('Email is required', 'err'); return; }
+  if (!funder) {
+    var funderSel = document.getElementById('db-cl-funder');
+    if (funderSel) { funderSel.style.outline = '2px solid var(--amber)'; funderSel.focus(); }
+    toast('Please select a funder type before saving', 'err');
+    return;
+  }
+
+  var btn = document.getElementById('db-cl-next');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
   try {
-    await apiFetch('/api/clients', {
+    var clientName = [fname.trim(), lname.trim()].filter(Boolean).join(' ');
+    var saved = await apiFetch('/api/clients', {
       method: 'POST',
       body: {
-        display_name: [fname.trim(), lname.trim()].filter(Boolean).join(' '),
-        email:        email.trim(),
-        phone:        phone.trim(),
-        source:       source,
-        funder:       funder,   // API column is 'funder', not 'funder_type'
-        notes:        notes.trim(),
-        status:       'onboarding',
+        display_name: clientName,
+        email:        email.trim() || null,
+        phone:        phone.trim() || null,
+        source:       source       || null,
+        funder:       funder       || null,
+        notes:        notes.trim() || null,
       }
     });
-    closeDbModal('db-modal-client');
-    toast('Client added to onboarding queue', 'ok');
-    if (_pipelineData) {
-      await _loadPipelineData();
-      renderClientsView();
-    }
+    if (btn) { btn.textContent = '✓'; btn.style.cssText += ';background:var(--teal);color:#051c11'; }
+    _playSuccessChime();
+    setTimeout(function() {
+      if (btn) { btn.disabled = false; btn.textContent = 'Save →'; btn.style.cssText = btn.style.cssText.replace(/background:[^;]+;?/g,'').replace(/color:[^;]+;?/g,''); }
+      _dbShowApptPrompt('db-modal-client', (saved && saved.id) || null, clientName, (saved && saved.enquiry_id) || null);
+    }, 550);
   } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save →'; }
     toast('Could not save client: ' + err.message, 'err');
   }
 }
 
 /** Handle Next / Save on the Add Appointment modal */
 function _dbApptNextOrSave() {
-  var s1 = document.getElementById('db-ap-s1');
-  var isOnStep1 = s1 && s1.classList.contains('active');
-  if (isOnStep1) {
-    if (!_dbSelectedDest['ap']) {
-      toast('Please choose a destination first', 'err');
-      return;
-    }
-    dbGoStep('ap', 2);
-    return;
-  }
-  // On step 2 — save or book in Halaxy
-  var dest = _dbSelectedDest['ap'] || 'onboarding';
-  if (dest === 'halaxy') {
-    dbBookHalaxyAppt();
-  } else {
-    dbSaveApptOnboarding();
-  }
+  dbSaveApptOnboarding();
 }
 
 /** Save an onboarding/admin appointment to the dashboard */
 async function dbSaveApptOnboarding() {
-  var clientId = (document.getElementById('db-ap-ob-client') || {}).value || '';
-  var date     = (document.getElementById('db-ap-ob-date')   || {}).value || '';
-  var time     = (document.getElementById('db-ap-ob-time')   || {}).value || '';
-  var type     = (document.getElementById('db-ap-ob-type')   || {}).value || 'intake';
-  var notes    = (document.getElementById('db-ap-ob-notes')  || {}).value || '';
+  var clientSel  = document.getElementById('db-ap-ob-client');
+  var clientId   = (clientSel || {}).value || '';
+  var date       = (document.getElementById('db-ap-ob-date')  || {}).value || '';
+  var time       = (document.getElementById('db-ap-ob-time')  || {}).value || '';
+  var apptType   = (document.getElementById('db-ap-ob-type')  || {}).value || 'intake';
+  var notes      = (document.getElementById('db-ap-ob-notes') || {}).value || '';
 
   if (!date) { toast('Date is required', 'err'); return; }
+
+  var clientName = (clientSel && clientSel.selectedIndex > 0)
+    ? clientSel.options[clientSel.selectedIndex].text : '';
+
+  var typeLabel  = { intake: 'Intake call', session: 'Appointment', admin: 'Admin' }[apptType] || 'Appointment';
+  var fullNotes  = typeLabel + (notes ? ' — ' + notes : '');
+
+  var btn = document.getElementById('db-ap-next');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
   try {
     await apiFetch('/api/sessions', {
       method: 'POST',
-      body: { client_id: clientId, date, time, type, notes, source: 'dashboard' }
+      body: {
+        client_id:    clientId   || null,
+        session_date: date,
+        session_time: time       || null,
+        notes:        fullNotes  || null,
+        client_name:  clientName || null,
+        status:       'upcoming',
+      }
     });
-    closeDbModal('db-modal-appt');
-    toast('Appointment logged in dashboard', 'ok');
+
+    // ✓ success tick + chime
+    if (btn) { btn.textContent = '✓'; btn.style.cssText += ';background:var(--teal);color:#051c11'; }
+    _playSuccessChime();
+
+    // Push new appt into schedule cache so it shows immediately
+    _dhAppts.push({
+      dateStr:  date,
+      startIso: date + 'T' + (time || '09:00') + ':00',
+      startMs:  new Date(date + 'T' + (time || '09:00') + ':00').getTime(),
+      timeStr:  time || '',
+      name:     clientName || 'Client',
+      status:   'upcoming',
+    });
+
+    // Navigate schedule to the saved date
+    var savedWeekOff = _dhWeekOffsetForDate(date);
+    if (savedWeekOff >= -1 && savedWeekOff <= 1) {
+      _dhSchedWeekOff = savedWeekOff;
+      _dhSchedDateStr = date;
+    }
+
+    // Find linked enquiry_id from the selected client
+    var linkedClient = clientId ? ((_pipelineData && _pipelineData.clients) || []).find(function(c) { return String(c.id) === String(clientId); }) : null;
+    var apptEnquiryId = linkedClient ? linkedClient.enquiry_id : null;
+
+    _dhRenderSchedCard();
+
+    setTimeout(function() {
+      if (btn) { btn.disabled = false; btn.textContent = 'Save →'; btn.style.cssText = btn.style.cssText.replace(/background:[^;]+;?/,'').replace(/color:[^;]+;?/,''); }
+      _dbShowTaskPrompt('db-modal-appt', apptEnquiryId || null, clientName || 'Client');
+    }, 550);
+
   } catch (err) {
-    // /api/sessions may not exist yet — fail gracefully
-    closeDbModal('db-modal-appt');
-    toast('Appointment noted — sync to Halaxy when ready', 'ok');
+    if (btn) { btn.disabled = false; btn.textContent = 'Save →'; }
+    toast('Could not save appointment: ' + err.message, 'err');
   }
+}
+
+// ── Post-save sequential prompts ─────────────────────────────────────────────
+// After saving a client the modal steps through:
+//   1. "Schedule an appointment?" → 2. "Add a task?" → close
+// After saving an appointment: "Add a task?" → close
+
+function _dbShowApptPrompt(modalId, clientId, clientName, enquiryId) {
+  var modal = document.getElementById(modalId);
+  if (!modal) return;
+  var body = modal.querySelector('.db-modal-body');
+  var ftr  = modal.querySelector('.db-modal-ftr');
+  var today = new Date().toISOString().slice(0, 10);
+  if (body) {
+    body.innerHTML =
+      '<div style="padding:20px 20px 8px">'
+      + '<div style="font-size:12px;color:var(--t3);margin-bottom:16px;text-align:center">Schedule an appointment for <strong>' + escHtml(clientName) + '</strong>?</div>'
+      + '<div class="db-form-row">'
+      + '<div class="db-form-grp"><label class="db-form-lbl">Date</label>'
+      + '<input class="db-form-input" id="db-ap-prmt-date" type="date" value="' + today + '"></div>'
+      + '<div class="db-form-grp"><label class="db-form-lbl">Time <span style="color:var(--t3);font-weight:400">(optional)</span></label>'
+      + '<input class="db-form-input" id="db-ap-prmt-time" type="time"></div>'
+      + '</div>'
+      + '</div>';
+  }
+  if (ftr) {
+    var eid = escHtml(enquiryId || '');
+    var cid = escHtml(clientId  || '');
+    var cnm = escHtml(clientName || '');
+    var mid = escHtml(modalId);
+    ftr.innerHTML =
+      '<button class="db-btn-ghost" onclick="_dbShowTaskPrompt(\'' + mid + '\',\'' + eid + '\',\'' + cnm + '\')">Skip</button>'
+      + '<button class="db-btn-primary" id="db-ap-prmt-btn" onclick="_dbSavePromptAppt(\'' + mid + '\',\'' + cid + '\',\'' + cnm + '\',\'' + eid + '\')">Add appointment →</button>';
+  }
+}
+
+async function _dbSavePromptAppt(modalId, clientId, clientName, enquiryId) {
+  var date = (document.getElementById('db-ap-prmt-date') || {}).value || '';
+  var time = (document.getElementById('db-ap-prmt-time') || {}).value || '';
+  if (!date) { toast('Please pick a date', 'err'); return; }
+  var btn = document.getElementById('db-ap-prmt-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    await apiFetch('/api/sessions', {
+      method: 'POST',
+      body: { client_id: clientId || null, session_date: date, session_time: time || null, client_name: clientName || null, status: 'upcoming' },
+    });
+    _dhAppts.push({ dateStr: date, startIso: date + 'T' + (time || '09:00') + ':00', startMs: new Date(date + 'T' + (time || '09:00') + ':00').getTime(), timeStr: time || '', name: clientName || 'Client', status: 'upcoming' });
+    _playSuccessChime();
+    _dbShowTaskPrompt(modalId, enquiryId || null, clientName);
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Add appointment →'; }
+    toast('Could not save appointment: ' + err.message, 'err');
+  }
+}
+
+function _dbShowTaskPrompt(modalId, enquiryId, clientName) {
+  var modal = document.getElementById(modalId);
+  if (!modal) return;
+  var body = modal.querySelector('.db-modal-body');
+  var ftr  = modal.querySelector('.db-modal-ftr');
+  if (body) {
+    body.innerHTML =
+      '<div style="padding:24px 20px 12px;text-align:center">'
+      + '<div style="font-size:22px;color:var(--teal);margin-bottom:6px">✓</div>'
+      + '<div style="font-weight:600;font-size:14px;margin-bottom:3px">' + escHtml(clientName || 'Saved') + '</div>'
+      + '<div style="font-size:12px;color:var(--t3);margin-bottom:16px">Add a follow-up task?</div>'
+      + '<input id="db-ps-task-inp" class="db-form-input" placeholder="e.g. Send intake form, call to confirm…" '
+      + 'onkeydown="if(event.key===\'Enter\')_dbSavePostTask(\'' + escHtml(modalId) + '\',\'' + escHtml(enquiryId||'') + '\',\'' + escHtml(clientName||'') + '\')" />'
+      + '</div>';
+    setTimeout(function() { var i = document.getElementById('db-ps-task-inp'); if (i) i.focus(); }, 80);
+  }
+  if (ftr) {
+    ftr.innerHTML =
+      '<button class="db-btn-ghost" onclick="_dbPostSaveClose(\'' + escHtml(modalId) + '\')">Skip</button>'
+      + '<button class="db-btn-primary" id="db-ps-task-btn" onclick="_dbSavePostTask(\'' + escHtml(modalId) + '\',\'' + escHtml(enquiryId||'') + '\',\'' + escHtml(clientName||'') + '\')">Add task →</button>';
+  }
+}
+
+async function _dbSavePostTask(modalId, enquiryId, clientName) {
+  var inp = document.getElementById('db-ps-task-inp');
+  var title = inp ? inp.value.trim() : '';
+  if (!title) { _dbPostSaveClose(modalId); return; }
+  var btn = document.getElementById('db-ps-task-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
+  try {
+    await apiFetch('/api/admin-tasks', {
+      method: 'POST',
+      body: { title: title, enquiry_id: enquiryId || null, client_label: clientName || null },
+    });
+    _playSuccessChime();
+    _dbPostSaveClose(modalId);
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Add task →'; }
+    toast('Could not save task: ' + err.message, 'err');
+  }
+}
+
+async function _dbPostSaveClose(modalId) {
+  closeDbModal(modalId);
+  await loadPipeline();
+  renderHomeView();
+  _dhLoadTasks();
+}
+
+function _playSuccessChime() {
+  try {
+    var ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    var osc  = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.45);
+  } catch (e) {}
+}
+
+function _dhWeekOffsetForDate(dateStr) {
+  var p    = dateStr.split('-');
+  var d    = new Date(+p[0], +p[1]-1, +p[2]);
+  var now  = new Date();
+  var mon  = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var dow  = mon.getDay();
+  mon.setDate(mon.getDate() + (dow === 0 ? -6 : 1 - dow));
+  return Math.round((d - mon) / (7 * 864e5));
 }
 
 /** Halaxy patient typeahead search */
@@ -1092,6 +1294,9 @@ function openDetailPanel(type, id) {
     var clients = (_pipelineData && _pipelineData.clients) || [];
     var cl = clients.find(function(c) { return String(c.id) === String(id); });
     if (cl) { html = _renderClientDetailPanel(cl); titleText = cl.display_name || 'Client'; }
+  } else if (type === 'task') {
+    var task = _dhTasks.find(function(t) { return String(t.id) === String(id); });
+    if (task) { html = _renderTaskDetailPanel(task); titleText = task.title || 'Task'; }
   }
   if (title) title.textContent = titleText;
   body.innerHTML = html || '<div class="q-empty">Not found</div>';
@@ -1585,7 +1790,7 @@ function _halaxyApptLabel(a) {
   // For personal / admin appointments fall back to description or appointmentType
   if (!parts.length) {
     var apptType = (a.appointmentType && (a.appointmentType.text || (a.appointmentType.coding && a.appointmentType.coding[0] && a.appointmentType.coding[0].display))) || '';
-    return a.description || a.comment || apptType || svc || 'Halaxy appointment';
+    return a.description || a.comment || apptType || svc || 'Personal appointment';
   }
 
   return parts.join(' · ');
@@ -1681,7 +1886,7 @@ function _buildUnifiedSessions() {
 
     // Build label — try participant resolution first, then fall back to effectivePatientId lookup
     var label = _halaxyApptLabel(appt);
-    if ((label === 'Halaxy appointment' || !label) && effectivePatientId) {
+    if ((label === 'Personal appointment' || !label) && effectivePatientId) {
       var pm2 = _halaxyData && _halaxyData.patientMap;
       var infName = (pm2 && pm2[effectivePatientId]) || '';
       if (!infName) {
@@ -1761,18 +1966,24 @@ function _buildUnifiedSessions() {
     if (!existing) {
       apptByStartIso[key] = s;
     } else {
-      var existingNamed = existing.name && existing.name !== 'Halaxy appointment';
-      var thisNamed = s.name && s.name !== 'Halaxy appointment';
+      var existingNamed = existing.name && existing.name !== 'Personal appointment';
+      var thisNamed = s.name && s.name !== 'Personal appointment';
       if (thisNamed && !existingNamed) apptByStartIso[key] = s;
     }
   });
   sessions = sessions.filter(function(s) { return apptByStartIso[s.startIso] === s; });
+
+  // Build ISO-time set from surviving Halaxy entries for cross-source dedup
+  var halaxyStartIsoSet = new Set(sessions.map(function(s) { return s.startIso; }));
 
   /* ── 2. Google Calendar events ── */
   Object.keys(_calEventMap).forEach(function(eid) {
     if (_calDismissed.has(eid)) return;
     var ev = _calEventMap[eid];
     if (!ev || !ev.start) return;
+
+    // Skip if a Halaxy appointment already occupies the same start time
+    if (halaxyStartIsoSet.has(ev.start)) return;
 
     var startMs = new Date(ev.start).getTime();
     var dateStr = ev.start.slice(0, 10);
@@ -1794,18 +2005,19 @@ function _buildUnifiedSessions() {
     var uid = 'cal-log-' + String(eid);
 
     sessions.push({
-      id:        uid,
-      source:    'cal',
-      status:    status,
-      dateMs:    dateD.getTime(),
-      startMs:   startMs,
-      dateStr:   dateStr,
-      dateLabel: dateLabel,
-      timeStr:   timeStr,
-      name:      ev.title || ev.summary || 'Calendar event',
-      patientId: null,
-      eventId:   String(eid),
-      ev:        ev,
+      id:         uid,
+      source:     'cal',
+      status:     status,
+      dateMs:     dateD.getTime(),
+      startMs:    startMs,
+      dateStr:    dateStr,
+      dateLabel:  dateLabel,
+      timeStr:    timeStr,
+      name:       ev.title || ev.summary || 'Calendar event',
+      patientId:  null,
+      eventId:    String(eid),
+      isReminder: _calReminders.has(String(eid)),
+      ev:         ev,
     });
   });
 
@@ -2133,9 +2345,9 @@ function renderAppointmentsPanel() {
           var uid = 'cal-wk-' + eid;
           var time = ev.allDay ? 'All day' : new Date(ev.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
           var title = ev.title || ev.summary || 'Event';
-          html += '<div class="week-event" onclick="toggleWeekEvent(this)">'
+          html += '<div class="week-event week-event--cal" onclick="toggleWeekEvent(this)">'
             + '<div class="week-event-time">' + escHtml(time) + '</div>'
-            + '<span class="week-event-source">Calendar</span>'
+            + '<span class="week-event-source">Google Cal</span>'
             + '<div class="week-event-title">' + escHtml(title) + '</div>'
             + '<div class="week-event-actions">'
             + '<button class="week-event-btn" onclick="event.stopPropagation();openCalSessionPanel(\'' + uid + '\',\'' + eid + '\')">Create Invoice →</button>'
@@ -2645,15 +2857,313 @@ async function deleteClient(id, name) {
   }
 }
 
-/* ── Home dashboard view ── */
+/* ── Home view shared helpers ────────────────────────────────── */
+function _dhAvCol(n) { return ['av-teal','av-blue','av-purple','av-amber','av-red'][(n||'').charCodeAt(0)%5]; }
+function _dhIni(n) {
+  if (!n) return '?';
+  var p = n.trim().split(/\s+/);
+  return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase();
+}
+
+var _dhSourceLabels = {
+  website:         'Website',
+  email:           'Email referral',
+  phone:           'Phone call',
+  gp_referral:     'GP referral',
+  eap:             'EAP',
+  word_of_mouth:   'Word of mouth',
+  manual:          'Added manually',
+  modal:           'Added via dashboard',
+  'home-page-inline': 'Website form',
+  debug:           'Test entry',
+  halaxy:          'Halaxy import',
+  ndis:            'NDIS',
+};
+var _dhCalIcon = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+
+function _dhEnqMeta(e) {
+  var client    = _dhEnqClientMap[e.id];
+  var hxId      = client && client.halaxy_id ? String(client.halaxy_id) : null;
+  var nextAppt  = hxId && _dhPatientApptMap[hxId] && _dhPatientApptMap[hxId][0];
+  var actCount  = (e.activity || []).length;
+  var taskCount = (_dhTasks || []).filter(function(t) { return t.enquiry_id === e.id && !t.completed; }).length;
+  var sourceLbl = _dhSourceLabels[e.source || ''] || (e.source ? e.source.replace(/-/g,' ') : 'Direct');
+
+  // Relative age
+  var ageStr = '';
+  if (e.created_at) {
+    var days = Math.floor((Date.now() - new Date(e.created_at).getTime()) / 86400000);
+    ageStr = days === 0 ? 'Today' : days === 1 ? 'Yesterday' : days + 'd ago';
+  }
+
+  var parts = [];
+
+  // Source pill
+  var srcIsDebug = (e.source === 'debug');
+  var srcColor   = srcIsDebug ? 'rgba(120,120,120,0.5)' : 'rgba(42,88,80,0.1)';
+  var srcText    = srcIsDebug ? '#888' : 'var(--t3)';
+  parts.push('<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:' + srcColor + ';color:' + srcText + ';white-space:nowrap">' + escHtml(sourceLbl) + '</span>');
+
+  // Age
+  if (ageStr) parts.push('<span style="color:var(--t3);font-size:11px">' + escHtml(ageStr) + '</span>');
+
+  // Email
+  if (e.email) parts.push('<span style="color:var(--t3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px">' + escHtml(e.email) + '</span>');
+
+  // Next appointment
+  if (nextAppt) {
+    parts.push('<span style="color:var(--teal);display:inline-flex;align-items:center;gap:3px;font-size:11px">'
+      + _dhCalIcon + escHtml(nextAppt.dateLabel + (nextAppt.timeStr ? ' · ' + nextAppt.timeStr : '')) + '</span>');
+  }
+
+  // Open tasks
+  if (taskCount) parts.push('<span style="color:var(--amber);font-size:11px">● ' + taskCount + ' task' + (taskCount !== 1 ? 's' : '') + '</span>');
+
+  // Notes count (if no tasks, as fallback)
+  if (!taskCount && actCount) parts.push('<span style="color:var(--t3);font-size:11px">' + actCount + ' note' + (actCount !== 1 ? 's' : '') + '</span>');
+
+  return parts.join('<span style="color:var(--t3);margin:0 1px;font-size:10px"> · </span>');
+}
+
+function _dhRenderInboxItems(listEl, items) {
+  if (!items || !items.length) {
+    listEl.innerHTML = '<div class="dh-attn-empty" style="padding:32px 20px;text-align:center;color:var(--t3);font-size:13px">Nothing here</div>';
+    return;
+  }
+  listEl.innerHTML = items.slice(0, 12).map(function(e) {
+    var nm = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
+    return '<div class="dh-attn-item" onclick="openDetailPanel(\'enquiry\',\'' + escHtml(String(e.id)) + '\')">'
+      + '<div class="dh-attn-av ' + _dhAvCol(nm) + '">' + _dhIni(nm) + '</div>'
+      + '<div class="dh-attn-body"><div class="dh-attn-name">' + escHtml(nm) + '</div>'
+      + '<div class="dh-attn-meta" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px">' + _dhEnqMeta(e) + '</div></div>'
+      + '<span class="dh-attn-arrow">›</span></div>';
+  }).join('');
+}
+
+function _dhRenderSessionItems(listEl, sessions) {
+  if (!sessions || !sessions.length) {
+    listEl.innerHTML = '<div class="dh-attn-empty" style="padding:32px 20px;text-align:center;color:var(--t3);font-size:13px">No unpaid appointments</div>';
+    return;
+  }
+  var STAT_LABELS = { 'pending-invoice': 'No invoice yet', 'invoiced': 'Invoice unpaid', 'needs-recording': 'Needs recording' };
+  listEl.innerHTML = sessions.slice(0, 12).map(function(s) {
+    var nm       = s.name || 'Client';
+    var label    = STAT_LABELS[s.status] || s.status;
+    var dateStr  = s.dateLabel || s.dateStr || '';
+    var sid      = escHtml(String(s.id || ''));
+    return '<div class="dh-attn-item" onclick="openDetailPanel(\'session\',\'' + sid + '\')">'
+      + '<div class="dh-attn-av ' + _dhAvCol(nm) + '">' + _dhIni(nm) + '</div>'
+      + '<div class="dh-attn-body"><div class="dh-attn-name">' + escHtml(nm) + '</div>'
+      + '<div class="dh-attn-meta">' + escHtml(dateStr) + ' · ' + escHtml(label) + '</div></div>'
+      + '<span class="dh-attn-arrow">›</span></div>';
+  }).join('');
+}
+
+function _dhRenderUnlinkedCalItems(listEl, appts) {
+  if (!appts || !appts.length) {
+    listEl.innerHTML = '<div class="dh-attn-empty" style="padding:32px 20px;text-align:center;color:var(--t3);font-size:13px">No unlinked calendar events</div>';
+    return;
+  }
+  listEl.innerHTML = appts.slice(0, 15).map(function(s) {
+    var nm      = s.name || 'Calendar event';
+    var dateStr = (s.dateLabel || s.dateStr || '') + (s.timeStr ? ' · ' + s.timeStr : '');
+    var sid     = escHtml(String(s.id || ''));
+    return '<div class="dh-attn-item" onclick="openDetailPanel(\'session\',\'' + sid + '\')" style="border-left:3px solid #E07B39">'
+      + '<div class="dh-attn-av" style="background:rgba(224,123,57,0.14);color:#b85a1e;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">'
+      + escHtml((nm[0] || '?').toUpperCase()) + '</div>'
+      + '<div class="dh-attn-body"><div class="dh-attn-name">' + escHtml(nm) + '</div>'
+      + '<div class="dh-attn-meta" style="color:#b85a1e">⚠ No client linked · ' + escHtml(dateStr) + '</div></div>'
+      + '<span class="dh-attn-arrow">›</span></div>';
+  }).join('');
+}
+
+var _dhInboxFilter = 'new';
+function dhInboxFilter(status, el) {
+  _dhInboxFilter = status;
+  document.querySelectorAll('.dh-inbox-folder').forEach(function(f) {
+    f.classList.toggle('active', f.dataset.status === status);
+  });
+  var listEl = document.getElementById('dh-inbox-list');
+  if (!listEl) return;
+  if (status === 'unpaid') {
+    _dhRenderSessionItems(listEl, _dhBillingSessions);
+    return;
+  }
+  if (status === 'unlinked') {
+    _dhRenderUnlinkedCalItems(listEl, _dhUnlinkedCalAppts);
+    return;
+  }
+  if (!_pipelineData) return;
+  var all = _pipelineData.enquiries || [];
+  var filtered;
+  if (status === 'all') {
+    filtered = all;
+  } else if (status === 'upcoming_appt') {
+    // Enquiries whose linked client has an upcoming Halaxy appointment
+    filtered = all.filter(function(e) {
+      var client = _dhEnqClientMap[e.id];
+      return client && client.halaxy_id && (_dhPatientApptMap[String(client.halaxy_id)] || []).length > 0;
+    });
+  } else {
+    filtered = all.filter(function(e) { return (e.status || 'new') === status; });
+  }
+  _dhRenderInboxItems(listEl, filtered);
+}
+
+/* ── Schedule card state & helpers ── */
+var _dhAppts            = [];  // cached appointments for schedule nav
+var _dhBillingSessions  = [];  // sessions needing billing action (for Unpaid folder)
+var _dhEnqClientMap     = {};  // enquiry.id → client object (for inbox sub-info)
+var _dhPatientApptMap   = {};  // halaxy_id string → sorted upcoming sessions[]
+var _dhUnlinkedCalAppts = [];  // upcoming GCal events with no Halaxy patient (for Unlinked folder)
+var _dhSchedDateStr     = '';  // selected day ISO string ('' = auto-select today/first)
+var _dhSchedWeekOff     = 0;   // week offset: 0=this week, 1=next week
+
+function dhSchedSelectDay(iso) {
+  _dhSchedDateStr = iso;
+  _dhRenderSchedCard();
+}
+
+function dhSchedNavWeek(dir) {
+  _dhSchedWeekOff = Math.max(-1, Math.min(1, _dhSchedWeekOff + dir));
+  _dhSchedDateStr = '';
+  _dhRenderSchedCard();
+}
+
+function _dhRenderSchedCard() {
+  var inner = document.getElementById('dh-sched-inner');
+  if (!inner) return;
+
+  var appts    = _dhAppts;
+  var now      = new Date();
+  var todayStr = now.toDateString();
+
+  // Monday of the displayed week
+  var base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var dow  = base.getDay();
+  base.setDate(base.getDate() + (dow === 0 ? -6 : 1 - dow) + _dhSchedWeekOff * 7);
+
+  var WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var strip = [];
+  for (var i = 0; i < 7; i++) {
+    var d   = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+    var ds  = d.toDateString();
+    var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    var cnt = appts.filter(function(a){ return a.dateStr && a.status !== 'cancelled' && a.dateStr === iso; }).length;
+    strip.push({ name: WD[d.getDay()], num: d.getDate(), cnt: cnt, today: ds===todayStr, iso: iso });
+  }
+
+  // Determine the selected ISO date
+  var defaultIso = (_dhSchedWeekOff === 0)
+    ? ((strip.find(function(s){ return s.today; }) || strip[0]).iso)
+    : strip[0].iso;
+  var selIso   = _dhSchedDateStr || defaultIso;
+  var selParts = selIso.split('-');
+  var selDate  = new Date(parseInt(selParts[0]), parseInt(selParts[1])-1, parseInt(selParts[2]));
+  var selDateStr = selDate.toDateString();
+
+  var selAppts = appts.filter(function(a) {
+    return a.dateStr && a.status !== 'cancelled' && a.dateStr === selIso;
+  }).sort(function(a,b){ return (a.startMs || 0) - (b.startMs || 0); });
+
+  var isToday  = selDateStr === todayStr;
+  var dateLabel = isToday ? "Today's Appointments"
+    : selDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+
+  function _ft(iso) { var d=new Date(iso),h=d.getHours(),m=d.getMinutes(); return (h%12||12)+':'+(m<10?'0':'')+m+(h>=12?'pm':'am'); }
+  function _ac(n)   { return ['av-teal','av-blue','av-purple','av-amber','av-red'][(n||'').charCodeAt(0)%5]; }
+  function _in(n)   { if (!n) return '?'; var p=n.trim().split(/\s+/); return (p[0][0]+(p[1]?p[1][0]:'')).toUpperCase(); }
+  var arrowSVG = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h8M6 2l4 4-4 4"/></svg>';
+
+  var h = '';
+
+  // Week strip
+  h += '<div class="dh-week-strip">';
+  strip.forEach(function(w) {
+    var pip = w.cnt > 0 ? (w.today ? 'dh-wd-pip--today' : 'dh-wd-pip--has') : '';
+    var cls = 'dh-week-day'
+      + (w.today        ? ' dh-week-day--today'  : '')
+      + (w.iso===selIso ? ' dh-week-day--active' : '');
+    h += '<button class="' + cls + '" onclick="dhSchedSelectDay(\'' + w.iso + '\')" type="button">'
+      + '<span class="dh-wd-name">' + w.name + '</span>'
+      + '<span class="dh-wd-num">'  + w.num  + '</span>'
+      + '<span class="dh-wd-pip '   + pip    + '"></span>'
+      + '</button>';
+  });
+  h += '</div>';
+
+  // Card header + week nav
+  var prevLabel = _dhSchedWeekOff === 0 ? '← Last week' : '← This week';
+  var nextLabel = _dhSchedWeekOff === 0 ? 'Next week' : 'This week';
+  h += '<div class="dh-card-hd"><span class="dh-card-title">' + escHtml(dateLabel) + '</span>'
+    + '<div style="display:flex;align-items:center;gap:6px">';
+  if (_dhSchedWeekOff > -1) h += '<button class="dh-see-all" onclick="dhSchedNavWeek(-1)" type="button">' + prevLabel + '</button>';
+  if (_dhSchedWeekOff <  1) h += '<button class="dh-see-all" onclick="dhSchedNavWeek(1)"  type="button">' + nextLabel + ' ' + arrowSVG + '</button>';
+  h += '</div></div>';
+
+  // Sessions list
+  if (!selAppts.length) {
+    h += '<div class="dh-sched-empty">No appointments' + (isToday ? ' today' : '')
+      + '<br><span style="font-size:12px;opacity:0.5">Enjoy the breathing room.</span></div>';
+  } else {
+    selAppts.slice(0,6).forEach(function(a) {
+      var nm   = a.name || a.patientName || 'Client';
+      var time = a.timeStr || (a.startIso ? _ft(a.startIso) : a.start ? _ft(a.start) : '');
+      var sid  = escHtml(String(a.id || ''));
+      var isReminder = a.isReminder;
+      var srcCls = isReminder ? ' dh-sched-row--personal'
+                 : a.source === 'cal' ? ' dh-sched-row--cal'
+                 : (a.source === 'halaxy' && a.patientId) ? ' dh-sched-row--halaxy'
+                 : ' dh-sched-row--personal';
+
+      // Source pill
+      var pillLabel, pillStyle;
+      if (isReminder) {
+        pillLabel = 'Reminder';
+        pillStyle = 'background:rgba(0,0,0,0.07);color:#8a9a98';
+      } else if (a.source === 'cal') {
+        pillLabel = 'Google Cal';
+        pillStyle = 'background:rgba(224,123,57,0.15);color:#b85a1e';
+      } else if (a.source === 'halaxy' && a.patientId) {
+        pillLabel = 'Halaxy';
+        pillStyle = 'background:rgba(55,107,98,0.12);color:#376B62';
+      } else {
+        pillLabel = 'Personal';
+        pillStyle = 'background:rgba(0,0,0,0.07);color:#8a9a98';
+      }
+
+      // Status tag (only for non-upcoming)
+      var statusTag = '';
+      var statusMap = { 'needs-recording': ['Needs recording', '#7c6fe0'], 'pending-invoice': ['No invoice', '#7c6fe0'], 'invoiced': ['Invoice unpaid', '#E07B39'] };
+      if (statusMap[a.status]) {
+        statusTag = '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(108,92,231,0.1);color:' + statusMap[a.status][1] + ';white-space:nowrap">' + statusMap[a.status][0] + '</span>';
+      }
+
+      h += '<div class="dh-sched-row' + srcCls + '" onclick="openDetailPanel(\'session\',\'' + sid + '\')" style="cursor:pointer">'
+        + '<div class="dh-sched-time">' + escHtml(time) + '</div>'
+        + '<div class="dh-sched-av ' + _ac(nm) + '">' + _in(nm) + '</div>'
+        + '<span class="dh-sched-name">' + escHtml(nm) + '</span>'
+        + '<div style="display:flex;align-items:center;gap:5px;flex-shrink:0">'
+        + statusTag
+        + '<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;' + pillStyle + '">' + pillLabel + '</span>'
+        + '</div>'
+        + '</div>';
+    });
+  }
+
+  inner.innerHTML = h;
+}
+
 /* ── Home dashboard view ── */
 function renderHomeView() {
   var content = document.getElementById('view-content');
   if (!content || !_pipelineData) return;
 
   var enquiries = (_pipelineData.enquiries || []);
-  var appts     = (_halaxyData && _halaxyData.appointments) || [];
   var invoices  = (_halaxyData && _halaxyData.invoices) || [];
+  // Use the full unified session pipeline so patient names and statuses are resolved
+  var _uni  = (_halaxyData && _halaxyData.connected) ? _buildUnifiedSessions() : { upcoming: [], past: [] };
+  var appts = _uni.upcoming.concat(_uni.past);
   var clients   = (_pipelineData.clients || []);
 
   function _avCol(n) { return ['av-teal','av-blue','av-purple','av-amber','av-red'][(n||'').charCodeAt(0)%5]; }
@@ -2670,43 +3180,19 @@ function renderHomeView() {
 
   var now        = new Date();
   var todayStr   = now.toDateString();
-  var todayStart = new Date(now); todayStart.setHours(0,0,0,0);
-  var weekEnd    = new Date(todayStart); weekEnd.setDate(weekEnd.getDate()+7);
-
-  var todayAppts = appts.filter(function(a) {
-    return a.start && a.status !== 'cancelled' && new Date(a.start).toDateString() === todayStr;
-  }).sort(function(a,b) { return new Date(a.start)-new Date(b.start); });
-
-  var weekCount = appts.filter(function(a) {
-    if (!a.start || a.status === 'cancelled') return false;
-    var t = new Date(a.start).getTime();
-    return t >= todayStart.getTime() && t < weekEnd.getTime();
-  }).length;
-
   var activeClients = clients.filter(function(c) { return c.active !== false; });
   var newEnquiries  = enquiries.filter(function(e) { return (e.status||'new') === 'new'; });
 
-  // Billing breakdown
-  var bOut = 0, bSub = 0, bPaid = 0;
+  // Billing breakdown — use totalBalance directly so all invoice statuses are captured
+  var bPending = 0, bPaid = 0;
   var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   invoices.forEach(function(inv) {
-    var amt = parseFloat(inv.totalPrice||0);
-    if (inv.status === 'active' || inv.status === 'overdue') bOut += amt;
-    else if (inv.status === 'submitted') bSub += amt;
-    else if (inv.status === 'paid' && inv.paidDate && new Date(inv.paidDate) >= monthStart) bPaid += amt;
+    var bal = parseFloat(inv.totalBalance != null ? inv.totalBalance : 0);
+    if (bal > 0) bPending += bal;
+    if (inv.status === 'paid' && inv.paidDate && new Date(inv.paidDate) >= monthStart) {
+      bPaid += parseFloat(inv.totalPrice || inv.totalPaid || 0);
+    }
   });
-
-  // Week strip — Mon to Sun of current week
-  var dow    = now.getDay();
-  var monOff = dow === 0 ? -6 : 1 - dow;
-  var WD     = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  var strip  = [];
-  for (var i = 0; i < 7; i++) {
-    var d  = new Date(now.getFullYear(), now.getMonth(), now.getDate()+monOff+i);
-    var ds = d.toDateString();
-    var cnt = appts.filter(function(a){ return a.start && a.status!=='cancelled' && new Date(a.start).toDateString()===ds; }).length;
-    strip.push({ name: WD[d.getDay()], num: d.getDate(), cnt: cnt, today: ds===todayStr });
-  }
 
   // Inline SVG icons
   var IC = {
@@ -2726,155 +3212,259 @@ function renderHomeView() {
   })();
   var dateLabel = now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  var html = '<div class="dh-wrap"><div class="dh-bento">';
+  // Shared SVG arrow for "see all" links
+  var arrowSVG = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h8M6 2l4 4-4 4"/></svg>';
 
-  // ── Inline page header (replaces topbar) ─────────────────────
+  var html = '<div class="dh-wrap">';
+
+  // User first name from server-injected window.ADMIN_USER
+  var firstName = ((window.ADMIN_USER || '').split(' ')[0]) || '';
+
+  // ── Page header ──────────────────────────────────────────────
   html += '<div class="dh-hd-row">'
     + '<div class="dh-hd-left">'
-    + '<div class="dh-hd-greeting">' + escHtml(greeting) + '</div>'
+    + '<div class="dh-hd-greeting">' + escHtml(greeting) + (firstName ? ', ' + escHtml(firstName) : '') + '</div>'
     + '<div class="dh-hd-date">' + escHtml(dateLabel) + '</div>'
     + '</div>'
     + '<div class="dh-hd-actions">'
-    + '<button class="dh-new-btn" onclick="navigateTo(\'clients\')">'
-    + '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-    + 'New Session'
+    + '<button class="dh-chip dh-chip--ghost" onclick="openDbModal(\'client\')">'
+    + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>'
+    + 'Add Client'
     + '</button>'
+    + '<button class="dh-chip dh-chip--primary" onclick="openDbModal(\'appt\')">'
+    + '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+    + 'New Appointment'
+    + '</button>'
+    + '<a class="dh-chip dh-chip--ext" href="https://www.halaxy.com" target="_blank" rel="noopener">'
+    + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'
+    + 'Halaxy'
+    + '</a>'
     + '</div>'
     + '</div>';
 
-  // ── 4 Stat cards ─────────────────────────────────────────────
-  html +=
-    '<div class="dh-stat dh-stat--teal dh-b-3" onclick="navigateTo(\'clients\')">'
-    + '<div class="dh-stat-hdr"><div class="c-icon c-icon--teal">' + IC.people + '</div><span class="dh-stat-label">Active Clients</span></div>'
-    + '<div class="dh-stat-num">' + activeClients.length + '</div>'
-    + '<div class="dh-stat-foot">currently active</div></div>'
+  // ── Main 2×2 bento ───────────────────────────────────────────
+  html += '<div class="dh-bento">';
 
-    + '<div class="dh-stat dh-stat--amber dh-b-3" onclick="navigateTo(\'queue\')">'
-    + '<div class="dh-stat-hdr"><div class="c-icon c-icon--amber">' + IC.inbox + '</div><span class="dh-stat-label">New Enquiries</span></div>'
-    + '<div class="dh-stat-num">' + newEnquiries.length + '</div>'
-    + '<div class="dh-stat-foot">awaiting response</div></div>'
+  // ── Schedule card — folder tab (6 cols) ──────────────────────
+  _dhAppts = appts;
+  html += '<div class="dh-fold dh-b-6">'
+    + '<div class="dh-fold-tab">' + IC.cal + 'Schedule</div>'
+    + '<div class="dh-sched-card" id="dh-sched-inner"></div>'
+    + '</div>';
 
-    + '<div class="dh-stat dh-stat--purple dh-b-3">'
-    + '<div class="dh-stat-hdr"><div class="c-icon c-icon--purple">' + IC.cal + '</div><span class="dh-stat-label">This Week</span></div>'
-    + '<div class="dh-stat-num">' + weekCount + '</div>'
-    + '<div class="dh-stat-foot">sessions scheduled</div></div>'
+  // ── Inbox card — folder tab + sub-sidebar (6 cols) ──────────
+  var allEnqs       = enquiries;
+  var contactedEnqs = enquiries.filter(function(e){ return e.status === 'contacted'; });
+  var closedEnqs    = enquiries.filter(function(e){ return e.status === 'closed'; });
 
-    + '<div class="dh-stat dh-stat--blue dh-b-3" onclick="navigateTo(\'billing\')">'
-    + '<div class="dh-stat-hdr"><div class="c-icon c-icon--blue">' + IC.dollar + '</div><span class="dh-stat-label">Outstanding</span></div>'
-    + '<div class="dh-stat-num" style="font-size:32px;letter-spacing:-0.03em">' + _fmt$(bOut) + '</div>'
-    + '<div class="dh-stat-foot">invoiced, not paid</div></div>';
-
-  // ── Schedule card (7 cols) ───────────────────────────────────
-  html += '<div class="dh-sched-card dh-b-7">';
-
-  // Week calendar strip
-  html += '<div class="dh-week-strip">';
-  strip.forEach(function(w) {
-    var pip = w.cnt > 0 ? (w.today ? 'dh-wd-pip--today' : 'dh-wd-pip--has') : '';
-    html += '<div class="dh-week-day' + (w.today ? ' dh-week-day--active' : '') + '">'
-      + '<span class="dh-wd-name">' + w.name + '</span>'
-      + '<span class="dh-wd-num">' + w.num + '</span>'
-      + '<span class="dh-wd-pip ' + pip + '"></span>'
-      + '</div>';
+  // Billing sessions = past appointments needing a billing action
+  _dhBillingSessions = _uni.past.filter(function(s) {
+    return s.status === 'pending-invoice' || s.status === 'invoiced' || s.status === 'needs-recording';
   });
-  html += '</div>';
+  var unpaidCount = _dhBillingSessions.length;
 
-  html += '<div class="dh-sched-hdr">'
-    + '<div class="c-icon c-icon--teal">' + IC.clock + '</div>'
-    + '<span class="dh-sched-title-text">Today\'s Sessions</span>'
-    + '<span class="dh-sched-date-text">' + (todayAppts.length ? todayAppts.length + ' today' : 'None today') + '</span>'
+  // Build lookup maps for inbox sub-info
+  _dhEnqClientMap = {};
+  clients.forEach(function(c) { if (c.enquiry_id) _dhEnqClientMap[c.enquiry_id] = c; });
+  _dhPatientApptMap = {};
+  _uni.upcoming.forEach(function(s) {
+    if (!s.patientId) return;
+    var key = String(s.patientId);
+    if (!_dhPatientApptMap[key]) _dhPatientApptMap[key] = [];
+    _dhPatientApptMap[key].push(s);
+  });
+  // Sort each patient's upcoming sessions by date so [0] is always the nearest
+  Object.keys(_dhPatientApptMap).forEach(function(k) {
+    _dhPatientApptMap[k].sort(function(a, b) { return a.startMs - b.startMs; });
+  });
+
+  // "Upcoming" folder — enquiries whose linked client has a future Halaxy appointment
+  var upcomingApptEnqs = enquiries.filter(function(e) {
+    var client = _dhEnqClientMap[e.id];
+    return client && client.halaxy_id && (_dhPatientApptMap[String(client.halaxy_id)] || []).length > 0;
+  });
+
+  // "Unlinked" folder — upcoming GCal events with no Halaxy patient and not marked as reminders
+  _dhUnlinkedCalAppts = _uni.upcoming.filter(function(s) {
+    return s.source === 'cal' && !s.patientId && !s.isReminder;
+  });
+
+  var unlinkedCount = _dhUnlinkedCalAppts.length;
+
+  html += '<div class="dh-fold dh-b-6">'
+    + '<div class="dh-fold-tab">'
+    + IC.inbox
+    + 'Inbox'
+    + (newEnquiries.length ? '<span class="dh-fold-badge">' + newEnquiries.length + ' new</span>' : '')
+    + (unpaidCount ? '<span class="dh-fold-badge" style="background:rgba(245,158,11,0.18);color:var(--amber)">' + unpaidCount + ' unpaid</span>' : '')
+    + (unlinkedCount ? '<span class="dh-fold-badge" style="background:rgba(224,123,57,0.15);color:#b85a1e">' + unlinkedCount + ' unlinked</span>' : '')
+    + '</div>'
+    + '<div class="dh-attn-card">';
+
+  // Sub-sidebar with folder categories
+  html += '<div class="dh-inbox-sidebar">'
+    + '<div class="dh-inbox-folder active" data-status="new" onclick="dhInboxFilter(\'new\',this)">'
+    + '<span class="dh-if-label">New</span><span class="dh-if-count">' + newEnquiries.length + '</span></div>'
+    + '<div class="dh-inbox-folder" data-status="contacted" onclick="dhInboxFilter(\'contacted\',this)">'
+    + '<span class="dh-if-label">Contacted</span><span class="dh-if-count">' + contactedEnqs.length + '</span></div>'
+    + '<div class="dh-inbox-folder" data-status="upcoming_appt" onclick="dhInboxFilter(\'upcoming_appt\',this)">'
+    + '<span class="dh-if-label">Upcoming</span><span class="dh-if-count"' + (upcomingApptEnqs.length ? ' style="color:var(--teal)"' : '') + '>' + upcomingApptEnqs.length + '</span></div>'
+    + '<div class="dh-inbox-folder" data-status="unlinked" onclick="dhInboxFilter(\'unlinked\',this)">'
+    + '<span class="dh-if-label">Unlinked</span><span class="dh-if-count"' + (unlinkedCount ? ' style="color:#b85a1e"' : '') + '>' + unlinkedCount + '</span></div>'
+    + '<div class="dh-inbox-folder" data-status="unpaid" onclick="dhInboxFilter(\'unpaid\',this)">'
+    + '<span class="dh-if-label">Unpaid</span><span class="dh-if-count"' + (unpaidCount ? ' style="color:var(--amber)"' : '') + '>' + unpaidCount + '</span></div>'
+    + '<div class="dh-inbox-folder" data-status="closed" onclick="dhInboxFilter(\'closed\',this)">'
+    + '<span class="dh-if-label">Closed</span><span class="dh-if-count">' + closedEnqs.length + '</span></div>'
+    + '<div class="dh-inbox-folder" data-status="all" onclick="dhInboxFilter(\'all\',this)">'
+    + '<span class="dh-if-label">All</span><span class="dh-if-count">' + allEnqs.length + '</span></div>'
     + '</div>';
 
-  if (!todayAppts.length) {
-    html += '<div class="dh-sched-empty">No sessions today<br><span style="font-size:12px;opacity:0.5">Enjoy the breathing room.</span></div>';
-  } else {
-    todayAppts.slice(0,7).forEach(function(a) {
-      var nm = a.patientName || 'Client';
-      html += '<div class="dh-sched-row" onclick="navigateTo(\'queue\')">'
-        + '<div class="dh-sched-time">' + _fmtTime(a.start) + '</div>'
-        + '<div class="dh-sched-av ' + _avCol(nm) + '">' + _ini(nm) + '</div>'
-        + '<span class="dh-sched-name">' + escHtml(nm) + '</span>'
-        + (a.status && a.status !== 'scheduled' ? '<span class="dh-sched-status">' + escHtml(a.status) + '</span>' : '')
-        + '</div>';
-    });
-  }
-  html += '</div>'; // dh-sched-card
+  // Inbox list pane — rendered after mount so _dhRenderInboxItems can access the DOM
+  html += '<div class="dh-inbox-list" id="dh-inbox-list"></div>';
+  html += '</div></div>'; // .dh-attn-card + .dh-fold
 
-  // ── Needs Attention — WHITE pop card (5 cols) ────────────────
-  html += '<div class="dh-attn-card dh-attn-card--white dh-b-5">'
-    + '<div class="dh-attn-hdr">'
-    + '<div class="c-icon c-icon--amber">' + IC.alert + '</div>'
-    + '<span class="dh-attn-title">Needs Attention</span>'
-    + (newEnquiries.length ? '<span class="dh-attn-count">' + newEnquiries.length + ' new</span>' : '')
-    + '</div>';
-
-  if (!newEnquiries.length) {
-    html += '<div class="dh-attn-empty">All clear ✓<br><span style="font-size:11px;opacity:0.5">Nothing urgent today</span></div>';
-  } else {
-    newEnquiries.slice(0,8).forEach(function(e) {
-      var nm = [e.first_name,e.last_name].filter(Boolean).join(' ') || 'Unknown';
-      html += '<div class="dh-attn-item" onclick="navigateTo(\'queue\')">'
-        + '<div class="dh-attn-av ' + _avCol(nm) + '">' + _ini(nm) + '</div>'
-        + '<div class="dh-attn-body"><div class="dh-attn-name">' + escHtml(nm) + '</div>'
-        + '<div class="dh-attn-meta">New enquiry · ' + escHtml(e.source||'direct') + '</div></div>'
-        + '<span class="dh-attn-arrow">›</span></div>';
-    });
-  }
-  html += '</div>'; // dh-attn-card
-
-  // ── Tasks card (4 cols) ──────────────────────────────────────
-  html += '<div class="dh-tasks-card dh-b-4">'
-    + '<div class="dh-tasks-hdr"><div class="c-icon c-icon--purple">' + IC.tasks + '</div>'
-    + '<span class="dh-tasks-title">Tasks</span></div>'
+  // ── Tasks card (6 cols) ──────────────────────────────────────
+  html += '<div class="dh-tasks-card dh-b-6">'
+    + '<div class="dh-card-hd">'
+    + '<span class="dh-card-title">Reminders</span>'
+    + '</div>'
     + '<div class="dh-tasks-body" id="dh-tasks-body"><div class="dh-tasks-loading">Loading…</div></div>'
     + '<div class="dh-tasks-add"><span class="dh-tasks-plus">+</span>'
-    + '<input class="dh-task-inp" id="dh-task-inp" placeholder="Add a task…" onkeydown="dhAddTask(event)">'
+    + '<input class="dh-task-inp" id="dh-task-inp" placeholder="Add a reminder…" onkeydown="dhAddTask(event)">'
     + '</div></div>';
 
-  // ── Billing summary (8 cols) ─────────────────────────────────
-  html += '<div class="dh-billing-card dh-b-8" onclick="navigateTo(\'billing\')">'
-    + '<div class="dh-billing-hdr"><div class="c-icon c-icon--blue">' + IC.card + '</div>'
-    + '<span class="dh-billing-title">Billing Summary</span></div>'
+  // ── Billing summary (6 cols) ─────────────────────────────────
+  var needsInvoiceCount = _uni.past.filter(function(s) { return s.status === 'pending-invoice'; }).length;
+  var awaitingPayCount  = invoices.filter(function(i) { return parseFloat(i.totalBalance || 0) > 0; }).length;
+  html += '<div class="dh-billing-card dh-b-6" onclick="navigateTo(\'billing\')">'
+    + '<div class="dh-card-hd">'
+    + '<span class="dh-card-title">Billing</span>'
+    + '<span class="dh-see-all">Overview ' + arrowSVG + '</span>'
+    + '</div>'
     + '<div class="dh-billing-body">'
-    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Outstanding</div>'
-    + '<div class="dh-bs-amt" style="color:var(--amber)">' + _fmt$(bOut) + '</div>'
-    + '<div class="dh-bs-sub">Active &amp; overdue</div></div>'
-    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Submitted</div>'
-    + '<div class="dh-bs-amt" style="color:var(--blue)">' + _fmt$(bSub) + '</div>'
-    + '<div class="dh-bs-sub">Awaiting payment</div></div>'
     + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Paid This Month</div>'
     + '<div class="dh-bs-amt" style="color:var(--teal)">' + _fmt$(bPaid) + '</div>'
     + '<div class="dh-bs-sub">' + now.toLocaleDateString('en-AU',{month:'long'}) + '</div></div>'
+    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Pending Payment</div>'
+    + '<div class="dh-bs-amt" style="color:' + (bPending > 0 ? 'var(--amber)' : 'var(--teal)') + '">' + _fmt$(bPending) + '</div>'
+    + '<div class="dh-bs-sub">' + (awaitingPayCount ? awaitingPayCount + ' invoice' + (awaitingPayCount !== 1 ? 's' : '') : 'All clear ✓') + '</div></div>'
+    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Needs Invoice</div>'
+    + '<div class="dh-bs-amt" style="color:' + (needsInvoiceCount ? 'var(--amber)' : 'var(--teal)') + '">' + needsInvoiceCount + '</div>'
+    + '<div class="dh-bs-sub">' + (needsInvoiceCount ? 'No invoice yet' : 'All invoiced ✓') + '</div></div>'
     + '</div></div>';
 
   html += '</div></div>'; // dh-bento + dh-wrap
   content.innerHTML = html;
+  _dhSchedWeekOff = 0;
+  _dhSchedDateStr = '';
+  _dhRenderSchedCard();
   _dhLoadTasks();
+  // Render inbox list after mount so the DOM element exists
+  var _inboxListEl = document.getElementById('dh-inbox-list');
+  if (_inboxListEl) _dhRenderInboxItems(_inboxListEl, newEnquiries);
 }
 
 /* ── Home view task helpers ─────────────────────────────────────
    Separate from the settings-view task system — these target the
    #dh-tasks-body widget on the dashboard home card.
 ────────────────────────────────────────────────────────────────── */
+var _dhTasks = []; // module-level cache for openDetailPanel lookup
+
 async function _dhLoadTasks() {
   var body = document.getElementById('dh-tasks-body');
   if (!body) return;
   try {
     var tasks = await apiFetch('/api/admin-tasks');
-    if (!Array.isArray(tasks) || !tasks.length) {
+    _dhTasks = Array.isArray(tasks) ? tasks : [];
+    if (!_dhTasks.length) {
       body.innerHTML = '<div class="dh-tasks-empty">No tasks yet</div>';
       return;
     }
-    body.innerHTML = tasks.map(function(t) {
-      var done = t.completed ? ' done' : '';
-      var chk  = t.completed ? '✓' : '';
+    body.innerHTML = _dhTasks.map(function(t) {
+      var done    = t.completed ? ' done' : '';
+      var chk     = t.completed ? '✓' : '';
+      var status  = t.completed ? 'Done' : 'Active';
+      var due     = t.due_date ? new Date(t.due_date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
       return '<div class="dh-task-item' + done + '" data-id="' + escHtml(String(t.id)) + '">'
         + '<button class="dh-task-chk" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',' + !t.completed + ')" type="button">' + chk + '</button>'
-        + '<span class="dh-task-lbl">' + escHtml(t.text || t.label || '') + '</span>'
+        + '<span class="dh-task-lbl">' + escHtml(t.title || t.text || '') + '</span>'
+        + '<span class="dh-task-status">' + status + '</span>'
+        + '<span class="dh-task-deadline">' + due + '</span>'
+        + '<button class="dh-task-arrow" onclick="openDetailPanel(\'task\',\'' + escHtml(String(t.id)) + '\')" type="button">›</button>'
         + '</div>';
     }).join('');
   } catch(e) {
     body.innerHTML = '<div class="dh-tasks-empty" style="font-size:11px">Could not load tasks</div>';
+  }
+}
+
+/* ── Task detail panel ───────────────────────────────────────── */
+function _renderTaskDetailPanel(t) {
+  var created = t.created_at
+    ? new Date(t.created_at).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    : '—';
+  var due = t.due_date
+    ? new Date(t.due_date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '—';
+
+  var html = '';
+  html += '<div class="rdp-client">' + escHtml(t.title || '—') + '</div>';
+  html += '<div class="rdp-date">' + created + ' · ' + (t.completed ? 'Completed' : 'Active') + '</div>';
+
+  html += '<div class="rdp-action-zone">';
+  if (!t.completed) {
+    html += '<button class="rdp-primary-btn" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',true);closeDetailPanel()">Mark as done ✓</button>';
+  } else {
+    html += '<button class="rdp-ghost-btn" style="margin-bottom:6px" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',false);closeDetailPanel()">Mark as active</button>';
+  }
+  html += '<button class="rdp-ghost-btn" style="margin-top:6px;color:var(--db-red,#F87171)" onclick="dhDeleteTaskFromPanel(' + JSON.stringify(t.id) + ')">Delete task</button>';
+  html += '</div>';
+
+  html += '<div class="rdp-section">'
+    + '<div class="rdp-section-label">Details</div>'
+    + '<div class="rdp-row"><span class="rdp-row-label">Status</span><span class="rdp-row-val">' + (t.completed ? 'Done' : 'Active') + '</span></div>'
+    + '<div class="rdp-row"><span class="rdp-row-label">Created</span><span class="rdp-row-val">' + created + '</span></div>'
+    + '<div class="rdp-row"><span class="rdp-row-label">Due date</span><span class="rdp-row-val">' + due + '</span></div>'
+    + '</div>';
+
+  html += '<div class="rdp-section">'
+    + '<div class="rdp-section-label">Edit task</div>'
+    + '<input class="cl-modal-input" id="rdp-task-title-' + escHtml(String(t.id)) + '" type="text" value="' + escHtml(t.title || '') + '" style="width:100%;margin-bottom:8px" placeholder="Task title…">'
+    + '<button class="rdp-ghost-btn" onclick="dhUpdateTaskTitle(' + JSON.stringify(t.id) + ')">Save title</button>'
+    + '</div>';
+
+  return html;
+}
+
+async function dhUpdateTaskTitle(id) {
+  var inp = document.getElementById('rdp-task-title-' + id);
+  if (!inp) return;
+  var newTitle = inp.value.trim();
+  if (!newTitle) return;
+  try {
+    await apiFetch('/api/admin-tasks?id=' + encodeURIComponent(id), { method: 'PATCH', body: { title: newTitle } });
+    var t = _dhTasks.find(function(t) { return String(t.id) === String(id); });
+    if (t) t.title = newTitle;
+    var lbl = document.querySelector('.dh-task-item[data-id="' + id + '"] .dh-task-lbl');
+    if (lbl) lbl.textContent = newTitle;
+    var titleEl = document.getElementById('rdp-title');
+    if (titleEl) titleEl.textContent = newTitle;
+    toast('Task updated');
+  } catch(e) {
+    toast('Could not update: ' + e.message, 'err');
+  }
+}
+
+async function dhDeleteTaskFromPanel(id) {
+  try {
+    await apiFetch('/api/admin-tasks?id=' + encodeURIComponent(id), { method: 'DELETE' });
+    _dhTasks = _dhTasks.filter(function(t) { return String(t.id) !== String(id); });
+    var item = document.querySelector('.dh-task-item[data-id="' + id + '"]');
+    if (item) item.remove();
+    closeDetailPanel();
+    toast('Task deleted');
+  } catch(e) {
+    toast('Could not delete: ' + e.message, 'err');
   }
 }
 
@@ -2885,6 +3475,7 @@ function dhToggleTask(id, completed) {
     var btn = item.querySelector('.dh-task-chk');
     if (btn) btn.textContent = completed ? '✓' : '';
   }
+  if (completed) _showSuccess('mark', 'Done');
   apiFetch('/api/admin-tasks?id=' + id, { method: 'PATCH', body: { completed: completed } })
     .catch(function() { if (item) item.classList.toggle('done', !completed); });
 }
@@ -3159,7 +3750,7 @@ function _qSessionItem(sess, barClass) {
   var metaParts = [];
   if (sess.dateLabel) metaParts.push(sess.dateLabel);
   if (sess.timeStr) metaParts.push(sess.timeStr);
-  var isUnlinked = !sess.patientId && (!sess.name || sess.name === 'Halaxy appointment');
+  var isUnlinked = !sess.patientId && (!sess.name || sess.name === 'Personal appointment');
   var typeLabel = isUnlinked ? 'Personal / Unlinked'
     : (sess.source === 'halaxy' ? 'Client Session' : 'Calendar Appointment');
   var hintMap = {
@@ -4234,69 +4825,132 @@ function renderSettingsView() {
 
 function _renderSessionDetailPanel(sess) {
   var html = '';
-  html += '<div class="rdp-client">' + escHtml(sess.name || 'Appointment') + '</div>';
-  html += '<div class="rdp-date">' + escHtml(sess.dateLabel || '') + (sess.timeStr ? ' · ' + sess.timeStr : '') + ' · Halaxy</div>';
-  // Action zone
+  // Subtitle: date + time only — name is already in the slide-out header
+  html += '<div class="rdp-date" style="margin-bottom:16px">'
+    + escHtml(sess.dateLabel || sess.dateStr || '')
+    + (sess.timeStr ? ' · ' + escHtml(sess.timeStr) : '')
+    + '</div>';
+
   var _hUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
+
+  // Invoice lookup
+  var _inv = null;
+  if (sess.patientId && sess.dateStr && _halaxyData && _halaxyData.invoices) {
+    _inv = (_halaxyData.invoices || []).find(function(i) {
+      return String(i.patientId) === String(sess.patientId) && (i.date || '').slice(0, 10) === sess.dateStr;
+    });
+  }
+  var _fee = _inv ? parseFloat(_inv.totalPrice   || 0) : 0;
+  var _bal = _inv ? parseFloat(_inv.totalBalance || 0) : 0;
+
+  // ── Edit button (GCal events only — Halaxy events are managed there) ──
+  var _calEvId = sess.eventId || sess.id;
+  if (sess.source === 'cal') {
+    html += '<div style="text-align:right;margin-bottom:10px">'
+      + '<button onclick="_calRenameEvent(\'' + escHtml(_calEvId) + '\',\'' + escHtml(sess.name || '') + '\')" '
+      + 'style="font-size:11px;color:#8a9a98;background:none;border:1px solid rgba(0,0,0,0.1);border-radius:5px;padding:3px 9px;cursor:pointer;font-family:inherit">✎ Edit name</button>'
+      + '</div>';
+  }
+
+  // ── Compact status + fee zone ──────────────────────────────────
   html += '<div class="rdp-action-zone">';
-  if (sess.status === 'pending-invoice') {
-    html += '<a class="rdp-primary-btn" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">Open in Halaxy to invoice →</a>';
-    html += '<p class="rdp-action-hint">No invoice found yet — create one in Halaxy for this session</p>';
-  } else if (sess.status === 'needs-recording') {
-    // Always offer Record — patientId is used if available; modal handles null gracefully
-    var _pid = sess.patientId || '';
-    html += '<button class="rdp-primary-btn" onclick="openHalaxyApptLogPanel(\'' + escHtml(sess.id) + '\',\'' + escHtml(_pid) + '\',\'' + escHtml(sess.name || '') + '\',\'' + escHtml(sess.dateStr) + '\',\'' + escHtml(sess.startIso || (sess.dateStr + 'T09:00:00')) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Record this appointment →</button>';
-    html += '<p class="rdp-action-hint">Session not yet recorded — add notes and confirm in Halaxy</p>';
-  } else if (sess.status === 'upcoming') {
-    html += '<a class="rdp-ghost-btn" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
-    html += '<p class="rdp-action-hint" style="margin-top:6px">Upcoming session — no action needed yet</p>';
+
+  // Reminder: no warning, just confirmation + undo
+  if (sess.isReminder) {
+    html += '<div style="display:flex;align-items:center;gap:8px">'
+      + '<span class="rdp-status-chip" style="background:rgba(0,0,0,0.06);color:#6b7280">📋 Reminder</span>'
+      + '</div>';
+    html += '<div style="font-size:12px;color:#888;margin-top:8px;line-height:1.5">Marked as a reminder — visible in your schedule and Reminders list. Not counted as a client appointment.</div>';
+    html += '<button class="rdp-ghost-btn" style="margin-top:8px" onclick="_calMarkAsReminder_undo(\'' + escHtml(_calEvId) + '\')">Restore as appointment</button>';
+    html += '<button style="display:block;width:100%;margin-top:6px;padding:8px;border:none;background:none;cursor:pointer;font-size:11px;color:#c0534a;font-family:inherit" onclick="deleteScheduleAppt(\'' + escHtml(_calEvId) + '\')">Delete from calendar</button>';
+    html += '</div>';
+    return html;
+  }
+
+  if (sess.status === 'paid') {
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+      + '<span class="rdp-status-chip paid">Paid ✓</span>'
+      + (_fee > 0 ? '<span style="font-size:17px;font-weight:700;color:var(--teal)">$' + _fee.toFixed(2) + '</span>' : '')
+      + '</div>';
+
   } else if (sess.status === 'invoiced') {
-    html += '<span class="rdp-status-chip invoiced">Invoice raised ✓</span>';
-    html += '<p class="rdp-action-hint" style="margin-top:8px">Invoice is in Halaxy — awaiting payment</p>';
-    html += '<a class="rdp-ghost-btn" style="margin-top:8px" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
-  } else if (sess.status === 'paid') {
-    html += '<span class="rdp-status-chip paid">Paid ✓</span>';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+      + '<span class="rdp-status-chip invoiced">Invoice raised ✓</span>'
+      + (_bal > 0 ? '<span style="font-size:17px;font-weight:700;color:var(--amber)">$' + _bal.toFixed(2) + ' owing</span>' : '')
+      + '</div>';
+    html += '<a class="rdp-ghost-btn" style="margin-top:10px" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
+
+  } else if (sess.status === 'pending-invoice') {
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+      + '<span class="rdp-status-chip" style="background:rgba(108,92,231,0.12);color:#7c6fe0">No invoice yet</span>'
+      + '</div>';
+    html += '<a class="rdp-primary-btn" style="margin-top:10px" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">Open in Halaxy to invoice →</a>';
+
+  } else if (sess.status === 'needs-recording') {
+    var _pid = sess.patientId || '';
+    if (sess.source === 'cal' && !sess.patientId) {
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+        + '<span class="rdp-status-chip" style="background:rgba(108,92,231,0.12);color:#7c6fe0">Google Calendar · Past</span>'
+        + '</div>';
+      html += _calUnlinkedActionHtml(sess.eventId || sess.id, sess.name);
+    } else {
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+        + '<span class="rdp-status-chip" style="background:rgba(108,92,231,0.12);color:#7c6fe0">Needs recording</span>'
+        + '</div>';
+      html += '<button class="rdp-primary-btn" style="margin-top:10px" onclick="openHalaxyApptLogPanel(\'' + escHtml(sess.id) + '\',\'' + escHtml(_pid) + '\',\'' + escHtml(sess.name || '') + '\',\'' + escHtml(sess.dateStr) + '\',\'' + escHtml(sess.startIso || (sess.dateStr + 'T09:00:00')) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Record this appointment →</button>';
+    }
+
+  } else if (sess.status === 'upcoming') {
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+      + '<span class="rdp-status-chip upcoming">Upcoming</span>'
+      + (_fee > 0 ? '<span style="font-size:13px;color:var(--t2)">$' + _fee.toFixed(2) + '</span>' : '')
+      + '</div>';
+    if (sess.source === 'cal' && !sess.patientId) {
+      html += _calUnlinkedActionHtml(sess.eventId || sess.id, sess.name);
+    } else {
+      html += '<a class="rdp-ghost-btn" style="margin-top:10px" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
+    }
+
   } else {
     html += '<a class="rdp-ghost-btn" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
   }
-  html += '</div>';
-  // Meta
-  html += '<div class="rdp-section">';
-  html += '<div class="rdp-section-label">Session Details</div>';
-  html += '<div class="rdp-row"><span class="rdp-row-label">Status</span><span class="rdp-row-val">' + escHtml(sess.status || '—') + '</span></div>';
-  html += '<div class="rdp-row"><span class="rdp-row-label">Source</span><span class="rdp-row-val">' + escHtml(sess.source || '—') + '</span></div>';
-  if (sess.halaxyApptId) html += '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span><span class="rdp-row-val" style="font-size:11px;color:#7A948F">' + escHtml(sess.halaxyApptId) + '</span></div>';
+
   html += '</div>';
 
-  // How-to instructions (collapsed)
+  // Minimal meta row — only Halaxy ID (small, unobtrusive)
+  if (sess.halaxyApptId) {
+    html += '<div class="rdp-section" style="margin-top:12px">'
+      + '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span>'
+      + '<span class="rdp-row-val" style="font-size:11px;color:#7A948F">' + escHtml(sess.halaxyApptId) + '</span></div>'
+      + '</div>';
+  }
+
+  // How-to steps — only for states needing action
   var howtoSteps = {
     'pending-invoice': [
       'Open Halaxy using the button above',
       'Navigate to this date in the Halaxy calendar',
       'Click the appointment and select Add Invoice / Add Fee',
       'Set the item, amount and funder (Medicare, private, etc.)',
-      'Save — the dashboard updates automatically on next refresh'
+      'Save — the dashboard updates automatically on next refresh',
     ],
     'needs-recording': [
       'Click "Record this appointment" above',
       'Fill in presenting issues, what was covered, and the outcome',
-      'Once saved, open Halaxy to add the fee / invoice for this appointment',
-      'The dashboard status will update after the invoice is saved in Halaxy'
-    ],
-    'upcoming': [
-      'No action needed before the appointment',
-      'After the appointment, return here — it will appear in Needs Attention for billing',
-      'If the client cancels, update the status in Halaxy so it reflects here'
+      'Once saved, open Halaxy to add the fee / invoice',
+      'The dashboard status updates after the invoice is saved in Halaxy',
     ],
     'invoiced': [
-      'Invoice has been raised in Halaxy — no further action needed right now',
+      'Invoice has been raised — no further action needed right now',
       'If paying via Medicare/NDIS, processing can take a few business days',
-      'If the client is self-paying and it is overdue, follow up directly',
-      'Once payment clears in Halaxy, status updates to Paid automatically'
+      'If the client is self-paying and overdue, follow up directly',
+      'Once payment clears in Halaxy, status updates to Paid automatically',
     ],
   }[sess.status];
 
-  if (howtoSteps) {
+  // Don't show Halaxy-centric how-to steps for dashboard-only GCal appointments
+  var isDashboardCalAppt = sess.source === 'cal' && !sess.patientId;
+  if (howtoSteps && !isDashboardCalAppt) {
     html += '<div class="rdp-howto"><details><summary>How to action this</summary>';
     html += '<div class="rdp-howto-steps">';
     howtoSteps.forEach(function(step, i) {
@@ -4308,13 +4962,167 @@ function _renderSessionDetailPanel(sess) {
   return html;
 }
 
+/* ── Unlinked GCal event action zone ──────────────────────────────── */
+function _calUnlinkedActionHtml(eventId, calName) {
+  var safeId   = escHtml(String(eventId));
+  var safeName = escHtml(calName || 'Calendar event');
+  var listId   = 'cal-merge-list-' + safeId;
+
+  // Build merge list from upcoming Halaxy appointments — these are the actual merge targets.
+  // The assumption: the real appointment has already been created in Halaxy and synced here.
+  var halaxyUpcoming = (_dhAppts || []).filter(function(s) {
+    return s.source === 'halaxy' && s.patientId && s.status === 'upcoming';
+  }).sort(function(a, b) { return (a.startMs || 0) - (b.startMs || 0); });
+
+  var listHtml = halaxyUpcoming.slice(0, 25).map(function(s) {
+    var pname    = s.name || ('Patient #' + s.patientId);
+    var apptDate = s.dateLabel + (s.timeStr ? ' · ' + s.timeStr : '');
+    var ini      = pname.split(/\s+/).slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase();
+    // Find linked dashboard client
+    var dashClient = (_pipelineData && _pipelineData.clients || []).find(function(c) {
+      return c.halaxy_id && String(c.halaxy_id) === String(s.patientId);
+    });
+    var clientNote = dashClient ? '· ' + escHtml(dashClient.display_name) + ' in dashboard' : '';
+    return '<div onclick="_calMergeConfirm(\'' + safeId + '\',\'' + escHtml(String(s.patientId)) + '\',\'' + escHtml(pname) + '\',\'' + escHtml(apptDate) + '\')" '
+      + 'style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid rgba(42,88,80,0.06);cursor:pointer;transition:background 0.12s" '
+      + 'onmouseover="this.style.background=\'rgba(42,88,80,0.06)\'" onmouseout="this.style.background=\'\'">'
+      + '<div style="width:32px;height:32px;border-radius:50%;background:rgba(42,88,80,0.12);color:#376B62;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">' + escHtml(ini) + '</div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:12px;font-weight:600;color:#1a2e2a">' + escHtml(pname) + '</div>'
+      + '<div style="font-size:11px;color:#376B62;font-weight:500">' + escHtml(apptDate) + '</div>'
+      + (dashClient ? '<div style="font-size:10px;color:#8a9a98;margin-top:1px">Dashboard record linked ✓</div>' : '')
+      + '</div>'
+      + '<span style="color:#999;font-size:14px">›</span>'
+      + '</div>';
+  }).join('');
+
+  if (!listHtml) {
+    listHtml = halaxyUpcoming.length === 0
+      ? '<div style="font-size:12px;color:#999;padding:12px 10px">No upcoming Halaxy appointments found. Create the appointment in Halaxy first, then come back to merge.</div>'
+      : '<div style="font-size:12px;color:#999;padding:10px">No results.</div>';
+  }
+
+  var html = '';
+
+  // Warning box with explicit dark colours (not CSS vars — panel is light)
+  html += '<div style="margin-top:10px;padding:10px 12px;background:rgba(224,123,57,0.08);border:1px solid rgba(224,123,57,0.22);border-radius:8px">'
+    + '<div style="font-size:11px;font-weight:700;color:#b85a1e;margin-bottom:4px">⚠ No client linked</div>'
+    + '<div style="font-size:11px;color:#5a4a3a;line-height:1.55">This Google Calendar event has no Halaxy patient or dashboard client attached.</div>'
+    + '</div>';
+
+  // Primary action: link to Halaxy patient
+  html += '<button class="rdp-primary-btn" style="margin-top:10px" onclick="_calToggleMergeList(\'' + safeId + '\')">Link to Halaxy patient →</button>';
+
+  // Inline Halaxy appointment list (hidden by default)
+  html += '<div id="' + listId + '" style="display:none;margin-top:8px;border:1px solid rgba(42,88,80,0.12);border-radius:8px;max-height:300px;overflow-y:auto">'
+    + '<div style="padding:8px 10px;font-size:10px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#8a9a98;border-bottom:1px solid rgba(42,88,80,0.08)">Select the Halaxy appointment to merge into</div>'
+    + listHtml
+    + '</div>';
+
+  // Secondary: add as dashboard client
+  html += '<button class="rdp-ghost-btn" style="margin-top:8px" onclick="_calAddDashboardClient(\'' + safeName + '\')">Add as dashboard client</button>';
+
+  // Tertiary: mark as reminder
+  html += '<button class="rdp-ghost-btn" style="margin-top:6px;color:#6b7280" onclick="_calMarkAsReminder(\'' + safeId + '\',\'' + safeName + '\')">📋 This is a reminder — not a client appointment</button>';
+
+  // Quaternary: delete
+  html += '<button style="display:block;width:100%;margin-top:6px;padding:8px;border:none;background:none;cursor:pointer;font-size:11px;color:#c0534a;font-family:inherit" '
+    + 'onclick="deleteScheduleAppt(\'' + safeId + '\')">Delete from calendar</button>';
+
+  return html;
+}
+
+function _calToggleMergeList(eventId) {
+  var el = document.getElementById('cal-merge-list-' + eventId);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function _calMergeConfirm(eventId, patientId, patientName, apptDate) {
+  // Dismiss the GCal placeholder — the Halaxy appointment is now the authoritative record
+  dismissCalEvent(eventId);
+  closeDetailPanel();
+  _showSuccess('merge', 'Merged with ' + patientName);
+}
+
+function _calAddDashboardClient(calName) {
+  openDbModal('client');
+  setTimeout(function() {
+    var parts = (calName || '').trim().split(/\s+/);
+    var fnEl  = document.getElementById('db-cl-fname');
+    var lnEl  = document.getElementById('db-cl-lname');
+    if (fnEl) fnEl.value = parts[0] || calName;
+    if (lnEl) lnEl.value = parts.slice(1).join(' ');
+  }, 60);
+}
+
+async function _calMarkAsReminder(eventId, title) {
+  _calReminders.add(String(eventId));
+  localStorage.setItem('cal_reminders', JSON.stringify([..._calReminders]));
+  // Create a task/reminder in the Reminders section
+  try {
+    await apiFetch('/api/admin-tasks', { method: 'POST', body: { title: (title || 'Reminder') } });
+  } catch(e) { console.warn('[calMarkAsReminder] task create skipped:', e.message); }
+  closeDetailPanel();
+  renderHomeView();
+  _showSuccess('reminder', 'Moved to Reminders');
+}
+
+function _calMarkAsReminder_undo(eventId) {
+  _calReminders.delete(String(eventId));
+  localStorage.setItem('cal_reminders', JSON.stringify([..._calReminders]));
+  closeDetailPanel();
+  renderHomeView();
+  toast('Restored as appointment');
+}
+
+async function _calRenameEvent(eventId, currentTitle) {
+  var newTitle = prompt('Rename event:', currentTitle || '');
+  if (!newTitle || !newTitle.trim() || newTitle.trim() === currentTitle) return;
+  try {
+    await apiFetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
+      method: 'PATCH', body: { title: newTitle.trim() }
+    });
+    // Update local cache so the rename shows immediately on re-open
+    if (_calEventMap[eventId]) _calEventMap[eventId].title = newTitle.trim();
+    closeDetailPanel();
+    renderHomeView();
+    toast('Renamed to "' + newTitle.trim() + '"');
+  } catch(e) { toast('Could not rename: ' + e.message, 'err'); }
+}
+
+async function _dhRenameClient(clientId, currentName) {
+  var newName = prompt('Rename client:', currentName || '');
+  if (!newName || !newName.trim() || newName.trim() === currentName) return;
+  try {
+    await apiFetch('/api/clients', { method: 'PATCH', body: { id: clientId, display_name: newName.trim() } });
+    if (_pipelineData) {
+      var cl = (_pipelineData.clients || []).find(function(c) { return c.id === clientId; });
+      if (cl) cl.display_name = newName.trim();
+    }
+    closeDetailPanel();
+    toast('Client renamed to "' + newName.trim() + '"');
+  } catch(e) { toast('Could not rename: ' + e.message, 'err'); }
+}
+
+async function deleteScheduleAppt(eventId) {
+  if (!confirm('Delete this appointment from the calendar?')) return;
+  try {
+    await apiFetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), { method: 'DELETE' });
+  } catch (e) {
+    // Non-fatal — may not be in the pending calendar
+    console.warn('[deleteScheduleAppt] GCal delete skipped:', e.message);
+  }
+  dismissCalEvent(eventId);
+  closeDetailPanel();
+  _showSuccess('delete', 'Deleted');
+}
+
 function _renderEnquiryDetailPanel(enq) {
   var name = [enq.first_name, enq.last_name].filter(Boolean).join(' ') || '—';
   var CLOSED_REASON_LABELS_RDP = { not_interested: 'Not interested', wrong_service: 'Wrong service', no_response: 'No response', converted_elsewhere: 'Converted elsewhere', duplicate: 'Duplicate enquiry', other: 'Other' };
   var STATUS_LABELS_RDP = { new: 'New', contacted: 'Contacted', in_halaxy: 'Awaiting first booking', closed: 'Closed', converted: 'Converted' };
   var html = '';
-  html += '<div class="rdp-client">' + escHtml(name) + '</div>';
-  html += '<div class="rdp-date">' + escHtml(_relativeDate(enq.created_at)) + (enq.source ? ' · ' + escHtml(enq.source) : '')
+  html += '<div class="rdp-date" style="margin-bottom:14px">' + escHtml(_relativeDate(enq.created_at)) + (enq.source ? ' · ' + escHtml(enq.source) : '')
     + (enq.status === 'closed' && enq.closed_reason ? ' · <span class="enq-closed-reason">' + escHtml(CLOSED_REASON_LABELS_RDP[enq.closed_reason] || enq.closed_reason) + '</span>' : '')
     + '</div>';
 
@@ -4327,9 +5135,9 @@ function _renderEnquiryDetailPanel(enq) {
   var isInHalaxy  = enq.status === 'in_halaxy';
 
   if (!isClosed) {
-    // ── Complete Onboarding (formerly "Send intake form") ──
+    // ── Send onboarding ──
     html += '<div style="margin-bottom:12px">';
-    html += '<div style="font-size:11px;font-weight:600;color:#7A948F;margin-bottom:7px;text-transform:uppercase;letter-spacing:0.07em">Complete Onboarding</div>';
+    html += '<div style="font-size:12px;font-weight:600;color:#2A5850;margin-bottom:9px">Send onboarding email</div>';
 
     // Client person type
     html += '<select id="rdp-ctype-' + enq.id + '" class="cl-modal-select" style="width:100%;margin-bottom:6px">';
@@ -4389,6 +5197,48 @@ function _renderEnquiryDetailPanel(enq) {
     html += '<div style="font-size:13px;color:#192E2A;line-height:1.5">' + escHtml(enq.message) + '</div>';
     html += '</div>';
   }
+
+  // ── Appointment history ──────────────────────────────────────────────
+  var _linkedClient = _dhEnqClientMap[enq.id];
+  var _hxId = _linkedClient && _linkedClient.halaxy_id ? String(_linkedClient.halaxy_id) : null;
+  if (_hxId) {
+    var _allSess = _buildUnifiedSessions();
+    var _clientSess = _allSess.upcoming.concat(_allSess.past).filter(function(s) {
+      return String(s.patientId) === _hxId;
+    }).sort(function(a, b) { return b.startMs - a.startMs; });
+    if (_clientSess.length) {
+      html += '<div class="rdp-section">';
+      html += '<div class="rdp-section-label">Appointments</div>';
+      var _STAT_COLOUR = { paid: 'var(--teal)', invoiced: 'var(--amber)', 'pending-invoice': '#7c6fe0', upcoming: 'var(--t2)', cancelled: 'var(--t3)' };
+      var _STAT_LABEL  = { paid: 'Paid ✓', invoiced: 'Unpaid', 'pending-invoice': 'No invoice', upcoming: 'Upcoming', cancelled: 'Cancelled' };
+      _clientSess.slice(0, 6).forEach(function(s) {
+        html += '<div class="rdp-row" style="cursor:pointer" onclick="openDetailPanel(\'session\',\'' + escHtml(String(s.id)) + '\')">'
+          + '<span class="rdp-row-label">' + escHtml(s.dateLabel || s.dateStr) + (s.timeStr ? ' · ' + s.timeStr : '') + '</span>'
+          + '<span class="rdp-row-val" style="color:' + (_STAT_COLOUR[s.status] || 'var(--t3)') + ';font-size:11px">' + escHtml(_STAT_LABEL[s.status] || s.status) + '</span>'
+          + '</div>';
+      });
+      html += '</div>';
+    }
+  }
+
+  // ── Tasks linked to this enquiry ─────────────────────────────────────
+  var _enqTasks = (_dhTasks || []).filter(function(t) { return t.enquiry_id === enq.id; });
+  html += '<div class="rdp-section">';
+  html += '<div class="rdp-section-label" style="display:flex;align-items:center;justify-content:space-between">Tasks'
+    + '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(42,88,80,0.25);border-radius:5px;background:transparent;color:var(--teal);cursor:pointer" '
+    + 'onclick="_rdpAddTask(\'' + escHtml(enq.id) + '\',\'' + escHtml(name) + '\')">+ Add</button></div>';
+  if (_enqTasks.length) {
+    _enqTasks.forEach(function(t) {
+      html += '<div class="rdp-row" style="gap:8px;align-items:flex-start">'
+        + '<button style="border:none;background:none;cursor:pointer;font-size:14px;color:' + (t.completed ? 'var(--teal)' : 'var(--t3)') + ';padding:0;line-height:1" '
+        + 'onclick="dhToggleTask(\'' + escHtml(String(t.id)) + '\',' + !t.completed + ')">' + (t.completed ? '✓' : '○') + '</button>'
+        + '<span style="flex:1;font-size:12.5px;' + (t.completed ? 'text-decoration:line-through;color:var(--t3)' : 'color:var(--mid)') + '">' + escHtml(t.title || '') + '</span>'
+        + '</div>';
+    });
+  } else {
+    html += '<div style="font-size:12px;color:var(--t3);padding:2px 0">No tasks yet</div>';
+  }
+  html += '</div>';
 
   // ── Notes ──
   html += '<div class="rdp-section">';
@@ -4451,6 +5301,23 @@ function _renderEnquiryDetailPanel(enq) {
   html += '</div>';
 
   return html;
+}
+
+async function _rdpAddTask(enquiryId, clientName) {
+  var title = prompt('New task for ' + (clientName || 'client') + ':');
+  if (!title || !title.trim()) return;
+  try {
+    var t = await apiFetch('/api/admin-tasks', {
+      method: 'POST',
+      body: { title: title.trim(), enquiry_id: enquiryId || null, client_label: clientName || null },
+    });
+    _dhTasks = (_dhTasks || []).concat(t);
+    // Refresh the detail panel so the new task appears immediately
+    openDetailPanel('enquiry', enquiryId ? enquiryId : '');
+    _dhLoadTasks();
+  } catch (err) {
+    toast('Could not add task: ' + err.message, 'err');
+  }
 }
 
 function _toggleLogInteractionForm(enqId) {
@@ -4591,6 +5458,13 @@ function _renderClientDetailPanel(cl) {
   html += '<div class="rdp-date">' + escHtml(funderLabel)
     + (hid ? (' · Halaxy' + (halaxyVerified ? ' ✓' : ' ⚠')) : '')
     + '</div>';
+  // Edit name — only for dashboard clients, not Halaxy-managed ones
+  if (!hid) {
+    html += '<div style="text-align:right;margin-bottom:8px">'
+      + '<button onclick="_dhRenameClient(\'' + escHtml(cl.id) + '\',\'' + escHtml(cl.display_name || '') + '\')" '
+      + 'style="font-size:11px;color:#8a9a98;background:none;border:1px solid rgba(0,0,0,0.1);border-radius:5px;padding:3px 9px;cursor:pointer;font-family:inherit">✎ Edit name</button>'
+      + '</div>';
+  }
 
   // Unverified link warning
   if (hid && !halaxyVerified) {
@@ -4788,8 +5662,8 @@ async function _rdpSendIntake(enquiryId) {
     await apiFetch('/api/admin-intake', { method: 'POST', body: { enquiryId: enquiryId, clientType: clientType, personType: personType, intakeUrl: intakeUrl } });
     // Also record the funder selection on the enquiry
     await apiFetch('/api/admin-enquiries?id=' + enquiryId, { method: 'PATCH', body: { intake_funder: clientType } }).catch(function() {});
-    toast('Onboarding email sent ✓');
     closeDetailPanel();
+    _showSuccess('send', 'Email sent');
     refreshPipeline();
   } catch (e) {
     toast('Could not send onboarding email: ' + e.message, 'err');
@@ -4885,7 +5759,7 @@ async function advanceSessionPl(sessionId, newStatus, clientId) {
 async function advanceEnquiryStatus(id, newStatus) {
   try {
     await apiFetch('/api/admin-enquiries?id=' + id, { method: 'PATCH', body: { status: newStatus } });
-    toast('Moved to ' + newStatus.replace('_', ' '));
+    _showSuccess('mark', newStatus === 'contacted' ? 'Marked contacted' : 'Status updated');
     refreshPipeline();
   } catch (err) {
     toast('Could not update: ' + err.message, 'err');

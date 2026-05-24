@@ -20,6 +20,34 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorised' });
   }
 
+  // ── PATCH — rename a calendar event ──────────────────────────────
+  if (req.method === 'PATCH') {
+    const eventId = req.query?.eventId;
+    const { title } = req.body || {};
+    if (!eventId) return res.status(400).json({ error: 'eventId is required' });
+    if (!title?.trim()) return res.status(400).json({ error: 'title is required' });
+    try {
+      const oauth2   = await getOAuth2Client();
+      const calendar = google.calendar({ version: 'v3', auth: oauth2 });
+      await calendar.events.patch({ calendarId: CALENDAR_ID, eventId, resource: { summary: title.trim() } });
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // ── DELETE — remove a calendar event ─────────────────────────────
+  if (req.method === 'DELETE') {
+    const eventId = req.query?.eventId;
+    if (!eventId) return res.status(400).json({ error: 'eventId is required' });
+    try {
+      await deleteCalendarEvent(eventId);
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   try {
     // Load refresh token from Supabase settings
     const { data: setting } = await db

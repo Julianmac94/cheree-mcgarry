@@ -391,14 +391,14 @@ body {
 }
 .modal-overlay.is-open { display: flex; }
 .modal-card {
-  background: #FAFAF7;
-  border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 18px;
-  box-shadow: 0 16px 60px rgba(0,0,0,0.20), 0 3px 10px rgba(0,0,0,0.08);
+  background: #F3EFE6;
+  border: 1px solid rgba(42,88,80,0.10);
+  border-radius: 20px;
+  box-shadow: 0 24px 80px rgba(20,38,34,0.22), 0 4px 14px rgba(42,88,80,0.08);
   width: 100%; max-width: 460px;
   max-height: 88vh; overflow: hidden;
   display: flex; flex-direction: column;
-  animation: modalIn 0.22s cubic-bezier(0.34,1.4,0.64,1);
+  animation: modalIn 0.24s cubic-bezier(0.34,1.4,0.64,1);
 }
 @keyframes modalIn {
   from { transform: scale(0.93) translateY(10px); opacity: 0 }
@@ -406,25 +406,26 @@ body {
 }
 .modal-header {
   padding: 18px 20px 14px;
-  border-bottom: 1px solid rgba(0,0,0,0.06);
+  border-bottom: 1px solid rgba(42,88,80,0.08);
   display: flex; align-items: center; gap: 10px; flex-shrink: 0;
 }
 .modal-title { font-size: 14px; font-weight: 600; color: #1A2F2B; flex: 1; }
 .modal-close {
   width: 28px; height: 28px; border-radius: 8px;
-  background: rgba(0,0,0,0.06); border: none; cursor: pointer;
+  background: rgba(42,88,80,0.08); border: none; cursor: pointer;
   font-size: 17px; color: #7A9090;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; transition: all 0.12s; line-height: 1;
 }
-.modal-close:hover { background: rgba(0,0,0,0.11); color: #1A2F2B; }
+.modal-close:hover { background: rgba(42,88,80,0.14); color: #1A2F2B; }
 .rdp-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 0; }
 
 /* Detail panel content styles */
 .rdp-client { font-size: 21px; font-weight: 700; color: #1A2F2B; margin-bottom: 3px; }
 .rdp-date { font-size: 12.5px; color: #7A948F; margin-bottom: 22px; }
 .rdp-action-zone {
-  background: #F4F1EB; border-radius: 10px; padding: 16px; margin-bottom: 20px;
+  background: rgba(42,88,80,0.06); border-radius: 12px; padding: 16px; margin-bottom: 20px;
+  border: 1px solid rgba(42,88,80,0.09);
 }
 .rdp-primary-btn {
   display: block; width: 100%; padding: 11px 14px;
@@ -442,8 +443,8 @@ body {
   cursor: pointer; text-align: center; text-decoration: none; transition: all 0.13s;
 }
 .rdp-ghost-btn:hover { background: rgba(42,88,80,0.06); }
-.rdp-section { border-top: 1px solid rgba(0,0,0,0.07); padding-top: 16px; margin-top: 4px; }
-.rdp-section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #7A948F; margin-bottom: 10px; }
+.rdp-section { border-top: 1px solid rgba(42,88,80,0.08); padding-top: 14px; margin-top: 8px; }
+.rdp-section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: #7A948F; margin-bottom: 10px; }
 .rdp-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.04); font-size: 12.5px; }
 .rdp-row:last-child { border-bottom: none; }
 .rdp-row-label { color: #7A948F; }
@@ -454,6 +455,39 @@ body {
 }
 .rdp-status-chip.invoiced { background: rgba(200,160,0,0.12); color: #7a6300; }
 .rdp-status-chip.paid     { background: rgba(39,174,96,0.12); color: #27ae60; }
+
+/* ── Success overlay (Apple Pay-style) ── */
+@keyframes suc-scale {
+  0%   { transform: scale(0.55); opacity: 0; }
+  65%  { transform: scale(1.09); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes suc-check {
+  from { stroke-dashoffset: 52; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes suc-fade-up {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes suc-dismiss { to { opacity: 0; } }
+.suc-overlay {
+  position: fixed; inset: 0; z-index: 9500;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(10,18,16,0.52); backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+.suc-ring {
+  width: 84px; height: 84px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  animation: suc-scale 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+.suc-label {
+  margin-top: 16px;
+  font-family: Raleway, sans-serif; font-size: 14px; font-weight: 600;
+  color: rgba(255,255,255,0.92); letter-spacing: 0.01em;
+  animation: suc-fade-up 0.3s 0.18s ease both;
+}
 
 /* ── Home dashboard view ── */
 .home-view { padding: 28px 28px 80px; max-width: 860px; }
@@ -2208,7 +2242,9 @@ body {
   transition: box-shadow 0.15s;
 }
 .week-event:hover { box-shadow: 0 2px 10px rgba(25,46,42,0.1); }
-.week-event--halaxy { border-left-color: ${C.tealMid}; }
+.week-event--cal      { border-left-color: #E07B39; background: linear-gradient(135deg, rgba(224,123,57,0.06) 0%, rgba(245,158,11,0.04) 100%); }
+.week-event--halaxy   { border-left-color: ${C.tealMid}; background: rgba(55,107,98,0.04); }
+.week-event--personal { border-left-color: #8a9a98; opacity: 0.6; }
 .week-event-time {
   color: var(--soft); font-size: 9px; font-weight: 600;
   letter-spacing: 0.04em; margin-bottom: 3px;
@@ -2218,8 +2254,8 @@ body {
   text-transform: uppercase; padding: 1px 5px; border-radius: 3px;
   background: rgba(42,88,80,0.08); color: var(--soft); margin-bottom: 4px;
 }
-.week-event--halaxy .week-event-source { background: rgba(80,42,88,0.08); color: #7a5a8a; }
-.week-event--personal { opacity: 0.5; border-left-color: #aaa; }
+.week-event--cal    .week-event-source { background: rgba(224,123,57,0.12); color: #b85a1e; }
+.week-event--halaxy .week-event-source { background: rgba(55,107,98,0.12); color: ${C.tealMid}; }
 .week-event--personal .week-event-source { background: rgba(0,0,0,0.08); color: #888; }
 .week-event-title {
   font-size: 11px; font-weight: 600; color: var(--tealDeep);
@@ -2581,6 +2617,59 @@ body {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ── Initial page-load branded splash ── */
+@keyframes init-ring-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes init-logo-breathe {
+  0%,100% { opacity: 0.75; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.06); }
+}
+@keyframes init-skel-wave {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.init-loader {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 64px 0 32px;
+}
+.init-logo-wrap {
+  position: relative; width: 72px; height: 72px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 18px;
+}
+.init-logo {
+  width: 40px; height: 40px; position: relative; z-index: 2;
+  animation: init-logo-breathe 2s ease-in-out infinite;
+}
+.init-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: #376B62;
+  border-right-color: rgba(55,107,98,0.25);
+  animation: init-ring-spin 1.1s linear infinite;
+}
+.init-ring-outer {
+  position: absolute; inset: -6px; border-radius: 50%;
+  border: 1px solid rgba(55,107,98,0.12);
+}
+.init-label {
+  font-family: Raleway, sans-serif; font-size: 12px; font-weight: 500;
+  color: rgba(122,148,143,0.6); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.init-skel-grid {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 12px;
+  margin: 28px 28px 14px;
+}
+.init-skel-list { display: flex; flex-direction: column; gap: 8px; margin: 0 28px; }
+.init-skel {
+  border-radius: 12px;
+  background: linear-gradient(90deg,
+    rgba(42,88,80,0.06) 25%, rgba(42,88,80,0.11) 50%, rgba(42,88,80,0.06) 75%);
+  background-size: 200% 100%;
+  animation: init-skel-wave 1.6s ease-in-out infinite;
+}
 .pl-empty { font-size: 11px; color: rgba(122,148,143,0.6); padding: 8px 2px; font-style: italic; }
 
 /* Halaxy link section inside client card */
@@ -2733,14 +2822,20 @@ body {
     <!-- Content + right detail panel -->
     <div class="app-content">
       <div class="view-content" id="view-content">
-        <!-- skeleton while JS loads -->
-        <div style="padding:20px">
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
-            ${[1,2,3,4].map(()=>'<div style="height:80px;background:#fff;border-radius:16px;border:1px solid rgba(0,0,0,0.08)"></div>').join('')}
+        <!-- branded loading state — replaced by JS on data load -->
+        <div class="init-loader">
+          <div class="init-logo-wrap">
+            <div class="init-ring-outer"></div>
+            <div class="init-ring"></div>
+            <img src="/assets/logo.svg" class="init-logo" alt="">
           </div>
-          <div style="display:flex;flex-direction:column;gap:8px">
-            ${[1,2,3].map(()=>'<div style="height:72px;background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,0.08)"></div>').join('')}
-          </div>
+          <div class="init-label">Loading</div>
+        </div>
+        <div class="init-skel-grid">
+          ${[80,80,80,80].map(h=>`<div class="init-skel" style="height:${h}px"></div>`).join('')}
+        </div>
+        <div class="init-skel-list">
+          ${[68,68,68].map(h=>`<div class="init-skel" style="height:${h}px"></div>`).join('')}
         </div>
       </div>
       <!-- Detail panel (slide in from right) -->
@@ -2787,255 +2882,101 @@ body {
   </div>
 </div>
 
-<!-- ══ ADD CLIENT MODAL (two-step) ══ -->
+<!-- ══ ADD CLIENT MODAL ══ -->
 <div class="db-modal-overlay" id="db-modal-client" onclick="if(event.target===this)closeDbModal('db-modal-client')">
   <div class="db-modal">
     <div class="db-modal-hdr">
       <div>
         <div class="db-modal-title" id="db-modal-client-title">Add Client</div>
-        <div class="db-modal-sub">Choose where to save, then fill in the details</div>
+        <div class="db-modal-sub">Add a new client to the onboarding queue</div>
       </div>
       <button class="db-modal-close" onclick="closeDbModal('db-modal-client')">×</button>
     </div>
-    <div class="db-step-indicator">
-      <div class="db-step active" id="db-cl-s1-ind" onclick="dbGoStep('cl',1)">
-        <div class="db-step-num">1</div>
-        <div class="db-step-label">Save to…</div>
-      </div>
-      <div class="db-step-line"></div>
-      <div class="db-step" id="db-cl-s2-ind">
-        <div class="db-step-num">2</div>
-        <div class="db-step-label">Details</div>
-      </div>
-    </div>
     <div class="db-modal-body">
-
-      <!-- Step 1: Destination choice -->
-      <div class="db-step-body active" id="db-cl-s1">
-        <p style="font-size:13px;color:var(--db-txt-soft,#6b7a8d);margin:0 0 14px;">Where should this client be saved?</p>
-        <div class="db-dest-cards">
-          <div class="db-dest-card" onclick="dbSelectDest(this,'onboarding','cl')">
-            <div class="db-dest-card-icon">📋</div>
-            <div class="db-dest-card-title">Onboarding Queue</div>
-            <div class="db-dest-card-desc">Save to dashboard only. Fill in contact + funder details. Move to Halaxy when ready.</div>
-          </div>
-          <div class="db-dest-card" onclick="dbSelectDest(this,'halaxy','cl')">
-            <div class="db-dest-card-icon">🔗</div>
-            <div class="db-dest-card-title">Create in Halaxy</div>
-            <div class="db-dest-card-desc">Open the Halaxy patient form with details pre-filled. For clients starting immediately.</div>
-          </div>
+      <div class="db-form-row">
+        <div class="db-form-grp"><label class="db-form-lbl">First Name</label><input class="db-form-input" id="db-cl-fname" type="text" placeholder="Sarah"></div>
+        <div class="db-form-grp"><label class="db-form-lbl">Last Name</label><input class="db-form-input" id="db-cl-lname" type="text" placeholder="Bell"></div>
+      </div>
+      <div class="db-form-row">
+        <div class="db-form-grp"><label class="db-form-lbl">Email</label><input class="db-form-input" id="db-cl-email" type="email" placeholder="sarah@email.com"></div>
+        <div class="db-form-grp"><label class="db-form-lbl">Phone</label><input class="db-form-input" id="db-cl-phone" type="tel" placeholder="04xx xxx xxx"></div>
+      </div>
+      <div class="db-form-row">
+        <div class="db-form-grp"><label class="db-form-lbl">Source</label>
+          <select class="db-form-input" id="db-cl-source">
+            <option value="">How did they find us?</option>
+            <option value="website">Website form</option>
+            <option value="email">Direct email</option>
+            <option value="phone">Phone call</option>
+            <option value="gp_referral">GP referral</option>
+            <option value="eap">EAP referral</option>
+            <option value="word_of_mouth">Word of mouth</option>
+          </select>
+        </div>
+        <div class="db-form-grp"><label class="db-form-lbl">Funder Type</label>
+          <select class="db-form-input" id="db-cl-funder" onchange="this.style.outline=''">
+            <option value="">Select funder type *</option>
+            <option value="private">Private</option>
+            <option value="medicare">Medicare</option>
+            <option value="ndis_plan">NDIS Plan Managed</option>
+            <option value="ndis_self">NDIS Self Managed</option>
+            <option value="qfes">QFES / EAP</option>
+            <option value="workcover">WorkCover</option>
+            <option value="dva">DVA</option>
+          </select>
         </div>
       </div>
-
-      <!-- Step 2: Context-aware form -->
-      <div class="db-step-body" id="db-cl-s2">
-
-        <!-- Onboarding fields -->
-        <div id="db-cl-s2-onboarding" style="display:none">
-          <div class="db-form-row">
-            <div class="db-form-grp"><label class="db-form-lbl">First Name</label><input class="db-form-input" id="db-cl-fname" type="text" placeholder="Sarah"></div>
-            <div class="db-form-grp"><label class="db-form-lbl">Last Name</label><input class="db-form-input" id="db-cl-lname" type="text" placeholder="Bell"></div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp"><label class="db-form-lbl">Email</label><input class="db-form-input" id="db-cl-email" type="email" placeholder="sarah@email.com"></div>
-            <div class="db-form-grp"><label class="db-form-lbl">Phone</label><input class="db-form-input" id="db-cl-phone" type="tel" placeholder="04xx xxx xxx"></div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp"><label class="db-form-lbl">Source</label>
-              <select class="db-form-input" id="db-cl-source">
-                <option value="">How did they find us?</option>
-                <option value="website">Website form</option>
-                <option value="email">Direct email</option>
-                <option value="phone">Phone call</option>
-                <option value="gp_referral">GP referral</option>
-                <option value="eap">EAP referral</option>
-                <option value="word_of_mouth">Word of mouth</option>
-              </select>
-            </div>
-            <div class="db-form-grp"><label class="db-form-lbl">Funder Type</label>
-              <select class="db-form-input" id="db-cl-funder">
-                <option value="">Unknown / TBC</option>
-                <option value="private">Private</option>
-                <option value="medicare">Medicare</option>
-                <option value="ndis_plan">NDIS Plan Managed</option>
-                <option value="ndis_self">NDIS Self Managed</option>
-                <option value="qfes">QFES / EAP</option>
-                <option value="workcover">WorkCover</option>
-                <option value="dva">DVA</option>
-              </select>
-            </div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp full"><label class="db-form-lbl">Notes</label><input class="db-form-input" id="db-cl-notes" type="text" placeholder="e.g. GP referral for anxiety — Dr Smith"></div>
-          </div>
-        </div>
-
-        <!-- Halaxy fields -->
-        <div id="db-cl-s2-halaxy" style="display:none">
-          <div class="db-form-row">
-            <div class="db-form-grp"><label class="db-form-lbl">First Name</label><input class="db-form-input" id="db-cl-hx-fname" type="text" placeholder="Sarah"></div>
-            <div class="db-form-grp"><label class="db-form-lbl">Last Name</label><input class="db-form-input" id="db-cl-hx-lname" type="text" placeholder="Bell"></div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp"><label class="db-form-lbl">Date of Birth</label><input class="db-form-input" id="db-cl-hx-dob" type="date"></div>
-            <div class="db-form-grp"><label class="db-form-lbl">Phone</label><input class="db-form-input" id="db-cl-hx-phone" type="tel" placeholder="04xx xxx xxx"></div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp full"><label class="db-form-lbl">Email</label><input class="db-form-input" id="db-cl-hx-email" type="email" placeholder="sarah@email.com"></div>
-          </div>
-          <div class="db-hint-box">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0;margin-top:1px"><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm.93-9.412l-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 110-2 1 1 0 010 2z"/></svg>
-            Details will be pre-filled in Halaxy — complete the patient record there to confirm.
-          </div>
-        </div>
-
+      <div class="db-form-row">
+        <div class="db-form-grp full"><label class="db-form-lbl">Notes</label><input class="db-form-input" id="db-cl-notes" type="text" placeholder="e.g. GP referral for anxiety — Dr Smith"></div>
       </div>
     </div>
     <div class="db-modal-ftr">
-      <button class="db-btn-ghost" id="db-cl-back" style="display:none" onclick="dbGoStep('cl',1)">← Back</button>
       <button class="db-btn-ghost" onclick="closeDbModal('db-modal-client')">Cancel</button>
-      <button class="db-btn-primary" id="db-cl-next" onclick="_dbClientNextOrSave()">Next: Add details →</button>
+      <button class="db-btn-primary" id="db-cl-next" onclick="_dbClientNextOrSave()">Save →</button>
     </div>
   </div>
 </div>
 
-<!-- ══ ADD APPOINTMENT MODAL (destination-first) ══ -->
+<!-- ══ ADD APPOINTMENT MODAL ══ -->
 <div class="db-modal-overlay" id="db-modal-appt" onclick="if(event.target===this)closeDbModal('db-modal-appt')">
   <div class="db-modal">
     <div class="db-modal-hdr">
       <div>
         <div class="db-modal-title">Add Appointment</div>
-        <div class="db-modal-sub">Choose where to save, then fill in the details</div>
+        <div class="db-modal-sub">Log an appointment or intake call in the dashboard</div>
       </div>
       <button class="db-modal-close" onclick="closeDbModal('db-modal-appt')">×</button>
     </div>
-    <div class="db-step-indicator">
-      <div class="db-step active" id="db-ap-s1-ind" onclick="dbGoStep('ap',1)">
-        <div class="db-step-num">1</div>
-        <div class="db-step-label">Save to…</div>
-      </div>
-      <div class="db-step-line"></div>
-      <div class="db-step" id="db-ap-s2-ind">
-        <div class="db-step-num">2</div>
-        <div class="db-step-label">Details</div>
-      </div>
-    </div>
     <div class="db-modal-body">
-
-      <!-- Step 1: Destination choice -->
-      <div class="db-step-body active" id="db-ap-s1">
-        <p style="font-size:13px;color:var(--db-txt-soft,#6b7a8d);margin:0 0 14px;">Where should this appointment be saved?</p>
-        <div class="db-dest-cards">
-          <div class="db-dest-card" onclick="dbSelectDest(this,'onboarding','ap')">
-            <div class="db-dest-card-icon">📋</div>
-            <div class="db-dest-card-title">Onboarding / Admin</div>
-            <div class="db-dest-card-desc">Log in dashboard only — no Halaxy booking. For pre-registered clients, intake calls, or admin time.</div>
-          </div>
-          <div class="db-dest-card" onclick="dbSelectDest(this,'halaxy','ap')">
-            <div class="db-dest-card-icon">🔗</div>
-            <div class="db-dest-card-title">Book in Halaxy</div>
-            <div class="db-dest-card-desc">Open Halaxy calendar with details ready. Invoicing and billing handled automatically.</div>
+      <div>
+        <div class="db-form-row">
+          <div class="db-form-grp full"><label class="db-form-lbl">Client</label>
+            <select class="db-form-input" id="db-ap-ob-client">
+              <option value="">Select from queue…</option>
+            </select>
           </div>
         </div>
-      </div>
-
-      <!-- Step 2: Context-aware form -->
-      <div class="db-step-body" id="db-ap-s2">
-
-        <!-- Onboarding appointment fields -->
-        <div id="db-ap-s2-onboarding" style="display:none">
-          <div class="db-form-row">
-            <div class="db-form-grp full"><label class="db-form-lbl">Client</label>
-              <select class="db-form-input" id="db-ap-ob-client">
-                <option value="">Select from queue…</option>
-              </select>
-            </div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp"><label class="db-form-lbl">Date</label><input class="db-form-input" id="db-ap-ob-date" type="date"></div>
-            <div class="db-form-grp"><label class="db-form-lbl">Time</label><input class="db-form-input" id="db-ap-ob-time" type="time" value="10:00"></div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp full"><label class="db-form-lbl">Type</label>
-              <select class="db-form-input" id="db-ap-ob-type">
-                <option value="intake">Intake / First call</option>
-                <option value="session">Session</option>
-                <option value="admin">Admin / No charge</option>
-              </select>
-            </div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp full"><label class="db-form-lbl">Notes</label><input class="db-form-input" id="db-ap-ob-notes" type="text" placeholder="Optional notes…"></div>
+        <div class="db-form-row">
+          <div class="db-form-grp"><label class="db-form-lbl">Date</label><input class="db-form-input" id="db-ap-ob-date" type="date"></div>
+          <div class="db-form-grp"><label class="db-form-lbl">Time</label><input class="db-form-input" id="db-ap-ob-time" type="time" value="10:00"></div>
+        </div>
+        <div class="db-form-row">
+          <div class="db-form-grp full"><label class="db-form-lbl">Type</label>
+            <select class="db-form-input" id="db-ap-ob-type">
+              <option value="intake">Intake / First call</option>
+              <option value="session">Appointment</option>
+              <option value="admin">Admin / No charge</option>
+            </select>
           </div>
         </div>
-
-        <!-- Halaxy appointment fields -->
-        <div id="db-ap-s2-halaxy" style="display:none">
-          <div class="db-form-row">
-            <div class="db-form-grp full">
-              <label class="db-form-lbl">Client</label>
-              <div class="db-patient-search">
-                <input class="db-form-input" type="text" id="db-ap-hx-search" placeholder="Type patient name…" oninput="dbHxPatientSearch(this.value)" autocomplete="off" autocorrect="off" spellcheck="false">
-                <input type="hidden" id="db-ap-hx-client">
-                <div class="db-patient-results" id="db-ap-hx-results"></div>
-              </div>
-            </div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp full">
-              <label class="db-form-lbl" id="db-ap-hx-funder-lbl">Funder</label>
-              <select class="db-form-input" id="db-ap-hx-funder" onchange="_dbOnHxFunderChange()">
-                <option value="">Select funder…</option>
-                <option value="private">Private</option>
-                <option value="medicare">Medicare / Better Access</option>
-                <option value="ndis_plan">NDIS — Plan Managed</option>
-                <option value="ndis_self">NDIS — Self Managed</option>
-                <option value="qfes">QFES / EAP</option>
-                <option value="workcover">WorkCover</option>
-                <option value="dva">DVA / ADF</option>
-              </select>
-            </div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp full">
-              <label class="db-form-lbl">Fee</label>
-              <select class="db-form-input" id="db-ap-hx-fee">
-                <option value="">Select a funder first…</option>
-              </select>
-            </div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp"><label class="db-form-lbl">Date</label><input class="db-form-input" id="db-ap-hx-date" type="date"></div>
-            <div class="db-form-grp"><label class="db-form-lbl">Time</label><input class="db-form-input" id="db-ap-hx-time" type="time" value="10:00"></div>
-          </div>
-          <div class="db-form-row">
-            <div class="db-form-grp"><label class="db-form-lbl">Duration</label>
-              <select class="db-form-input" id="db-ap-hx-duration">
-                <option value="50">50 min</option>
-                <option value="60">60 min</option>
-                <option value="80">80 min</option>
-                <option value="30">30 min</option>
-              </select>
-            </div>
-            <div class="db-form-grp"><label class="db-form-lbl">Location</label>
-              <select class="db-form-input" id="db-ap-hx-location">
-                <option value="clinic">In-person</option>
-                <option value="telehealth">Telehealth</option>
-              </select>
-            </div>
-          </div>
-          <div class="db-hint-box" id="db-ap-hx-hint">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0;margin-top:1px"><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm.93-9.412l-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 110-2 1 1 0 010 2z"/></svg>
-            Select a funder to see matching fees. Picking a fee auto-creates the invoice in Halaxy.
-          </div>
+        <div class="db-form-row">
+          <div class="db-form-grp full"><label class="db-form-lbl">Notes</label><input class="db-form-input" id="db-ap-ob-notes" type="text" placeholder="Optional notes…"></div>
         </div>
-
       </div>
     </div>
     <div class="db-modal-ftr">
-      <button class="db-btn-ghost" id="db-ap-back" style="display:none" onclick="dbGoStep('ap',1)">← Back</button>
       <button class="db-btn-ghost" onclick="closeDbModal('db-modal-appt')">Cancel</button>
-      <button class="db-btn-primary" id="db-ap-next" onclick="_dbApptNextOrSave()">Next: Add details →</button>
+      <button class="db-btn-primary" id="db-ap-next" onclick="_dbApptNextOrSave()">Save →</button>
     </div>
   </div>
 </div>

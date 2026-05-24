@@ -94,7 +94,7 @@ export default async function handler(req, res) {
         invoice_ref:   invoice_ref   || null,
         amount:        amount        || null,
         notes:         notes         || null,
-        gcal_event_id: gcal_event_id,
+        gcal_event_id: gcal_event_id || null,
       })
       .select()
       .single();

@@ -44,16 +44,22 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const body = req.body || {};
     const { display_name, funder, plan_manager, halaxy_id, notes, enquiry_id,
-            client_type, parent_client_id, is_contact } = body;
+            client_type, parent_client_id, is_contact,
+            email, source } = body;
 
     if (!display_name) {
       return res.status(400).json({ error: 'display_name is required' });
     }
+    if (!funder) {
+      return res.status(400).json({ error: 'funder is required' });
+    }
 
+    // Insert the client first — so a failed insert never leaves an orphaned enquiry.
     const { data, error } = await db
       .from('clients')
       .insert({
-        display_name, funder,
+        display_name,
+        funder,
         plan_manager:      plan_manager      || null,
         halaxy_id:         halaxy_id         || null,
         notes:             notes             || null,
@@ -66,6 +72,24 @@ export default async function handler(req, res) {
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // Now that the client exists, create a linked enquiry so it surfaces in the inbox.
+    // Doing this after the client insert means a constraint failure above leaves no orphan.
+    if (!halaxy_id && !is_contact && !enquiry_id) {
+      const parts = display_name.trim().split(/\s+/);
+      const { data: enqData } = await db.from('enquiries').insert({
+        first_name: parts[0] || display_name,
+        last_name:  parts.slice(1).join(' ') || null,
+        email:      email  || null,
+        source:     source || 'manual',
+        status:     'new',
+      }).select('id').single();
+      if (enqData) {
+        await db.from('clients').update({ enquiry_id: enqData.id }).eq('id', data.id);
+        data.enquiry_id = enqData.id;
+      }
+    }
+
     return res.status(201).json(data);
   }
 
