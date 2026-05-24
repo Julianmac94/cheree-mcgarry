@@ -1190,15 +1190,19 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 
 /* ─── DETAIL PANEL MODAL — dark glass override ───────────────────
    admin-dashboard.css loads before the inline <style> in admin.js,
-   so we need !important to win on same-specificity selectors.
+   so !important is required to win on same-specificity selectors.
 ──────────────────────────────────────────────────────────────────── */
+
+/* Overlay */
 .modal-overlay {
   background: rgba(4,8,20,0.7) !important;
   backdrop-filter: blur(18px) !important;
   -webkit-backdrop-filter: blur(18px) !important;
 }
+
+/* Card */
 .modal-card {
-  background: rgba(11,17,34,0.96) !important;
+  background: rgba(11,17,34,0.97) !important;
   border: 1px solid rgba(255,255,255,0.08) !important;
   border-radius: 22px !important;
   box-shadow:
@@ -1206,89 +1210,115 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
     0 40px 100px rgba(0,0,0,0.75),
     0 8px 30px rgba(0,0,0,0.5) !important;
 }
-.modal-header {
-  border-bottom: 1px solid var(--sep) !important;
-  background: transparent !important;
-}
-.modal-title  { color: var(--t1) !important; font-size: 15px !important; }
+
+/* Header */
+.modal-header { border-bottom: 1px solid var(--sep) !important; background: transparent !important; }
+.modal-title  { color: var(--t1) !important; font-size: 15px !important; font-weight: 600 !important; }
 .modal-close  {
-  background: rgba(255,255,255,0.06) !important;
-  border: 1px solid var(--gb) !important;
-  color: var(--t2) !important;
-  border-radius: 50% !important;
+  background: rgba(255,255,255,0.06) !important; border: 1px solid var(--gb) !important;
+  color: var(--t2) !important; border-radius: 50% !important;
 }
 .modal-close:hover { background: rgba(255,255,255,0.12) !important; color: var(--t1) !important; }
 
-/* Body scroll area */
-.rdp-body { background: transparent !important; }
-
-/* Name / date subtitle */
+/* Body + typography */
+.rdp-body   { background: transparent !important; }
 .rdp-client { color: var(--t1) !important; font-size: 20px !important; }
 .rdp-date   { color: var(--t3) !important; }
 
-/* Action zone — subtle raised layer */
+/* Action zone */
 .rdp-action-zone {
   background: rgba(255,255,255,0.04) !important;
   border: 1px solid rgba(255,255,255,0.07) !important;
   border-radius: 16px !important;
 }
 
-/* Buttons */
+/* Primary + ghost buttons */
 .rdp-primary-btn {
-  background: var(--teal) !important;
-  color: #030D08 !important;
-  font-weight: 700 !important;
-  border-radius: var(--rsm) !important;
-  border: none !important;
+  background: var(--teal) !important; color: #030D08 !important;
+  font-weight: 700 !important; border-radius: var(--rsm) !important; border: none !important;
 }
-.rdp-primary-btn:hover { filter: brightness(1.1) !important; }
+.rdp-primary-btn:hover { filter: brightness(1.08) !important; }
 .rdp-ghost-btn {
   background: rgba(255,255,255,0.05) !important;
   border: 1px solid rgba(255,255,255,0.10) !important;
-  color: var(--t2) !important;
-  border-radius: var(--rsm) !important;
-  justify-content: center !important;
-  width: 100% !important; display: flex !important;
+  color: var(--t2) !important; border-radius: var(--rsm) !important;
+  justify-content: center !important; width: 100% !important; display: flex !important;
 }
 .rdp-ghost-btn:hover { background: rgba(255,255,255,0.09) !important; color: var(--t1) !important; }
 .rdp-action-hint { color: var(--t3) !important; }
 
-/* Sections */
-.rdp-section         { border-top: 1px solid var(--sep) !important; }
-.rdp-section-label   {
-  color: var(--t3) !important;
-  font-size: 10px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.09em !important;
-  text-transform: uppercase !important;
+/* Section dividers + labels — sentence case, subtle */
+.rdp-section { border-top: 1px solid var(--sep) !important; padding-top: 16px !important; margin-top: 12px !important; }
+.rdp-section-label {
+  color: rgba(255,255,255,0.28) !important;
+  font-size: 11px !important; font-weight: 500 !important;
+  letter-spacing: 0.01em !important; text-transform: none !important;
+  margin-bottom: 12px !important;
 }
-.rdp-row             { border-bottom: 1px solid rgba(255,255,255,0.04) !important; }
-.rdp-row-label       { color: var(--t3) !important; }
-.rdp-row-val         { color: var(--t1) !important; }
 
-/* Status chips — readable on dark */
-.rdp-status-chip              { font-weight: 600 !important; }
-.rdp-status-chip.paid         { background: rgba(52,211,153,0.15) !important; color: var(--teal) !important; }
-.rdp-status-chip.invoiced     { background: rgba(251,191,36,0.14) !important; color: var(--amber) !important; }
-.rdp-status-chip.upcoming     { background: rgba(96,165,250,0.14) !important; color: var(--blue) !important; }
-.rdp-status-chip.cancelled    { background: rgba(255,255,255,0.06) !important; color: var(--t3) !important; }
+/* Data rows */
+.rdp-row       { border-bottom: 1px solid rgba(255,255,255,0.04) !important; }
+.rdp-row-label { color: var(--t3) !important; }
+.rdp-row-val   { color: var(--t1) !important; }
 
-/* Warn + danger blocks */
+/* Status chips */
+.rdp-status-chip           { font-weight: 600 !important; }
+.rdp-status-chip.paid      { background: rgba(52,211,153,0.15) !important; color: var(--teal) !important; }
+.rdp-status-chip.invoiced  { background: rgba(251,191,36,0.14) !important; color: var(--amber) !important; }
+.rdp-status-chip.upcoming  { background: rgba(96,165,250,0.14) !important; color: var(--blue) !important; }
+.rdp-status-chip.cancelled { background: rgba(255,255,255,0.06) !important; color: var(--t3) !important; }
+
+/* Warn + danger */
 .rdp-warn-box {
-  background: rgba(248,113,113,0.07) !important;
-  border: 1px solid rgba(248,113,113,0.18) !important;
-  color: #F87171 !important;
+  background: rgba(251,191,36,0.07) !important;
+  border: 1px solid rgba(251,191,36,0.18) !important;
+  color: var(--amber) !important; border-radius: 10px !important;
 }
 .rdp-danger-zone { border-top: 1px solid rgba(248,113,113,0.10) !important; }
 .rdp-danger-btn  {
-  background: rgba(248,113,113,0.07) !important;
-  color: var(--red) !important;
+  background: rgba(248,113,113,0.07) !important; color: var(--red) !important;
   border: 1px solid rgba(248,113,113,0.14) !important;
 }
 .rdp-danger-btn:hover { background: rgba(248,113,113,0.14) !important; }
 
-/* How-to steps */
+/* How-to */
 .rdp-howto { border-top: 1px solid var(--sep) !important; }
 .rdp-howto details > summary { color: var(--t3) !important; }
-.rdp-howto-step { border-bottom: 1px solid rgba(255,255,255,0.04) !important; color: var(--t2) !important; }
-.rdp-howto-step-n { background: rgba(255,255,255,0.06) !important; color: var(--t3) !important; }
+.rdp-howto-step      { border-bottom: 1px solid rgba(255,255,255,0.04) !important; color: var(--t2) !important; }
+.rdp-howto-step-n    { background: rgba(255,255,255,0.06) !important; color: var(--t3) !important; }
+
+/* ── Dark form controls inside the detail panel ── */
+.rdp-body select,
+.rdp-body input[type="text"],
+.rdp-body input[type="url"],
+.rdp-body input[type="email"],
+.rdp-body input[type="tel"],
+.rdp-body textarea,
+.enq-log-form select,
+.enq-log-form textarea {
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  color: var(--t1) !important;
+  border-radius: 10px !important;
+  font-family: inherit !important;
+  color-scheme: dark !important;
+}
+.rdp-body select:focus,
+.rdp-body input:focus,
+.rdp-body textarea:focus,
+.enq-log-form select:focus,
+.enq-log-form textarea:focus {
+  border-color: rgba(52,211,153,0.40) !important;
+  background: rgba(255,255,255,0.09) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(52,211,153,0.10) !important;
+}
+.rdp-body ::placeholder,
+.enq-log-form ::placeholder { color: rgba(255,255,255,0.22) !important; }
+
+/* Log form (activity toggle) */
+.enq-log-form {
+  background: rgba(255,255,255,0.03) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  border-radius: 10px !important;
+}

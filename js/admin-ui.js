@@ -2521,7 +2521,7 @@ function renderBillingPanel() {
           subBadge = '<span class="bill-sub-badge ' + badgeClass + '">' + escHtml(badgeLabel) + '</span>';
           subAction = '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(0,0,0,0.12);border-radius:5px;background:transparent;color:var(--soft);cursor:pointer;margin-left:6px" onclick="event.stopPropagation();_clearBillingSubmission(\'' + escHtml(inv.id) + '\')">Clear</button>';
         } else {
-          subAction = '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(42,88,80,0.25);border-radius:5px;background:transparent;color:var(--teal);cursor:pointer;margin-left:6px" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(inv.id) + '\')">Mark submitted</button>';
+          subAction = '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(52,211,153,0.25);border-radius:6px;background:rgba(52,211,153,0.07);color:var(--teal,#34D399);cursor:pointer;margin-left:6px" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(inv.id) + '\')">Mark submitted</button>';
         }
         html += '<div class="bill-card bill-card--open">'
           + '<div class="bill-card-top">'
@@ -4087,7 +4087,7 @@ async function _fetchHalaxyInvoices(hxId) {
     if (invEl) {
       var title = '<div class="cl-detail-sec-title">Invoices this FY'
         + (fyInvs.length ? ' (' + fyInvs.length + ')' : '')
-        + (fyPaid > 0 ? ' <span style="font-size:11px;color:#7A948F;font-weight:400;margin-left:8px">$' + fyPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' paid</span>' : '')
+        + (fyPaid > 0 ? ' <span style="font-size:11px;color:rgba(255,255,255,0.35);font-weight:400;margin-left:8px">$' + fyPaid.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' paid</span>' : '')
         + '</div>';
       if (!fyInvs.length) {
         invEl.innerHTML = title + '<div style="padding:12px 0;font-size:12.5px;color:#9AABA8">No invoices in the current financial year</div>';
@@ -4921,7 +4921,7 @@ function _renderSessionDetailPanel(sess) {
   if (sess.halaxyApptId) {
     html += '<div class="rdp-section" style="margin-top:12px">'
       + '<div class="rdp-row"><span class="rdp-row-label">Halaxy ID</span>'
-      + '<span class="rdp-row-val" style="font-size:11px;color:#7A948F">' + escHtml(sess.halaxyApptId) + '</span></div>'
+      + '<span class="rdp-row-val" style="font-size:11px;color:rgba(255,255,255,0.35)">' + escHtml(sess.halaxyApptId) + '</span></div>'
       + '</div>';
   }
 
@@ -5225,7 +5225,7 @@ function _renderEnquiryDetailPanel(enq) {
   var _enqTasks = (_dhTasks || []).filter(function(t) { return t.enquiry_id === enq.id; });
   html += '<div class="rdp-section">';
   html += '<div class="rdp-section-label" style="display:flex;align-items:center;justify-content:space-between">Tasks'
-    + '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(42,88,80,0.25);border-radius:5px;background:transparent;color:var(--teal);cursor:pointer" '
+    + '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(52,211,153,0.25);border-radius:6px;background:rgba(52,211,153,0.07);color:var(--teal,#34D399);cursor:pointer" '
     + 'onclick="_rdpAddTask(\'' + escHtml(enq.id) + '\',\'' + escHtml(name) + '\')">+ Add</button></div>';
   if (_enqTasks.length) {
     _enqTasks.forEach(function(t) {
@@ -5243,7 +5243,7 @@ function _renderEnquiryDetailPanel(enq) {
   // ── Notes ──
   html += '<div class="rdp-section">';
   html += '<div class="rdp-section-label">Notes</div>';
-  html += '<textarea id="rdp-notes-' + enq.id + '" style="width:100%;min-height:70px;font-family:var(--sans);font-size:12.5px;padding:8px 10px;border:1px solid rgba(0,0,0,0.12);border-radius:7px;resize:vertical;outline:none" onblur="saveNotes(\'' + enq.id + '\',this.value)" placeholder="Add notes…">' + escHtml(enq.notes || '') + '</textarea>';
+  html += '<textarea id="rdp-notes-' + enq.id + '" style="width:100%;min-height:70px;font-family:var(--sans);font-size:12.5px;padding:8px 10px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;resize:vertical;outline:none;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.85);color-scheme:dark" onblur="saveNotes(\'' + enq.id + '\',this.value)" placeholder="Add notes…">' + escHtml(enq.notes || '') + '</textarea>';
   html += '</div>';
 
   // ── Activity / interaction timeline ──
@@ -5251,7 +5251,7 @@ function _renderEnquiryDetailPanel(enq) {
   html += '<div class="rdp-section">';
   html += '<div class="rdp-section-label" style="display:flex;align-items:center;justify-content:space-between">'
     + 'Activity'
-    + (isClosed ? '' : '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(42,88,80,0.25);border-radius:5px;background:transparent;color:var(--teal);cursor:pointer" onclick="_toggleLogInteractionForm(\'' + enq.id + '\')">+ Log</button>')
+    + (isClosed ? '' : '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(52,211,153,0.25);border-radius:6px;background:rgba(52,211,153,0.07);color:var(--teal,#34D399);cursor:pointer" onclick="_toggleLogInteractionForm(\'' + enq.id + '\')">+ Log</button>')
     + '</div>';
 
   // Log form (hidden by default, toggled)
