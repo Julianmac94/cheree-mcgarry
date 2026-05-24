@@ -3314,94 +3314,20 @@ function renderHomeView() {
     + '</button>'
     + '</div>';
 
-  // ── KPI strip ────────────────────────────────────────────────
-  html += '<div class="dh-kpi-strip">'
-    + '<div class="dh-kpi-item" onclick="navigateTo(\'clients\')">'
-    + '<div class="dh-kpi-val">' + activeClients.length + '</div>'
-    + '<div class="dh-kpi-lbl">Active clients</div>'
-    + '</div>'
-    + '<div class="dh-kpi-item' + (needsActionCount > 0 ? ' dh-kpi-item--amber' : '') + '" onclick="navigateTo(\'queue\')">'
-    + '<div class="dh-kpi-val">' + needsActionCount + '</div>'
-    + '<div class="dh-kpi-lbl">Needs action</div>'
-    + '</div>'
-    + '<div class="dh-kpi-item" onclick="document.getElementById(\'dh-sched-inner\') && document.getElementById(\'dh-sched-inner\').scrollIntoView({behavior:\'smooth\'})">'
-    + '<div class="dh-kpi-val">' + thisWeekCount + '</div>'
-    + '<div class="dh-kpi-lbl">This week</div>'
-    + '</div>'
-    + '<div class="dh-kpi-item' + (bPending > 0 ? ' dh-kpi-item--amber' : ' dh-kpi-item--teal') + '" onclick="navigateTo(\'billing\')">'
-    + '<div class="dh-kpi-val">' + _fmt$(bPending) + '</div>'
-    + '<div class="dh-kpi-lbl">Outstanding</div>'
-    + '</div>'
-    + '</div>';
+  // ── 4-quadrant bento grid ─────────────────────────────────────
+  html += '<div class="dh-bento">';
 
-  // ── Utility row — Today / Next Session / Reminders ───────────
-  html += '<div class="dh-util-row">';
-
-  // Today
-  var todayDateStr = now.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-  html += '<div class="dh-util-widget">'
-    + '<div class="dh-util-title">Today</div>'
-    + '<div class="dh-util-main">' + todayAppts.length + ' session' + (todayAppts.length !== 1 ? 's' : '') + '</div>'
-    + '<div class="dh-util-sub">' + escHtml(todayDateStr) + '</div>';
-  if (todayAppts.length) {
-    html += '<div class="dh-util-pills">'
-      + todayAppts.slice(0,2).map(function(a) {
-          var nm = a.name || a.patientName || 'Client';
-          var t  = a.timeStr || (a.startIso ? _fmtT(a.startIso) : a.start ? _fmtT(a.start) : '');
-          return '<span class="dh-util-pill">' + escHtml((t ? t + ' · ' : '') + nm) + '</span>';
-        }).join('')
-      + (todayAppts.length > 2 ? '<span class="dh-util-pill dh-util-pill--more">+' + (todayAppts.length - 2) + '</span>' : '')
-      + '</div>';
-  }
-  html += '</div>';
-
-  // Next Session
-  if (nextAppt) {
-    var nxtName = escHtml(nextAppt.name || nextAppt.patientName || 'Client');
-    var nxtTime = nextAppt.timeStr || (nextAppt.startIso ? _fmtT(nextAppt.startIso) : nextAppt.start ? _fmtT(nextAppt.start) : '');
-    var nxtDate = nextAppt.dateStr && nextAppt.dateStr !== todayIso
-      ? new Date(nextAppt.dateStr + 'T00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
-      : 'Today';
-    html += '<div class="dh-util-widget dh-util-widget--link" onclick="openDetailPanel(\'session\',\'' + escHtml(String(nextAppt.id||'')) + '\')">'
-      + '<div class="dh-util-title">Next Session</div>'
-      + '<div class="dh-util-main">' + nxtName + '</div>'
-      + '<div class="dh-util-sub">' + escHtml(nxtTime + (nxtTime ? ' · ' : '') + nxtDate) + '</div>'
-      + '</div>';
-  } else {
-    html += '<div class="dh-util-widget">'
-      + '<div class="dh-util-title">Next Session</div>'
-      + '<div class="dh-util-main" style="color:var(--t3)">None scheduled</div>'
-      + '<div class="dh-util-sub">Calendar is clear</div>'
-      + '</div>';
-  }
-
-  // Reminders (count loaded async; add-input inline)
-  html += '<div class="dh-util-widget">'
-    + '<div class="dh-util-title">Reminders</div>'
-    + '<div class="dh-util-main" id="dh-util-remind-val" style="color:var(--t3)">—</div>'
-    + '<div class="dh-util-sub" id="dh-util-remind-sub">Loading…</div>'
-    + '<div class="dh-util-add">'
-    + '<input class="dh-util-add-inp" id="dh-task-inp" placeholder="Add reminder…" onkeydown="dhAddTask(event)">'
-    + '</div>'
-    + '</div>';
-
-  html += '</div>'; // .dh-util-row
-
-  // ── Feed — single column vertical ────────────────────────────
-  html += '<div class="dh-feed">';
-
-  // Schedule card — full width
+  // TL: Schedule
   _dhAppts = appts;
-  html += '<div class="dh-fold">'
+  html += '<div class="dh-b-6 dh-fold">'
     + '<div class="dh-fold-tab">' + IC.cal + 'Schedule</div>'
     + '<div class="dh-sched-card" id="dh-sched-inner"></div>'
     + '</div>';
 
-  // Inbox card — full width hero
-  html += '<div class="dh-fold">'
+  // TR: Inbox
+  html += '<div class="dh-b-6 dh-fold">'
     + '<div class="dh-fold-tab">'
-    + IC.inbox
-    + 'Inbox'
+    + IC.inbox + 'Inbox'
     + (newEnquiries.length ? '<span class="dh-fold-badge">' + newEnquiries.length + ' new</span>' : '')
     + (unpaidCount ? '<span class="dh-fold-badge" style="background:rgba(245,158,11,0.18);color:var(--amber)">' + unpaidCount + ' unpaid</span>' : '')
     + (unlinkedCount ? '<span class="dh-fold-badge" style="background:rgba(224,123,57,0.15);color:#b85a1e">' + unlinkedCount + ' unlinked</span>' : '')
@@ -3424,24 +3350,75 @@ function renderHomeView() {
     + '<span class="dh-if-label">All</span><span class="dh-if-count">' + allEnqs.length + '</span></div>'
     + '</div>';
   html += '<div class="dh-inbox-list" id="dh-inbox-list"></div>';
-  html += '</div></div>'; // .dh-attn-card + .dh-fold
+  html += '</div></div>'; // .dh-attn-card + dh-b-6.dh-fold
 
-  // Billing strip — compact inline row
-  html += '<div class="dh-billing-strip" onclick="navigateTo(\'billing\')">'
-    + '<div class="dh-billing-strip-hd">' + IC.card + '<span class="dh-billing-strip-label">Billing</span></div>'
-    + '<div class="dh-bs2-item"><div class="dh-bs2-lbl">Paid this month</div>'
-    + '<div class="dh-bs2-val" style="color:var(--teal)">' + _fmt$(bPaid) + '</div>'
-    + '<div class="dh-bs2-sub">' + escHtml(now.toLocaleDateString('en-AU',{month:'long'})) + '</div></div>'
-    + '<div class="dh-bs2-item"><div class="dh-bs2-lbl">Pending payment</div>'
-    + '<div class="dh-bs2-val" style="color:' + (bPending > 0 ? 'var(--amber)' : 'var(--teal)') + '">' + _fmt$(bPending) + '</div>'
-    + '<div class="dh-bs2-sub">' + escHtml(awaitingPayCount ? awaitingPayCount + ' invoice' + (awaitingPayCount !== 1 ? 's' : '') : 'All clear') + '</div></div>'
-    + '<div class="dh-bs2-item"><div class="dh-bs2-lbl">Needs invoice</div>'
-    + '<div class="dh-bs2-val" style="color:' + (needsInvoiceCount ? 'var(--amber)' : 'var(--teal)') + '">' + needsInvoiceCount + '</div>'
-    + '<div class="dh-bs2-sub">' + escHtml(needsInvoiceCount ? 'Sessions pending' : 'All invoiced') + '</div></div>'
-    + '<div class="dh-bs2-item" style="display:flex;align-items:center;color:var(--t3);font-size:18px;padding:0 20px">→</div>'
+  // BL: Utility column — Today / Next Session / Reminders stacked
+  var todayDateStr = now.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+  html += '<div class="dh-b-6"><div class="dh-util-col">';
+
+  html += '<div class="dh-util-widget">'
+    + '<div class="dh-util-title">Today</div>'
+    + '<div class="dh-util-main">' + todayAppts.length + ' session' + (todayAppts.length !== 1 ? 's' : '') + '</div>'
+    + '<div class="dh-util-sub">' + escHtml(todayDateStr) + '</div>';
+  if (todayAppts.length) {
+    html += '<div class="dh-util-pills">'
+      + todayAppts.slice(0,2).map(function(a) {
+          var nm = a.name || a.patientName || 'Client';
+          var t  = a.timeStr || (a.startIso ? _fmtT(a.startIso) : a.start ? _fmtT(a.start) : '');
+          return '<span class="dh-util-pill">' + escHtml((t ? t + ' · ' : '') + nm) + '</span>';
+        }).join('')
+      + (todayAppts.length > 2 ? '<span class="dh-util-pill dh-util-pill--more">+' + (todayAppts.length - 2) + '</span>' : '')
+      + '</div>';
+  }
+  html += '</div>';
+
+  if (nextAppt) {
+    var nxtName = escHtml(nextAppt.name || nextAppt.patientName || 'Client');
+    var nxtTime = nextAppt.timeStr || (nextAppt.startIso ? _fmtT(nextAppt.startIso) : nextAppt.start ? _fmtT(nextAppt.start) : '');
+    var nxtDate = nextAppt.dateStr && nextAppt.dateStr !== todayIso
+      ? new Date(nextAppt.dateStr + 'T00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+      : 'Today';
+    html += '<div class="dh-util-widget dh-util-widget--link" onclick="openDetailPanel(\'session\',\'' + escHtml(String(nextAppt.id||'')) + '\')">'
+      + '<div class="dh-util-title">Next Session</div>'
+      + '<div class="dh-util-main">' + nxtName + '</div>'
+      + '<div class="dh-util-sub">' + escHtml(nxtTime + (nxtTime ? ' · ' : '') + nxtDate) + '</div>'
+      + '</div>';
+  } else {
+    html += '<div class="dh-util-widget">'
+      + '<div class="dh-util-title">Next Session</div>'
+      + '<div class="dh-util-main" style="color:var(--t3)">None scheduled</div>'
+      + '<div class="dh-util-sub">Calendar is clear</div>'
+      + '</div>';
+  }
+
+  html += '<div class="dh-util-widget">'
+    + '<div class="dh-util-title">Reminders</div>'
+    + '<div class="dh-util-main" id="dh-util-remind-val" style="color:var(--t3)">—</div>'
+    + '<div class="dh-util-sub" id="dh-util-remind-sub">Loading…</div>'
+    + '<div class="dh-util-add">'
+    + '<input class="dh-util-add-inp" id="dh-task-inp" placeholder="Add reminder…" onkeydown="dhAddTask(event)">'
+    + '</div>'
     + '</div>';
 
-  html += '</div>'; // .dh-feed
+  html += '</div></div>'; // .dh-util-col + dh-b-6
+
+  // BR: Billing card
+  html += '<div class="dh-b-6 dh-fold">'
+    + '<div class="dh-fold-tab">' + IC.card + 'Billing</div>'
+    + '<div class="dh-billing-card" onclick="navigateTo(\'billing\')">'
+    + '<div class="dh-billing-body">'
+    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Paid this month</div>'
+    + '<div class="dh-bs-amt" style="color:var(--teal)">' + _fmt$(bPaid) + '</div>'
+    + '<div class="dh-bs-sub">' + escHtml(now.toLocaleDateString('en-AU',{month:'long'})) + '</div></div>'
+    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Outstanding</div>'
+    + '<div class="dh-bs-amt" style="color:' + (bPending > 0 ? 'var(--amber)' : 'var(--teal)') + '">' + _fmt$(bPending) + '</div>'
+    + '<div class="dh-bs-sub">' + escHtml(awaitingPayCount ? awaitingPayCount + ' invoice' + (awaitingPayCount !== 1 ? 's' : '') : 'All clear') + '</div></div>'
+    + '<div class="dh-billing-stat"><div class="dh-bs-lbl">Needs invoice</div>'
+    + '<div class="dh-bs-amt" style="color:' + (needsInvoiceCount ? 'var(--amber)' : 'var(--teal)') + '">' + needsInvoiceCount + '</div>'
+    + '<div class="dh-bs-sub">' + escHtml(needsInvoiceCount ? 'Sessions pending' : 'All invoiced') + '</div></div>'
+    + '</div></div></div>'; // .dh-billing-card + dh-b-6.dh-fold
+
+  html += '</div>'; // .dh-bento
   html += '</div>'; // .dh-wrap
 
   content.innerHTML = html;
@@ -3521,11 +3498,8 @@ function _renderTaskDetailPanel(t) {
     html += '<button class="m-btn-ghost" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',false);closeDetailPanel()">Mark as active</button>';
   }
 
-  html += '<div class="m-section">'
-    + '<div class="m-section-hd"><span class="m-section-label">Rename</span></div>'
-    + '<input class="m-input" id="rdp-task-title-' + escHtml(String(t.id)) + '" type="text" value="' + escHtml(t.title || '') + '" placeholder="Task title…">'
-    + '<button class="m-btn-teal m-btn-sm" onclick="dhUpdateTaskTitle(' + JSON.stringify(t.id) + ')">Save</button>'
-    + '</div>';
+  html += '<input class="m-input" id="rdp-task-title-' + escHtml(String(t.id)) + '" type="text" value="' + escHtml(t.title || '') + '" placeholder="Task title…" style="margin-top:12px">'
+    + '<button class="m-btn-teal m-btn-sm" onclick="dhUpdateTaskTitle(' + JSON.stringify(t.id) + ')">Save</button>';
 
   html += '<div class="m-foot"><button class="m-btn-danger" onclick="dhDeleteTaskFromPanel(' + JSON.stringify(t.id) + ')">Delete task</button></div>';
 
@@ -4998,7 +4972,7 @@ function _renderSessionDetailPanel(sess) {
 
   // Reminder state
   if (sess.isReminder) {
-    html += '<div class="m-info-box">Marked as a reminder — visible in your schedule but not counted as a client appointment.</div>';
+    html += '<div class="m-info-box">Visible in your schedule but not counted as a client appointment.</div>';
     html += '<button class="m-btn-ghost" onclick="_calMarkAsReminder_undo(\'' + escHtml(_calEvId) + '\')">Restore as appointment</button>';
     html += '<div class="m-foot"><button class="m-btn-danger" onclick="deleteScheduleAppt(\'' + escHtml(_calEvId) + '\')">Delete from calendar</button></div>';
     return html;
@@ -5006,7 +4980,6 @@ function _renderSessionDetailPanel(sess) {
 
   // Unlinked GCal events — delegate to _calUnlinkedActionHtml
   var isUnlinkedCal = sess.source === 'cal' && !sess.patientId;
-
   if (isUnlinkedCal && (sess.status === 'needs-recording' || sess.status === 'upcoming')) {
     html += _calUnlinkedActionHtml(sess.eventId || sess.id, sess.name);
     return html;
@@ -5015,12 +4988,10 @@ function _renderSessionDetailPanel(sess) {
   // Primary CTA per status
   if (sess.status === 'needs-recording') {
     var _pid = sess.patientId || '';
-    html += '<button class="m-btn-primary" onclick="openHalaxyApptLogPanel(\'' + escHtml(sess.id) + '\',\'' + escHtml(_pid) + '\',\'' + escHtml(sess.name || '') + '\',\'' + escHtml(sess.dateStr) + '\',\'' + escHtml(sess.startIso || (sess.dateStr + 'T09:00:00')) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Record this appointment</button>';
+    html += '<button class="m-btn-primary" onclick="openHalaxyApptLogPanel(\'' + escHtml(sess.id) + '\',\'' + escHtml(_pid) + '\',\'' + escHtml(sess.name || '') + '\',\'' + escHtml(sess.dateStr) + '\',\'' + escHtml(sess.startIso || (sess.dateStr + 'T09:00:00')) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Write session notes</button>';
   } else if (sess.status === 'pending-invoice') {
-    html += '<a class="m-btn-primary" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">Open in Halaxy to invoice</a>';
-  } else if (sess.status === 'invoiced' || sess.status === 'upcoming') {
-    html += '<a class="m-btn-ghost" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
-  } else if (sess.status !== 'paid') {
+    html += '<a class="m-btn-primary" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">Open Halaxy to invoice →</a>';
+  } else if (sess.status === 'invoiced' || sess.status === 'upcoming' || sess.status !== 'paid') {
     html += '<a class="m-btn-ghost" href="' + escHtml(_hUrl) + '" target="_blank" rel="noopener">View in Halaxy →</a>';
   }
 
@@ -5029,40 +5000,9 @@ function _renderSessionDetailPanel(sess) {
     html += '<div class="m-links"><button class="m-link" onclick="_calRenameEvent(\'' + escHtml(_calEvId) + '\',\'' + escHtml(sess.name || '') + '\')">✎ Rename event</button></div>';
   }
 
-  // Halaxy ID
+  // Halaxy ID (secondary detail)
   if (sess.halaxyApptId) {
     html += '<div class="m-section"><div class="m-row"><span class="m-key">Halaxy ID</span><span class="m-val m-val-mono">' + escHtml(sess.halaxyApptId) + '</span></div></div>';
-  }
-
-  // How-to steps
-  var howtoSteps = {
-    'pending-invoice': [
-      'Open Halaxy using the button above',
-      'Navigate to this date in the Halaxy calendar',
-      'Click the appointment and select Add Invoice / Add Fee',
-      'Set the item, amount and funder (Medicare, private, etc.)',
-      'Save — the dashboard updates on next refresh',
-    ],
-    'needs-recording': [
-      'Click "Record this appointment" above',
-      'Fill in presenting issues, what was covered, and the outcome',
-      'Once saved, open Halaxy to add the fee / invoice',
-      'The dashboard status updates after the invoice is saved in Halaxy',
-    ],
-    'invoiced': [
-      'Invoice has been raised — no further action needed right now',
-      'If paying via Medicare/NDIS, processing can take a few business days',
-      'If the client is self-paying and overdue, follow up directly',
-      'Once payment clears in Halaxy, status updates to Paid automatically',
-    ],
-  }[sess.status];
-
-  if (howtoSteps) {
-    html += '<div class="m-howto"><details><summary>How to action this</summary><div class="m-howto-steps">';
-    howtoSteps.forEach(function(step, i) {
-      html += '<div class="m-howto-step"><span class="m-howto-n">' + (i + 1) + '</span><span>' + escHtml(step) + '</span></div>';
-    });
-    html += '</div></details></div>';
   }
 
   return html;
@@ -5104,18 +5044,30 @@ function _calUnlinkedActionHtml(eventId, calName) {
 
   var html = '';
 
-  html += '<div class="m-banner m-banner-amber">⚠ No client linked — this Google Calendar event has no Halaxy patient or dashboard client attached.</div>';
-  html += '<button class="m-btn-primary" onclick="_calToggleMergeList(\'' + safeId + '\')">Link to Halaxy patient</button>';
+  html += '<div class="m-question">Who is this appointment for?</div>';
+  html += '<div class="m-option-list">';
+
+  html += '<button class="m-option-item" onclick="_calToggleMergeList(\'' + safeId + '\')">'
+    + '<span class="m-option-label">Someone already in Halaxy</span>'
+    + '<span class="m-option-hint">Match to an existing patient</span>'
+    + '</button>';
 
   html += '<div id="' + listId + '" class="m-merge-list" style="display:none">'
-    + '<div class="m-merge-hd">Select the Halaxy appointment to merge into</div>'
+    + '<div class="m-merge-hd">Select the Halaxy appointment to match</div>'
     + listHtml
     + '</div>';
 
-  html += '<div class="m-links">'
-    + '<button class="m-link" onclick="_calAddDashboardClient(\'' + safeName + '\')">Add as new dashboard client</button>'
-    + '<button class="m-link m-link-dim" onclick="_calMarkAsReminder(\'' + safeId + '\',\'' + safeName + '\')">📋 This is a reminder — not a client appointment</button>'
-    + '</div>';
+  html += '<button class="m-option-item" onclick="_calAddDashboardClient(\'' + safeName + '\')">'
+    + '<span class="m-option-label">A new client I haven\'t added yet</span>'
+    + '<span class="m-option-hint">Create a new dashboard record</span>'
+    + '</button>';
+
+  html += '<button class="m-option-item" onclick="_calMarkAsReminder(\'' + safeId + '\',\'' + safeName + '\')">'
+    + '<span class="m-option-label">A personal reminder, not a session</span>'
+    + '<span class="m-option-hint">Keep it in the schedule but not tracked as billable</span>'
+    + '</button>';
+
+  html += '</div>';
 
   html += '<div class="m-foot"><button class="m-btn-danger" onclick="deleteScheduleAppt(\'' + safeId + '\')">Delete from calendar</button></div>';
 
@@ -5238,14 +5190,20 @@ function _renderEnquiryDetailPanel(enq) {
   }
 
   if (!isClosed) {
-    // Send onboarding section
-    html += '<div class="m-section">';
-    html += '<div class="m-section-hd"><span class="m-section-label">Send onboarding</span></div>';
+    // Stage-specific primary action
+    if (isNew) {
+      html += '<button class="m-btn-primary" onclick="advanceEnquiryStatus(\'' + enq.id + '\',\'contacted\');closeDetailPanel()">Mark as contacted</button>';
+    } else if (isInHalaxy) {
+      html += '<button class="m-btn-primary" onclick="convertEnquiryPl(\'' + enq.id + '\')">Convert to client</button>';
+    }
 
+    // Send onboarding section (primary for contacted, secondary otherwise)
     var funderOpts = Object.entries(FUNDER_LABELS).map(function(kv) {
       return '<option value="' + kv[0] + '">' + kv[1] + '</option>';
     }).join('');
 
+    html += '<div class="m-section">';
+    html += '<div class="m-section-hd"><span class="m-section-label">Send onboarding</span></div>';
     html += '<select class="m-select" id="rdp-ctype-' + enq.id + '">'
       + '<option value="">Client type…</option>'
       + '<option value="individual">Individual</option>'
@@ -5256,14 +5214,12 @@ function _renderEnquiryDetailPanel(enq) {
       + '<option value="">Funding type…</option>' + funderOpts
       + '</select>';
     html += '<input class="m-input m-input-sm" id="rdp-intake-url-' + enq.id + '" type="url" placeholder="Intake form URL (auto-fills for known funders)…">';
-    html += '<button class="m-btn-primary" onclick="_rdpSendIntake(\'' + enq.id + '\')">Send onboarding email</button>';
+    html += '<button class="m-btn-teal m-btn-sm" onclick="_rdpSendIntake(\'' + enq.id + '\')">Send onboarding email</button>';
     html += '</div>';
 
-    // Stage-specific text links
+    // Secondary stage + close links
     html += '<div class="m-links">';
-    if (isNew)       html += '<button class="m-link" onclick="advanceEnquiryStatus(\'' + enq.id + '\',\'contacted\');closeDetailPanel()">Mark as contacted →</button>';
     if (isContacted) html += '<button class="m-link" onclick="_openAddToHalaxyPanel(\'' + enq.id + '\')">Add to Halaxy →</button>';
-    if (isInHalaxy)  html += '<button class="m-link" onclick="convertEnquiryPl(\'' + enq.id + '\')">Convert to client →</button>';
     html += '<button class="m-link m-link-dim" onclick="_openCloseEnquiryModal(\'' + enq.id + '\')">Close enquiry…</button>';
     html += '</div>';
   }
@@ -5545,14 +5501,12 @@ function _renderClientDetailPanel(cl) {
     html += '<div class="m-banner m-banner-amber">Halaxy ID <strong>' + escHtml(hid) + '</strong> was not found in the current patient list. This may be a stale test record — remove it below.</div>';
   }
 
-  // Primary CTA
+  // Primary CTA — single action, no competing buttons
   if (hid && _halaxyWebUrl) {
-    html += '<a class="m-btn-primary" href="' + escHtml(_halaxyWebUrl + '/clients') + '" target="_blank" rel="noopener">Open in Halaxy</a>';
-  }
-  html += '<button class="m-btn-ghost" onclick="openNewSessionModal()">Log appointment</button>';
-
-  // Edit name (non-Halaxy clients only)
-  if (!hid) {
+    html += '<a class="m-btn-primary" href="' + escHtml(_halaxyWebUrl + '/clients') + '" target="_blank" rel="noopener">Open in Halaxy →</a>';
+    html += '<button class="m-btn-ghost" onclick="openNewSessionModal()">Log appointment</button>';
+  } else {
+    html += '<button class="m-btn-primary" onclick="openNewSessionModal()">Log appointment</button>';
     html += '<div class="m-links"><button class="m-link" onclick="_dhRenameClient(\'' + escHtml(cl.id) + '\',\'' + escHtml(cl.display_name || '') + '\')">✎ Edit name</button></div>';
   }
 
