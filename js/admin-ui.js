@@ -2496,7 +2496,21 @@ function openDetailPanel(type, id) {
     if (!sess) {
       sess = _getLocalSessions().find(function(s) { return s.id === id; });
     }
-    if (sess) { html = _renderSessionDetailPanel(sess); titleText = sess.name || 'Appointment'; }
+    if (sess) {
+      // If this Halaxy session has a matching invoice, skip the session popup
+      // and go straight to the invoice modal — single source of truth for billing info
+      if (sess.patientId && sess.dateStr && _halaxyData && _halaxyData.invoices) {
+        var _matchInv = (_halaxyData.invoices || []).find(function(i) {
+          return String(i.patientId) === String(sess.patientId) && (i.date || '').slice(0, 10) === sess.dateStr;
+        });
+        if (_matchInv) {
+          openInvoiceModal(String(_matchInv.id));
+          return;
+        }
+      }
+      html = _renderSessionDetailPanel(sess);
+      titleText = sess.name || 'Appointment';
+    }
   } else if (type === 'enquiry') {
     var enqs = (_pipelineData && _pipelineData.enquiries) || [];
     var enq = enqs.find(function(e) { return String(e.id) === String(id); });
