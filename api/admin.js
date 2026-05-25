@@ -1161,11 +1161,15 @@ body {
     font-size: 15px; line-height: 1.8; color: var(--t1); font-weight: 400; min-height: 18px;
     letter-spacing: 0.005em;
   }
-  .mob-home-brief-text.ai-brief-streaming::after {
-    content: '▊'; display: inline-block; color: rgba(52,211,153,0.65);
-    font-size: 11px; margin-left: 2px; animation: ai-cursor-blink 0.65s step-end infinite;
+  .mob-home-brief-text.ai-brief-streaming { min-height: 48px; }
+  .mob-home-brief-text.ai-brief-pulse-in {
+    animation: ai-brief-pulse-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
-  .mob-home-brief-text.ai-brief-done { animation: ai-brief-glow 3.2s ease-out forwards; }
+  .mob-home-brief-text .ai-brief-para { margin: 0; padding: 0; }
+  .mob-home-brief-text .ai-brief-para + .ai-brief-para {
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid rgba(52,211,153,0.1);
+  }
   /* Quote as sign-off inside briefing card */
   .mob-home-brief-signoff {
     margin-top: 16px; padding-top: 14px;

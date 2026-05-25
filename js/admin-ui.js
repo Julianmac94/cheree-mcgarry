@@ -5458,7 +5458,7 @@ function _mobRenderHome() {
 
 /* ── AI receptionist brief ───────────────────────────────────────
  * Calls /api/admin-tasks?brief=1 with current dashboard data and
- * streams the response word-by-word into the target element.
+ * fades the response in as styled paragraph chunks.
  * Accepts optional targetId (defaults to 'dh-hd-meta').
  * Caches per date+hour in sessionStorage so refreshes within the
  * same hour reuse the cached text without hitting the API.
@@ -5497,33 +5497,32 @@ async function _loadAIBrief(data, targetId) {
     var text   = (result.text || '').trim();
     if (!text) throw new Error('empty brief');
 
-    // Clear loading placeholder; typewriter runs while streaming class is active
-    metaEl.innerHTML = '';
-
-    // Client-side typewriter — types ~150 chars in ~2.8s
-    var i     = 0;
-    var speed = Math.max(12, Math.min(35, Math.floor(2800 / text.length)));
-    function _type() {
-      if (i < text.length) {
-        metaEl.textContent = text.slice(0, ++i);
-        setTimeout(_type, speed);
-      } else {
-        // Done typing — swap to glow animation
-        metaEl.classList.remove('ai-brief-streaming');
-        metaEl.classList.add('ai-brief-done');
-        metaEl.addEventListener('animationend', function() {
-          metaEl.classList.remove('ai-brief-done');
-        }, { once: true });
-        try { sessionStorage.setItem(cacheKey, metaEl.innerHTML); } catch(_) {}
-      }
+    // Split into paragraphs on blank lines or double-newlines; fall back to single newlines
+    var paras = text.split(/\n\n+/).map(function(p){ return p.replace(/\n/g, ' ').trim(); }).filter(Boolean);
+    if (paras.length === 1) {
+      // Try splitting on single newlines if no double-newlines found
+      var single = text.split(/\n/).map(function(p){ return p.trim(); }).filter(Boolean);
+      if (single.length > 1) paras = single;
     }
-    _type();
+
+    // Build HTML: each paragraph gets its own styled element
+    var html = paras.map(function(p) {
+      return '<p class="ai-brief-para">' + p.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>';
+    }).join('');
+
+    metaEl.classList.remove('ai-brief-streaming');
+    metaEl.innerHTML = html;
+    metaEl.classList.add('ai-brief-pulse-in');
+    metaEl.addEventListener('animationend', function() {
+      metaEl.classList.remove('ai-brief-pulse-in');
+    }, { once: true });
+
+    try { sessionStorage.setItem(cacheKey, metaEl.innerHTML); } catch(_) {}
 
   } catch (err) {
     // Silent fallback — clear loading state
     metaEl.classList.remove('ai-brief-streaming');
-    metaEl.classList.remove('ai-brief-done');
-    if (!metaEl.textContent.trim()) metaEl.textContent = '';
+    if (!metaEl.textContent.trim()) metaEl.innerHTML = '';
   }
 }
 
