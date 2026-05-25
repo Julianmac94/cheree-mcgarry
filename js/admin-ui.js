@@ -17,6 +17,23 @@ var HALAXY_URLS = {
 
 /* ── Billing submission tracking (localStorage) ── */
 var _billingSubmissions = JSON.parse(localStorage.getItem('billing_submissions') || '{}');
+
+/* ── Invoice → task links (localStorage) ── */
+var _invTaskLinks = JSON.parse(localStorage.getItem('inv_task_links') || '{}');
+function _invGetTaskIds(invId) { return _invTaskLinks[String(invId)] || []; }
+function _invLinkTask(invId, taskId) {
+  var key = String(invId);
+  if (!_invTaskLinks[key]) _invTaskLinks[key] = [];
+  if (!_invTaskLinks[key].includes(String(taskId))) _invTaskLinks[key].push(String(taskId));
+  localStorage.setItem('inv_task_links', JSON.stringify(_invTaskLinks));
+}
+function _invUnlinkTask(invId, taskId) {
+  var key = String(invId);
+  if (!_invTaskLinks[key]) return;
+  _invTaskLinks[key] = _invTaskLinks[key].filter(function(id) { return id !== String(taskId); });
+  if (!_invTaskLinks[key].length) delete _invTaskLinks[key];
+  localStorage.setItem('inv_task_links', JSON.stringify(_invTaskLinks));
+}
 function _getSubStatus(invId) {
   var s = _billingSubmissions[invId];
   if (!s) return null;
@@ -6606,6 +6623,73 @@ function _renderClientsViewLegacy() {
 }
 
 /* ═══════════════════════════════════════════════════
+   INVOICE TASK HELPERS
+   ═══════════════════════════════════════════════════ */
+
+/** Render the task list section inside an open invoice modal. */
+function _invRenderTasks(invId, overlay) {
+  var el = overlay.querySelector('#inv-task-list-' + CSS.escape(String(invId)));
+  if (!el) return;
+  var taskIds = _invGetTaskIds(invId);
+  var allTasks = (_pipelineData && _pipelineData.tasks) || [];
+  var linked = taskIds.map(function(tid) {
+    return allTasks.find(function(t) { return String(t.id) === String(tid); });
+  }).filter(Boolean);
+
+  if (!linked.length) {
+    el.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.28);padding:6px 0 2px">No tasks yet</div>';
+    return;
+  }
+  el.innerHTML = linked.map(function(t) {
+    var done = !!t.completed;
+    var tid  = escHtml(String(t.id));
+    var eid  = escHtml(String(invId));
+    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0'
+      + ';border-bottom:1px solid rgba(255,255,255,0.05)">'
+      + '<button onclick="_invToggleTask(\'' + eid + '\',\'' + tid + '\',this)"'
+      + ' style="width:18px;height:18px;flex-shrink:0;border-radius:5px;cursor:pointer'
+      + ';border:1.5px solid ' + (done ? '#34D399' : 'rgba(255,255,255,0.22)') + ';'
+      + 'background:' + (done ? '#34D399' : 'transparent') + ';font-size:10px;line-height:1'
+      + ';color:#0a1218;display:flex;align-items:center;justify-content:center">'
+      + (done ? '✓' : '') + '</button>'
+      + '<span style="flex:1;font-size:12.5px;' + (done ? 'color:rgba(255,255,255,0.3);text-decoration:line-through' : 'color:rgba(255,255,255,0.8)') + '">'
+      + escHtml(t.title || '') + '</span>'
+      + '</div>';
+  }).join('');
+}
+
+/** Toggle a task done/undone from inside the invoice modal. */
+async function _invToggleTask(invId, taskId, btn) {
+  var allTasks = (_pipelineData && _pipelineData.tasks) || [];
+  var task = allTasks.find(function(t) { return String(t.id) === String(taskId); });
+  if (!task) return;
+  var newVal = !task.completed;
+  try {
+    await apiFetch('/api/admin-tasks?id=' + encodeURIComponent(taskId), { method: 'PATCH', body: { completed: newVal } });
+    task.completed = newVal;
+    var overlay = btn.closest('.inv-modal-overlay');
+    if (overlay) _invRenderTasks(invId, overlay);
+    renderHomeView && renderHomeView();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+/** Create a new task from the invoice modal quick-add field. */
+async function _invAddTask(invId, overlay) {
+  var input = overlay.querySelector('#inv-task-input-' + CSS.escape(String(invId)));
+  if (!input) return;
+  var title = input.value.trim();
+  if (!title) return;
+  input.value = '';
+  try {
+    var task = await apiFetch('/api/admin-tasks', { method: 'POST', body: { title: title } });
+    if (!_pipelineData.tasks) _pipelineData.tasks = [];
+    _pipelineData.tasks.push(task);
+    _invLinkTask(invId, task.id);
+    _invRenderTasks(invId, overlay);
+  } catch(e) { toast('Could not add task: ' + e.message, 'err'); }
+}
+
+/* ═══════════════════════════════════════════════════
    INVOICE DETAIL MODAL
    ═══════════════════════════════════════════════════ */
 
@@ -6684,9 +6768,9 @@ function openInvoiceModal(invId) {
     +   '</div>'
     +   '<button class="db-modal-close" onclick="this.closest(\'.inv-modal-overlay\').remove()">×</button>'
     + '</div>'
-    // ── Detail rows — no background cells, just clean lines inside the dark modal
+    // ── Detail rows
     + '<div class="db-modal-body" style="padding:4px 24px 6px;gap:0">'
-    // Amount gets larger treatment at the top
+    // Amount — large top treatment
     +   '<div style="padding:16px 0 12px;border-bottom:1px solid rgba(255,255,255,0.06)">'
     +     '<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.38);margin-bottom:4px">Amount</div>'
     +     '<div style="font-size:26px;font-weight:700;color:' + (paid ? '#34D399' : '#FBBF24') + ';letter-spacing:-0.02em">'
@@ -6696,6 +6780,22 @@ function openInvoiceModal(invId) {
     +   _row('Date',    escHtml(dt))
     +   _row('Funder',  escHtml(payorLabel || 'Private'))
     +   _row('Invoice', escHtml(invRef || inv.id || '—'), 'color:rgba(255,255,255,0.55);font-family:monospace;font-size:12px')
+    // ── Tasks section
+    +   '<div style="padding:14px 0 4px">'
+    +     '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:rgba(255,255,255,0.38);margin-bottom:8px">Tasks</div>'
+    +     '<div id="inv-task-list-' + escHtml(String(inv.id)) + '"></div>'
+    // Quick-add row
+    +     '<div style="display:flex;gap:8px;margin-top:10px;align-items:center">'
+    +       '<input id="inv-task-input-' + escHtml(String(inv.id)) + '"'
+    +         ' type="text" placeholder="Add a task…"'
+    +         ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();_invAddTask(\'' + escHtml(String(inv.id)) + '\',this.closest(\'.inv-modal-overlay\'))}"'
+    +         ' style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px'
+    +           ';padding:7px 12px;font-size:12.5px;color:rgba(255,255,255,0.8);font-family:inherit;outline:none">'
+    +       '<button onclick="_invAddTask(\'' + escHtml(String(inv.id)) + '\',this.closest(\'.inv-modal-overlay\'))"'
+    +         ' style="flex-shrink:0;padding:7px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit'
+    +           ';background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.25);color:#34D399">Add</button>'
+    +     '</div>'
+    +   '</div>'
     + '</div>'
     // ── Footer actions
     + '<div class="db-modal-ftr" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
@@ -6710,6 +6810,8 @@ function openInvoiceModal(invId) {
     + '</div>';
 
   document.body.appendChild(overlay);
+  // Render existing linked tasks now that the DOM is live
+  _invRenderTasks(invId, overlay);
 }
 
 /* ═══════════════════════════════════════════════════
