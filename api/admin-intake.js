@@ -237,8 +237,7 @@ export default async function handler(req, res) {
     const sentAt = new Date().toISOString();
 
     await resend.emails.send({
-      // TODO: update to admin@chereemcgarry.com once domain is verified on Resend
-      from:    'Cheree McGarry <onboarding@resend.dev>',
+      from:    'Cheree McGarry <reachout@chereemcgarry.com>',
       to:      [email],
       bcc:     ['admin@chereemcgarry.com'],
       subject: subjectLine(clientType, firstName),
@@ -251,13 +250,15 @@ export default async function handler(req, res) {
       .update({ status: 'in_halaxy', intake_sent_at: sentAt })
       .eq('id', enquiryId);
 
-    // Log activity
-    await db.from('activity_log').insert({
-      enquiry_id: enquiryId,
-      actor,
-      action: 'intake_sent',
-      detail: clientType,
-    }).catch(() => {});
+    // Log activity (silent fail — don't let a log error surface to the user)
+    try {
+      await db.from('activity_log').insert({
+        enquiry_id: enquiryId,
+        actor,
+        action: 'intake_sent',
+        detail: clientType,
+      });
+    } catch (_) {}
 
     return res.status(200).json({ ok: true, sentAt });
   } catch (err) {
