@@ -1963,6 +1963,8 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .m-merge-arr   { color: var(--t3); font-size: 14px; margin-left: auto; }
 
 /* ══ Dark settings overrides ══════════════════════════════════════════ */
+/* .view-title is set to color:#1A2F2B in admin.js (light theme) — override for dark canvas */
+.view-title { color: var(--t1) !important; }
 .settings-view { max-width: 640px !important; }
 .settings-section {
   background: rgba(255,255,255,0.04) !important;
