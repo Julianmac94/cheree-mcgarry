@@ -11,7 +11,7 @@ import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
 
 const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
-const BRIEF_MODEL   = 'claude-3-5-haiku-20241022';
+const BRIEF_MODEL   = 'claude-3-haiku-20240307';
 
 export default async function handler(req, res) {
   if (!isAuthed(req)) return res.status(401).json({ error: 'Unauthorised' });
