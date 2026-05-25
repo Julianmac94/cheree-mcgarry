@@ -6779,7 +6779,23 @@ function openInvoiceModal(invId) {
     +   '</div>'
     +   _row('Date',    escHtml(dt))
     +   _row('Funder',  escHtml(payorLabel || 'Private'))
-    +   _row('Invoice', escHtml(invRef || inv.id || '—'), 'color:rgba(255,255,255,0.55);font-family:monospace;font-size:12px')
+    +   (function() {
+          var rawInvRef = invRef || inv.id || '';
+          if (!rawInvRef) return _row('Invoice', '—');
+          var copyVal = escHtml(rawInvRef);
+          return '<div style="display:flex;justify-content:space-between;align-items:center'
+            + ';padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.06)">'
+            + '<span style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.38)">Invoice</span>'
+            + '<span style="display:flex;align-items:center;gap:7px">'
+            +   '<span style="font-size:12px;font-weight:500;color:rgba(255,255,255,0.55);font-family:monospace">' + copyVal + '</span>'
+            +   '<button onclick="navigator.clipboard.writeText(\'' + copyVal + '\').then(function(){var b=this;b.textContent=\'✓\';setTimeout(function(){b.textContent=\'⎘\'},1400)}.bind(this))"'
+            +     ' title="Copy invoice ID"'
+            +     ' style="width:22px;height:22px;border-radius:5px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06)'
+            +       ';cursor:pointer;font-size:11px;color:rgba(255,255,255,0.45);display:flex;align-items:center;justify-content:center'
+            +       ';transition:all 0.12s;flex-shrink:0">⎘</button>'
+            + '</span>'
+            + '</div>';
+        })()
     // ── Tasks section
     +   '<div style="padding:14px 0 4px">'
     +     '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:rgba(255,255,255,0.38);margin-bottom:8px">Tasks</div>'
