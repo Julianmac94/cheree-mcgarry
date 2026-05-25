@@ -1134,8 +1134,8 @@ body {
     min-height: 0; border-radius: 0; border: none;
     border-top: 1px solid rgba(255,255,255,0.06);
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    display: flex; flex-direction: column; align-items: stretch;
-    justify-content: flex-start; align-content: flex-start;
+    display: flex !important; flex-direction: column !important; align-items: stretch !important;
+    justify-content: flex-start !important; align-content: flex-start !important;
   }
   .mob-inbox-view .dh-attn-item { padding: 12px 16px; }
   .mob-inbox-view .dh-attn-empty { padding: 28px 20px; }
