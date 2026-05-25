@@ -6789,6 +6789,24 @@ function openInvoiceModal(invId) {
   var paid     = _invIsPaid(inv);
   var sub      = _getSubStatus(inv.id);
 
+  // Look up the session for this invoice to get the appointment time
+  var _invSessTime = '';
+  if (inv.patientId && inv.date) {
+    var _invUni  = _buildUnifiedSessions();
+    var _invSess = _invUni.upcoming.concat(_invUni.past).find(function(s) {
+      return String(s.patientId) === String(inv.patientId)
+          && (s.dateStr || '') === (inv.date || '').slice(0, 10);
+    });
+    if (_invSess && _invSess.timeStr) _invSessTime = ' · ' + _invSess.timeStr;
+  }
+
+  // Reminders section visibility:
+  // Paid invoices → only show if there are already-linked reminders (so they can be actioned)
+  // Outstanding/submitted → always show including the add-reminder input
+  var _hasLinkedTasks    = _invGetTaskIds(inv.id).length > 0;
+  var _showReminders     = !paid || _hasLinkedTasks;
+  var _showAddReminder   = !paid;
+
   // Status chip — use explicit hex so dark theme CSS vars can't interfere
   var statusHtml;
   if (paid) {
@@ -6859,7 +6877,7 @@ function openInvoiceModal(invId) {
     +       (bal ? _fmtAUD(Math.abs(bal)) : '—')
     +     '</div>'
     +   '</div>'
-    +   _row('Date',    escHtml(dt))
+    +   _row('Date',    escHtml(dt + _invSessTime))
     +   _row('Funder',  escHtml(payorLabel || 'Private'))
     +   (function() {
           var rawInvRef = invRef || inv.id || '';
@@ -6878,22 +6896,25 @@ function openInvoiceModal(invId) {
             + '</span>'
             + '</div>';
         })()
-    // ── Tasks section
-    +   '<div style="padding:14px 0 4px">'
-    +     '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:rgba(255,255,255,0.38);margin-bottom:8px">Reminders</div>'
-    +     '<div id="inv-task-list-' + escHtml(String(inv.id)) + '"></div>'
-    // Quick-add row
-    +     '<div style="display:flex;gap:8px;margin-top:10px;align-items:center">'
-    +       '<input id="inv-task-input-' + escHtml(String(inv.id)) + '"'
-    +         ' type="text" placeholder="Add a reminder…"'
-    +         ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();_invAddTask(\'' + escHtml(String(inv.id)) + '\',this.closest(\'.inv-modal-overlay\'))}"'
-    +         ' style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px'
-    +           ';padding:7px 12px;font-size:12.5px;color:rgba(255,255,255,0.8);font-family:inherit;outline:none">'
-    +       '<button onclick="_invAddTask(\'' + escHtml(String(inv.id)) + '\',this.closest(\'.inv-modal-overlay\'))"'
-    +         ' style="flex-shrink:0;padding:7px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit'
-    +           ';background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.25);color:#34D399">Add</button>'
-    +     '</div>'
-    +   '</div>'
+    // ── Tasks section (hidden on paid invoices unless linked reminders exist)
+    +   (_showReminders
+        ? '<div style="padding:14px 0 4px">'
+          +   '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:rgba(255,255,255,0.38);margin-bottom:8px">Reminders</div>'
+          +   '<div id="inv-task-list-' + escHtml(String(inv.id)) + '"></div>'
+          +   (_showAddReminder
+              ? '<div style="display:flex;gap:8px;margin-top:10px;align-items:center">'
+                +   '<input id="inv-task-input-' + escHtml(String(inv.id)) + '"'
+                +     ' type="text" placeholder="Add a reminder…"'
+                +     ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();_invAddTask(\'' + escHtml(String(inv.id)) + '\',this.closest(\'.inv-modal-overlay\'))}"'
+                +     ' style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px'
+                +       ';padding:7px 12px;font-size:12.5px;color:rgba(255,255,255,0.8);font-family:inherit;outline:none">'
+                +   '<button onclick="_invAddTask(\'' + escHtml(String(inv.id)) + '\',this.closest(\'.inv-modal-overlay\'))"'
+                +     ' style="flex-shrink:0;padding:7px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit'
+                +       ';background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.25);color:#34D399">Add</button>'
+                + '</div>'
+              : '')
+          + '</div>'
+        : '')
     + '</div>'
     // ── Footer actions
     + '<div class="db-modal-ftr" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
