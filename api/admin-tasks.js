@@ -11,7 +11,7 @@ import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
 
 const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
-const BRIEF_MODEL   = 'claude-3-haiku-20240307';
+const BRIEF_MODEL   = 'claude-haiku-4-5-20251001';
 
 export default async function handler(req, res) {
   if (!isAuthed(req)) return res.status(401).json({ error: 'Unauthorised' });
@@ -68,25 +68,15 @@ export default async function handler(req, res) {
       const prompt = `You are the front-desk assistant for Cheree McGarry, a psychologist. When she opens her practice dashboard give her a short, warm briefing — like a receptionist would say when she walks in the door. Write exactly 2–3 sentences in a natural, conversational tone. Do NOT use bullet points or lists. Do NOT start with a greeting (it is shown separately). Refer to clients by first name only. Be specific about the actual numbers and names.\n\nDashboard data:\n${lines.join('\n')}\n\nWrite only the briefing, nothing else.`;
 
       try {
-        const cleanKey = key.trim();
-        // Diagnostic: list available models for this key
-        const modelsResp = await fetch('https://api.anthropic.com/v1/models', {
-          headers: { 'x-api-key': cleanKey, 'anthropic-version': '2023-06-01' },
-        });
-        const modelsData = await modelsResp.json();
-        console.log('[brief] models check:', modelsResp.status, JSON.stringify(modelsData).substring(0, 300));
-        if (!modelsResp.ok) {
-          return res.status(502).json({ error: 'Key invalid', _debug: { keyPrefix: cleanKey.substring(0, 16), keyLen: cleanKey.length, modelsStatus: modelsResp.status, modelsBody: modelsData } });
-        }
         const upstream = await fetch(ANTHROPIC_API, {
           method:  'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': cleanKey, 'anthropic-version': '2023-06-01' },
+          headers: { 'Content-Type': 'application/json', 'x-api-key': key.trim(), 'anthropic-version': '2023-06-01' },
           body: JSON.stringify({ model: BRIEF_MODEL, max_tokens: 160, messages: [{ role: 'user', content: prompt }] }),
         });
         if (!upstream.ok) {
           const err = await upstream.text();
-          console.error('[brief] Anthropic error', upstream.status, err, '| key:', cleanKey.substring(0, 16), 'len:', cleanKey.length);
-          return res.status(502).json({ error: 'Upstream error', _debug: { keyPrefix: cleanKey.substring(0, 16), keyLen: cleanKey.length, model: BRIEF_MODEL, status: upstream.status, availableModels: modelsData?.data?.map(m => m.id) || modelsData } });
+          console.error('[brief] Anthropic error', upstream.status, err);
+          return res.status(502).json({ error: 'Upstream error' });
         }
         const result = await upstream.json();
         const text   = result.content?.[0]?.text || '';
