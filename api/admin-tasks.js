@@ -69,7 +69,15 @@ export default async function handler(req, res) {
 
       try {
         const cleanKey = key.trim();
-        console.log('[brief] key prefix:', cleanKey.substring(0, 14), 'len:', cleanKey.length, 'model:', BRIEF_MODEL);
+        // Diagnostic: list available models for this key
+        const modelsResp = await fetch('https://api.anthropic.com/v1/models', {
+          headers: { 'x-api-key': cleanKey, 'anthropic-version': '2023-06-01' },
+        });
+        const modelsData = await modelsResp.json();
+        console.log('[brief] models check:', modelsResp.status, JSON.stringify(modelsData).substring(0, 300));
+        if (!modelsResp.ok) {
+          return res.status(502).json({ error: 'Key invalid', _debug: { keyPrefix: cleanKey.substring(0, 16), keyLen: cleanKey.length, modelsStatus: modelsResp.status, modelsBody: modelsData } });
+        }
         const upstream = await fetch(ANTHROPIC_API, {
           method:  'POST',
           headers: { 'Content-Type': 'application/json', 'x-api-key': cleanKey, 'anthropic-version': '2023-06-01' },
