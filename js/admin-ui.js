@@ -5340,6 +5340,7 @@ function _renderTaskDetailPanel(t) {
 
   var html = '';
 
+  // Meta: date + status chip
   html += '<div class="m-meta">'
     + escHtml(created)
     + ' · ' + (t.completed
@@ -5347,41 +5348,41 @@ function _renderTaskDetailPanel(t) {
       : '<span class="m-chip m-chip-dim">Active</span>')
     + '</div>';
 
-  /* Complete toggle */
+  // Primary status toggle
   if (!t.completed) {
     html += '<button class="m-btn-primary" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',true);closeDetailPanel()">Mark as done</button>';
   } else {
     html += '<button class="m-btn-ghost" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',false);closeDetailPanel()">Mark as active</button>';
   }
 
-  html += '<div class="rdp-field-group">';
+  // ── Edit fields (compact) ──────────────────────────────────────
+  html += '<div class="rdp-field-group" style="margin-top:16px">';
 
-  /* Title */
-  html += '<div class="rdp-field-label">Title</div>'
-    + '<input class="m-input" id="rdp-task-title-' + tid + '" type="text" value="' + escHtml(t.title || '') + '" placeholder="Reminder title…">';
+  // Title
+  html += '<input class="m-input" id="rdp-task-title-' + tid + '" type="text"'
+    + ' value="' + escHtml(t.title || '') + '" placeholder="Reminder title…">';
 
-  /* Description */
-  html += '<div class="rdp-field-label" style="margin-top:10px">Description</div>'
-    + '<textarea class="m-input rdp-task-desc" id="rdp-task-desc-' + tid + '" placeholder="Add notes or context…" rows="3">' + escHtml(t.description || '') + '</textarea>';
+  // Description — only show textarea if there's existing content, else collapsed
+  html += '<textarea class="m-input rdp-task-desc" id="rdp-task-desc-' + tid + '"'
+    + ' placeholder="Add notes…" rows="2" style="margin-top:8px;resize:vertical">'
+    + escHtml(t.description || '') + '</textarea>';
 
-  /* Client */
-  html += '<div class="rdp-field-label" style="margin-top:10px">Client</div>'
-    + '<input class="m-input" id="rdp-task-client-' + tid + '" type="text" value="' + escHtml(t.client_label || '') + '" placeholder="Client name (optional)">';
-
-  /* Priority */
-  html += '<div class="rdp-field-label" style="margin-top:10px">Priority</div>'
-    + '<div class="rdp-prio-pills" id="rdp-task-prio-' + tid + '" data-prio="' + prio + '">'
+  // Priority + Save on the same row
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-top:10px">'
+    + '<div class="rdp-prio-pills" id="rdp-task-prio-' + tid + '" data-prio="' + prio + '" style="flex:1">'
     + '<button class="rdp-prio-pill' + (prio === 'normal' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'normal\')" type="button">Normal</button>'
     + '<button class="rdp-prio-pill high' + (prio === 'high' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'high\')" type="button">High</button>'
+    + '</div>'
+    + '<button class="m-btn-ghost" onclick="dhSaveTaskEdit(' + JSON.stringify(t.id) + ')"'
+    + ' style="flex-shrink:0;padding:6px 14px;font-size:12px">Save</button>'
     + '</div>';
 
-  html += '</div>'; /* rdp-field-group */
+  html += '</div>'; // rdp-field-group
 
-  /* Save */
-  html += '<button class="m-btn-teal" onclick="dhSaveTaskEdit(' + JSON.stringify(t.id) + ')" style="margin-top:14px">Save changes</button>';
-
-  /* Delete */
-  html += '<div class="m-foot"><button class="m-btn-danger" onclick="dhDeleteTaskFromPanel(' + JSON.stringify(t.id) + ')">Delete reminder</button></div>';
+  // Delete — subtle destructive link
+  html += '<div class="m-foot">'
+    + '<button class="m-btn-danger" onclick="dhDeleteTaskFromPanel(' + JSON.stringify(t.id) + ')">Delete reminder</button>'
+    + '</div>';
 
   return html;
 }
@@ -5396,29 +5397,27 @@ function rdpSetPrio(tid, prio) {
 }
 
 async function dhSaveTaskEdit(id) {
-  var titleInp  = document.getElementById('rdp-task-title-'  + id);
-  var descInp   = document.getElementById('rdp-task-desc-'   + id);
-  var clientInp = document.getElementById('rdp-task-client-' + id);
-  var prioWrap  = document.getElementById('rdp-task-prio-'   + id);
+  var titleInp = document.getElementById('rdp-task-title-' + id);
+  var descInp  = document.getElementById('rdp-task-desc-'  + id);
+  var prioWrap = document.getElementById('rdp-task-prio-'  + id);
 
-  var newTitle  = titleInp  ? titleInp.value.trim()  : '';
-  var newDesc   = descInp   ? descInp.value.trim()   : null;
-  var newClient = clientInp ? clientInp.value.trim()  : null;
-  var newPrio   = prioWrap  ? (prioWrap.dataset.prio || 'normal') : 'normal';
+  var newTitle = titleInp ? titleInp.value.trim() : '';
+  var newDesc  = descInp  ? descInp.value.trim()  : null;
+  var newPrio  = prioWrap ? (prioWrap.dataset.prio || 'normal') : 'normal';
 
   if (!newTitle) { toast('Title is required', 'err'); return; }
   try {
     await apiFetch('/api/admin-tasks?id=' + encodeURIComponent(id), {
       method: 'PATCH',
       body: {
-        title:        newTitle,
-        description:  newDesc   || null,
-        client_label: newClient || null,
+        title:       newTitle,
+        description: newDesc || null,
+        // client_label intentionally omitted — field removed from UI, preserve existing value
       }
     });
     /* Update local cache */
     var t = _dhTasks.find(function(x) { return String(x.id) === String(id); });
-    if (t) { t.title = newTitle; t.description = newDesc; t.client_label = newClient; }
+    if (t) { t.title = newTitle; t.description = newDesc; }
     /* Update priority in localStorage */
     dhSetTaskPrio(id, newPrio);
     /* Update panel title */
@@ -5438,10 +5437,12 @@ async function dhDeleteTaskFromPanel(id) {
   try {
     await apiFetch('/api/admin-tasks?id=' + encodeURIComponent(id), { method: 'DELETE' });
     _dhTasks = _dhTasks.filter(function(t) { return String(t.id) !== String(id); });
-    var item = document.querySelector('.dh-task-item[data-id="' + id + '"]');
-    if (item) item.remove();
     closeDetailPanel();
-    toast('Task deleted');
+    // Refresh all surfaces that show reminders
+    _dhRenderRemindBento();
+    if (typeof _mobRenderReminders === 'function') _mobRenderReminders();
+    if (typeof renderHomeView === 'function' && _currentView === 'home') renderHomeView();
+    toast('Reminder deleted');
   } catch(e) {
     toast('Could not delete: ' + e.message, 'err');
   }
