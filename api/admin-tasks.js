@@ -86,7 +86,7 @@ export default async function handler(req, res) {
         if (!upstream.ok) {
           const err = await upstream.text();
           console.error('[brief] Anthropic error', upstream.status, err, '| key:', cleanKey.substring(0, 16), 'len:', cleanKey.length);
-          return res.status(502).json({ error: 'Upstream error', _debug: { keyPrefix: cleanKey.substring(0, 16), keyLen: cleanKey.length, model: BRIEF_MODEL, status: upstream.status } });
+          return res.status(502).json({ error: 'Upstream error', _debug: { keyPrefix: cleanKey.substring(0, 16), keyLen: cleanKey.length, model: BRIEF_MODEL, status: upstream.status, availableModels: modelsData?.data?.map(m => m.id) || modelsData } });
         }
         const result = await upstream.json();
         const text   = result.content?.[0]?.text || '';
