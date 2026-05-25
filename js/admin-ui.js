@@ -729,7 +729,7 @@ function _mobRenderBilling() {
       var subBadge = sub
         ? '<span class="mob-bill-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
         : '<button class="mob-bill-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\');_mobRenderBilling()">Mark submitted</button>';
-      var refLabel = inv.ref && inv.ref !== inv.id ? inv.ref : '';
+      var refLabel = _fmtInvRef(inv);
       html += '<div class="mob-bill-row">'
         + '<div class="mob-bill-row-top">'
         + '<span class="mob-bill-name">' + escHtml(name) + (refLabel ? '<span class="mob-bill-ref"> · ' + escHtml(refLabel) + '</span>' : '') + '</span>'
@@ -4021,7 +4021,7 @@ function renderBillingPanel() {
         } else {
           subAction = '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(52,211,153,0.25);border-radius:6px;background:rgba(52,211,153,0.07);color:var(--teal,#34D399);cursor:pointer;margin-left:6px" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(inv.id) + '\')">Mark submitted</button>';
         }
-        var invRef = inv.ref && inv.ref !== inv.id ? inv.ref : '';
+        var invRef = _fmtInvRef(inv);
         html += '<div class="bill-card bill-card--open">'
           + '<div class="bill-card-top">'
           + '<span class="bill-card-name">' + escHtml(name) + '</span>'
@@ -4056,7 +4056,7 @@ function renderBillingPanel() {
         var name = resolveName(inv.patientId);
         var dt   = inv.date ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
         var amt  = inv.amount ? '$' + Number(inv.amount).toFixed(2) : '';
-        var paidRef = inv.ref && inv.ref !== inv.id ? inv.ref : '';
+        var paidRef = _fmtInvRef(inv);
         html += '<div class="bill-card" style="opacity:0.7">'
           + '<div class="bill-card-top">'
           + '<span class="bill-card-name">' + escHtml(name) + '</span>'
@@ -4585,6 +4585,24 @@ function dhRemindCycleSort() {
 
 /* ── Module-level AUD formatter ───────────────────────────────────── */
 function _fmtAUD(n) { return '$' + Math.round(n || 0).toLocaleString('en-AU'); }
+
+/**
+ * Format a Halaxy invoice reference for display.
+ * Halaxy FHIR resource IDs look like "FD-12345678" — if the identifier
+ * value matches or is missing, fall back to stripping the alpha prefix so
+ * we always show a clean numeric-style reference (e.g. "#12345678").
+ * Returns empty string if nothing useful is available.
+ */
+function _fmtInvRef(inv) {
+  if (!inv) return '';
+  // Prefer a clean identifier value that differs from the FHIR resource id
+  if (inv.ref && inv.ref !== inv.id && inv.ref.length < 30) return inv.ref;
+  // Fall back: strip the leading alpha prefix from the FHIR id (e.g. "FD-" → "#")
+  var id = inv.id || inv.ref || '';
+  if (!id) return '';
+  var stripped = id.replace(/^[A-Za-z]+-/, '');
+  return stripped && stripped !== id ? '#' + stripped : '';
+}
 
 /* ── Billing bento paid-period toggle ─────────────────────────────── */
 var _dhBillMode = 'mtd'; // 'mtd' | 'fy'
@@ -5201,13 +5219,11 @@ function _dhRenderBillingBento() {
       var subBadge = sub
         ? '<span class="dh-inv-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
         : '<button class="dh-inv-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\')">Mark submitted</button>';
-      var bentoRef = inv.ref && inv.ref !== inv.id ? inv.ref : '';
+      var bentoRef = _fmtInvRef(inv);
       html += '<div class="dh-bill-inv-row" onclick="navigateTo(\'billing\')">'
-        + '<div class="dh-bir-name">' + escHtml(name) + (bentoRef ? '<span class="dh-bir-ref"> ' + escHtml(bentoRef) + '</span>' : '') + '</div>'
-        + '<div class="dh-bir-mid">'
-        + (inv.payorOrg ? '<span class="dh-bir-org">' + escHtml(inv.payorOrg) + '</span>' : '')
-        + subBadge
-        + '</div>'
+        + '<div class="dh-bir-name">' + escHtml(name) + (bentoRef ? '<span class="dh-bir-ref">' + escHtml(bentoRef) + '</span>' : '') + '</div>'
+        + (inv.payorOrg ? '<span class="dh-bir-org">' + escHtml(inv.payorOrg) + '</span>' : '<span></span>')
+        + '<div class="dh-bir-action">' + subBadge + '</div>'
         + '<div class="dh-bir-right">'
         + '<span class="dh-bir-amt">' + (bal ? _fmtAUD(bal) : '—') + '</span>'
         + '<span class="dh-bir-date">' + escHtml(dt) + '</span>'
@@ -5974,7 +5990,7 @@ async function _fetchHalaxyInvoices(hxId) {
           if (payorLabel2) {
             payorBadge = '<span style="font-size:10px;color:#7A50A0;margin-left:4px">' + escHtml(payorLabel2) + '</span>';
           }
-          var dpRef = inv.ref && inv.ref !== inv.id ? inv.ref : '';
+          var dpRef = _fmtInvRef(inv);
           return '<div class="cl-detail-inv-row">'
             + '<span style="flex:1;font-size:12px;color:rgba(255,255,255,0.4)">' + escHtml(dateStr) + (dpRef ? '<span style="font-size:10px;margin-left:6px;opacity:0.6">' + escHtml(dpRef) + '</span>' : '') + '</span>'
             + '<span style="font-weight:600;color:rgba(255,255,255,0.85)">' + (amount > 0 ? '$' + amount.toFixed(2) : '—') + '</span>'

@@ -1269,29 +1269,41 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 
 .dh-bill-inv-rows { flex: 1; overflow-y: auto; min-height: 0; }
 .dh-bill-inv-row {
-  display: flex; align-items: center; gap: 8px;
+  display: grid;
+  /* Name/ref | Org | Action | Amount+date */
+  grid-template-columns: 1fr 144px 104px 60px;
+  align-items: center; column-gap: 8px;
   padding: 9px 18px 9px 16px;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   cursor: pointer; transition: background 0.12s;
 }
 .dh-bill-inv-row:hover { background: rgba(255,255,255,0.03); }
 .dh-bill-inv-row:last-of-type { border-bottom: none; }
-.dh-bir-name { flex: 1; font-size: 12px; color: var(--t1); font-weight: 500;
+/* Col 1 — patient name + optional invoice ref */
+.dh-bir-name { font-size: 12px; color: var(--t1); font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.dh-bir-ref { font-size: 10px; color: var(--t3); font-weight: 400; margin-left: 5px; }
-.dh-bir-mid { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.dh-bir-ref  { font-size: 10px; color: var(--t3); font-weight: 400; margin-left: 5px;
+  font-variant-numeric: tabular-nums; }
+/* Col 2 — org / payor */
 .dh-bir-org { font-size: 9.5px; color: var(--t3); background: rgba(255,255,255,0.06);
-  padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
-.dh-bir-right { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; gap: 2px; }
-.dh-bir-amt { font-size: 12px; font-weight: 700; color: var(--amber); font-variant-numeric: tabular-nums; }
+  padding: 2px 6px; border-radius: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block; min-width: 0; }
+/* Col 3 — submit action (always same width) */
+.dh-bir-action { display: flex; align-items: center; }
+/* Col 4 — amount + date stacked, right-aligned */
+.dh-bir-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.dh-bir-amt  { font-size: 12px; font-weight: 700; color: var(--amber); font-variant-numeric: tabular-nums; }
 .dh-bir-date { font-size: 10px; color: var(--t3); }
-.dh-inv-sub { font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
-.dh-inv-sub.ok { background: rgba(52,211,153,0.1); color: var(--teal); }
+.dh-inv-sub  { font-size: 10px; padding: 3px 7px; border-radius: 5px; white-space: nowrap;
+  width: 100%; box-sizing: border-box; text-align: center; display: block; }
+.dh-inv-sub.ok    { background: rgba(52,211,153,0.1);  color: var(--teal); }
 .dh-inv-sub.chase { background: rgba(245,158,11,0.15); color: var(--amber); }
 .dh-inv-mark {
-  font-size: 9.5px; padding: 2px 7px; border-radius: 5px; cursor: pointer;
+  font-size: 9.5px; padding: 3px 7px; border-radius: 5px; cursor: pointer; font-family: inherit;
   background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.2);
   color: var(--teal); white-space: nowrap;
+  width: 100%; box-sizing: border-box;
 }
 .dh-bill-see-all {
   padding: 10px 18px; font-size: 11px; color: var(--t3);
