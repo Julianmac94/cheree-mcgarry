@@ -2527,7 +2527,7 @@ function openDetailPanel(type, id) {
     if (cl) { html = _renderClientDetailPanel(cl); titleText = cl.display_name || 'Client'; }
   } else if (type === 'task') {
     var task = _dhTasks.find(function(t) { return String(t.id) === String(id); });
-    if (task) { html = _renderTaskDetailPanel(task); titleText = task.title || 'Task'; }
+    if (task) { html = _renderTaskDetailPanel(task); titleText = 'Reminder'; }
   }
   if (title) title.textContent = titleText;
   body.innerHTML = html || '<div class="q-empty">Not found</div>';
@@ -5347,10 +5347,11 @@ function _renderTaskDetailPanel(t) {
     : '—';
   var prio = _dhGetPrio(t.id);
   var tid  = escHtml(String(t.id));
+  var sid  = JSON.stringify(t.id);
 
   var html = '';
 
-  // Meta: date + status chip
+  // Date + status (no mark-as-done button up here)
   html += '<div class="m-meta">'
     + escHtml(created)
     + ' · ' + (t.completed
@@ -5358,49 +5359,51 @@ function _renderTaskDetailPanel(t) {
       : '<span class="m-chip m-chip-dim">Active</span>')
     + '</div>';
 
-  // Primary status toggle
-  if (!t.completed) {
-    html += '<button class="m-btn-primary" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',true);closeDetailPanel()">Mark as done</button>';
-  } else {
-    html += '<button class="m-btn-ghost" onclick="dhToggleTask(' + JSON.stringify(t.id) + ',false);closeDetailPanel()">Mark as active</button>';
-  }
-
-  // ── Edit fields (compact) ──────────────────────────────────────
-  html += '<div class="rdp-field-group" style="margin-top:16px">';
-
-  // Title
-  html += '<input class="m-input" id="rdp-task-title-' + tid + '" type="text"'
-    + ' value="' + escHtml(t.title || '') + '" placeholder="Reminder title…">';
+  // Title — styled as a heading, not a form field. Reveals Save on change.
+  html += '<input class="rdp-title-input" id="rdp-task-title-' + tid + '" type="text"'
+    + ' value="' + escHtml(t.title || '') + '" placeholder="Reminder title…"'
+    + ' oninput="_rdpShowSave(\'' + tid + '\')">';
 
   // Description
   html += '<textarea class="m-input rdp-task-desc" id="rdp-task-desc-' + tid + '"'
-    + ' placeholder="Add notes…" rows="2" style="margin-top:8px;resize:vertical">'
+    + ' placeholder="Description…" rows="3" style="margin-top:12px"'
+    + ' oninput="_rdpShowSave(\'' + tid + '\')">'
     + escHtml(t.description || '') + '</textarea>';
 
   // Client
   html += '<input class="m-input" id="rdp-task-client-' + tid + '" type="text"'
     + ' value="' + escHtml(t.client_label || '') + '" placeholder="Client (optional)"'
-    + ' style="margin-top:8px">';
+    + ' style="margin-top:8px" oninput="_rdpShowSave(\'' + tid + '\')">';
 
-  // Priority + Save on the same row
-  html += '<div style="display:flex;align-items:center;gap:8px;margin-top:10px">'
+  // Priority row + hidden Save pill (appears on any edit)
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-top:12px">'
     + '<div class="rdp-prio-pills" id="rdp-task-prio-' + tid + '" data-prio="' + prio + '" style="flex:1">'
-    + '<button class="rdp-prio-pill low' + (prio === 'low' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'low\')" type="button">Low</button>'
-    + '<button class="rdp-prio-pill' + (prio === 'normal' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'normal\')" type="button">Normal</button>'
-    + '<button class="rdp-prio-pill high' + (prio === 'high' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'high\')" type="button">High</button>'
+    + '<button class="rdp-prio-pill low' + (prio === 'low' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'low\');_rdpShowSave(\'' + tid + '\')" type="button">Low</button>'
+    + '<button class="rdp-prio-pill' + (prio === 'normal' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'normal\');_rdpShowSave(\'' + tid + '\')" type="button">Normal</button>'
+    + '<button class="rdp-prio-pill high' + (prio === 'high' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'high\');_rdpShowSave(\'' + tid + '\')" type="button">High</button>'
     + '</div>'
-    + '<button class="m-btn-ghost" onclick="dhSaveTaskEdit(' + JSON.stringify(t.id) + ')"'
-    + ' style="flex-shrink:0;padding:6px 14px;font-size:12px">Save</button>'
+    + '<button id="rdp-save-' + tid + '" class="m-btn-ghost"'
+    + ' onclick="dhSaveTaskEdit(' + sid + ')"'
+    + ' style="flex-shrink:0;padding:5px 14px;font-size:12px;display:none">Save</button>'
     + '</div>';
 
-  html += '</div>'; // rdp-field-group
-
-  // Delete — subtle destructive link
-  html += '<div class="m-foot">'
-    + '<button class="m-btn-danger" onclick="dhDeleteTaskFromPanel(' + JSON.stringify(t.id) + ')">Delete reminder</button>'
+  // Bottom bar — Mark as done + Delete, always visible, never overwhelming
+  html += '<div style="display:flex;align-items:center;justify-content:space-between'
+    + ';margin-top:20px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">'
+    + (t.completed
+      ? '<button class="m-btn-ghost" onclick="dhToggleTask(' + sid + ',false);closeDetailPanel()"'
+          + ' style="font-size:12px;padding:6px 12px">Mark as active</button>'
+      : '<button class="m-btn-ghost" onclick="dhToggleTask(' + sid + ',true);closeDetailPanel()"'
+          + ' style="font-size:12px;padding:6px 12px;color:rgba(255,255,255,0.45)">Mark as done</button>')
+    + '<button class="m-btn-danger" onclick="dhDeleteTaskFromPanel(' + sid + ')">Delete</button>'
     + '</div>';
 
   return html;
+}
+
+function _rdpShowSave(tid) {
+  var btn = document.getElementById('rdp-save-' + tid);
+  if (btn) btn.style.display = '';
 }
 
 function rdpSetPrio(tid, prio) {
