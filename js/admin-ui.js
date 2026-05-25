@@ -720,7 +720,8 @@ function mobSwitchApp(app) {
 }
 
 function _mobRenderApp(app) {
-  if (app === 'home')           _mobRenderSchedule();
+  if (app === 'home')           _mobRenderHome();
+  else if (app === 'sched')     _mobRenderSchedule();
   else if (app === 'queue')     _mobRenderInbox();
   else if (app === 'reminders') _mobRenderReminders();
   else if (app === 'billing')   _mobRenderBilling();
@@ -1235,34 +1236,16 @@ function _mobRenderSchedule() {
 function _mobUpdateHeader() {
   if (window.innerWidth > 768) return;
   var hd = document.getElementById('mob-hd');
-  if (!hd || !_pipelineData) return;
+  if (!hd) return;
 
-  var now   = new Date();
-  var h     = now.getHours();
-  var greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  var now       = new Date();
+  var h         = now.getHours();
+  var greeting  = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
   var firstName = ((window.ADMIN_USER || '').split(' ')[0]) || '';
   var dateLabel = now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  var todayIso = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-  var appts = (_halaxyData && _halaxyData.connected)
-    ? _buildUnifiedSessions().upcoming.concat(_buildUnifiedSessions().past)
-    : ((_pipelineData && _pipelineData.appointments) || []);
-  var todayAppts = appts.filter(function(a){ return a.dateStr === todayIso && a.status !== 'cancelled'; });
-  var todaySummary = todayAppts.length
-    ? todayAppts.length + ' session' + (todayAppts.length !== 1 ? 's' : '') + ' today'
-    : 'No sessions today';
-  var nextAppt = appts.filter(function(a){ return a.status !== 'cancelled' && a.startMs && a.startMs > Date.now(); })
-    .sort(function(a,b){ return a.startMs - b.startMs; })[0];
-  var nextSummary = '';
-  if (nextAppt) {
-    var nm = nextAppt.name || nextAppt.patientName || 'Client';
-    var nT = nextAppt.timeStr || (nextAppt.startIso ? (function(iso){ var d=new Date(iso),hh=d.getHours(),mm=d.getMinutes(); return (hh%12||12)+':'+(mm<10?'0':'')+mm+(hh>=12?'pm':'am'); })(nextAppt.startIso) : '');
-    nextSummary = ' &middot; Next: <strong>' + escHtml(nm) + '</strong>' + (nT ? ' at ' + escHtml(nT) : '');
-  }
-
-  // Date is intentionally omitted — meta line carries all the context needed
   hd.innerHTML = '<div class="mob-hd-greeting">' + escHtml(greeting) + (firstName ? ', ' + escHtml(firstName) : '') + '</div>'
-    + '<div class="mob-hd-meta">' + escHtml(todaySummary) + nextSummary + '</div>';
+    + '<div class="mob-hd-date">' + escHtml(dateLabel) + '</div>';
 }
 
 /* ── + Add popup menu — desktop sidebar ─────────────────────── */
@@ -4736,7 +4719,7 @@ function _recomputeInboxBuckets() {
   // Mobile:  inbox is a standalone app — re-render it directly
   if (window.innerWidth <= 768) {
     if (_mobCurrentApp === 'queue') _mobRenderInbox();
-    else if (_mobCurrentApp === 'home') { /* mob header update only, bento handles itself */ }
+    else if (_mobCurrentApp === 'home') _mobRenderHome();
   } else {
     if (_currentView === 'home') renderHomeView();
   }
@@ -5337,19 +5320,106 @@ function renderHomeView() {
 var _dhTasks = [];       // module-level cache for openDetailPanel lookup
 var _dhTasksLoaded = false; // true once the first successful fetch completes
 
-/* ── AI receptionist brief ───────────────────────────────────────
- * Calls /api/admin-brief with current dashboard data, streams the
- * response word-by-word into #dh-hd-meta.
- * Caches per date+hour in sessionStorage so a hard refresh within
- * the same hour reuses the cached text without hitting the API again.
+/* ── Mobile landing home view ────────────────────────────────────
+ * Shows AI brief card, today's sessions mini-list, therapy quote.
  ────────────────────────────────────────────────────────────────── */
-async function _loadAIBrief(data) {
-  var metaEl = document.getElementById('dh-hd-meta');
+var _MOB_QUOTES = [
+  { q: 'The curious paradox is that when I accept myself just as I am, then I can change.', a: 'Carl Rogers' },
+  { q: 'Between stimulus and response there is a space. In that space is our power to choose our response.', a: 'Viktor Frankl' },
+  { q: 'The privilege of a lifetime is to become who you truly are.', a: 'Carl Jung' },
+  { q: 'Until you make the unconscious conscious, it will direct your life and you will call it fate.', a: 'Carl Jung' },
+  { q: 'Vulnerability is not winning or losing. It\'s having the courage to show up when you can\'t control the outcome.', a: 'Brené Brown' },
+  { q: 'The good life is a process, not a state of being.', a: 'Carl Rogers' },
+  { q: 'What we don\'t need in the midst of struggle is shame for being human.', a: 'Brené Brown' },
+  { q: 'Out of your vulnerabilities will come your strength.', a: 'Sigmund Freud' },
+  { q: 'Owning our story and loving ourselves through that process is the bravest thing we\'ll ever do.', a: 'Brené Brown' },
+  { q: 'The meeting of two personalities is like the contact of two chemical substances — if there is any reaction, both are transformed.', a: 'Carl Jung' },
+];
+
+function _mobRenderHome() {
+  var content = document.getElementById('view-content');
+  if (!content || !_pipelineData) return;
+
+  var now      = new Date();
+  function _fmtMobT(iso) { var d=new Date(iso),h=d.getHours(),m=d.getMinutes(); return (h%12||12)+':'+(m<10?'0':'')+m+(h>=12?'pm':'am'); }
+  var todayIso = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  var _uniMob  = (_halaxyData && _halaxyData.connected) ? _buildUnifiedSessions() : { upcoming: [], past: [] };
+  var allMob   = _uniMob.upcoming.concat(_uniMob.past);
+  var todaySess = allMob.filter(function(a) {
+    return a.dateStr === todayIso && a.status !== 'cancelled' && !_isPersonalAppt(a);
+  }).sort(function(a,b){ return (a.startMs||0)-(b.startMs||0); });
+  var nextMob = _uniMob.upcoming.filter(function(a) {
+    return a.status !== 'cancelled' && a.startMs && a.startMs > Date.now() && !_isPersonalAppt(a);
+  }).sort(function(a,b){ return a.startMs-b.startMs; })[0];
+
+  var sessHtml = todaySess.length ? todaySess.map(function(a) {
+    var nm = a.name || 'Client';
+    var tm = a.timeStr || (a.startIso ? _fmtMobT(a.startIso) : '');
+    return '<div class="mob-home-sess" onclick="openDetailPanel(\'session\',\'' + escHtml(String(a.id||'')) + '\')">'
+      + '<div class="mob-home-sess-av ' + _dhAvCol(nm) + '">' + _dhIni(nm) + '</div>'
+      + '<div class="mob-home-sess-info"><div class="mob-home-sess-name">' + escHtml(nm) + '</div>'
+      + (tm ? '<div class="mob-home-sess-time">' + escHtml(tm) + '</div>' : '') + '</div>'
+      + '<span style="color:var(--t3);font-size:18px;line-height:1">›</span></div>';
+  }).join('')
+  : '<div class="mob-home-no-sess">No sessions today</div>';
+
+  // Day-of-year index so quote changes daily but is stable across re-renders
+  var doy   = Math.floor((now - new Date(now.getFullYear(),0,0)) / 86400000);
+  var quote = _MOB_QUOTES[doy % _MOB_QUOTES.length];
+
+  content.innerHTML =
+    '<div class="mob-home-wrap">'
+    + '<div class="mob-home-brief-card" id="mob-brief-card">'
+    +   '<div class="mob-home-brief-label">Today\'s briefing</div>'
+    +   '<div class="mob-home-brief-text ai-brief-streaming" id="mob-brief-text"><span class="ai-brief-loading"></span></div>'
+    + '</div>'
+    + '<div class="mob-home-section">'
+    +   '<div class="mob-home-sect-hd">Today'
+    +   (todaySess.length ? '<span class="mob-home-sect-badge">' + todaySess.length + '</span>' : '') + '</div>'
+    +   sessHtml
+    + '</div>'
+    + '<div class="mob-home-quote">'
+    +   '<div class="mob-home-quote-mark">&#10077;</div>'
+    +   '<div class="mob-home-quote-text">' + escHtml(quote.q) + '</div>'
+    +   '<div class="mob-home-quote-author">&#8212; ' + escHtml(quote.a) + '</div>'
+    + '</div>'
+    + '</div>';
+
+  _updateMobileDock('home');
+
+  // Fire AI brief into the card
+  var enquiries     = (_pipelineData && _pipelineData.enquiries) || [];
+  var invoices      = (_halaxyData   && _halaxyData.invoices)    || [];
+  var newEnqs       = enquiries.filter(function(e){ return (e.status||'new') === 'new'; });
+  var critCnt       = (_dhHalaxyNoInvoice  || []).length;
+  var unlinkedCnt   = (_dhUnlinkedCalAppts || []).length;
+  var awaitPayCnt   = invoices.filter(function(i){ return parseFloat(i.totalBalance||0) > 0; }).length;
+  _loadAIBrief({
+    todaySessions:   todaySess.map(function(a){ return { name: (a.name||'Client').split(' ')[0], time: a.timeStr||(a.startIso?_fmtMobT(a.startIso):'') }; }),
+    nextAppt: nextMob ? {
+      name: (nextMob.name||nextMob.patientName||'Client').split(' ')[0],
+      day:  nextMob.dateStr !== todayIso ? new Date(nextMob.dateStr+'T00:00').toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'}) : 'today',
+      time: nextMob.timeStr||(nextMob.startIso?_fmtMobT(nextMob.startIso):''),
+    } : null,
+    critCount: critCnt, awaitingPayCount: awaitPayCnt, unlinkedCount: unlinkedCnt,
+    newEnquiries: newEnqs.length,
+  }, 'mob-brief-text');
+}
+
+/* ── AI receptionist brief ───────────────────────────────────────
+ * Calls /api/admin-tasks?brief=1 with current dashboard data and
+ * streams the response word-by-word into the target element.
+ * Accepts optional targetId (defaults to 'dh-hd-meta').
+ * Caches per date+hour in sessionStorage so refreshes within the
+ * same hour reuse the cached text without hitting the API.
+ ────────────────────────────────────────────────────────────────── */
+async function _loadAIBrief(data, targetId) {
+  var metaEl = document.getElementById(targetId || 'dh-hd-meta');
   if (!metaEl) return;
 
-  // Cache key: date + hour so it regenerates at most once per hour
+  // Cache key: target + date + hour so each surface caches independently
   var now      = new Date();
-  var cacheKey = 'ai-brief-' + now.toISOString().slice(0, 13); // "2026-05-25T17"
+  var cacheKey = 'ai-brief-' + (targetId || 'dh-hd-meta') + '-' + now.toISOString().slice(0, 13);
   var cached   = sessionStorage.getItem(cacheKey);
   if (cached) {
     metaEl.innerHTML = cached;
