@@ -672,12 +672,19 @@ function closeMoreSheet() {
 function toggleMobActionSheet() {
   var sheet = document.getElementById('mob-action-sheet');
   if (!sheet) return;
-  if (sheet.classList.contains('open')) closeMobActionSheet();
-  else sheet.classList.add('open');
+  var btn = document.getElementById('mob-dock-center-btn');
+  if (sheet.classList.contains('open')) {
+    closeMobActionSheet();
+  } else {
+    sheet.classList.add('open');
+    if (btn) btn.classList.add('sheet-open');
+  }
 }
 function closeMobActionSheet() {
   var sheet = document.getElementById('mob-action-sheet');
   if (sheet) sheet.classList.remove('open');
+  var btn = document.getElementById('mob-dock-center-btn');
+  if (btn) btn.classList.remove('sheet-open');
 }
 
 /* ── Mobile: switch app with fade, update dock ───────────────── */
@@ -5397,19 +5404,20 @@ function _mobRenderHome() {
 
   content.innerHTML =
     '<div class="mob-home-wrap">'
+    // Briefing card — AI text + quote as sign-off
     + '<div class="mob-home-brief-card" id="mob-brief-card">'
     +   '<div class="mob-home-brief-label">Today\'s briefing</div>'
     +   '<div class="mob-home-brief-text ai-brief-streaming" id="mob-brief-text"><span class="ai-brief-loading"></span></div>'
+    +   '<div class="mob-home-brief-signoff">'
+    +     '<div class="mob-home-brief-quote">“' + escHtml(quote.q) + '”</div>'
+    +     '<div class="mob-home-brief-attr">— ' + escHtml(quote.a) + '</div>'
+    +   '</div>'
     + '</div>'
+    // Sessions section
     + '<div class="mob-home-section">'
     +   '<div class="mob-home-sect-hd">' + sessLabel
     +   (displaySess.length ? '<span class="mob-home-sect-badge">' + displaySess.length + '</span>' : '') + '</div>'
     +   sessHtml
-    + '</div>'
-    + '<div class="mob-home-quote">'
-    +   '<div class="mob-home-quote-mark">&#10077;</div>'
-    +   '<div class="mob-home-quote-text">' + escHtml(quote.q) + '</div>'
-    +   '<div class="mob-home-quote-author">&#8212; ' + escHtml(quote.a) + '</div>'
     + '</div>'
     + '</div>';
 
@@ -5459,13 +5467,17 @@ async function _loadAIBrief(data, targetId) {
   metaEl.classList.add('ai-brief-streaming');
 
   try {
+    var _briefCtrl    = new AbortController();
+    var _briefTimeout = setTimeout(function() { _briefCtrl.abort(); }, 12000);
     var resp = await fetch('/api/admin-tasks?brief=1', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(data),
+      signal:  _briefCtrl.signal,
     });
+    clearTimeout(_briefTimeout);
 
-    if (!resp.ok) throw new Error('brief unavailable');
+    if (!resp.ok) throw new Error('brief ' + resp.status);
 
     var result = await resp.json();
     var text   = (result.text || '').trim();

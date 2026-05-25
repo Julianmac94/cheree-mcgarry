@@ -1003,11 +1003,12 @@ body {
   /* Persistent header below logo */
   #mob-hd {
     display: block; flex-shrink: 0;
-    padding: 10px 18px 14px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 22px 18px 10px;
+    text-align: center;
+    /* no border — home view is borderless */
   }
-  .mob-hd-greeting { font-size: 20px; font-weight: 700; color: var(--t1); letter-spacing: -0.02em; line-height: 1.2; }
-  .mob-hd-date     { font-size: 11px; color: var(--t3); margin-top: 2px; font-weight: 400; }
+  .mob-hd-greeting { font-size: 26px; font-weight: 700; color: var(--t1); letter-spacing: -0.03em; line-height: 1.15; }
+  .mob-hd-date     { font-size: 12px; color: var(--t3); margin-top: 3px; font-weight: 400; }
   .mob-hd-meta     { font-size: 11px; color: var(--t3); margin-top: 3px; line-height: 1.4; }
   .mob-hd-meta strong { color: var(--t2); font-weight: 500; }
 
@@ -1035,32 +1036,72 @@ body {
   .ptr-icon.ptr-spinning { animation: ptrSpin 0.65s linear infinite; }
   @keyframes ptrSpin { to { transform: rotate(360deg); } }
 
-  /* Dock */
+  /* ── iOS 26–style liquid-glass dock ── */
   .mob-dock {
-    display: flex; align-items: center; flex-shrink: 0;
-    height: calc(58px + env(safe-area-inset-bottom, 20px));
-    padding-bottom: env(safe-area-inset-bottom, 20px);
-    background: rgba(8,12,24,0.97);
-    border-top: 1px solid rgba(255,255,255,0.08);
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    display: flex; align-items: flex-end; justify-content: center; flex-shrink: 0;
+    height: calc(76px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 14px);
+    background: transparent; border-top: none;
+    position: relative; z-index: 200;
+  }
+  .mob-dock-pill {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(14, 22, 18, 0.68);
+    backdrop-filter: blur(32px) saturate(180%) brightness(1.08);
+    -webkit-backdrop-filter: blur(32px) saturate(180%) brightness(1.08);
+    border: 1px solid rgba(255,255,255,0.11);
+    border-radius: 9999px;
+    padding: 5px 8px;
+    gap: 0;
+    min-width: 288px;
+    box-shadow:
+      0 8px 32px rgba(0,0,0,0.38),
+      0 1px 0 rgba(255,255,255,0.09) inset,
+      0 -1px 0 rgba(0,0,0,0.2) inset;
   }
   .mob-dock-item {
-    flex: 1; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; gap: 3px;
+    width: 54px; height: 46px;
+    display: flex; align-items: center; justify-content: center;
     background: none; border: none; cursor: pointer;
-    color: rgba(255,255,255,0.3); font-family: var(--sans); font-size: 9px; font-weight: 500;
-    letter-spacing: 0.01em; transition: color 0.12s; padding-top: 5px;
+    color: rgba(255,255,255,0.32);
+    border-radius: 9999px;
+    transition: color 0.18s ease, background 0.18s ease, transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+    -webkit-tap-highlight-color: transparent;
   }
-  .mob-dock-item.active { color: var(--teal); }
-  .mob-dock-item svg { opacity: 0.5; flex-shrink: 0; transition: opacity 0.12s; }
-  .mob-dock-item.active svg { opacity: 1; }
+  .mob-dock-item svg {
+    transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1), filter 0.18s ease, opacity 0.18s ease;
+    opacity: 0.55;
+  }
+  .mob-dock-item.active {
+    color: var(--teal);
+    background: rgba(52,211,153,0.13);
+  }
+  .mob-dock-item.active svg {
+    opacity: 1;
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 7px rgba(52,211,153,0.45));
+    animation: dock-icon-pop 0.32s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .mob-dock-item:active { transform: scale(0.88); }
+  @keyframes dock-icon-pop {
+    0%   { transform: scale(0.85); }
+    60%  { transform: scale(1.22); }
+    100% { transform: scale(1.15); }
+  }
   .mob-dock-center {
-    width: 52px; height: 38px; margin: 0 4px; flex-shrink: 0;
-    background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.22);
-    border-radius: 12px; display: flex; align-items: center; justify-content: center;
-    color: var(--teal); cursor: pointer; transition: background 0.12s;
+    width: 46px; height: 46px; flex-shrink: 0;
+    background: rgba(52,211,153,0.14);
+    border: 1px solid rgba(52,211,153,0.28);
+    border-radius: 9999px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--teal); cursor: pointer;
+    transition: all 0.18s ease;
+    box-shadow: 0 0 18px rgba(52,211,153,0.1);
+    -webkit-tap-highlight-color: transparent;
   }
-  .mob-dock-center:active { background: rgba(52,211,153,0.22); }
+  .mob-dock-center.sheet-open svg { transform: rotate(180deg); }
+  .mob-dock-center svg { transition: transform 0.22s ease; }
+  .mob-dock-center:active { transform: scale(0.88); background: rgba(52,211,153,0.25); }
 
   /* Action sheet from ^ button */
   .mob-action-sheet {
@@ -1104,27 +1145,41 @@ body {
   .mob-action-row--signout:active { background: rgba(239,68,68,0.07); }
 
   /* ── Mobile home landing ── */
-  .mob-home-wrap { padding: 6px 16px 32px; display: flex; flex-direction: column; gap: 20px; }
+  /* Extra bottom padding so content clears the floating glass dock */
+  .mob-home-wrap { padding: 6px 16px 100px; display: flex; flex-direction: column; gap: 18px; }
 
   /* Brief card */
   .mob-home-brief-card {
-    background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.15);
-    border-radius: 14px; padding: 16px 18px;
+    background: rgba(52,211,153,0.055); border: 1px solid rgba(52,211,153,0.14);
+    border-radius: 18px; padding: 18px 20px 16px;
   }
   .mob-home-brief-label {
-    font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-    color: rgba(52,211,153,0.55); margin-bottom: 8px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    color: rgba(52,211,153,0.5); margin-bottom: 10px;
   }
   .mob-home-brief-text {
-    font-size: 14px; line-height: 1.65; color: var(--t2); font-weight: 400; min-height: 18px;
+    font-size: 14px; line-height: 1.7; color: var(--t2); font-weight: 400; min-height: 18px;
   }
   .mob-home-brief-text.ai-brief-streaming::after {
     content: '▊'; display: inline-block; color: rgba(52,211,153,0.65);
     font-size: 11px; margin-left: 2px; animation: ai-cursor-blink 0.65s step-end infinite;
   }
   .mob-home-brief-text.ai-brief-done { animation: ai-brief-glow 3.2s ease-out forwards; }
+  /* Quote as sign-off inside briefing card */
+  .mob-home-brief-signoff {
+    margin-top: 16px; padding-top: 14px;
+    border-top: 1px solid rgba(52,211,153,0.1);
+  }
+  .mob-home-brief-quote {
+    font-size: 12px; line-height: 1.55; color: rgba(255,255,255,0.28);
+    font-style: italic; font-weight: 400;
+  }
+  .mob-home-brief-attr {
+    font-size: 11px; color: rgba(255,255,255,0.18); margin-top: 5px;
+    letter-spacing: 0.02em;
+  }
 
-  /* Today section */
+  /* Sessions section */
   .mob-home-section { display: flex; flex-direction: column; gap: 0; }
   .mob-home-sect-hd {
     font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
@@ -1150,24 +1205,6 @@ body {
   .mob-home-no-sess {
     font-size: 13px; color: var(--t3); text-align: center;
     padding: 18px; background: rgba(255,255,255,0.02); border-radius: 12px;
-  }
-
-  /* Quote block */
-  .mob-home-quote {
-    padding: 18px; background: rgba(255,255,255,0.025);
-    border-radius: 14px; border-left: 3px solid rgba(255,255,255,0.08);
-  }
-  .mob-home-quote-mark {
-    font-size: 28px; line-height: 1; color: rgba(255,255,255,0.08);
-    font-family: Georgia, serif; margin-bottom: 6px;
-  }
-  .mob-home-quote-text {
-    font-size: 13px; line-height: 1.6; color: var(--t2);
-    font-style: italic; font-weight: 400;
-  }
-  .mob-home-quote-author {
-    font-size: 11px; color: var(--t3); margin-top: 10px;
-    font-weight: 500; letter-spacing: 0.02em;
   }
 
   /* ── Mobile inbox app ── */
@@ -3333,25 +3370,28 @@ body {
 
     <!-- ── Mobile dock (flex-column child — sits at bottom naturally on mobile) ── -->
     <nav class="mob-dock" id="mob-dock">
-      <button class="mob-dock-item active" data-app="home" onclick="mobSwitchApp('home')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <span>Home</span>
-      </button>
-      <button class="mob-dock-item" data-app="queue" onclick="mobSwitchApp('queue')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
-        <span>Inbox</span>
-      </button>
-      <button class="mob-dock-center" onclick="toggleMobActionSheet()" title="Add / More">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-      </button>
-      <button class="mob-dock-item" data-app="sched" onclick="mobSwitchApp('sched')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <span>Schedule</span>
-      </button>
-      <button class="mob-dock-item" data-app="billing" onclick="mobSwitchApp('billing')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
-        <span>Billing</span>
-      </button>
+      <div class="mob-dock-pill">
+        <!-- Home -->
+        <button class="mob-dock-item active" data-app="home" onclick="mobSwitchApp('home')" aria-label="Home">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </button>
+        <!-- Inbox -->
+        <button class="mob-dock-item" data-app="queue" onclick="mobSwitchApp('queue')" aria-label="Inbox">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+        </button>
+        <!-- Add / More (centre) -->
+        <button class="mob-dock-center" id="mob-dock-center-btn" onclick="toggleMobActionSheet()" aria-label="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <!-- Schedule -->
+        <button class="mob-dock-item" data-app="sched" onclick="mobSwitchApp('sched')" aria-label="Schedule">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/></svg>
+        </button>
+        <!-- Billing -->
+        <button class="mob-dock-item" data-app="billing" onclick="mobSwitchApp('billing')" aria-label="Billing">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
+        </button>
+      </div>
     </nav>
 
   </div><!-- /.app-main -->
