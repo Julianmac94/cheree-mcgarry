@@ -5169,7 +5169,7 @@ function renderHomeView() {
     + '</div>'
     + '</div>'
     + '</div>'
-    + '<div class="dh-hd-meta">' + _snapshotHtml + '</div>'
+    + '<div class="dh-hd-meta" id="dh-hd-meta">' + _snapshotHtml + '</div>'
     + '</div>'
     + '</div>';
 
