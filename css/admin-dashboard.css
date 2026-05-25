@@ -1289,6 +1289,7 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   padding: 2px 6px; border-radius: 4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   display: block; min-width: 0; }
+.dh-bir-org--dim { opacity: 0.45; }
 /* Col 3 — submit action (always same width) */
 .dh-bir-action { display: flex; align-items: center; }
 /* Col 4 — amount + date stacked, right-aligned */

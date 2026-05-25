@@ -5222,7 +5222,7 @@ function _dhRenderBillingBento() {
       var bentoRef = _fmtInvRef(inv);
       html += '<div class="dh-bill-inv-row" onclick="openInvoiceModal(\'' + escHtml(String(inv.id)) + '\')">'
         + '<div class="dh-bir-name">' + escHtml(name) + (bentoRef ? '<span class="dh-bir-ref">' + escHtml(bentoRef) + '</span>' : '') + '</div>'
-        + (inv.payorOrg ? '<span class="dh-bir-org">' + escHtml(inv.payorOrg) + '</span>' : '<span></span>')
+        + '<span class="dh-bir-org' + (!inv.payorOrg ? ' dh-bir-org--dim' : '') + '">' + escHtml(inv.payorOrg || 'Private') + '</span>'
         + '<div class="dh-bir-action">' + subBadge + '</div>'
         + '<div class="dh-bir-right">'
         + '<span class="dh-bir-amt">' + (bal ? _fmtAUD(bal) : '—') + '</span>'
