@@ -71,39 +71,19 @@ export default async function handler(req, res) {
         const upstream = await fetch(ANTHROPIC_API, {
           method:  'POST',
           headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({ model: BRIEF_MODEL, max_tokens: 160, stream: true, messages: [{ role: 'user', content: prompt }] }),
+          body: JSON.stringify({ model: BRIEF_MODEL, max_tokens: 160, messages: [{ role: 'user', content: prompt }] }),
         });
         if (!upstream.ok) {
           const err = await upstream.text();
           console.error('[brief] Anthropic error', upstream.status, err);
           return res.status(502).json({ error: 'Upstream error' });
         }
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-store');
-        const reader = upstream.body.getReader();
-        const dec = new TextDecoder();
-        let buf = '';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += dec.decode(value, { stream: true });
-          const chunks = buf.split('\n');
-          buf = chunks.pop();
-          for (const line of chunks) {
-            if (!line.startsWith('data: ')) continue;
-            const raw = line.slice(6).trim();
-            if (raw === '[DONE]') continue;
-            try {
-              const evt = JSON.parse(raw);
-              if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') res.write(evt.delta.text);
-            } catch (_) {}
-          }
-        }
-        return res.end();
+        const result = await upstream.json();
+        const text   = result.content?.[0]?.text || '';
+        return res.status(200).json({ text });
       } catch (err) {
         console.error('[brief]', err);
-        if (!res.headersSent) return res.status(500).json({ error: err.message });
-        return res.end();
+        return res.status(500).json({ error: err.message });
       }
     }
 

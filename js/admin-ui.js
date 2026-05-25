@@ -723,7 +723,7 @@ function _mobRenderApp(app) {
   if (app === 'home')           _mobRenderHome();
   else if (app === 'sched')     _mobRenderSchedule();
   else if (app === 'queue')     _mobRenderInbox();
-  else if (app === 'reminders') _mobRenderReminders();
+  else if (app === 'reminders') _mobRenderInbox();
   else if (app === 'billing')   _mobRenderBilling();
 }
 
@@ -5345,14 +5345,34 @@ function _mobRenderHome() {
   var todayIso = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
   var _uniMob  = (_halaxyData && _halaxyData.connected) ? _buildUnifiedSessions() : { upcoming: [], past: [] };
   var allMob   = _uniMob.upcoming.concat(_uniMob.past);
-  var todaySess = allMob.filter(function(a) {
+  var h = now.getHours();
+  // After 4pm (or no sessions remaining today), flip to tomorrow
+  var todaySessAll = allMob.filter(function(a) {
     return a.dateStr === todayIso && a.status !== 'cancelled' && !_isPersonalAppt(a);
   }).sort(function(a,b){ return (a.startMs||0)-(b.startMs||0); });
+  var remainingToday = todaySessAll.filter(function(a) { return !a.startMs || a.startMs > Date.now(); });
+
+  var showTomorrow = h >= 16 || (h >= 12 && remainingToday.length === 0);
+  var sessLabel, displaySess;
+
+  if (showTomorrow) {
+    var tomorrow    = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+    var tomorrowIso = tomorrow.getFullYear() + '-' + String(tomorrow.getMonth()+1).padStart(2,'0') + '-' + String(tomorrow.getDate()).padStart(2,'0');
+    displaySess = allMob.filter(function(a) {
+      return a.dateStr === tomorrowIso && a.status !== 'cancelled' && !_isPersonalAppt(a);
+    }).sort(function(a,b){ return (a.startMs||0)-(b.startMs||0); });
+    sessLabel = 'Tomorrow';
+  } else {
+    displaySess = todaySessAll;
+    sessLabel   = 'Today';
+  }
+
   var nextMob = _uniMob.upcoming.filter(function(a) {
     return a.status !== 'cancelled' && a.startMs && a.startMs > Date.now() && !_isPersonalAppt(a);
   }).sort(function(a,b){ return a.startMs-b.startMs; })[0];
 
-  var sessHtml = todaySess.length ? todaySess.map(function(a) {
+  var noSessMsg = showTomorrow ? 'No sessions tomorrow' : 'No sessions today';
+  var sessHtml = displaySess.length ? displaySess.map(function(a) {
     var nm = a.name || 'Client';
     var tm = a.timeStr || (a.startIso ? _fmtMobT(a.startIso) : '');
     return '<div class="mob-home-sess" onclick="openDetailPanel(\'session\',\'' + escHtml(String(a.id||'')) + '\')">'
@@ -5361,7 +5381,7 @@ function _mobRenderHome() {
       + (tm ? '<div class="mob-home-sess-time">' + escHtml(tm) + '</div>' : '') + '</div>'
       + '<span style="color:var(--t3);font-size:18px;line-height:1">›</span></div>';
   }).join('')
-  : '<div class="mob-home-no-sess">No sessions today</div>';
+  : '<div class="mob-home-no-sess">' + noSessMsg + '</div>';
 
   // Day-of-year index so quote changes daily but is stable across re-renders
   var doy   = Math.floor((now - new Date(now.getFullYear(),0,0)) / 86400000);
@@ -5374,8 +5394,8 @@ function _mobRenderHome() {
     +   '<div class="mob-home-brief-text ai-brief-streaming" id="mob-brief-text"><span class="ai-brief-loading"></span></div>'
     + '</div>'
     + '<div class="mob-home-section">'
-    +   '<div class="mob-home-sect-hd">Today'
-    +   (todaySess.length ? '<span class="mob-home-sect-badge">' + todaySess.length + '</span>' : '') + '</div>'
+    +   '<div class="mob-home-sect-hd">' + sessLabel
+    +   (displaySess.length ? '<span class="mob-home-sect-badge">' + displaySess.length + '</span>' : '') + '</div>'
     +   sessHtml
     + '</div>'
     + '<div class="mob-home-quote">'
@@ -5395,7 +5415,7 @@ function _mobRenderHome() {
   var unlinkedCnt   = (_dhUnlinkedCalAppts || []).length;
   var awaitPayCnt   = invoices.filter(function(i){ return parseFloat(i.totalBalance||0) > 0; }).length;
   _loadAIBrief({
-    todaySessions:   todaySess.map(function(a){ return { name: (a.name||'Client').split(' ')[0], time: a.timeStr||(a.startIso?_fmtMobT(a.startIso):'') }; }),
+    todaySessions:   todaySessAll.map(function(a){ return { name: (a.name||'Client').split(' ')[0], time: a.timeStr||(a.startIso?_fmtMobT(a.startIso):'') }; }),
     nextAppt: nextMob ? {
       name: (nextMob.name||nextMob.patientName||'Client').split(' ')[0],
       day:  nextMob.dateStr !== todayIso ? new Date(nextMob.dateStr+'T00:00').toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'}) : 'today',
@@ -5426,7 +5446,7 @@ async function _loadAIBrief(data, targetId) {
     return;
   }
 
-  // Show a subtle pulsing placeholder while the AI thinks
+  // Show a subtle pulsing placeholder while the API responds
   metaEl.innerHTML = '<span class="ai-brief-loading">&#8203;</span>';
   metaEl.classList.add('ai-brief-streaming');
 
@@ -5437,35 +5457,36 @@ async function _loadAIBrief(data, targetId) {
       body:    JSON.stringify(data),
     });
 
-    if (!resp.ok || !resp.body) throw new Error('brief unavailable');
+    if (!resp.ok) throw new Error('brief unavailable');
 
-    var reader  = resp.body.getReader();
-    var decoder = new TextDecoder();
-    var text    = '';
+    var result = await resp.json();
+    var text   = (result.text || '').trim();
+    if (!text) throw new Error('empty brief');
 
-    metaEl.innerHTML = ''; // clear placeholder
+    // Clear loading placeholder; typewriter runs while streaming class is active
+    metaEl.innerHTML = '';
 
-    while (true) {
-      var _r = await reader.read();
-      if (_r.done) break;
-      text += decoder.decode(_r.value, { stream: true });
-      // Update DOM incrementally — gives a streaming typewriter effect
-      metaEl.textContent = text;
+    // Client-side typewriter — types ~150 chars in ~2.8s
+    var i     = 0;
+    var speed = Math.max(12, Math.min(35, Math.floor(2800 / text.length)));
+    function _type() {
+      if (i < text.length) {
+        metaEl.textContent = text.slice(0, ++i);
+        setTimeout(_type, speed);
+      } else {
+        // Done typing — swap to glow animation
+        metaEl.classList.remove('ai-brief-streaming');
+        metaEl.classList.add('ai-brief-done');
+        metaEl.addEventListener('animationend', function() {
+          metaEl.classList.remove('ai-brief-done');
+        }, { once: true });
+        try { sessionStorage.setItem(cacheKey, metaEl.innerHTML); } catch(_) {}
+      }
     }
-
-    // Swap streaming class → glow class so the blinking cursor disappears
-    // and the soft AI-glow reveal animation plays
-    metaEl.classList.remove('ai-brief-streaming');
-    metaEl.classList.add('ai-brief-done');
-    metaEl.addEventListener('animationend', function() {
-      metaEl.classList.remove('ai-brief-done');
-    }, { once: true });
-
-    // Cache the final text (plain, no classes)
-    try { sessionStorage.setItem(cacheKey, metaEl.innerHTML); } catch(_) {}
+    _type();
 
   } catch (err) {
-    // Silent fallback — template sentences stay in place
+    // Silent fallback — clear loading state
     metaEl.classList.remove('ai-brief-streaming');
     metaEl.classList.remove('ai-brief-done');
     if (!metaEl.textContent.trim()) metaEl.textContent = '';
