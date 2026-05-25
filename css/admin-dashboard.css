@@ -410,8 +410,8 @@ body::before {
   letter-spacing: -0.03em; line-height: 1;
 }
 .dh-hd-date { display: none; } /* replaced by TODAY tag on week strip */
-.dh-hd-meta { font-size: 12px; color: var(--t3); margin-top: 8px; font-weight: 400; line-height: 1.5; }
-.dh-hd-meta strong { color: var(--t2); font-weight: 500; }
+.dh-hd-meta { font-size: 13px; color: var(--t3); margin-top: 10px; font-weight: 400; line-height: 1.65; max-width: 640px; }
+.dh-hd-meta strong { color: var(--t2); font-weight: 600; }
 .dh-hd-actions { display: flex; align-items: stretch; gap: 10px; flex-shrink: 0; }
 
 /* + Add popup menu */

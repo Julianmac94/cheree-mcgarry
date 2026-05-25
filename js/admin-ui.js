@@ -5078,10 +5078,11 @@ function renderHomeView() {
   // Today / Next Session helpers
   var todayIso = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
   var todayAppts = appts.filter(function(a) {
-    return a.dateStr === todayIso && a.status !== 'cancelled';
+    return a.dateStr === todayIso && a.status !== 'cancelled' && !_isPersonalAppt(a);
   }).sort(function(a,b){ return (a.startMs||0)-(b.startMs||0); });
+  // Exclude personal-appointment placeholders from "next appointment" too
   var nextAppt = _uni.upcoming.filter(function(a) {
-    return a.status !== 'cancelled' && a.startMs && a.startMs > Date.now();
+    return a.status !== 'cancelled' && a.startMs && a.startMs > Date.now() && !_isPersonalAppt(a);
   }).sort(function(a,b){ return a.startMs - b.startMs; })[0];
   function _fmtT(iso) { var d=new Date(iso),h=d.getHours(),m=d.getMinutes(); return (h%12||12)+':'+(m<10?'0':'')+m+(h>=12?'pm':'am'); }
 
@@ -5094,41 +5095,76 @@ function renderHomeView() {
   var actionsCount = _dhNonHalaxyActions.length;
   var hasIssues    = critCount > 0 || actionsCount > 0 || unlinkedCount > 0;
 
-  // ── Conversational snapshot summary ───────────────────────────
-  var _snapParts = [];
-  // Sessions today
+  // ── Receptionist-style paragraph snapshot ─────────────────────
+  // Build as natural sentences, like a front-desk briefing when you walk in.
+  var _snapSentences = [];
+
+  // 1. Today's sessions
   if (todayAppts.length === 0) {
-    _snapParts.push('No sessions today');
+    _snapSentences.push('No sessions today.');
   } else if (todayAppts.length === 1) {
-    var _st = todayAppts[0];
-    var _stT = _st.timeStr || (_st.startIso ? _fmtT(_st.startIso) : '');
-    _snapParts.push('<strong>' + escHtml(_st.name || 'Client') + '</strong>' + (_stT ? ' at ' + escHtml(_stT) : '') + ' today');
+    var _sa = todayAppts[0];
+    var _saT = _sa.timeStr || (_sa.startIso ? _fmtT(_sa.startIso) : '');
+    _snapSentences.push('<strong>' + escHtml(_sa.name || 'Client') + '</strong> is in'
+      + (_saT ? ' at ' + escHtml(_saT) : '') + '.');
+  } else if (todayAppts.length === 2) {
+    var _sa1 = todayAppts[0], _sa2 = todayAppts[1];
+    var _saT1 = _sa1.timeStr || (_sa1.startIso ? _fmtT(_sa1.startIso) : '');
+    var _saT2 = _sa2.timeStr || (_sa2.startIso ? _fmtT(_sa2.startIso) : '');
+    _snapSentences.push('<strong>' + escHtml(_sa1.name || 'Client') + '</strong>'
+      + (_saT1 ? ' at ' + escHtml(_saT1) : '') + ' and <strong>'
+      + escHtml(_sa2.name || 'Client') + '</strong>'
+      + (_saT2 ? ' at ' + escHtml(_saT2) : '') + ' today.');
   } else {
-    _snapParts.push('<strong>' + todayAppts.length + ' sessions</strong> today');
+    var _sa = todayAppts[0];
+    var _saT = _sa.timeStr || (_sa.startIso ? _fmtT(_sa.startIso) : '');
+    _snapSentences.push('You have <strong>' + todayAppts.length + ' sessions</strong> today'
+      + ' — first up is <strong>' + escHtml(_sa.name || 'Client') + '</strong>'
+      + (_saT ? ' at ' + escHtml(_saT) : '') + '.');
   }
-  // Next appointment
-  if (nextAppt) {
+
+  // 2. Next appointment (skip if it's the same as the only today session already mentioned)
+  var _nextIsAlreadyMentioned = todayAppts.length === 1 && nextAppt
+    && nextAppt.dateStr === todayIso && nextAppt.startMs === todayAppts[0].startMs;
+  if (nextAppt && !_nextIsAlreadyMentioned) {
     var _nN = escHtml(nextAppt.name || nextAppt.patientName || 'Client');
     var _nT = nextAppt.timeStr || (nextAppt.startIso ? _fmtT(nextAppt.startIso) : '');
-    var _nD = (nextAppt.dateStr && nextAppt.dateStr !== todayIso)
-      ? new Date(nextAppt.dateStr + 'T00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
-      : '';
-    var _nextStr = 'Next: <strong>' + _nN + '</strong>';
-    if (_nT) _nextStr += ' at ' + escHtml(_nT);
-    if (_nD) _nextStr += ' &middot; ' + escHtml(_nD);
-    _snapParts.push(_nextStr);
-  } else if (todayAppts.length === 0) {
-    _snapParts.push('calendar is clear');
+    var _nIsToday = nextAppt.dateStr === todayIso;
+    if (_nIsToday) {
+      _snapSentences.push('Next up: <strong>' + _nN + '</strong>'
+        + (_nT ? ' at ' + escHtml(_nT) : '') + '.');
+    } else {
+      var _nDay = new Date(nextAppt.dateStr + 'T00:00').toLocaleDateString('en-AU',
+        { weekday: 'long', day: 'numeric', month: 'long' });
+      _snapSentences.push('Next appointment is <strong>' + _nN + '</strong>'
+        + ' on ' + escHtml(_nDay) + (_nT ? ' at ' + escHtml(_nT) : '') + '.');
+    }
+  } else if (!nextAppt && todayAppts.length === 0) {
+    _snapSentences.push('Your calendar is clear.');
   }
-  // Issues
-  if (critCount > 0) _snapParts.push('<span style="color:#ef4444">⚠&thinsp;' + critCount + ' no invoice</span>');
-  if (unlinkedCount > 0) _snapParts.push('<span style="color:#b85a1e">⚠&thinsp;' + unlinkedCount + ' unlinked</span>');
-  if (awaitingPayCount > 0) _snapParts.push('<span style="color:var(--amber)">' + awaitingPayCount + ' unpaid</span>');
-  // New enquiries
-  if (newEnquiries.length > 0) {
-    _snapParts.push('<span style="color:var(--teal)">' + newEnquiries.length + ' new ' + (newEnquiries.length === 1 ? 'enquiry' : 'enquiries') + '</span>');
+
+  // 3. Admin heads-up — combine into one sentence
+  var _alertItems = [];
+  if (critCount > 0)       _alertItems.push('<span style="color:#ef4444">' + critCount + ' invoice' + (critCount !== 1 ? 's' : '') + ' to create</span>');
+  if (awaitingPayCount > 0) _alertItems.push('<span style="color:var(--amber)">' + awaitingPayCount + ' awaiting payment</span>');
+  if (unlinkedCount > 0)   _alertItems.push('<span style="color:#b85a1e">' + unlinkedCount + ' unlinked calendar event' + (unlinkedCount !== 1 ? 's' : '') + '</span>');
+  if (_alertItems.length === 1) {
+    _snapSentences.push('Heads up — ' + _alertItems[0] + '.');
+  } else if (_alertItems.length === 2) {
+    _snapSentences.push('Heads up — ' + _alertItems[0] + ' and ' + _alertItems[1] + '.');
+  } else if (_alertItems.length >= 3) {
+    var _last = _alertItems.pop();
+    _snapSentences.push('Heads up — ' + _alertItems.join(', ') + ', and ' + _last + '.');
   }
-  var _snapshotHtml = _snapParts.join(' <span style="color:var(--t3);margin:0 1px">&middot;</span> ') || 'All clear';
+
+  // 4. New enquiries
+  if (newEnquiries.length === 1) {
+    _snapSentences.push('<span style="color:var(--teal)">1 new enquiry in your inbox.</span>');
+  } else if (newEnquiries.length > 1) {
+    _snapSentences.push('<span style="color:var(--teal)">' + newEnquiries.length + ' new enquiries in your inbox.</span>');
+  }
+
+  var _snapshotHtml = _snapSentences.join(' ') || 'All clear — have a good one.';
 
   html += '<div class="dh-hd-row">'
     + '<div class="dh-hd-left">'
