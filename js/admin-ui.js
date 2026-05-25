@@ -26,14 +26,16 @@ function _getSubStatus(invId) {
 function _markBillingSubmitted(invId) {
   _billingSubmissions[invId] = { date: new Date().toISOString().slice(0, 10) };
   localStorage.setItem('billing_submissions', JSON.stringify(_billingSubmissions));
+  document.querySelectorAll('.inv-modal-overlay').forEach(function(el) { el.remove(); });
   if (window.innerWidth <= 768 && typeof _mobRenderBilling === 'function') _mobRenderBilling();
-  else renderBillingPanel();
+  else _dhRenderBillingBento();
 }
 function _clearBillingSubmission(invId) {
   delete _billingSubmissions[invId];
   localStorage.setItem('billing_submissions', JSON.stringify(_billingSubmissions));
+  document.querySelectorAll('.inv-modal-overlay').forEach(function(el) { el.remove(); });
   if (window.innerWidth <= 768 && typeof _mobRenderBilling === 'function') _mobRenderBilling();
-  else renderBillingPanel();
+  else _dhRenderBillingBento();
 }
 
 /* ── Toast notifications — frosted glass, top-centre ── */
@@ -591,7 +593,6 @@ function navigateTo(view) {
   else if (view === 'reminders') renderRemindersView();
   else if (view === 'queue')     renderQueueView();
   else if (view === 'clients')   renderClientsView();
-  else if (view === 'billing')   renderBillingView();
   else if (view === 'settings')  renderSettingsView();
   else if (view === 'vendors')   renderFundersView();
   else if (view === 'reports')   renderStubView('reports', 'Reports', 'Practice reports and insights coming soon.');
@@ -2370,7 +2371,6 @@ function renderCmdResults() {
       { icon: '⌂', label: 'Home',     sub: 'Go to Home',     action: "navigateTo('home');closeCmdBar()" },
       { icon: '≡', label: 'Inbox',    sub: 'Go to Inbox',    action: "navigateTo('queue');closeCmdBar()" },
       { icon: '◎', label: 'Clients',  sub: 'Go to Clients',  action: "navigateTo('clients');closeCmdBar()" },
-      { icon: '$', label: 'Billing',  sub: 'Go to Billing',  action: "navigateTo('billing');closeCmdBar()" },
       { icon: '⚙', label: 'Settings', sub: 'Go to Settings', action: "navigateTo('settings');closeCmdBar()" },
     ];
     navItems.forEach(function(item, i) {
@@ -5198,7 +5198,7 @@ function _dhRenderBillingBento() {
     + '<div class="dh-bbs-val teal">' + _fmtAUD(paidAmt) + '</div>'
     + '<div class="dh-bbs-lbl">Paid · ' + escHtml(periodLabel) + ' <span class="dh-bill-swap">↔</span></div>'
     + '</div>'
-    + '<div class="dh-bill-bento-stat" onclick="navigateTo(\'billing\')" style="cursor:pointer">'
+    + '<div class="dh-bill-bento-stat">'
     + '<div class="dh-bbs-val ' + (totalOwing ? 'amber' : 'teal') + '">' + _fmtAUD(totalOwing) + '</div>'
     + '<div class="dh-bbs-lbl">Outstanding · ' + outstanding.length + ' inv.</div>'
     + '</div>'
@@ -5220,7 +5220,7 @@ function _dhRenderBillingBento() {
         ? '<span class="dh-inv-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
         : '<button class="dh-inv-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\')">Mark submitted</button>';
       var bentoRef = _fmtInvRef(inv);
-      html += '<div class="dh-bill-inv-row" onclick="navigateTo(\'billing\')">'
+      html += '<div class="dh-bill-inv-row" onclick="openInvoiceModal(\'' + escHtml(String(inv.id)) + '\')">'
         + '<div class="dh-bir-name">' + escHtml(name) + (bentoRef ? '<span class="dh-bir-ref">' + escHtml(bentoRef) + '</span>' : '') + '</div>'
         + (inv.payorOrg ? '<span class="dh-bir-org">' + escHtml(inv.payorOrg) + '</span>' : '<span></span>')
         + '<div class="dh-bir-action">' + subBadge + '</div>'
@@ -5231,7 +5231,7 @@ function _dhRenderBillingBento() {
         + '</div>';
     });
     if (outstanding.length > 10) {
-      html += '<div class="dh-bill-see-all" onclick="navigateTo(\'billing\')">See all ' + outstanding.length + ' outstanding →</div>';
+      html += '<div class="dh-bill-see-all" style="cursor:default;opacity:0.55">Showing 10 of ' + outstanding.length + ' outstanding</div>';
     }
     html += '</div>';
   }
@@ -6255,7 +6255,7 @@ function renderClientDetailView(clientId) {
     html += '<button class="rdp-ghost-btn" style="width:auto;padding:9px 18px;border-color:var(--teal);color:var(--teal)" onclick="openMapToHalaxy(\'' + escHtml(c.id) + '\')">Map to Halaxy →</button>';
   }
   if (c.halaxy_id) {
-    html += '<button class="rdp-ghost-btn" style="width:auto;padding:9px 18px" onclick="navigateTo(\'billing\')">View in Billing</button>';
+    html += '<a class="rdp-ghost-btn" style="width:auto;padding:9px 18px;text-decoration:none" href="' + escHtml(_halaxyWebUrl ? _halaxyWebUrl + '/calendar' : 'https://www.halaxy.com/practitioner') + '" target="_blank" rel="noopener">View in Halaxy →</a>';
   }
   html += '</div>';
 
@@ -6606,7 +6606,115 @@ function _renderClientsViewLegacy() {
 }
 
 /* ═══════════════════════════════════════════════════
-   BILLING VIEW
+   INVOICE DETAIL MODAL
+   ═══════════════════════════════════════════════════ */
+
+function openInvoiceModal(invId) {
+  var invoices = (_halaxyData && _halaxyData.invoices) || [];
+  var inv = invoices.find(function(i) { return String(i.id) === String(invId); });
+  if (!inv) { toast('Invoice not found', 'err'); return; }
+
+  var name     = _resolvePatientName(inv.patientId);
+  var invRef   = _fmtInvRef(inv);
+  var dt       = inv.date
+    ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
+    : '—';
+  var bal      = parseFloat(inv.totalBalance != null ? inv.totalBalance : (inv.amount || 0));
+  var paid     = _invIsPaid(inv);
+  var sub      = _getSubStatus(inv.id);
+
+  // Status chip
+  var statusHtml;
+  if (paid) {
+    statusHtml = '<span style="color:var(--teal,#34D399);font-weight:600">✓ Paid</span>';
+  } else if (sub) {
+    statusHtml = sub.chase
+      ? '<span style="color:#FBBF24;font-weight:600">⚠ Submitted ' + escHtml(sub.date) + ' — follow up</span>'
+      : '<span style="color:var(--teal,#34D399);font-weight:600">✓ Submitted ' + escHtml(sub.date) + '</span>';
+  } else {
+    statusHtml = '<span style="color:#FBBF24;font-weight:600">Outstanding</span>';
+  }
+
+  var payorLabel = _resolvePayorLabel(inv.payorOrg);
+  var halaxyUrl  = _halaxyWebUrl
+    ? (_halaxyWebUrl + '/calendar?date=' + (inv.date || ''))
+    : 'https://www.halaxy.com/practitioner';
+
+  // Linked Supabase client (for "Open client" button)
+  var clients      = (_pipelineData && _pipelineData.clients) || [];
+  var linkedClient = clients.find(function(c) { return String(c.halaxy_id) === String(inv.patientId); });
+
+  // Primary action
+  var primaryAction = '';
+  if (!paid) {
+    if (sub) {
+      primaryAction = '<button class="db-btn-ghost" onclick="_clearBillingSubmission(\'' + escHtml(String(inv.id)) + '\')">Clear submission</button>';
+    } else {
+      primaryAction = '<button class="db-btn-primary" onclick="_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\')">Mark submitted</button>';
+    }
+  }
+
+  var overlay = document.createElement('div');
+  overlay.className = 'db-modal-overlay open inv-modal-overlay';
+  overlay.onclick   = function(ev) { if (ev.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML =
+    '<div class="db-modal" style="width:420px;max-width:calc(100vw - 32px)">'
+    // ── Header
+    + '<div class="db-modal-hdr">'
+    +   '<div>'
+    +     '<div class="db-modal-title">' + escHtml(name)
+    +       (invRef ? '<span style="font-size:12px;font-weight:400;color:var(--db-t3,#9AABA8);margin-left:8px">' + escHtml(invRef) + '</span>' : '')
+    +     '</div>'
+    +     '<div class="db-modal-sub" style="margin-top:5px">' + statusHtml + '</div>'
+    +   '</div>'
+    +   '<button class="db-modal-close" onclick="this.closest(\'.inv-modal-overlay\').remove()">×</button>'
+    + '</div>'
+    // ── Detail grid
+    + '<div class="db-modal-body" style="gap:0;padding:0">'
+    +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,0.05)'
+    +          ';border-top:1px solid rgba(255,255,255,0.07);border-bottom:1px solid rgba(255,255,255,0.07)">'
+    // Amount cell
+    +     '<div style="padding:16px 20px;background:var(--surface,#10192B)">'
+    +       '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:var(--db-t3,#9AABA8);margin-bottom:5px">Amount</div>'
+    +       '<div style="font-size:20px;font-weight:700;color:' + (paid ? 'var(--teal,#34D399)' : '#FBBF24') + '">'
+    +         (bal ? _fmtAUD(Math.abs(bal)) : '—')
+    +       '</div>'
+    +     '</div>'
+    // Date cell
+    +     '<div style="padding:16px 20px;background:var(--surface,#10192B)">'
+    +       '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:var(--db-t3,#9AABA8);margin-bottom:5px">Date</div>'
+    +       '<div style="font-size:13px;font-weight:500;color:var(--db-t1,#E8F0EE)">' + escHtml(dt) + '</div>'
+    +     '</div>'
+    // Funder cell
+    +     '<div style="padding:16px 20px;background:var(--surface,#10192B)">'
+    +       '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:var(--db-t3,#9AABA8);margin-bottom:5px">Funder</div>'
+    +       '<div style="font-size:13px;color:var(--db-t1,#E8F0EE)">' + escHtml(payorLabel || 'Private') + '</div>'
+    +     '</div>'
+    // Invoice # cell
+    +     '<div style="padding:16px 20px;background:var(--surface,#10192B)">'
+    +       '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:var(--db-t3,#9AABA8);margin-bottom:5px">Invoice</div>'
+    +       '<div style="font-size:13px;color:var(--db-t1,#E8F0EE)">' + escHtml(invRef || inv.id || '—') + '</div>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>'
+    // ── Footer actions
+    + '<div class="db-modal-ftr" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+    +   '<div style="display:flex;gap:8px;align-items:center">'
+    +     '<a class="db-btn-ghost" href="' + escHtml(halaxyUrl) + '" target="_blank" rel="noopener" style="text-decoration:none">View in Halaxy →</a>'
+    +     (linkedClient
+          ? '<button class="db-btn-ghost" onclick="this.closest(\'.inv-modal-overlay\').remove();openDetailPanel(\'client\',\'' + escHtml(String(linkedClient.id)) + '\')">Open client</button>'
+          : '')
+    +   '</div>'
+    +   (primaryAction ? '<div>' + primaryAction + '</div>' : '')
+    + '</div>'
+    + '</div>';
+
+  document.body.appendChild(overlay);
+}
+
+/* ═══════════════════════════════════════════════════
+   BILLING VIEW (legacy — desktop routing removed; kept for renderBillingPanel reference)
    ═══════════════════════════════════════════════════ */
 
 function renderBillingView() {
