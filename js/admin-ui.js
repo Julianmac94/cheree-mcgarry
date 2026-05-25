@@ -6623,22 +6623,27 @@ function openInvoiceModal(invId) {
   var paid     = _invIsPaid(inv);
   var sub      = _getSubStatus(inv.id);
 
-  // Status chip
+  // Status chip — use explicit hex so dark theme CSS vars can't interfere
   var statusHtml;
   if (paid) {
-    statusHtml = '<span style="color:var(--teal,#34D399);font-weight:600">✓ Paid</span>';
+    statusHtml = '<span style="color:#34D399;font-weight:600">✓ Paid</span>';
   } else if (sub) {
     statusHtml = sub.chase
       ? '<span style="color:#FBBF24;font-weight:600">⚠ Submitted ' + escHtml(sub.date) + ' — follow up</span>'
-      : '<span style="color:var(--teal,#34D399);font-weight:600">✓ Submitted ' + escHtml(sub.date) + '</span>';
+      : '<span style="color:#34D399;font-weight:600">✓ Submitted ' + escHtml(sub.date) + '</span>';
   } else {
     statusHtml = '<span style="color:#FBBF24;font-weight:600">Outstanding</span>';
   }
 
   var payorLabel = _resolvePayorLabel(inv.payorOrg);
-  var halaxyUrl  = _halaxyWebUrl
-    ? (_halaxyWebUrl + '/calendar?date=' + (inv.date || ''))
-    : 'https://www.halaxy.com/practitioner';
+
+  // Build direct Halaxy invoice URL: strip alphabetic prefix from FHIR ID
+  // e.g. "FD-1096324559" → "1096324559", or use inv.ref if it's purely numeric
+  var invNumericId = (inv.ref && /^\d+$/.test(String(inv.ref))) ? String(inv.ref)
+    : String(inv.id || '').replace(/^[A-Za-z]+-/, '');
+  var halaxyUrl = (_halaxyWebUrl && invNumericId)
+    ? (_halaxyWebUrl + '/invoice/' + invNumericId)
+    : (_halaxyWebUrl || 'https://www.halaxy.com/practitioner');
 
   // Linked Supabase client (for "Open client" button)
   var clients      = (_pipelineData && _pipelineData.clients) || [];
@@ -6654,49 +6659,43 @@ function openInvoiceModal(invId) {
     }
   }
 
+  // Helper: one detail row — label left, value right, subtle divider
+  function _row(label, value, valStyle) {
+    return '<div style="display:flex;justify-content:space-between;align-items:center'
+      + ';padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.06)">'
+      + '<span style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.38)">'
+      + label + '</span>'
+      + '<span style="font-size:13px;font-weight:500;' + (valStyle || 'color:rgba(255,255,255,0.85)') + '">'
+      + value + '</span>'
+      + '</div>';
+  }
+
   var overlay = document.createElement('div');
   overlay.className = 'db-modal-overlay open inv-modal-overlay';
   overlay.onclick   = function(ev) { if (ev.target === overlay) overlay.remove(); };
 
   overlay.innerHTML =
-    '<div class="db-modal" style="width:420px;max-width:calc(100vw - 32px)">'
+    '<div class="db-modal" style="width:400px;max-width:calc(100vw - 32px)">'
     // ── Header
     + '<div class="db-modal-hdr">'
-    +   '<div>'
-    +     '<div class="db-modal-title">' + escHtml(name)
-    +       (invRef ? '<span style="font-size:12px;font-weight:400;color:var(--db-t3,#9AABA8);margin-left:8px">' + escHtml(invRef) + '</span>' : '')
-    +     '</div>'
-    +     '<div class="db-modal-sub" style="margin-top:5px">' + statusHtml + '</div>'
+    +   '<div style="min-width:0">'
+    +     '<div class="db-modal-title" style="font-size:17px">' + escHtml(name) + '</div>'
+    +     '<div style="margin-top:6px;font-size:13px">' + statusHtml + '</div>'
     +   '</div>'
     +   '<button class="db-modal-close" onclick="this.closest(\'.inv-modal-overlay\').remove()">×</button>'
     + '</div>'
-    // ── Detail grid
-    + '<div class="db-modal-body" style="gap:0;padding:0">'
-    +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,0.05)'
-    +          ';border-top:1px solid rgba(255,255,255,0.07);border-bottom:1px solid rgba(255,255,255,0.07)">'
-    // Amount cell
-    +     '<div style="padding:16px 20px;background:var(--surface,#10192B)">'
-    +       '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:var(--db-t3,#9AABA8);margin-bottom:5px">Amount</div>'
-    +       '<div style="font-size:20px;font-weight:700;color:' + (paid ? 'var(--teal,#34D399)' : '#FBBF24') + '">'
-    +         (bal ? _fmtAUD(Math.abs(bal)) : '—')
-    +       '</div>'
-    +     '</div>'
-    // Date cell
-    +     '<div style="padding:16px 20px;background:var(--surface,#10192B)">'
-    +       '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:var(--db-t3,#9AABA8);margin-bottom:5px">Date</div>'
-    +       '<div style="font-size:13px;font-weight:500;color:var(--db-t1,#E8F0EE)">' + escHtml(dt) + '</div>'
-    +     '</div>'
-    // Funder cell
-    +     '<div style="padding:16px 20px;background:var(--surface,#10192B)">'
-    +       '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:var(--db-t3,#9AABA8);margin-bottom:5px">Funder</div>'
-    +       '<div style="font-size:13px;color:var(--db-t1,#E8F0EE)">' + escHtml(payorLabel || 'Private') + '</div>'
-    +     '</div>'
-    // Invoice # cell
-    +     '<div style="padding:16px 20px;background:var(--surface,#10192B)">'
-    +       '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:var(--db-t3,#9AABA8);margin-bottom:5px">Invoice</div>'
-    +       '<div style="font-size:13px;color:var(--db-t1,#E8F0EE)">' + escHtml(invRef || inv.id || '—') + '</div>'
+    // ── Detail rows — no background cells, just clean lines inside the dark modal
+    + '<div class="db-modal-body" style="padding:4px 24px 6px;gap:0">'
+    // Amount gets larger treatment at the top
+    +   '<div style="padding:16px 0 12px;border-bottom:1px solid rgba(255,255,255,0.06)">'
+    +     '<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.38);margin-bottom:4px">Amount</div>'
+    +     '<div style="font-size:26px;font-weight:700;color:' + (paid ? '#34D399' : '#FBBF24') + ';letter-spacing:-0.02em">'
+    +       (bal ? _fmtAUD(Math.abs(bal)) : '—')
     +     '</div>'
     +   '</div>'
+    +   _row('Date',    escHtml(dt))
+    +   _row('Funder',  escHtml(payorLabel || 'Private'))
+    +   _row('Invoice', escHtml(invRef || inv.id || '—'), 'color:rgba(255,255,255,0.55);font-family:monospace;font-size:12px')
     + '</div>'
     // ── Footer actions
     + '<div class="db-modal-ftr" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
