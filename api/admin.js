@@ -1158,7 +1158,8 @@ body {
     color: rgba(52,211,153,0.5); margin-bottom: 10px;
   }
   .mob-home-brief-text {
-    font-size: 14px; line-height: 1.7; color: var(--t2); font-weight: 400; min-height: 18px;
+    font-size: 15px; line-height: 1.8; color: var(--t1); font-weight: 400; min-height: 18px;
+    letter-spacing: 0.005em;
   }
   .mob-home-brief-text.ai-brief-streaming::after {
     content: '▊'; display: inline-block; color: rgba(52,211,153,0.65);

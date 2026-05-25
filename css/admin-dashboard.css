@@ -410,8 +410,17 @@ body::before {
   letter-spacing: -0.03em; line-height: 1;
 }
 .dh-hd-date { display: none; } /* replaced by TODAY tag on week strip */
-.dh-hd-meta { font-size: 13px; color: var(--t3); margin-top: 10px; font-weight: 400; line-height: 1.65; max-width: 640px; }
-.dh-hd-meta strong { color: var(--t2); font-weight: 600; }
+.dh-hd-meta {
+  font-size: 15px; color: var(--t2); margin-top: 14px; font-weight: 400;
+  line-height: 1.75; max-width: 580px;
+  padding: 14px 18px 14px 20px;
+  background: rgba(52,211,153,0.05);
+  border: 1px solid rgba(52,211,153,0.12);
+  border-left: 3px solid rgba(52,211,153,0.45);
+  border-radius: 10px;
+  letter-spacing: 0.005em;
+}
+.dh-hd-meta strong { color: var(--t1); font-weight: 600; }
 /* AI brief — loading shimmer bar */
 .dh-hd-meta.ai-brief-streaming { min-height: 20px; }
 .ai-brief-loading {
