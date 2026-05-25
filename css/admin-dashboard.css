@@ -1548,25 +1548,7 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 }
 .dh-inbox-list .dh-card-hd { border-bottom: 1px solid var(--sep); }
 
-/* ─── TASKS — status + deadline + arrow row ──────────────────── */
-.dh-task-item {
-  display: grid;
-  grid-template-columns: 20px 1fr auto auto 24px;
-  align-items: center; gap: 10px;
-  padding: 11px 20px; border-bottom: 1px solid var(--sep);
-  transition: background 0.12s;
-}
-.dh-task-item:last-of-type { border-bottom: none; }
-.dh-task-item:hover { background: rgba(255,255,255,0.03); }
-.dh-task-status {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  padding: 3px 8px; border-radius: 20px; white-space: nowrap;
-  background: var(--teal-a); color: var(--teal);
-}
-.dh-task-item.done .dh-task-status { background: rgba(255,255,255,0.06); color: var(--t3); }
-.dh-task-deadline {
-  font-size: 11px; color: var(--t3); white-space: nowrap; font-variant-numeric: tabular-nums;
-}
+/* ─── TASK ARROW BUTTON ──────────────────────────────────────── */
 .dh-task-arrow {
   background: none; border: none; padding: 0; cursor: pointer;
   color: var(--t3); font-size: 16px; font-family: inherit;
@@ -2133,6 +2115,13 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 
   /* ── Mob header add button: hide on mobile (^ dock handles adding) ── */
   .dh-mob-add-wrap { display: none !important; }
+
+  /* ── KPI strip — 2×2 wrap on mobile ── */
+  .dh-kpi-strip { flex-wrap: wrap !important; }
+  .dh-kpi-item  { flex: 1 1 50% !important; min-width: 0 !important; }
+
+  /* ── Util row — single column on mobile ── */
+  .dh-util-row { grid-template-columns: 1fr !important; }
 }
 
 /* ══ Toast notifications — frosted glass top-center ══════════════ */

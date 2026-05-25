@@ -3884,7 +3884,9 @@ function renderAppointmentsPanel() {
  * totalBalance: 0 = paid, >0 = still owing. Falls back to status field.
  */
 function _invIsPaid(inv) {
-  if (inv.totalBalance !== null && inv.totalBalance !== undefined) return inv.totalBalance === 0;
+  // totalBalance <= 0 means fully paid or credit balance (Halaxy can return negative values
+  // for invoices where a credit note / overpayment exists — treat those as settled too).
+  if (inv.totalBalance !== null && inv.totalBalance !== undefined) return inv.totalBalance <= 0;
   return inv.status === 'balanced' || inv.status === 'paid';
 }
 
@@ -6373,7 +6375,7 @@ function _renderClientsViewLegacy() {
     var ls = lastSeen(c);
     var initials = (c.display_name || '?').split(' ').map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase();
     var funderLabel = FUNDER_LABELS[c.funder] || c.funder || '';
-    var funderClass = { medicare: 'medicare', ndis: 'ndis', 'WorkCover': 'workcover', private: 'private' }[c.funder] || 'default';
+    var funderClass = { medicare: 'medicare', ndis: 'ndis', workcover: 'workcover', private: 'private' }[c.funder] || 'default';
     var lastDate    = ls ? new Date(ls + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : 'No activity';
     var src = _clientSource(c);
     var isDupe = c.halaxy_id && (_halaxyIdCounts[String(c.halaxy_id)] || 0) > 1;
@@ -8854,7 +8856,8 @@ async function convertEnquiryPl(enquiryId) {
 
   // Halaxy email lookup
   if (!enq.email) {
-    _showHalaxyLookup('no_email', null);
+    var _noEmailEl = document.getElementById('cl-halaxy-lookup');
+    if (_noEmailEl) _noEmailEl.innerHTML = '<div class="cl-halaxy-lookup-notfound">No email address provided — search by name above to link a Halaxy patient.</div>';
     return;
   }
   if (!_halaxyData.connected) {
@@ -8880,15 +8883,9 @@ async function convertEnquiryPl(enquiryId) {
   }
 }
 
-/* _showHalaxyLookup removed — replaced by _selectModalHalaxyPatient / _debounceModalHalaxySearch */
-
 function _hideHalaxyLookup() {
   var el = document.getElementById('cl-halaxy-lookup');
   if (el) { el.innerHTML = ''; }
-}
-
-function _useHalaxyPatient(patientId, patientName) {
-  _selectModalHalaxyPatient(patientId, patientName);
 }
 
 /* ═══════════════════════════════════════

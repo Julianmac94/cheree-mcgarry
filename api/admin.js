@@ -3123,6 +3123,19 @@ body {
   padding: 5px 10px; border-radius: 6px; border: none;
   background: var(--teal); color: white; cursor: pointer; white-space: nowrap;
 }
+
+/* ── Dark-theme token restore — must be LAST to win the cascade.
+   admin-dashboard.css <link> loads before this <style> block, so
+   its :root tokens get overridden by the legacy light-theme :root above.
+   Re-declaring here ensures var(--teal) etc. resolve to dark-theme values
+   throughout admin-dashboard.css's 60+ usages. ── */
+:root {
+  --teal:     #34D399;
+  --teal-a:   rgba(52,211,153,0.22);
+  --amber:    #FBBF24;
+  --amber-a:  rgba(251,191,36,0.22);
+  --canvas:   #080C18;
+}
 </style>
 </head>
 <body>
