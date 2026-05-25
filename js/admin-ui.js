@@ -799,7 +799,7 @@ function _mobRenderBilling() {
       var subBadge = sub
         ? '<span class="mob-bill-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
         : _isPR
-          ? '<span class="mob-bill-sub ok">✓ Submitted · Halaxy</span>'
+          ? '<span class="mob-bill-sub" style="color:#FBBF24">Submitted · Awaiting recon</span>'
           : '<button class="mob-bill-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\');_mobRenderBilling()">Mark submitted</button>';
       var refLabel = _fmtInvRef(inv);
       html += '<div class="mob-bill-row">'
@@ -3971,28 +3971,34 @@ function renderAppointmentsPanel() {
  * totalBalance=0 alone is therefore NOT sufficient to declare an invoice paid.
  */
 function _invIsPaid(inv) {
-  // 'issued' and 'active' are Halaxy's pre-reconciliation states.
-  // Even if totalBalance is 0 (payment submitted/received by funder but not yet
-  // reconciled by the practitioner), do NOT treat this as paid.
-  // Only 'balanced' (or 'paid') means the practitioner has confirmed settlement.
-  if (inv.status === 'issued' || inv.status === 'active') return false;
+  // 'issued' = Halaxy PENDING — never paid regardless of balances.
+  if (inv.status === 'issued') return false;
+  // Funder (WorkCover / Medicare / NDIS) invoices with status='active':
+  // 'active' + payorOrg + totalBalance=0 means payment received from funder but
+  // NOT yet reconciled by the practitioner. Not "paid" until status reaches 'balanced'.
+  // Regular patient invoices have no payorOrg so are unaffected by this check.
+  if (inv.status === 'active' && inv.payorOrg
+      && parseFloat(inv.totalPaid || 0) > 0
+      && parseFloat(inv.totalBalance || 0) <= 0) return false;
   if (inv.totalBalance !== null && inv.totalBalance !== undefined) return inv.totalBalance <= 0;
   return inv.status === 'balanced' || inv.status === 'paid';
 }
 
 /**
- * Returns true for invoices that have been submitted to a funder (totalPaid > 0,
- * totalBalance = 0) but are still awaiting practitioner reconciliation in Halaxy
- * (status = "issued" or "active"). These are NOT yet fully paid.
- *
- * Halaxy WorkCover flow:
- *   status="active" + totalBalance=0  → payment received from WorkCover, not yet reconciled
- *   status="balanced" + totalBalance=0 → practitioner reconciled → truly paid
+ * Returns true for invoices submitted to a funder but awaiting practitioner
+ * reconciliation in Halaxy. Two cases:
+ *   1. status="issued" + totalPaid>0 + totalBalance=0
+ *      (payment noted by Halaxy but invoice not yet reconciled)
+ *   2. status="active" + payorOrg + totalPaid>0 + totalBalance=0
+ *      (WorkCover / Medicare flow — payment received, practitioner must confirm)
+ * Regular patient invoices (no payorOrg) with status="active" are NOT affected.
  */
 function _invIsPendingRecon(inv) {
-  return (inv.status === 'issued' || inv.status === 'active')
-    && parseFloat(inv.totalPaid  || 0) > 0
-    && parseFloat(inv.totalBalance || 0) <= 0;
+  var hasPendingPayment = parseFloat(inv.totalPaid || 0) > 0
+                       && parseFloat(inv.totalBalance || 0) <= 0;
+  if (inv.status === 'issued' && hasPendingPayment) return true;
+  if (inv.status === 'active' && inv.payorOrg && hasPendingPayment) return true;
+  return false;
 }
 
 /**
@@ -5662,7 +5668,7 @@ function _dhRenderBillingBento() {
       var subBadge = sub
         ? '<span class="dh-inv-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
         : _isPR2
-          ? '<span class="dh-inv-sub ok">✓ Submitted · Halaxy</span>'
+          ? '<span class="dh-inv-sub" style="color:#FBBF24">Submitted · Awaiting recon</span>'
           : '<button class="dh-inv-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\')">Mark submitted</button>';
       var bentoRef = _fmtInvRef(inv);
       html += '<div class="dh-bill-inv-row" onclick="openInvoiceModal(\'' + escHtml(String(inv.id)) + '\')">'
@@ -7258,8 +7264,9 @@ function openInvoiceModal(invId) {
     statusHtml = '<span style="color:#34D399;font-weight:600">✓ Paid</span>';
   } else if (pendRecon) {
     // Payment submitted to funder in Halaxy but not yet reconciled by practitioner
-    statusHtml = '<span style="color:#34D399;font-weight:600">✓ Submitted</span>'
-      + '<span style="color:rgba(255,255,255,0.4);font-size:11px;margin-left:6px">· Pending reconciliation</span>';
+    // Amber (not green) — action still required before money is confirmed received
+    statusHtml = '<span style="color:#FBBF24;font-weight:600">Submitted to funder</span>'
+      + '<span style="color:rgba(255,255,255,0.4);font-size:11px;margin-left:6px">· Awaiting reconciliation</span>';
   } else if (sub) {
     statusHtml = sub.chase
       ? '<span style="color:#FBBF24;font-weight:600">⚠ Submitted ' + escHtml(sub.date) + ' — follow up</span>'
@@ -7322,7 +7329,7 @@ function openInvoiceModal(invId) {
     // Amount — large top treatment
     +   '<div style="padding:16px 0 12px;border-bottom:1px solid rgba(255,255,255,0.06)">'
     +     '<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.38);margin-bottom:4px">Amount</div>'
-    +     '<div style="font-size:26px;font-weight:700;color:' + (paid ? '#34D399' : pendRecon ? '#34D399' : '#FBBF24') + ';letter-spacing:-0.02em">'
+    +     '<div style="font-size:26px;font-weight:700;color:' + (paid ? '#34D399' : pendRecon ? '#FBBF24' : '#FBBF24') + ';letter-spacing:-0.02em">'
     +       (amt ? _fmtAUD(amt) : '—')
     +     '</div>'
     +   '</div>'
