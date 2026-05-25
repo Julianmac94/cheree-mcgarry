@@ -1,0 +1,13 @@
+{
+  "name": "Cheree McGarry",
+  "short_name": "McGarry",
+  "description": "Practice management dashboard",
+  "start_url": "/admin",
+  "display": "standalone",
+  "background_color": "#0F1A18",
+  "theme_color": "#0F1A18",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/assets/pwa-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
