@@ -412,7 +412,7 @@ body::before {
 .dh-hd-date { display: none; } /* replaced by TODAY tag on week strip */
 .dh-hd-meta { font-size: 13px; color: var(--t3); margin-top: 10px; font-weight: 400; line-height: 1.65; max-width: 640px; }
 .dh-hd-meta strong { color: var(--t2); font-weight: 600; }
-/* AI brief streaming state */
+/* AI brief — loading shimmer bar */
 .dh-hd-meta.ai-brief-streaming { min-height: 20px; }
 .ai-brief-loading {
   display: inline-block; width: 120px; height: 13px;
@@ -424,6 +424,40 @@ body::before {
 @keyframes ai-brief-shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* AI brief — blinking cursor while text is streaming */
+.dh-hd-meta.ai-brief-streaming::after {
+  content: '▊';
+  display: inline-block;
+  color: rgba(52,211,153,0.65);
+  font-size: 11px;
+  margin-left: 2px;
+  animation: ai-cursor-blink 0.65s step-end infinite;
+  vertical-align: baseline;
+}
+@keyframes ai-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* AI brief — glow reveal on the text once streaming finishes */
+.dh-hd-meta.ai-brief-done {
+  animation: ai-brief-glow 3.2s ease-out forwards;
+}
+@keyframes ai-brief-glow {
+  0% {
+    color: rgba(180,255,230,0.88);
+    text-shadow: 0 0 18px rgba(52,211,153,0.55), 0 0 6px rgba(52,211,153,0.25);
+  }
+  35% {
+    color: rgba(180,255,230,0.75);
+    text-shadow: 0 0 10px rgba(52,211,153,0.3);
+  }
+  100% {
+    color: var(--t3);
+    text-shadow: none;
+  }
 }
 .dh-hd-actions { display: flex; align-items: stretch; gap: 10px; flex-shrink: 0; }
 

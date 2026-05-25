@@ -5383,18 +5383,22 @@ async function _loadAIBrief(data) {
       metaEl.textContent = text;
     }
 
+    // Swap streaming class → glow class so the blinking cursor disappears
+    // and the soft AI-glow reveal animation plays
     metaEl.classList.remove('ai-brief-streaming');
-    // Cache the final text
+    metaEl.classList.add('ai-brief-done');
+    metaEl.addEventListener('animationend', function() {
+      metaEl.classList.remove('ai-brief-done');
+    }, { once: true });
+
+    // Cache the final text (plain, no classes)
     try { sessionStorage.setItem(cacheKey, metaEl.innerHTML); } catch(_) {}
 
   } catch (err) {
-    // Silent fallback — the template sentences are already in the DOM
-    // from renderHomeView; just leave them if they're still there,
-    // or restore a minimal message if the placeholder replaced them.
+    // Silent fallback — template sentences stay in place
     metaEl.classList.remove('ai-brief-streaming');
-    if (!metaEl.textContent.trim()) {
-      metaEl.textContent = '';
-    }
+    metaEl.classList.remove('ai-brief-done');
+    if (!metaEl.textContent.trim()) metaEl.textContent = '';
   }
 }
 
