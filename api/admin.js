@@ -1231,6 +1231,7 @@ body {
   }
   .mob-bill-row-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; gap: 8px; }
   .mob-bill-name { font-size: 13.5px; font-weight: 600; color: var(--t1); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mob-bill-ref  { font-size: 10px; font-weight: 400; color: var(--t3); margin-left: 4px; }
   .mob-bill-amt  { font-size: 13px; font-weight: 700; color: var(--amber); flex-shrink: 0; }
   .mob-bill-row-bot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .mob-bill-org  { font-size: 10.5px; color: var(--t3); flex: 1; }
@@ -2812,6 +2813,7 @@ body {
   margin-bottom: 7px;
 }
 .bill-card-date { font-size: 11px; color: var(--soft); }
+.bill-card-ref  { font-size: 10.5px; color: var(--soft); font-variant-numeric: tabular-nums; opacity: 0.75; }
 
 /* Empty states */
 .dp-empty {

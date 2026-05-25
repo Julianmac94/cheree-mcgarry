@@ -1278,6 +1278,7 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .dh-bill-inv-row:last-of-type { border-bottom: none; }
 .dh-bir-name { flex: 1; font-size: 12px; color: var(--t1); font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.dh-bir-ref { font-size: 10px; color: var(--t3); font-weight: 400; margin-left: 5px; }
 .dh-bir-mid { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
 .dh-bir-org { font-size: 9.5px; color: var(--t3); background: rgba(255,255,255,0.06);
   padding: 2px 6px; border-radius: 4px; white-space: nowrap; }

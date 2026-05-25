@@ -729,9 +729,10 @@ function _mobRenderBilling() {
       var subBadge = sub
         ? '<span class="mob-bill-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
         : '<button class="mob-bill-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\');_mobRenderBilling()">Mark submitted</button>';
+      var refLabel = inv.ref && inv.ref !== inv.id ? inv.ref : '';
       html += '<div class="mob-bill-row">'
         + '<div class="mob-bill-row-top">'
-        + '<span class="mob-bill-name">' + escHtml(name) + '</span>'
+        + '<span class="mob-bill-name">' + escHtml(name) + (refLabel ? '<span class="mob-bill-ref"> · ' + escHtml(refLabel) + '</span>' : '') + '</span>'
         + '<span class="mob-bill-amt">' + (bal ? _fmtAUD(bal) : '—') + '</span>'
         + '</div>'
         + '<div class="mob-bill-row-bot">'
@@ -4020,12 +4021,14 @@ function renderBillingPanel() {
         } else {
           subAction = '<button style="font-size:10px;padding:2px 8px;border:1px solid rgba(52,211,153,0.25);border-radius:6px;background:rgba(52,211,153,0.07);color:var(--teal,#34D399);cursor:pointer;margin-left:6px" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(inv.id) + '\')">Mark submitted</button>';
         }
+        var invRef = inv.ref && inv.ref !== inv.id ? inv.ref : '';
         html += '<div class="bill-card bill-card--open">'
           + '<div class="bill-card-top">'
           + '<span class="bill-card-name">' + escHtml(name) + '</span>'
           + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
           + '</div>'
           + '<div class="bill-card-meta">'
+          + (invRef ? '<span class="bill-card-ref">' + escHtml(invRef) + '</span>' : '')
           + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
           + (payorLabel
               ? '<span class="dp-badge dp-badge--status-invoiced" style="background:rgba(154,110,180,0.1);color:#7A50A0">' + escHtml(payorLabel) + '</span>'
@@ -4053,12 +4056,14 @@ function renderBillingPanel() {
         var name = resolveName(inv.patientId);
         var dt   = inv.date ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
         var amt  = inv.amount ? '$' + Number(inv.amount).toFixed(2) : '';
+        var paidRef = inv.ref && inv.ref !== inv.id ? inv.ref : '';
         html += '<div class="bill-card" style="opacity:0.7">'
           + '<div class="bill-card-top">'
           + '<span class="bill-card-name">' + escHtml(name) + '</span>'
           + (amt ? '<span class="bill-card-amount">' + escHtml(amt) + '</span>' : '')
           + '</div>'
           + '<div class="bill-card-meta">'
+          + (paidRef ? '<span class="bill-card-ref">' + escHtml(paidRef) + '</span>' : '')
           + '<span class="bill-card-date">' + escHtml(dt) + '</span>'
           + '<span class="dp-badge dp-badge--status-paid">Paid ✓</span>'
           + '</div>'
@@ -5196,8 +5201,9 @@ function _dhRenderBillingBento() {
       var subBadge = sub
         ? '<span class="dh-inv-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
         : '<button class="dh-inv-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\')">Mark submitted</button>';
+      var bentoRef = inv.ref && inv.ref !== inv.id ? inv.ref : '';
       html += '<div class="dh-bill-inv-row" onclick="navigateTo(\'billing\')">'
-        + '<div class="dh-bir-name">' + escHtml(name) + '</div>'
+        + '<div class="dh-bir-name">' + escHtml(name) + (bentoRef ? '<span class="dh-bir-ref"> ' + escHtml(bentoRef) + '</span>' : '') + '</div>'
         + '<div class="dh-bir-mid">'
         + (inv.payorOrg ? '<span class="dh-bir-org">' + escHtml(inv.payorOrg) + '</span>' : '')
         + subBadge
@@ -5968,8 +5974,9 @@ async function _fetchHalaxyInvoices(hxId) {
           if (payorLabel2) {
             payorBadge = '<span style="font-size:10px;color:#7A50A0;margin-left:4px">' + escHtml(payorLabel2) + '</span>';
           }
+          var dpRef = inv.ref && inv.ref !== inv.id ? inv.ref : '';
           return '<div class="cl-detail-inv-row">'
-            + '<span style="flex:1;font-size:12px;color:rgba(255,255,255,0.4)">' + escHtml(dateStr) + '</span>'
+            + '<span style="flex:1;font-size:12px;color:rgba(255,255,255,0.4)">' + escHtml(dateStr) + (dpRef ? '<span style="font-size:10px;margin-left:6px;opacity:0.6">' + escHtml(dpRef) + '</span>' : '') + '</span>'
             + '<span style="font-weight:600;color:rgba(255,255,255,0.85)">' + (amount > 0 ? '$' + amount.toFixed(2) : '—') + '</span>'
             + payorBadge
             + '<span class="cl-detail-inv-badge ' + statusCls + '">' + escHtml(statusLbl) + '</span></div>';
