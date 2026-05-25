@@ -4598,6 +4598,16 @@ var _dhHalaxyNoInvoice  = []; // past Halaxy appts with no invoice → CRITICAL
 var _dhNonHalaxyActions = []; // non-Halaxy appts needing merge/dismiss → action
 
 /**
+ * Returns true for "Personal appointment" entries — legacy Halaxy
+ * placeholder name used before proper patient records were linked.
+ * These should be silently excluded from all inbox action buckets.
+ */
+function _isPersonalAppt(s) {
+  var n = (s.name || '').trim().toLowerCase();
+  return n === 'personal appointment' || n === 'personal';
+}
+
+/**
  * Recompute all inbox buckets from current data and refresh whichever
  * view is visible. Call this whenever Halaxy or Calendar data arrives
  * asynchronously so the inbox is never stale.
@@ -4610,13 +4620,13 @@ function _recomputeInboxBuckets() {
     : { upcoming: [], past: [] };
 
   _dhBillingSessions = _uni.past.filter(function(s) {
-    return s.status === 'pending-invoice' || s.status === 'invoiced' || s.status === 'needs-recording';
+    return !_isPersonalAppt(s) && (s.status === 'pending-invoice' || s.status === 'invoiced' || s.status === 'needs-recording');
   });
   _dhHalaxyNoInvoice = _uni.past.filter(function(s) {
-    return s.source === 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
+    return !_isPersonalAppt(s) && s.source === 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
   });
   _dhNonHalaxyActions = _uni.past.filter(function(s) {
-    return s.source !== 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
+    return !_isPersonalAppt(s) && s.source !== 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
   });
   _dhEnqClientMap = {};
   clients.forEach(function(c) { if (c.enquiry_id) _dhEnqClientMap[c.enquiry_id] = c; });
@@ -4927,17 +4937,18 @@ function renderHomeView() {
 
   // ── Pre-compute lookup maps (needed for KPI + inbox) ─────────
   _dhBillingSessions = _uni.past.filter(function(s) {
-    return s.status === 'pending-invoice' || s.status === 'invoiced' || s.status === 'needs-recording';
+    return !_isPersonalAppt(s) && (s.status === 'pending-invoice' || s.status === 'invoiced' || s.status === 'needs-recording');
   });
 
   // ── Issue buckets ─────────────────────────────────────────────
   // Halaxy appointment with no invoice = critical data integrity problem
+  // "Personal appointment" entries are legacy Halaxy placeholders — exclude silently
   _dhHalaxyNoInvoice  = _uni.past.filter(function(s) {
-    return s.source === 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
+    return !_isPersonalAppt(s) && s.source === 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
   });
   // Non-Halaxy appointment needing merge or dismiss (calendar / dashboard)
   _dhNonHalaxyActions = _uni.past.filter(function(s) {
-    return s.source !== 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
+    return !_isPersonalAppt(s) && s.source !== 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
   });
 
   _dhEnqClientMap = {};
@@ -7042,7 +7053,7 @@ async function _resetDashboardData() {
 
 function _renderSessionDetailPanel(sess) {
   var _calEvId = sess.eventId || sess.id;
-  var _hUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
+  var _hUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar') : 'https://www.halaxy.com/practitioner';
 
   var _inv = null;
   if (sess.patientId && sess.dateStr && _halaxyData && _halaxyData.invoices) {
