@@ -71,6 +71,9 @@ function mapOrgToFunder(org) {
         || n.includes('plan partners')   || n.includes('ndsp'))      billingKey = 'ndis_plan';
   else if (t.includes('bupa adf') || n.includes('bupa adf')
         || n.includes('defence')  || n.includes('dva'))              billingKey = 'dva';
+  else if (n.includes('bupa') || t.includes('bupa')
+        || t.includes('health insurance') || t.includes('private health'))
+                                                                      billingKey = 'health_insurance';
   else if (t.includes('third-party') || t.includes('third party')
         || n.includes('qfes')     || n.includes('eap')
         || n.includes('queensland fire') || n.includes('fire and emergency')) billingKey = 'qfes';
@@ -115,7 +118,8 @@ const KNOWN_FUNDERS = [
   { id: 'purple-leopard',   name: 'Purple Leopard Plan Management', type: 'NDIS',                  billingKey: 'ndis_plan' },
   { id: 'ndis-direct',      name: 'NDIS',                           type: 'NDIS',                  billingKey: 'ndis_self' },
   { id: 'qfes',             name: 'QFES',                           type: 'Third-party body',      billingKey: 'qfes'      },
-  { id: 'bupa-adf',         name: 'BUPA ADF Health Services',       type: 'BUPA ADF',              billingKey: 'dva'       },
+  { id: 'bupa-adf',         name: 'BUPA ADF Health Services',       type: 'BUPA ADF',              billingKey: 'dva'             },
+  { id: 'bupa',             name: 'Bupa',                           type: 'Health Insurance',      billingKey: 'health_insurance' },
   { id: 'rtwsa',            name: 'ReturnToWorkSA',                 type: "Worker's Compensation", billingKey: 'other'     },
   { id: 'workcover-qld',    name: 'WorkCover QLD',                  type: "Worker's Compensation", billingKey: 'other'     },
 ];
@@ -178,6 +182,7 @@ async function syncHalaxyConfig(db) {
         'medicare', 'ndis', 'plan management', 'plan manager',
         'insurance', 'insurer', 'workers comp', "worker's comp",
         'dva', 'defence', 'adf', 'eap', 'third.party', 'government fund',
+        'bupa', 'health fund', 'private health',
       ];
       if (EXPLICIT_FUNDER_TYPE_PATTERNS.some(p => t.includes(p) || n.includes(p))) {
         console.log(`Adding private-typed funder from Halaxy: ${o.name} (${o.type})`);
