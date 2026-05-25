@@ -5315,9 +5315,12 @@ function renderHomeView() {
 
   // Fire AI brief after DOM is painted (non-blocking)
   requestAnimationFrame(function() {
+    var _now = new Date();
     _loadAIBrief({
-      todaySessions:   todayAppts.map(function(a) {
-        return { name: (a.name || 'Client').split(' ')[0], time: a.timeStr || (a.startIso ? _fmtT(a.startIso) : '') };
+      currentTime: _now.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      todaySessions: todayAppts.map(function(a) {
+        var startMs = a.startMs || (a.startIso ? new Date(a.startIso).getTime() : null);
+        return { name: (a.name || 'Client').split(' ')[0], time: a.timeStr || (a.startIso ? _fmtT(a.startIso) : ''), done: startMs ? startMs < _now.getTime() : false };
       }),
       nextAppt: nextAppt ? {
         name: (nextAppt.name || nextAppt.patientName || 'Client').split(' ')[0],
@@ -5436,8 +5439,13 @@ function _mobRenderHome() {
   var critCnt       = (_dhHalaxyNoInvoice  || []).length;
   var unlinkedCnt   = (_dhUnlinkedCalAppts || []).length;
   var awaitPayCnt   = invoices.filter(function(i){ return parseFloat(i.totalBalance||0) > 0 || _invIsPendingRecon(i); }).length;
+  var _mobNow = new Date();
   _loadAIBrief({
-    todaySessions:   todaySessAll.map(function(a){ return { name: (a.name||'Client').split(' ')[0], time: a.timeStr||(a.startIso?_fmtMobT(a.startIso):'') }; }),
+    currentTime: _mobNow.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true }),
+    todaySessions: todaySessAll.map(function(a) {
+      var startMs = a.startMs || (a.startIso ? new Date(a.startIso).getTime() : null);
+      return { name: (a.name||'Client').split(' ')[0], time: a.timeStr||(a.startIso?_fmtMobT(a.startIso):''), done: startMs ? startMs < _mobNow.getTime() : false };
+    }),
     nextAppt: nextMob ? {
       name: (nextMob.name||nextMob.patientName||'Client').split(' ')[0],
       day:  nextMob.dateStr !== todayIso ? new Date(nextMob.dateStr+'T00:00').toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'}) : 'today',

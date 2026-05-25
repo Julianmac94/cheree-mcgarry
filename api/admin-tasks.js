@@ -39,6 +39,7 @@ export default async function handler(req, res) {
       if (!key) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
       const {
+        currentTime      = null,
         todaySessions    = [],
         nextAppt         = null,
         critCount        = 0,
@@ -47,11 +48,17 @@ export default async function handler(req, res) {
         newEnquiries     = 0,
       } = body;
 
+      const done     = todaySessions.filter(s => s.done);
+      const upcoming = todaySessions.filter(s => !s.done);
+
       const lines = [];
+      if (currentTime) lines.push('Current time: ' + currentTime + '.');
       if (todaySessions.length === 0) {
-        lines.push('No sessions today.');
+        lines.push('No sessions scheduled today.');
       } else {
-        lines.push('Sessions today: ' + todaySessions.map(s => s.name + (s.time ? ' at ' + s.time : '')).join(', ') + '.');
+        if (done.length > 0)     lines.push('Completed today: ' + done.map(s => s.name + (s.time ? ' at ' + s.time : '')).join(', ') + '.');
+        if (upcoming.length > 0) lines.push('Still to come today: ' + upcoming.map(s => s.name + (s.time ? ' at ' + s.time : '')).join(', ') + '.');
+        if (upcoming.length === 0 && done.length > 0) lines.push('All sessions for today are done.');
       }
       if (nextAppt) {
         lines.push('Next appointment: ' + nextAppt.name + (nextAppt.day ? ' on ' + nextAppt.day : '') + (nextAppt.time ? ' at ' + nextAppt.time : '') + '.');
@@ -65,7 +72,7 @@ export default async function handler(req, res) {
       lines.push(issues.length ? 'Admin: ' + issues.join(', ') + '.' : 'No admin issues.');
       lines.push(newEnquiries > 0 ? newEnquiries + ' new enquir' + (newEnquiries === 1 ? 'y' : 'ies') + ' in inbox.' : 'No new enquiries.');
 
-      const prompt = `You are the front-desk assistant for Cheree McGarry, a psychologist. When she opens her practice dashboard give her a short, warm briefing — like a receptionist would say when she walks in the door. Write exactly 2–3 sentences in a natural, conversational tone. Do NOT use bullet points or lists. Do NOT start with a greeting (it is shown separately). Refer to clients by first name only. Be specific about the actual numbers and names.\n\nDashboard data:\n${lines.join('\n')}\n\nWrite only the briefing, nothing else.`;
+      const prompt = `You are the front-desk assistant for Cheree McGarry, a psychologist. When she opens her practice dashboard give her a short, warm briefing — like a receptionist would say when she walks in the door. Write exactly 2–3 sentences in a natural, conversational tone. Do NOT use bullet points or lists. Do NOT start with a greeting (it is shown separately). Refer to clients by first name only. Be specific about actual numbers and names. Be time-aware: mention what's already done vs what's still coming up based on the current time.\n\nDashboard data:\n${lines.join('\n')}\n\nWrite only the briefing, nothing else.`;
 
       try {
         const upstream = await fetch(ANTHROPIC_API, {
