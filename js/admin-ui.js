@@ -821,9 +821,10 @@ function _mobRenderReminders() {
     /* Sort pending tasks */
     var sortedPending = pending.slice();
     if (_dhRemindSort === 'priority') {
+      var _mobPrioOrder = { high: 0, normal: 1, low: 2 };
       sortedPending.sort(function(a, b) {
-        var pa = _dhGetPrio(a.id) === 'high' ? 0 : 1;
-        var pb = _dhGetPrio(b.id) === 'high' ? 0 : 1;
+        var pa = _mobPrioOrder[_dhGetPrio(a.id)] !== undefined ? _mobPrioOrder[_dhGetPrio(a.id)] : 1;
+        var pb = _mobPrioOrder[_dhGetPrio(b.id)] !== undefined ? _mobPrioOrder[_dhGetPrio(b.id)] : 1;
         if (pa !== pb) return pa - pb;
         return (b.created_at || '').localeCompare(a.created_at || '');
       });
@@ -837,7 +838,9 @@ function _mobRenderReminders() {
 
     sortedPending.forEach(function(t) {
       var prio    = _dhGetPrio(t.id);
-      var prioLabel = prio === 'high' ? '<span class="mob-prio-badge">High</span>' : '<span class="mob-prio-badge dim">—</span>';
+      var prioLabel = prio === 'high' ? '<span class="mob-prio-badge">High</span>'
+                    : prio === 'low'  ? '<span class="mob-prio-badge low">Low</span>'
+                    : '<span class="mob-prio-badge dim">—</span>';
       var client  = t.client_label ? escHtml(t.client_label) : '<span style="color:var(--t3)">—</span>';
       var descHtml = t.description ? '<div class="mob-rt-desc">' + escHtml(t.description) + '</div>' : '';
       html += '<div class="mob-rt-row" onclick="_mobOpenEditReminderModal(' + JSON.stringify(t.id) + ')">'
@@ -855,7 +858,9 @@ function _mobRenderReminders() {
       done.forEach(function(t) {
         var client  = t.client_label ? escHtml(t.client_label) : '<span style="color:var(--t3)">—</span>';
         var prio    = _dhGetPrio(t.id);
-        var prioLabel = prio === 'high' ? '<span class="mob-prio-badge" style="opacity:0.4">High</span>' : '<span class="mob-prio-badge dim" style="opacity:0.35">—</span>';
+        var prioLabel = prio === 'high' ? '<span class="mob-prio-badge" style="opacity:0.4">High</span>'
+                      : prio === 'low'  ? '<span class="mob-prio-badge low" style="opacity:0.4">Low</span>'
+                      : '<span class="mob-prio-badge dim" style="opacity:0.35">—</span>';
         html += '<div class="mob-rt-row mob-rt-row-done" onclick="_mobOpenEditReminderModal(' + JSON.stringify(t.id) + ')">'
           + '<button class="dh-task-chk" onclick="event.stopPropagation();dhToggleTask(' + JSON.stringify(t.id) + ',false);_mobRenderReminders()" type="button" style="opacity:0.45">✓</button>'
           + '<div class="mob-rt-title-wrap" style="opacity:0.35"><div class="mob-rt-title-text" style="text-decoration:line-through">' + escHtml(t.title || t.text || '') + '</div></div>'
@@ -966,6 +971,7 @@ function _mobOpenEditReminderModal(taskId) {
     /* Priority */
     + '<div class="mob-sheet-field-label">Priority</div>'
     + '<div class="mob-sheet-prio-pills" id="mob-edit-prio" data-prio="' + prio + '" data-tid="' + escHtml(tid) + '">'
+    + '<button class="mob-sheet-prio-pill low' + (prio === 'low' ? ' active' : '') + '" onclick="mobSheetSetPrio(\'low\')" type="button">Low</button>'
     + '<button class="mob-sheet-prio-pill' + (prio === 'normal' ? ' active' : '') + '" onclick="mobSheetSetPrio(\'normal\')" type="button">Normal</button>'
     + '<button class="mob-sheet-prio-pill high' + (prio === 'high' ? ' active' : '') + '" onclick="mobSheetSetPrio(\'high\')" type="button">High</button>'
     + '</div>'
@@ -5215,10 +5221,11 @@ function _dhRenderRemindBento() {
   // Sort
   var sorted = _dhTasks.slice();
   if (_dhRemindSort === 'priority') {
-    // High priority first, then newest date
+    // High → Normal → Low, then newest date within each tier
+    var _prioOrder = { high: 0, normal: 1, low: 2 };
     sorted.sort(function(a, b) {
-      var pa = _dhGetPrio(a.id) === 'high' ? 0 : 1;
-      var pb = _dhGetPrio(b.id) === 'high' ? 0 : 1;
+      var pa = _prioOrder[_dhGetPrio(a.id)] !== undefined ? _prioOrder[_dhGetPrio(a.id)] : 1;
+      var pb = _prioOrder[_dhGetPrio(b.id)] !== undefined ? _prioOrder[_dhGetPrio(b.id)] : 1;
       if (pa !== pb) return pa - pb;
       return (b.created_at || '').localeCompare(a.created_at || '');
     });
@@ -5237,9 +5244,12 @@ function _dhRenderRemindBento() {
     var done   = t.completed ? ' done' : '';
     var prio   = _dhGetPrio(t.id);
     var prioDot = prio === 'high' ? '<span class="dh-prio-dot high" onclick="event.stopPropagation();dhSetTaskPrio(' + JSON.stringify(t.id) + ',\'normal\')" title="High priority — click to clear">!</span> '
+                : prio === 'low'  ? '<span class="dh-prio-dot low"  onclick="event.stopPropagation();dhSetTaskPrio(' + JSON.stringify(t.id) + ',\'normal\')" title="Low priority — click to clear"></span> '
                 : '<span class="dh-prio-dot" onclick="event.stopPropagation();dhSetTaskPrio(' + JSON.stringify(t.id) + ',\'high\')" title="Set high priority"></span> ';
     var client  = t.client_label ? escHtml(t.client_label) : '<span style="color:var(--t3)">—</span>';
-    var prioLabel = prio === 'high' ? '<span class="dh-prio-badge">High</span>' : '<span class="dh-prio-badge dim">—</span>';
+    var prioLabel = prio === 'high' ? '<span class="dh-prio-badge">High</span>'
+                  : prio === 'low'  ? '<span class="dh-prio-badge low">Low</span>'
+                  : '<span class="dh-prio-badge dim">—</span>';
     var descHtml  = t.description ? '<div class="dh-rt-desc">' + escHtml(t.description) + '</div>' : '';
     return '<div class="dh-rt-row' + done + '" data-id="' + escHtml(String(t.id)) + '" onclick="openDetailPanel(\'task\',\'' + escHtml(String(t.id)) + '\')" style="cursor:pointer">'
       + '<button class="dh-task-chk" onclick="event.stopPropagation();dhToggleTask(' + JSON.stringify(t.id) + ',' + !t.completed + ')" type="button">' + (t.completed ? '✓' : '') + '</button>'
@@ -5362,14 +5372,20 @@ function _renderTaskDetailPanel(t) {
   html += '<input class="m-input" id="rdp-task-title-' + tid + '" type="text"'
     + ' value="' + escHtml(t.title || '') + '" placeholder="Reminder title…">';
 
-  // Description — only show textarea if there's existing content, else collapsed
+  // Description
   html += '<textarea class="m-input rdp-task-desc" id="rdp-task-desc-' + tid + '"'
     + ' placeholder="Add notes…" rows="2" style="margin-top:8px;resize:vertical">'
     + escHtml(t.description || '') + '</textarea>';
 
+  // Client
+  html += '<input class="m-input" id="rdp-task-client-' + tid + '" type="text"'
+    + ' value="' + escHtml(t.client_label || '') + '" placeholder="Client (optional)"'
+    + ' style="margin-top:8px">';
+
   // Priority + Save on the same row
   html += '<div style="display:flex;align-items:center;gap:8px;margin-top:10px">'
     + '<div class="rdp-prio-pills" id="rdp-task-prio-' + tid + '" data-prio="' + prio + '" style="flex:1">'
+    + '<button class="rdp-prio-pill low' + (prio === 'low' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'low\')" type="button">Low</button>'
     + '<button class="rdp-prio-pill' + (prio === 'normal' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'normal\')" type="button">Normal</button>'
     + '<button class="rdp-prio-pill high' + (prio === 'high' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'high\')" type="button">High</button>'
     + '</div>'
@@ -5397,27 +5413,29 @@ function rdpSetPrio(tid, prio) {
 }
 
 async function dhSaveTaskEdit(id) {
-  var titleInp = document.getElementById('rdp-task-title-' + id);
-  var descInp  = document.getElementById('rdp-task-desc-'  + id);
-  var prioWrap = document.getElementById('rdp-task-prio-'  + id);
+  var titleInp  = document.getElementById('rdp-task-title-'  + id);
+  var descInp   = document.getElementById('rdp-task-desc-'   + id);
+  var clientInp = document.getElementById('rdp-task-client-' + id);
+  var prioWrap  = document.getElementById('rdp-task-prio-'   + id);
 
-  var newTitle = titleInp ? titleInp.value.trim() : '';
-  var newDesc  = descInp  ? descInp.value.trim()  : null;
-  var newPrio  = prioWrap ? (prioWrap.dataset.prio || 'normal') : 'normal';
+  var newTitle  = titleInp  ? titleInp.value.trim()  : '';
+  var newDesc   = descInp   ? descInp.value.trim()   : null;
+  var newClient = clientInp ? clientInp.value.trim()  : null;
+  var newPrio   = prioWrap  ? (prioWrap.dataset.prio || 'normal') : 'normal';
 
   if (!newTitle) { toast('Title is required', 'err'); return; }
   try {
     await apiFetch('/api/admin-tasks?id=' + encodeURIComponent(id), {
       method: 'PATCH',
       body: {
-        title:       newTitle,
-        description: newDesc || null,
-        // client_label intentionally omitted — field removed from UI, preserve existing value
+        title:        newTitle,
+        description:  newDesc   || null,
+        client_label: newClient || null,
       }
     });
     /* Update local cache */
     var t = _dhTasks.find(function(x) { return String(x.id) === String(id); });
-    if (t) { t.title = newTitle; t.description = newDesc; }
+    if (t) { t.title = newTitle; t.description = newDesc; t.client_label = newClient; }
     /* Update priority in localStorage */
     dhSetTaskPrio(id, newPrio);
     /* Update panel title */
@@ -6790,15 +6808,29 @@ function openInvoiceModal(invId) {
   var paid     = _invIsPaid(inv);
   var sub      = _getSubStatus(inv.id);
 
-  // Look up the session for this invoice to get the appointment time
+  // Look up the appointment time directly from Halaxy appointments (no date-range cutoff)
   var _invSessTime = '';
   if (inv.patientId && inv.date) {
-    var _invUni  = _buildUnifiedSessions();
-    var _invSess = _invUni.upcoming.concat(_invUni.past).find(function(s) {
-      return String(s.patientId) === String(inv.patientId)
-          && (s.dateStr || '') === (inv.date || '').slice(0, 10);
+    var _invDateStr = (inv.date || '').slice(0, 10);
+    var _hAppts     = (_halaxyData && _halaxyData.appointments) || [];
+    var _hAppt      = _hAppts.find(function(a) {
+      var startStr = a.start || (a.period && a.period.start) || '';
+      if (startStr.slice(0, 10) !== _invDateStr) return false;
+      var pid = _apptPatientId(a);
+      // Accept if patientId matches OR if the appointment has no patient (solo day, infer by date)
+      return !pid || String(pid) === String(inv.patientId);
     });
-    if (_invSess && _invSess.timeStr) _invSessTime = ' · ' + _invSess.timeStr;
+    if (_hAppt) {
+      var _apptStart = _hAppt.start || (_hAppt.period && _hAppt.period.start) || '';
+      if (_apptStart) {
+        try {
+          var _apptTime = new Date(_apptStart).toLocaleTimeString('en-AU', {
+            hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane'
+          });
+          if (_apptTime) _invSessTime = ' · ' + _apptTime;
+        } catch(e) {}
+      }
+    }
   }
 
   // Reminders section visibility:
@@ -6903,16 +6935,11 @@ function openInvoiceModal(invId) {
           +   '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:rgba(255,255,255,0.38);margin-bottom:8px">Reminders</div>'
           +   '<div id="inv-task-list-' + escHtml(String(inv.id)) + '"></div>'
           +   (_showAddReminder
-              ? '<div style="display:flex;gap:8px;margin-top:10px;align-items:center">'
-                +   '<input id="inv-task-input-' + escHtml(String(inv.id)) + '"'
-                +     ' type="text" placeholder="Add a reminder…"'
-                +     ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();_invAddTask(\'' + escHtml(String(inv.id)) + '\',this.closest(\'.inv-modal-overlay\'))}"'
-                +     ' style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px'
-                +       ';padding:7px 12px;font-size:12.5px;color:rgba(255,255,255,0.8);font-family:inherit;outline:none">'
-                +   '<button onclick="_invAddTask(\'' + escHtml(String(inv.id)) + '\',this.closest(\'.inv-modal-overlay\'))"'
-                +     ' style="flex-shrink:0;padding:7px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit'
-                +       ';background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.25);color:#34D399">Add</button>'
-                + '</div>'
+              ? '<button onclick="_openInvAddReminderModal(\'' + escHtml(String(inv.id)) + '\',\'' + escHtml(name) + '\')"'
+                +   ' style="margin-top:10px;width:100%;padding:9px 12px;border-radius:8px;font-size:12.5px'
+                +     ';cursor:pointer;font-family:inherit;text-align:left'
+                +     ';background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09)'
+                +     ';color:rgba(255,255,255,0.38);transition:all 0.12s">+ Add a reminder…</button>'
               : '')
           + '</div>'
         : '')
@@ -6932,6 +6959,101 @@ function openInvoiceModal(invId) {
   document.body.appendChild(overlay);
   // Render existing linked tasks now that the DOM is live
   _invRenderTasks(invId, overlay);
+}
+
+/* ── Full reminder creation modal (invoked from invoice modal) ─────── */
+function _openInvAddReminderModal(invId, prefillClient) {
+  var safeInvId = escHtml(String(invId));
+
+  var modal = document.createElement('div');
+  modal.className = 'db-modal-overlay open';
+  modal.style.zIndex = '1001'; // stack above invoice modal (z-index 1000)
+  modal.onclick = function(ev) { if (ev.target === modal) modal.remove(); };
+
+  modal.innerHTML =
+    '<div class="db-modal" style="width:380px;max-width:calc(100vw - 32px)">'
+    + '<div class="db-modal-hdr">'
+    +   '<div class="db-modal-title">Add reminder</div>'
+    +   '<button class="db-modal-close" onclick="this.closest(\'.db-modal-overlay\').remove()">×</button>'
+    + '</div>'
+    + '<div class="db-modal-body" style="padding:8px 24px 16px;display:flex;flex-direction:column;gap:10px">'
+    // Title
+    +   '<input id="inv-rem-title" type="text" placeholder="Reminder title…" autofocus'
+    +     ' style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px'
+    +       ';padding:9px 12px;font-size:13px;color:rgba(255,255,255,0.85);font-family:inherit;outline:none;width:100%;box-sizing:border-box">'
+    // Description
+    +   '<textarea id="inv-rem-desc" placeholder="Notes or context… (optional)" rows="2"'
+    +     ' style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px'
+    +       ';padding:9px 12px;font-size:13px;color:rgba(255,255,255,0.85);font-family:inherit;outline:none;width:100%;box-sizing:border-box;resize:vertical"></textarea>'
+    // Client
+    +   '<input id="inv-rem-client" type="text" value="' + escHtml(prefillClient || '') + '" placeholder="Client (optional)"'
+    +     ' style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px'
+    +       ';padding:9px 12px;font-size:13px;color:rgba(255,255,255,0.85);font-family:inherit;outline:none;width:100%;box-sizing:border-box">'
+    // Priority
+    +   '<div class="rdp-prio-pills" id="inv-rem-prio" data-prio="normal">'
+    +     '<button class="rdp-prio-pill low" onclick="invRemSetPrio(\'low\',this)" type="button">Low</button>'
+    +     '<button class="rdp-prio-pill active" onclick="invRemSetPrio(\'normal\',this)" type="button">Normal</button>'
+    +     '<button class="rdp-prio-pill high" onclick="invRemSetPrio(\'high\',this)" type="button">High</button>'
+    +   '</div>'
+    + '</div>'
+    + '<div class="db-modal-ftr" style="justify-content:flex-end;gap:8px">'
+    +   '<button class="db-btn-ghost" onclick="this.closest(\'.db-modal-overlay\').remove()">Cancel</button>'
+    +   '<button class="db-btn-primary" onclick="_invSaveNewReminder(\'' + safeInvId + '\',this.closest(\'.db-modal-overlay\'))">Add reminder</button>'
+    + '</div>'
+    + '</div>';
+
+  document.body.appendChild(modal);
+  setTimeout(function() { var ti = document.getElementById('inv-rem-title'); if (ti) ti.focus(); }, 60);
+}
+
+function invRemSetPrio(prio, btn) {
+  var wrap = btn.closest('[data-prio]');
+  if (!wrap) return;
+  wrap.dataset.prio = prio;
+  wrap.querySelectorAll('button').forEach(function(b) {
+    b.classList.toggle('active', b.textContent.trim().toLowerCase() === prio);
+  });
+}
+
+async function _invSaveNewReminder(invId, modal) {
+  var titleInp  = document.getElementById('inv-rem-title');
+  var descInp   = document.getElementById('inv-rem-desc');
+  var clientInp = document.getElementById('inv-rem-client');
+  var prioWrap  = document.getElementById('inv-rem-prio');
+
+  var title  = titleInp  ? titleInp.value.trim()  : '';
+  var desc   = descInp   ? descInp.value.trim()   : '';
+  var client = clientInp ? clientInp.value.trim()  : '';
+  var prio   = prioWrap  ? (prioWrap.dataset.prio || 'normal') : 'normal';
+
+  if (!title) {
+    if (titleInp) { titleInp.style.borderColor = '#fb7185'; titleInp.focus(); }
+    return;
+  }
+
+  try {
+    var task = await apiFetch('/api/admin-tasks', {
+      method: 'POST',
+      body: { title: title, description: desc || null, client_label: client || null }
+    });
+    if (task && task.id) {
+      _dhTasks.push(task);
+      _dhTasksLoaded = true;
+      _invLinkTask(invId, task.id);
+      dhSetTaskPrio(task.id, prio);
+      modal.remove();
+      // Refresh task list inside the invoice modal
+      var invOverlay = document.querySelector('.inv-modal-overlay');
+      if (invOverlay) _invRenderTasks(invId, invOverlay);
+      // Refresh reminders views
+      _dhRenderRemindBento();
+      if (typeof _mobRenderReminders === 'function') _mobRenderReminders();
+      if (typeof renderRemindersView === 'function' && _currentView === 'reminders') renderRemindersView();
+      toast('Reminder added');
+    }
+  } catch(e) {
+    toast('Could not add reminder: ' + e.message, 'err');
+  }
 }
 
 /* ═══════════════════════════════════════════════════

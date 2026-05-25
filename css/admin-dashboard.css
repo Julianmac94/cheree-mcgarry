@@ -1243,6 +1243,9 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 }
 .rdp-prio-pill.active { background: rgba(42,88,80,0.1); color: #192E2A; border-color: rgba(42,88,80,0.3); }
 .rdp-prio-pill.high.active { background: rgba(245,158,11,0.1); color: #b45309; border-color: rgba(245,158,11,0.3); }
+.rdp-prio-pill.low.active  { background: rgba(99,130,255,0.08); color: #5b72d4; border-color: rgba(99,130,255,0.25); }
+.dh-prio-dot.low { background: rgba(99,130,255,0.5); }
+.dh-prio-badge.low { background: rgba(99,130,255,0.15); color: #8899ff; }
 
 /* ─── BILLING BENTO — LIVE INVOICE LIST ──────────────────────── */
 /* billing-live: flex container so bar + invoice list fill the card */
