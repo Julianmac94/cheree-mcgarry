@@ -5308,6 +5308,26 @@ function renderHomeView() {
     }
   }
   _updateMobileDock('home');
+
+  // Fire AI brief after DOM is painted (non-blocking)
+  requestAnimationFrame(function() {
+    _loadAIBrief({
+      todaySessions:   todayAppts.map(function(a) {
+        return { name: (a.name || 'Client').split(' ')[0], time: a.timeStr || (a.startIso ? _fmtT(a.startIso) : '') };
+      }),
+      nextAppt: nextAppt ? {
+        name: (nextAppt.name || nextAppt.patientName || 'Client').split(' ')[0],
+        day:  nextAppt.dateStr !== todayIso
+          ? new Date(nextAppt.dateStr + 'T00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
+          : 'today',
+        time: nextAppt.timeStr || (nextAppt.startIso ? _fmtT(nextAppt.startIso) : ''),
+      } : null,
+      critCount,
+      awaitingPayCount,
+      unlinkedCount,
+      newEnquiries: newEnquiries.length,
+    });
+  });
 }
 
 /* ── Home view task helpers ─────────────────────────────────────
@@ -5316,6 +5336,67 @@ function renderHomeView() {
 ────────────────────────────────────────────────────────────────── */
 var _dhTasks = [];       // module-level cache for openDetailPanel lookup
 var _dhTasksLoaded = false; // true once the first successful fetch completes
+
+/* ── AI receptionist brief ───────────────────────────────────────
+ * Calls /api/admin-brief with current dashboard data, streams the
+ * response word-by-word into #dh-hd-meta.
+ * Caches per date+hour in sessionStorage so a hard refresh within
+ * the same hour reuses the cached text without hitting the API again.
+ ────────────────────────────────────────────────────────────────── */
+async function _loadAIBrief(data) {
+  var metaEl = document.getElementById('dh-hd-meta');
+  if (!metaEl) return;
+
+  // Cache key: date + hour so it regenerates at most once per hour
+  var now      = new Date();
+  var cacheKey = 'ai-brief-' + now.toISOString().slice(0, 13); // "2026-05-25T17"
+  var cached   = sessionStorage.getItem(cacheKey);
+  if (cached) {
+    metaEl.innerHTML = cached;
+    return;
+  }
+
+  // Show a subtle pulsing placeholder while the AI thinks
+  metaEl.innerHTML = '<span class="ai-brief-loading">&#8203;</span>';
+  metaEl.classList.add('ai-brief-streaming');
+
+  try {
+    var resp = await fetch('/api/admin-brief', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(data),
+    });
+
+    if (!resp.ok || !resp.body) throw new Error('brief unavailable');
+
+    var reader  = resp.body.getReader();
+    var decoder = new TextDecoder();
+    var text    = '';
+
+    metaEl.innerHTML = ''; // clear placeholder
+
+    while (true) {
+      var _r = await reader.read();
+      if (_r.done) break;
+      text += decoder.decode(_r.value, { stream: true });
+      // Update DOM incrementally — gives a streaming typewriter effect
+      metaEl.textContent = text;
+    }
+
+    metaEl.classList.remove('ai-brief-streaming');
+    // Cache the final text
+    try { sessionStorage.setItem(cacheKey, metaEl.innerHTML); } catch(_) {}
+
+  } catch (err) {
+    // Silent fallback — the template sentences are already in the DOM
+    // from renderHomeView; just leave them if they're still there,
+    // or restore a minimal message if the placeholder replaced them.
+    metaEl.classList.remove('ai-brief-streaming');
+    if (!metaEl.textContent.trim()) {
+      metaEl.textContent = '';
+    }
+  }
+}
 
 async function _dhLoadTasks() {
   try {

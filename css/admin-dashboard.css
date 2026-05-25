@@ -412,6 +412,19 @@ body::before {
 .dh-hd-date { display: none; } /* replaced by TODAY tag on week strip */
 .dh-hd-meta { font-size: 13px; color: var(--t3); margin-top: 10px; font-weight: 400; line-height: 1.65; max-width: 640px; }
 .dh-hd-meta strong { color: var(--t2); font-weight: 600; }
+/* AI brief streaming state */
+.dh-hd-meta.ai-brief-streaming { min-height: 20px; }
+.ai-brief-loading {
+  display: inline-block; width: 120px; height: 13px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.11) 50%, rgba(255,255,255,0.06) 75%);
+  background-size: 200% 100%;
+  animation: ai-brief-shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px; vertical-align: middle;
+}
+@keyframes ai-brief-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 .dh-hd-actions { display: flex; align-items: stretch; gap: 10px; flex-shrink: 0; }
 
 /* + Add popup menu */
