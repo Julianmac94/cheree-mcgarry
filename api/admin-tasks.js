@@ -68,9 +68,11 @@ export default async function handler(req, res) {
       const prompt = `You are the front-desk assistant for Cheree McGarry, a psychologist. When she opens her practice dashboard give her a short, warm briefing — like a receptionist would say when she walks in the door. Write exactly 2–3 sentences in a natural, conversational tone. Do NOT use bullet points or lists. Do NOT start with a greeting (it is shown separately). Refer to clients by first name only. Be specific about the actual numbers and names.\n\nDashboard data:\n${lines.join('\n')}\n\nWrite only the briefing, nothing else.`;
 
       try {
+        const cleanKey = key.trim();
+        console.log('[brief] key prefix:', cleanKey.substring(0, 14), 'len:', cleanKey.length, 'model:', BRIEF_MODEL);
         const upstream = await fetch(ANTHROPIC_API, {
           method:  'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+          headers: { 'Content-Type': 'application/json', 'x-api-key': cleanKey, 'anthropic-version': '2023-06-01' },
           body: JSON.stringify({ model: BRIEF_MODEL, max_tokens: 160, messages: [{ role: 'user', content: prompt }] }),
         });
         if (!upstream.ok) {
