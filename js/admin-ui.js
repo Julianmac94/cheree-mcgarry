@@ -5349,9 +5349,14 @@ function _renderTaskDetailPanel(t) {
   var tid  = escHtml(String(t.id));
   var sid  = JSON.stringify(t.id);
 
+  // Shared save pill style (teal, small, absolute)
+  var savePillStyle = 'display:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600'
+    + ';background:rgba(52,211,153,0.14);border:1px solid rgba(52,211,153,0.28);color:#34D399'
+    + ';cursor:pointer;font-family:inherit;flex-shrink:0';
+
   var html = '';
 
-  // Date + status (no mark-as-done button up here)
+  // Date + status
   html += '<div class="m-meta">'
     + escHtml(created)
     + ' · ' + (t.completed
@@ -5359,42 +5364,64 @@ function _renderTaskDetailPanel(t) {
       : '<span class="m-chip m-chip-dim">Active</span>')
     + '</div>';
 
-  // Title — styled as a heading, not a form field. Reveals Save on change.
-  html += '<input class="rdp-title-input" id="rdp-task-title-' + tid + '" type="text"'
-    + ' value="' + escHtml(t.title || '') + '" placeholder="Reminder title…"'
-    + ' oninput="_rdpShowSave(\'' + tid + '\')">';
-
-  // Description
-  html += '<textarea class="m-input rdp-task-desc" id="rdp-task-desc-' + tid + '"'
-    + ' placeholder="Description…" rows="3" style="margin-top:12px"'
-    + ' oninput="_rdpShowSave(\'' + tid + '\')">'
-    + escHtml(t.description || '') + '</textarea>';
-
-  // Client
-  html += '<input class="m-input" id="rdp-task-client-' + tid + '" type="text"'
-    + ' value="' + escHtml(t.client_label || '') + '" placeholder="Client (optional)"'
-    + ' style="margin-top:8px" oninput="_rdpShowSave(\'' + tid + '\')">';
-
-  // Priority row + hidden Save pill (appears on any edit)
-  html += '<div style="display:flex;align-items:center;gap:8px;margin-top:12px">'
-    + '<div class="rdp-prio-pills" id="rdp-task-prio-' + tid + '" data-prio="' + prio + '" style="flex:1">'
-    + '<button class="rdp-prio-pill low' + (prio === 'low' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'low\');_rdpShowSave(\'' + tid + '\')" type="button">Low</button>'
-    + '<button class="rdp-prio-pill' + (prio === 'normal' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'normal\');_rdpShowSave(\'' + tid + '\')" type="button">Normal</button>'
-    + '<button class="rdp-prio-pill high' + (prio === 'high' ? ' active' : '') + '" onclick="rdpSetPrio(\'' + tid + '\',\'high\');_rdpShowSave(\'' + tid + '\')" type="button">High</button>'
-    + '</div>'
-    + '<button id="rdp-save-' + tid + '" class="m-btn-ghost"'
-    + ' onclick="dhSaveTaskEdit(' + sid + ')"'
-    + ' style="flex-shrink:0;padding:5px 14px;font-size:12px;display:none">Save</button>'
+  // ── Title row: input + Save pill on the right, revealed on edit
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-top:10px">'
+    +   '<input class="rdp-title-input" id="rdp-task-title-' + tid + '" type="text"'
+    +     ' value="' + escHtml(t.title || '') + '" placeholder="Reminder title…"'
+    +     ' style="flex:1;min-width:0"'
+    +     ' oninput="_rdpShowSave(\'' + tid + '\')">'
+    +   '<button id="rdp-save-' + tid + '" onclick="dhSaveTaskEdit(' + sid + ')" style="' + savePillStyle + '">Save</button>'
     + '</div>';
 
-  // Bottom bar — Mark as done + Delete, always visible, never overwhelming
-  html += '<div style="display:flex;align-items:center;justify-content:space-between'
-    + ';margin-top:20px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">'
+  // ── Description: textarea with Save pill at bottom-right, revealed on edit
+  html += '<div style="position:relative;margin-top:10px">'
+    +   '<textarea class="m-input rdp-task-desc" id="rdp-task-desc-' + tid + '"'
+    +     ' placeholder="Description…" rows="3" style="margin-bottom:0;padding-bottom:36px"'
+    +     ' oninput="_rdpShowSaveDesc(\'' + tid + '\')">'
+    +     escHtml(t.description || '')
+    +   '</textarea>'
+    +   '<button id="rdp-save-desc-' + tid + '" onclick="dhSaveTaskEdit(' + sid + ')"'
+    +     ' style="' + savePillStyle + ';position:absolute;bottom:8px;right:8px">Save</button>'
+    + '</div>';
+
+  // ── Client with existing-client dropdown
+  html += '<div style="position:relative;margin-top:8px">'
+    +   '<input class="m-input" id="rdp-task-client-' + tid + '" type="text"'
+    +     ' value="' + escHtml(t.client_label || '') + '" placeholder="Client (optional)"'
+    +     ' style="margin-bottom:0"'
+    +     ' onfocus="_rdpClientFocus(\'' + tid + '\')"'
+    +     ' oninput="_rdpClientInput(\'' + tid + '\',this.value)"'
+    +     ' onblur="setTimeout(function(){var d=document.getElementById(\'rdp-client-dd-' + tid + '\');if(d)d.style.display=\'none\'},200)">'
+    +   '<div id="rdp-client-dd-' + tid + '"'
+    +     ' style="display:none;position:absolute;top:calc(100% + 3px);left:0;right:0'
+    +       ';background:rgba(10,16,28,0.98);border:1px solid rgba(255,255,255,0.12);border-radius:10px'
+    +       ';z-index:200;overflow:hidden;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4)">'
+    +   '</div>'
+    + '</div>';
+
+  // ── Priority pills — click auto-saves to localStorage immediately (no Save pill)
+  html += '<div class="rdp-prio-pills" id="rdp-task-prio-' + tid + '" data-prio="' + prio + '" style="margin-top:10px">'
+    + '<button class="rdp-prio-pill low' + (prio === 'low' ? ' active' : '') + '"'
+    +   ' onclick="rdpSetPrio(\'' + tid + '\',\'low\');dhSetTaskPrio(' + sid + ',\'low\')" type="button">Low</button>'
+    + '<button class="rdp-prio-pill' + (prio === 'normal' ? ' active' : '') + '"'
+    +   ' onclick="rdpSetPrio(\'' + tid + '\',\'normal\');dhSetTaskPrio(' + sid + ',\'normal\')" type="button">Normal</button>'
+    + '<button class="rdp-prio-pill high' + (prio === 'high' ? ' active' : '') + '"'
+    +   ' onclick="rdpSetPrio(\'' + tid + '\',\'high\');dhSetTaskPrio(' + sid + ',\'high\')" type="button">High</button>'
+    + '</div>';
+
+  // ── Bottom bar: Mark as done (small) on left, Delete on right
+  html += '<div style="display:flex;align-items:center;gap:10px'
+    + ';margin-top:18px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">'
     + (t.completed
-      ? '<button class="m-btn-ghost" onclick="dhToggleTask(' + sid + ',false);closeDetailPanel()"'
-          + ' style="font-size:12px;padding:6px 12px">Mark as active</button>'
-      : '<button class="m-btn-ghost" onclick="dhToggleTask(' + sid + ',true);closeDetailPanel()"'
-          + ' style="font-size:12px;padding:6px 12px;color:rgba(255,255,255,0.45)">Mark as done</button>')
+      ? '<button onclick="dhToggleTask(' + sid + ',false);closeDetailPanel()"'
+          + ' style="padding:5px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit'
+          + ';background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5)">'
+          + 'Mark as active</button>'
+      : '<button onclick="dhToggleTask(' + sid + ',true);closeDetailPanel()"'
+          + ' style="padding:5px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit'
+          + ';background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.45)">'
+          + 'Mark as done</button>')
+    + '<div style="flex:1"></div>'
     + '<button class="m-btn-danger" onclick="dhDeleteTaskFromPanel(' + sid + ')">Delete</button>'
     + '</div>';
 
@@ -5404,6 +5431,39 @@ function _renderTaskDetailPanel(t) {
 function _rdpShowSave(tid) {
   var btn = document.getElementById('rdp-save-' + tid);
   if (btn) btn.style.display = '';
+}
+function _rdpShowSaveDesc(tid) {
+  var btn = document.getElementById('rdp-save-desc-' + tid);
+  if (btn) btn.style.display = '';
+}
+
+/* Client dropdown for task detail panel */
+function _rdpClientFocus(tid) { _rdpRenderClientDropdown(tid, document.getElementById('rdp-task-client-' + tid) ? document.getElementById('rdp-task-client-' + tid).value : ''); }
+function _rdpClientInput(tid, val) {
+  _rdpShowSave(tid);
+  _rdpRenderClientDropdown(tid, val);
+}
+function _rdpRenderClientDropdown(tid, query) {
+  var dd = document.getElementById('rdp-client-dd-' + tid);
+  if (!dd) return;
+  var clients = (_pipelineData && _pipelineData.clients) || [];
+  var q = (query || '').toLowerCase().trim();
+  var matches = clients.filter(function(c) {
+    return !q || (c.display_name || '').toLowerCase().indexOf(q) !== -1;
+  }).slice(0, 8);
+  if (!matches.length) { dd.style.display = 'none'; return; }
+  dd.innerHTML = matches.map(function(c) {
+    return '<div class="rdp-client-opt" onmousedown="event.preventDefault();_rdpSelectClient(\'' + tid + '\',\'' + escHtml(c.display_name || '') + '\')">'
+      + escHtml(c.display_name || '') + '</div>';
+  }).join('');
+  dd.style.display = '';
+}
+function _rdpSelectClient(tid, name) {
+  var inp = document.getElementById('rdp-task-client-' + tid);
+  if (inp) { inp.value = name; inp.focus(); }
+  var dd = document.getElementById('rdp-client-dd-' + tid);
+  if (dd) dd.style.display = 'none';
+  _rdpShowSave(tid);
 }
 
 function rdpSetPrio(tid, prio) {
@@ -5424,7 +5484,6 @@ async function dhSaveTaskEdit(id) {
   var newTitle  = titleInp  ? titleInp.value.trim()  : '';
   var newDesc   = descInp   ? descInp.value.trim()   : null;
   var newClient = clientInp ? clientInp.value.trim()  : null;
-  var newPrio   = prioWrap  ? (prioWrap.dataset.prio || 'normal') : 'normal';
 
   if (!newTitle) { toast('Title is required', 'err'); return; }
   try {
@@ -5439,13 +5498,13 @@ async function dhSaveTaskEdit(id) {
     /* Update local cache */
     var t = _dhTasks.find(function(x) { return String(x.id) === String(id); });
     if (t) { t.title = newTitle; t.description = newDesc; t.client_label = newClient; }
-    /* Update priority in localStorage */
-    dhSetTaskPrio(id, newPrio);
-    /* Update panel title */
-    var titleEl = document.getElementById('rdp-title');
-    if (titleEl) titleEl.textContent = newTitle;
-    toast('Reminder saved');
-    closeDetailPanel();
+    /* Hide both save pills — stay on panel */
+    ['rdp-save-', 'rdp-save-desc-'].forEach(function(prefix) {
+      var btn = document.getElementById(prefix + id);
+      if (btn) btn.style.display = 'none';
+    });
+    toast('Saved');
+    _dhRenderRemindBento();
   } catch(e) {
     toast('Could not save: ' + e.message, 'err');
   }
