@@ -1008,8 +1008,28 @@ body {
   .mob-hd-meta strong { color: var(--t2); font-weight: 500; }
 
   /* Scrollable app content */
-  .app-content { flex: 1; overflow-y: auto; min-height: 0; padding: 0 !important; }
+  .app-content { flex: 1; overflow-y: auto; min-height: 0; padding: 0 !important; overscroll-behavior-y: none; }
   #view-content { transition: opacity 0.14s ease, transform 0.14s ease; min-height: 100%; }
+
+  /* ── Pull-to-refresh indicator ── */
+  #ptr-bar {
+    position: fixed; left: 0; right: 0; z-index: 180;
+    display: flex; align-items: flex-end; justify-content: center;
+    height: 0; overflow: hidden; opacity: 0;
+    pointer-events: none;
+    background: var(--canvas);
+  }
+  .ptr-inner {
+    display: flex; align-items: center; gap: 7px;
+    padding-bottom: 11px;
+    font-size: 12px; font-family: var(--sans);
+    color: rgba(255,255,255,0.38);
+    white-space: nowrap; transition: color 0.15s;
+  }
+  #ptr-bar.ptr-ready .ptr-inner { color: var(--teal); }
+  .ptr-icon { font-size: 15px; line-height: 1; display: inline-block; }
+  .ptr-icon.ptr-spinning { animation: ptrSpin 0.65s linear infinite; }
+  @keyframes ptrSpin { to { transform: rotate(360deg); } }
 
   /* Dock */
   .mob-dock {

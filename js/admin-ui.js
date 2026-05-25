@@ -2720,6 +2720,157 @@ function _mobAnimHeader() {
   }, 70);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   Pull-to-refresh (mobile PWA)
+   ═══════════════════════════════════════════════════════════════ */
+var _ptrInited = false;
+
+function _mobInitPullToRefresh() {
+  if (window.innerWidth > 768 || _ptrInited) return;
+  _ptrInited = true;
+
+  var scrollEl  = document.querySelector('.app-content');
+  var contentEl = document.getElementById('view-content');
+  if (!scrollEl || !contentEl) return;
+
+  /* Build indicator */
+  var bar = document.createElement('div');
+  bar.id  = 'ptr-bar';
+  bar.innerHTML = '<div class="ptr-inner"><span class="ptr-icon">↓</span><span class="ptr-text">Pull to refresh</span></div>';
+  document.body.appendChild(bar);
+
+  var THRESHOLD = 62;   // visual px needed to trigger
+  var MAX_PULL  = 92;   // max visual pull distance
+  var DAMPING   = 0.42; // resistance (touch travel × factor = visual)
+
+  var touching  = false;
+  var startY    = 0;
+  var live      = 0;    // current visual pull distance
+  var busy      = false;
+
+  function barTop() {
+    return scrollEl.getBoundingClientRect().top;
+  }
+
+  function applyPull(dist) {
+    live = dist;
+    var ready = dist >= THRESHOLD;
+    /* Indicator */
+    bar.style.top     = barTop() + 'px';
+    bar.style.height  = dist + 'px';
+    bar.style.opacity = dist > 4 ? Math.min((dist / 28), 1) : 0;
+    bar.classList.toggle('ptr-ready', ready);
+    var icon = bar.querySelector('.ptr-icon');
+    var text = bar.querySelector('.ptr-text');
+    if (icon && !icon.classList.contains('ptr-spinning')) icon.textContent = ready ? '↑' : '↓';
+    if (text) text.textContent = ready ? 'Release to refresh' : 'Pull to refresh';
+    /* Slide content down */
+    contentEl.style.transform = dist > 0 ? 'translateY(' + dist + 'px)' : '';
+  }
+
+  function spring(toDist, duration, cb) {
+    bar.style.transition     = 'height ' + duration + 'ms ease, opacity ' + duration + 'ms ease';
+    contentEl.style.transition = 'transform ' + duration + 'ms ease';
+    applyPull(toDist);
+    setTimeout(function() {
+      bar.style.transition     = '';
+      contentEl.style.transition = '';
+      if (toDist === 0) { contentEl.style.transform = ''; }
+      if (cb) cb();
+    }, duration + 10);
+  }
+
+  async function triggerRefresh() {
+    busy = true;
+    /* Hold at 52px for the spinner */
+    spring(52, 120);
+    setTimeout(function() {
+      var icon = bar.querySelector('.ptr-icon');
+      var text = bar.querySelector('.ptr-text');
+      bar.classList.remove('ptr-ready');
+      if (icon) { icon.textContent = '⟳'; icon.classList.add('ptr-spinning'); }
+      if (text) text.textContent = 'Refreshing…';
+    }, 80);
+
+    try {
+      await new Promise(function(resolve, reject) {
+        loadCalendarPending();
+        fetch('/api/admin-enquiries')
+          .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(function(d) {
+            _pipelineData  = d;
+            _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [], feeMap: {} };
+            _halaxyFunders = _halaxyData.funders || [];
+            _halaxyFeeMap  = _halaxyData.feeMap  || {};
+            _halaxyFees    = (_halaxyData.fees && _halaxyData.fees.length) ? _halaxyData.fees : _halaxyFees;
+            if (_halaxyData.webUrl) _halaxyWebUrl = _halaxyData.webUrl;
+            renderHelloSection();
+            renderPipeline();
+            updateHalaxyDot();
+            _dhLoadTasks();
+            resolve();
+          })
+          .catch(reject);
+      });
+      /* Success */
+      var icon = bar.querySelector('.ptr-icon');
+      var text = bar.querySelector('.ptr-text');
+      if (icon) { icon.classList.remove('ptr-spinning'); icon.textContent = '✓'; }
+      if (text) text.textContent = 'Up to date';
+      bar.querySelector('.ptr-inner').style.color = 'var(--teal)';
+    } catch (e) {
+      var icon = bar.querySelector('.ptr-icon');
+      var text = bar.querySelector('.ptr-text');
+      if (icon) { icon.classList.remove('ptr-spinning'); icon.textContent = '⚠'; }
+      if (text) text.textContent = 'Refresh failed';
+      toast('Refresh failed', 'err');
+    }
+
+    /* Brief pause then collapse */
+    setTimeout(function() {
+      spring(0, 220, function() {
+        busy = false;
+        /* Reset icon/text for next pull */
+        var icon = bar.querySelector('.ptr-icon');
+        var text = bar.querySelector('.ptr-text');
+        if (icon) { icon.textContent = '↓'; }
+        if (text) text.textContent = 'Pull to refresh';
+        bar.querySelector('.ptr-inner').style.color = '';
+      });
+    }, 640);
+  }
+
+  scrollEl.addEventListener('touchstart', function(e) {
+    if (busy) return;
+    if (scrollEl.scrollTop !== 0) return;
+    startY   = e.touches[0].clientY;
+    touching = true;
+    live     = 0;
+  }, { passive: true });
+
+  scrollEl.addEventListener('touchmove', function(e) {
+    if (!touching || busy) return;
+    if (scrollEl.scrollTop > 0) { touching = false; return; }
+    var dy = e.touches[0].clientY - startY;
+    if (dy <= 0) { if (live > 0) applyPull(0); return; }
+    e.preventDefault(); /* prevent native rubber-band */
+    applyPull(Math.min(dy * DAMPING, MAX_PULL));
+  }, { passive: false });
+
+  function onEnd() {
+    if (!touching || busy) return;
+    touching = false;
+    if (live >= THRESHOLD) {
+      triggerRefresh();
+    } else {
+      spring(0, 200);
+    }
+  }
+
+  scrollEl.addEventListener('touchend',    onEnd, { passive: true });
+  scrollEl.addEventListener('touchcancel', onEnd, { passive: true });
+}
+
 /**
  * One-shot mobile intro: fires AFTER data loads (renderPipeline).
  * The splash logo has been sitting centred and still until this point.
@@ -2804,6 +2955,7 @@ function _mobRunIntro() {
 function renderPipeline() {
   if (!_pipelineData) return;
   if (window.innerWidth <= 768) {
+    _mobInitPullToRefresh(); /* one-shot — safe to call every render */
     _mobRunIntro(); /* handles header population + one-shot intro animation */
   } else {
     _mobUpdateHeader();
