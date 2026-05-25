@@ -422,11 +422,15 @@ body {
 .topbar-nav-btn.active { color: var(--teal); font-weight: 600; background: rgba(42,88,80,0.10); border-color: rgba(42,88,80,0.12); }
 /* Refresh + sign-out */
 .topbar-refresh-btn {
-  font-family: var(--sans); font-size: 13px; color: rgba(0,0,0,0.35);
-  background: none; border: none; cursor: pointer; padding: 4px 2px;
-  transition: color 0.12s; flex-shrink: 0;
+  font-family: var(--sans); font-size: 16px; color: rgba(0,0,0,0.3);
+  background: none; border: none; cursor: pointer; padding: 4px 6px;
+  transition: color 0.12s, transform 0.12s; flex-shrink: 0; line-height: 1;
+  display: inline-block;
 }
-.topbar-refresh-btn:hover { color: var(--teal); }
+.topbar-refresh-btn:hover { color: var(--teal); transform: rotate(30deg); }
+.topbar-refresh-btn:disabled { cursor: default; opacity: 0.4; }
+@keyframes topbar-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.topbar-refresh-btn.spinning { animation: topbar-spin 0.7s linear infinite; color: var(--teal); }
 .topbar-signout {
   font-family: var(--sans); font-size: 11px; color: rgba(0,0,0,0.35);
   background: none; border: none; cursor: pointer; padding: 0; text-decoration: none;
@@ -3209,6 +3213,9 @@ body {
 
       <div style="flex:1"></div>
 
+      <!-- Refresh (visible, far right before settings) -->
+      <button id="pl-refresh-btn" class="topbar-refresh-btn" onclick="refreshPipeline()" title="Refresh data">↺</button>
+
       <!-- Settings (far right) -->
       <button class="topbar-icon-btn" data-view="settings" onclick="navigateTo('settings')" title="Settings">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -3219,7 +3226,6 @@ body {
       <span id="sb-halaxy-label" style="display:none"></span>
       <span class="sidebar-dot loading" id="sb-gcal-dot" style="display:none"></span>
       <span id="sb-gcal-label" style="display:none"></span>
-      <button id="pl-refresh-btn" onclick="refreshPipeline()" style="display:none">↺</button>
 
     </header>
 

@@ -468,6 +468,48 @@ document.addEventListener('DOMContentLoaded', function () {
   _dbUpdateTopbar('home'); // set topbar title immediately on load
 });
 
+/* ── Responsive breakpoint handler ──────────────────────────────────
+   When the browser is resized across the 768px boundary, re-render
+   the correct view. Without this, resizing desktop→mobile leaves the
+   mob-splash stuck because _mobRunIntro() never ran on the desktop path.
+──────────────────────────────────────────────────────────────────── */
+var _lastBreakpoint = window.innerWidth <= 768 ? 'mobile' : 'desktop';
+window.addEventListener('resize', (function() {
+  var _bpTimer;
+  return function() {
+    clearTimeout(_bpTimer);
+    _bpTimer = setTimeout(function() {
+      var now = window.innerWidth <= 768 ? 'mobile' : 'desktop';
+      if (now === _lastBreakpoint) return;
+      _lastBreakpoint = now;
+
+      if (now === 'mobile') {
+        // Switching desktop → mobile.
+        // Data is already loaded — skip the splash animation entirely.
+        var splash = document.getElementById('mob-splash');
+        if (splash) { splash.style.transition = 'none'; splash.style.opacity = '0'; splash.style.display = 'none'; }
+        var logoBar = document.getElementById('mob-logo-bar');
+        if (logoBar) { logoBar.style.transition = 'none'; logoBar.style.opacity = '1'; }
+        var mobHd = document.getElementById('mob-hd');
+        if (mobHd) mobHd.style.opacity = '1';
+        // Mark intro as done so _mobRunIntro skips the animation path
+        _mobIntroRan    = true;
+        _mobAnimRunning = false;
+        _ptrInited      = false; // allow pull-to-refresh to init fresh
+        if (_pipelineData) {
+          _mobInitPullToRefresh();
+          _mobUpdateHeader();
+          navigateTo(_currentView);
+          updateSidebarBadge();
+        }
+      } else {
+        // Switching mobile → desktop — just re-render the current view.
+        if (_pipelineData) renderPipeline();
+      }
+    }, 180);
+  };
+})());
+
 /* ═══════════════════════════════════════════════════════════════
    UNIFIED PIPELINE — enquiries + clients + Halaxy
    ═══════════════════════════════════════════════════════════════ */
@@ -2637,7 +2679,7 @@ async function syncHalaxyConfigData() {
 
 function refreshPipeline() {
   var btn = document.getElementById('pl-refresh-btn');
-  if (btn) { btn.textContent = '↺ Refreshing…'; btn.disabled = true; }
+  if (btn) { btn.classList.add('spinning'); btn.disabled = true; }
   loadCalendarPending();
   fetch('/api/admin-enquiries').then(function(r) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -2657,7 +2699,7 @@ function refreshPipeline() {
   }).catch(function(err) {
     toast('Refresh failed: ' + err.message, 'err');
   }).finally(function() {
-    if (btn) { btn.textContent = '↺ Refresh'; btn.disabled = false; }
+    if (btn) { btn.classList.remove('spinning'); btn.disabled = false; }
   });
 }
 
