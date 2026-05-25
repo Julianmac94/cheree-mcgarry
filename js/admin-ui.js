@@ -4579,9 +4579,58 @@ function _resolvePatientName(patientId) {
   return c ? (c.display_name || c.first_name || 'Client') : 'Client #' + patientId;
 }
 
-/* ── Inbox issue buckets (populated in renderHomeView) ────────────── */
+/* ── Inbox issue buckets ─────────────────────────────────────────── */
 var _dhHalaxyNoInvoice  = []; // past Halaxy appts with no invoice → CRITICAL
 var _dhNonHalaxyActions = []; // non-Halaxy appts needing merge/dismiss → action
+
+/**
+ * Recompute all inbox buckets from current data and refresh whichever
+ * view is visible. Call this whenever Halaxy or Calendar data arrives
+ * asynchronously so the inbox is never stale.
+ */
+function _recomputeInboxBuckets() {
+  if (!_pipelineData) return;
+  var clients   = (_pipelineData.clients   || []);
+  var _uni = (_halaxyData && _halaxyData.connected)
+    ? _buildUnifiedSessions()
+    : { upcoming: [], past: [] };
+
+  _dhBillingSessions = _uni.past.filter(function(s) {
+    return s.status === 'pending-invoice' || s.status === 'invoiced' || s.status === 'needs-recording';
+  });
+  _dhHalaxyNoInvoice = _uni.past.filter(function(s) {
+    return s.source === 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
+  });
+  _dhNonHalaxyActions = _uni.past.filter(function(s) {
+    return s.source !== 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
+  });
+  _dhEnqClientMap = {};
+  clients.forEach(function(c) { if (c.enquiry_id) _dhEnqClientMap[c.enquiry_id] = c; });
+  _dhPatientApptMap = {};
+  _uni.upcoming.forEach(function(s) {
+    if (!s.patientId) return;
+    var key = String(s.patientId);
+    if (!_dhPatientApptMap[key]) _dhPatientApptMap[key] = [];
+    _dhPatientApptMap[key].push(s);
+  });
+  Object.keys(_dhPatientApptMap).forEach(function(k) {
+    _dhPatientApptMap[k].sort(function(a, b) { return a.startMs - b.startMs; });
+  });
+  // Every upcoming cal event without a Halaxy patient must surface in Unlinked
+  _dhUnlinkedCalAppts = _uni.upcoming.filter(function(s) {
+    return s.source === 'cal' && !s.patientId && !s.isReminder;
+  });
+
+  // Refresh whichever surface is currently showing inbox/home data
+  // Desktop: inbox lives inside the home bento — re-render home
+  // Mobile:  inbox is a standalone app — re-render it directly
+  if (window.innerWidth <= 768) {
+    if (_mobCurrentApp === 'queue') _mobRenderInbox();
+    else if (_mobCurrentApp === 'home') { /* mob header update only, bento handles itself */ }
+  } else {
+    if (_currentView === 'home') renderHomeView();
+  }
+}
 
 /* ── Reminders sort + priority state ─────────────────────────────── */
 var _dhRemindSort = 'date'; // 'date' | 'priority'
@@ -9061,11 +9110,15 @@ async function loadCalendarPending() {
 
     _calEventsLoaded = true;
     renderAppointmentsPanel();
+    // Recompute inbox buckets now that cal data is live — ensures unlinked
+    // appointments surface in the inbox immediately, regardless of load order
+    _recomputeInboxBuckets();
 
   } catch (err) {
     _setChip('err', 'Calendar', 'Error: ' + err.message);
     _calEventsLoaded = true;
     renderAppointmentsPanel();
+    _recomputeInboxBuckets();
   }
 }
 
