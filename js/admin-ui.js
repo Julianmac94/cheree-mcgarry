@@ -5361,7 +5361,7 @@ async function _loadAIBrief(data) {
   metaEl.classList.add('ai-brief-streaming');
 
   try {
-    var resp = await fetch('/api/admin-brief', {
+    var resp = await fetch('/api/admin-tasks?brief=1', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(data),
