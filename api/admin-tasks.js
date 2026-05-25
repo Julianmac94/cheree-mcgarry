@@ -31,6 +31,81 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     const body = req.body || {};
+    const brief = req.query?.brief || (req.url && new URL(req.url, 'http://x').searchParams.get('brief'));
+
+    // ── AI receptionist brief ─────────────────────────────────────
+    if (brief) {
+      const key = process.env.ANTHROPIC_API_KEY;
+      if (!key) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
+
+      const {
+        todaySessions    = [],
+        nextAppt         = null,
+        critCount        = 0,
+        awaitingPayCount = 0,
+        unlinkedCount    = 0,
+        newEnquiries     = 0,
+      } = body;
+
+      const lines = [];
+      if (todaySessions.length === 0) {
+        lines.push('No sessions today.');
+      } else {
+        lines.push('Sessions today: ' + todaySessions.map(s => s.name + (s.time ? ' at ' + s.time : '')).join(', ') + '.');
+      }
+      if (nextAppt) {
+        lines.push('Next appointment: ' + nextAppt.name + (nextAppt.day ? ' on ' + nextAppt.day : '') + (nextAppt.time ? ' at ' + nextAppt.time : '') + '.');
+      } else {
+        lines.push('No upcoming appointments scheduled.');
+      }
+      const issues = [];
+      if (critCount        > 0) issues.push(critCount        + ' appointment' + (critCount        !== 1 ? 's' : '') + ' missing an invoice');
+      if (awaitingPayCount > 0) issues.push(awaitingPayCount + ' invoice'     + (awaitingPayCount !== 1 ? 's' : '') + ' awaiting payment');
+      if (unlinkedCount    > 0) issues.push(unlinkedCount    + ' unlinked calendar event' + (unlinkedCount !== 1 ? 's' : ''));
+      lines.push(issues.length ? 'Admin: ' + issues.join(', ') + '.' : 'No admin issues.');
+      lines.push(newEnquiries > 0 ? newEnquiries + ' new enquir' + (newEnquiries === 1 ? 'y' : 'ies') + ' in inbox.' : 'No new enquiries.');
+
+      const prompt = `You are the front-desk assistant for Cheree McGarry, a psychologist. When she opens her practice dashboard give her a short, warm briefing — like a receptionist would say when she walks in the door. Write exactly 2–3 sentences in a natural, conversational tone. Do NOT use bullet points or lists. Do NOT start with a greeting (it is shown separately). Refer to clients by first name only. Be specific about the actual numbers and names.\n\nDashboard data:\n${lines.join('\n')}\n\nWrite only the briefing, nothing else.`;
+
+      try {
+        const upstream = await fetch(ANTHROPIC_API, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({ model: BRIEF_MODEL, max_tokens: 160, stream: true, messages: [{ role: 'user', content: prompt }] }),
+        });
+        if (!upstream.ok) {
+          const err = await upstream.text();
+          console.error('[brief] Anthropic error', upstream.status, err);
+          return res.status(502).json({ error: 'Upstream error' });
+        }
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        const reader = upstream.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          const chunks = buf.split('\n');
+          buf = chunks.pop();
+          for (const line of chunks) {
+            if (!line.startsWith('data: ')) continue;
+            const raw = line.slice(6).trim();
+            if (raw === '[DONE]') continue;
+            try {
+              const evt = JSON.parse(raw);
+              if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') res.write(evt.delta.text);
+            } catch (_) {}
+          }
+        }
+        return res.end();
+      } catch (err) {
+        console.error('[brief]', err);
+        if (!res.headersSent) return res.status(500).json({ error: err.message });
+        return res.end();
+      }
+    }
 
     // ── Dashboard reset (confirm token required) ──────────────────
     if (body.confirm === 'RESET') {
@@ -90,81 +165,6 @@ export default async function handler(req, res) {
     const { error } = await db.from('tasks').delete().eq('id', id);
     if (error) return res.status(500).json({ error: error.message });
     return res.status(200).json({ ok: true });
-  }
-
-  // ── AI receptionist brief ─────────────────────────────────────
-  if (req.method === 'POST' && (id === null || id === undefined) &&
-      (req.query?.brief || (req.url && new URL(req.url, 'http://x').searchParams.get('brief')))) {
-    const key = process.env.ANTHROPIC_API_KEY;
-    if (!key) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
-
-    const {
-      todaySessions = [],
-      nextAppt      = null,
-      critCount     = 0,
-      awaitingPayCount = 0,
-      unlinkedCount = 0,
-      newEnquiries  = 0,
-    } = req.body || {};
-
-    const lines = [];
-    if (todaySessions.length === 0) {
-      lines.push('No sessions today.');
-    } else {
-      lines.push('Sessions today: ' + todaySessions.map(s => s.name + (s.time ? ' at ' + s.time : '')).join(', ') + '.');
-    }
-    if (nextAppt) {
-      lines.push('Next appointment: ' + nextAppt.name + (nextAppt.day ? ' on ' + nextAppt.day : '') + (nextAppt.time ? ' at ' + nextAppt.time : '') + '.');
-    } else {
-      lines.push('No upcoming appointments scheduled.');
-    }
-    const issues = [];
-    if (critCount > 0)        issues.push(critCount + ' appointment' + (critCount !== 1 ? 's' : '') + ' missing an invoice');
-    if (awaitingPayCount > 0) issues.push(awaitingPayCount + ' invoice' + (awaitingPayCount !== 1 ? 's' : '') + ' awaiting payment');
-    if (unlinkedCount > 0)    issues.push(unlinkedCount + ' unlinked calendar event' + (unlinkedCount !== 1 ? 's' : ''));
-    lines.push(issues.length ? 'Admin: ' + issues.join(', ') + '.' : 'No admin issues.');
-    lines.push(newEnquiries > 0 ? newEnquiries + ' new enquir' + (newEnquiries === 1 ? 'y' : 'ies') + ' in inbox.' : 'No new enquiries.');
-
-    const prompt = `You are the front-desk assistant for Cheree McGarry, a psychologist. When she opens her practice dashboard give her a short, warm briefing — like a receptionist would say when she walks in the door. Write exactly 2–3 sentences in a natural, conversational tone. Do NOT use bullet points or lists. Do NOT start with a greeting (it is shown separately). Refer to clients by first name only. Be specific about the actual numbers and names.\n\nDashboard data:\n${lines.join('\n')}\n\nWrite only the briefing, nothing else.`;
-
-    try {
-      const upstream = await fetch(ANTHROPIC_API, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: BRIEF_MODEL, max_tokens: 160, stream: true, messages: [{ role: 'user', content: prompt }] }),
-      });
-      if (!upstream.ok) {
-        const err = await upstream.text();
-        console.error('[brief] Anthropic error', upstream.status, err);
-        return res.status(502).json({ error: 'Upstream error' });
-      }
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.setHeader('Cache-Control', 'no-store');
-      const reader = upstream.body.getReader();
-      const dec = new TextDecoder();
-      let buf = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const chunks = buf.split('\n');
-        buf = chunks.pop();
-        for (const line of chunks) {
-          if (!line.startsWith('data: ')) continue;
-          const raw = line.slice(6).trim();
-          if (raw === '[DONE]') continue;
-          try {
-            const evt = JSON.parse(raw);
-            if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') res.write(evt.delta.text);
-          } catch (_) {}
-        }
-      }
-      return res.end();
-    } catch (err) {
-      console.error('[brief]', err);
-      if (!res.headersSent) return res.status(500).json({ error: err.message });
-      return res.end();
-    }
   }
 
   res.status(405).json({ error: 'Method not allowed' });
