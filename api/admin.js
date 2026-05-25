@@ -1099,6 +1099,9 @@ body {
   }
   .mob-action-row:active { background: rgba(255,255,255,0.05); }
   .mob-action-row svg { opacity: 0.4; flex-shrink: 0; }
+  .mob-action-row--signout { color: rgba(239,68,68,0.7); margin-top: 2px; }
+  .mob-action-row--signout svg { opacity: 0.5; stroke: rgba(239,68,68,0.8); }
+  .mob-action-row--signout:active { background: rgba(239,68,68,0.07); }
 
   /* ── Mobile inbox app ── */
   .mob-inbox-view {
@@ -1129,6 +1132,9 @@ body {
   /* Critical (Halaxy no-invoice) tab */
   .mob-inbox-tab-crit { color: #ef4444 !important; border-color: rgba(239,68,68,0.25) !important; background: rgba(239,68,68,0.08) !important; }
   .mob-inbox-tab-crit.active { background: rgba(239,68,68,0.15) !important; border-color: rgba(239,68,68,0.4) !important; }
+  /* Unlinked (GCal no patient) tab */
+  .mob-inbox-tab-unlinked { color: #b85a1e !important; border-color: rgba(224,123,57,0.25) !important; background: rgba(224,123,57,0.08) !important; }
+  .mob-inbox-tab-unlinked.active { background: rgba(224,123,57,0.15) !important; border-color: rgba(224,123,57,0.4) !important; }
   /* Actions (merge/dismiss) tab */
   .mob-inbox-tab-act { color: var(--amber) !important; border-color: rgba(245,158,11,0.25) !important; background: rgba(245,158,11,0.08) !important; }
   .mob-inbox-tab-act.active { background: rgba(245,158,11,0.15) !important; border-color: rgba(245,158,11,0.4) !important; }
@@ -3309,10 +3315,6 @@ body {
     <div class="mob-action-divider"></div>
     <div class="mob-action-section">More</div>
     <div class="mob-action-rows">
-      <button class="mob-action-row" onclick="closeMobActionSheet();navigateTo('clients')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-        Clients
-      </button>
       <button class="mob-action-row" onclick="closeMobActionSheet();navigateTo('settings')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
         Settings
@@ -3320,6 +3322,10 @@ body {
       <a class="mob-action-row" href="https://www.halaxy.com" target="_blank" rel="noopener" onclick="closeMobActionSheet()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         Open Halaxy
+      </a>
+      <a class="mob-action-row mob-action-row--signout" href="?logout" onclick="closeMobActionSheet()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign Out
       </a>
     </div>
   </div>

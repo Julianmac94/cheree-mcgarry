@@ -784,11 +784,15 @@ function _mobRenderBilling() {
     outstanding.forEach(function(inv) {
       var name = _resolvePatientName(inv.patientId);
       var dt   = inv.date ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
-      var bal  = parseFloat(inv.totalBalance != null ? inv.totalBalance : (inv.amount || 0));
+      var _rawBal = parseFloat(inv.totalBalance != null ? inv.totalBalance : 0);
+      var bal  = _rawBal > 0 ? _rawBal : parseFloat(inv.amount || 0);
       var sub  = _getSubStatus(inv.id);
+      var _isPR = _invIsPendingRecon(inv);
       var subBadge = sub
         ? '<span class="mob-bill-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
-        : '<button class="mob-bill-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\');_mobRenderBilling()">Mark submitted</button>';
+        : _isPR
+          ? '<span class="mob-bill-sub ok">✓ Submitted · Halaxy</span>'
+          : '<button class="mob-bill-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\');_mobRenderBilling()">Mark submitted</button>';
       var refLabel = _fmtInvRef(inv);
       html += '<div class="mob-bill-row">'
         + '<div class="mob-bill-row-top">'
@@ -1118,8 +1122,8 @@ function _mobRenderInbox() {
   var mobCritCount    = _dhHalaxyNoInvoice  ? _dhHalaxyNoInvoice.length  : 0;
   var mobActionsCount = _dhNonHalaxyActions ? _dhNonHalaxyActions.length : 0;
 
-  // Default active: critical if issues exist, otherwise 'new'
-  var mobDefault = mobCritCount > 0 ? 'critical' : 'new';
+  // Default active: critical if issues exist, unlinked if that's the only issue, otherwise 'new'
+  var mobDefault = mobCritCount > 0 ? 'critical' : (unlinkedCount > 0 ? 'unlinked' : 'new');
 
   function _tab(status, label, cnt, extraCntStyle, extraBtnStyle) {
     var cntHtml = cnt
@@ -1138,6 +1142,9 @@ function _mobRenderInbox() {
   if (mobCritCount > 0) {
     html += _tab('critical', '⚠ No Invoice', mobCritCount, 'color:#ef4444', 'mob-inbox-tab-crit');
   }
+  if (unlinkedCount > 0) {
+    html += _tab('unlinked', '⚠ Unlinked', unlinkedCount, 'color:#b85a1e', 'mob-inbox-tab-unlinked');
+  }
   if (mobActionsCount > 0) {
     html += _tab('actions', 'Needs Action', mobActionsCount, 'color:var(--amber)', 'mob-inbox-tab-act');
   }
@@ -1146,7 +1153,6 @@ function _mobRenderInbox() {
   html += _tab('new',          'New',       newEnqs.length)
     + _tab('contacted',    'Contacted', cntContacted)
     + _tab('upcoming_appt','Upcoming',  cntUpcoming)
-    + _tab('unlinked',     'Unlinked',  unlinkedCount, 'color:#b85a1e')
     + _tab('closed',       'Closed',    cntClosed)
     + _tab('all',          'All',       enquiries.length)
     + '</div>'
@@ -1158,8 +1164,11 @@ function _mobRenderInbox() {
   if (mobCritCount > 0) {
     _dhInboxFilter = 'critical';
     _dhRenderSessionItems(mobListEl, _dhHalaxyNoInvoice, 'critical');
+  } else if (unlinkedCount > 0) {
+    _dhInboxFilter = 'unlinked';
+    _dhRenderUnlinkedCalItems(mobListEl, _dhUnlinkedCalAppts);
   } else {
-    _dhRenderInboxItems(mobListEl, newEnqs);
+    _dhRenderInboxItems(mobListEl, newEnqs, 'new');
   }
   _updateMobileDock('queue');
 }
@@ -3959,15 +3968,36 @@ function renderAppointmentsPanel() {
    ═══════════════════════════════════════════════════ */
 
 /**
- * Determine if a Halaxy invoice is fully paid.
- * Halaxy keeps status="active" on all invoices — the real indicator is
- * totalBalance: 0 = paid, >0 = still owing. Falls back to status field.
+ * Determine if a Halaxy invoice is fully settled.
+ *
+ * Halaxy FHIR status values relevant here:
+ *   "active"   — normal unpaid invoice
+ *   "issued"   — invoice sent to payer (shows as PENDING in Halaxy UI).
+ *                For WorkCover/org invoices a payment can be "submitted" to the
+ *                funder which drives totalBalance→0, but the invoice stays "issued"
+ *                until the practitioner reconciles it. NOT the same as paid.
+ *   "balanced" — fully reconciled / settled. This is the true paid state.
+ *
+ * totalBalance=0 alone is therefore NOT sufficient to declare an invoice paid.
  */
 function _invIsPaid(inv) {
-  // totalBalance <= 0 means fully paid or credit balance (Halaxy can return negative values
-  // for invoices where a credit note / overpayment exists — treat those as settled too).
+  // "issued" = Halaxy's PENDING state. Even if totalBalance is 0 (payment submitted
+  // but not yet reconciled), do NOT treat this as paid.
+  if (inv.status === 'issued') return false;
+  // Credit-balance or zero-balance invoices with any other status are settled.
   if (inv.totalBalance !== null && inv.totalBalance !== undefined) return inv.totalBalance <= 0;
   return inv.status === 'balanced' || inv.status === 'paid';
+}
+
+/**
+ * Returns true for invoices that have been submitted to a funder (totalPaid > 0,
+ * totalBalance = 0) but are still awaiting practitioner reconciliation in Halaxy
+ * (status = "issued"). These are NOT yet fully paid.
+ */
+function _invIsPendingRecon(inv) {
+  return inv.status === 'issued'
+    && parseFloat(inv.totalPaid  || 0) > 0
+    && parseFloat(inv.totalBalance || 0) <= 0;
 }
 
 /**
@@ -4506,9 +4536,17 @@ function _dhEnqMeta(e) {
   return parts.join('<span style="color:var(--t3);margin:0 1px;font-size:10px"> · </span>');
 }
 
-function _dhRenderInboxItems(listEl, items) {
+function _dhRenderInboxItems(listEl, items, status) {
   if (!items || !items.length) {
-    listEl.innerHTML = '<div class="dh-attn-empty" style="padding:32px 20px;text-align:center;color:var(--t3);font-size:13px">Nothing here</div>';
+    var _ctx = status || _dhInboxFilter;
+    var _emptyMsg = {
+      'new':          '<strong>No new enquiries</strong><br>When someone submits an intake form or contact request, they\'ll appear here first.',
+      'contacted':    '<strong>No contacted leads</strong><br>Move enquiries here after initial outreach — these are people you\'re actively following up.',
+      'upcoming_appt':'<strong>No upcoming appointments</strong><br>Enquiries linked to a client with a scheduled Halaxy appointment appear here automatically.',
+      'closed':       '<strong>Nothing closed</strong><br>Archived leads and converted clients land here once you close or convert them.',
+      'all':          '<strong>No enquiries yet</strong><br>All enquiries regardless of status will show here once they come in.'
+    }[_ctx] || 'Nothing here';
+    listEl.innerHTML = '<div class="dh-attn-empty" style="padding:28px 20px;text-align:center;color:var(--t3);font-size:12.5px;line-height:1.55">' + _emptyMsg + '</div>';
     return;
   }
   listEl.innerHTML = items.slice(0, 12).map(function(e) {
@@ -4616,7 +4654,7 @@ function dhInboxFilter(status, el) {
   } else {
     filtered = all.filter(function(e) { return (e.status || 'new') === status; });
   }
-  _dhRenderInboxItems(listEl, filtered);
+  _dhRenderInboxItems(listEl, filtered, status);
 }
 
 /* ── Schedule card state & helpers ── */
@@ -5051,23 +5089,46 @@ function renderHomeView() {
   var needsInvoiceCount = _uni.past.filter(function(s) { return s.status === 'pending-invoice'; }).length;
   var awaitingPayCount  = invoices.filter(function(i) { return parseFloat(i.totalBalance || 0) > 0; }).length;
 
-  // ── Header — greeting + text summary + Add popup ─────────────
-  var _todaySummary = todayAppts.length === 0
-    ? 'No sessions today'
-    : todayAppts.length + ' session' + (todayAppts.length !== 1 ? 's' : '') + ' today';
-  var _nextSummary = '';
+  // ── Issue counts (needed by snapshot + inbox sidebar) ─────────
+  var critCount    = _dhHalaxyNoInvoice.length;
+  var actionsCount = _dhNonHalaxyActions.length;
+  var hasIssues    = critCount > 0 || actionsCount > 0 || unlinkedCount > 0;
+
+  // ── Conversational snapshot summary ───────────────────────────
+  var _snapParts = [];
+  // Sessions today
+  if (todayAppts.length === 0) {
+    _snapParts.push('No sessions today');
+  } else if (todayAppts.length === 1) {
+    var _st = todayAppts[0];
+    var _stT = _st.timeStr || (_st.startIso ? _fmtT(_st.startIso) : '');
+    _snapParts.push('<strong>' + escHtml(_st.name || 'Client') + '</strong>' + (_stT ? ' at ' + escHtml(_stT) : '') + ' today');
+  } else {
+    _snapParts.push('<strong>' + todayAppts.length + ' sessions</strong> today');
+  }
+  // Next appointment
   if (nextAppt) {
     var _nN = escHtml(nextAppt.name || nextAppt.patientName || 'Client');
     var _nT = nextAppt.timeStr || (nextAppt.startIso ? _fmtT(nextAppt.startIso) : '');
     var _nD = (nextAppt.dateStr && nextAppt.dateStr !== todayIso)
       ? new Date(nextAppt.dateStr + 'T00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
       : '';
-    _nextSummary = ' &middot; Next: <strong>' + _nN + '</strong>'
-      + (_nT ? ' at ' + escHtml(_nT) : '')
-      + (_nD ? ' &middot; ' + escHtml(_nD) : '');
-  } else {
-    _nextSummary = ' &middot; Calendar is clear';
+    var _nextStr = 'Next: <strong>' + _nN + '</strong>';
+    if (_nT) _nextStr += ' at ' + escHtml(_nT);
+    if (_nD) _nextStr += ' &middot; ' + escHtml(_nD);
+    _snapParts.push(_nextStr);
+  } else if (todayAppts.length === 0) {
+    _snapParts.push('calendar is clear');
   }
+  // Issues
+  if (critCount > 0) _snapParts.push('<span style="color:#ef4444">⚠&thinsp;' + critCount + ' no invoice</span>');
+  if (unlinkedCount > 0) _snapParts.push('<span style="color:#b85a1e">⚠&thinsp;' + unlinkedCount + ' unlinked</span>');
+  if (awaitingPayCount > 0) _snapParts.push('<span style="color:var(--amber)">' + awaitingPayCount + ' unpaid</span>');
+  // New enquiries
+  if (newEnquiries.length > 0) {
+    _snapParts.push('<span style="color:var(--teal)">' + newEnquiries.length + ' new ' + (newEnquiries.length === 1 ? 'enquiry' : 'enquiries') + '</span>');
+  }
+  var _snapshotHtml = _snapParts.join(' <span style="color:var(--t3);margin:0 1px">&middot;</span> ') || 'All clear';
 
   html += '<div class="dh-hd-row">'
     + '<div class="dh-hd-left">'
@@ -5089,7 +5150,7 @@ function renderHomeView() {
     + '</div>'
     + '</div>'
     + '</div>'
-    + '<div class="dh-hd-meta">' + escHtml(_todaySummary) + _nextSummary + '</div>'
+    + '<div class="dh-hd-meta">' + _snapshotHtml + '</div>'
     + '</div>'
     + '</div>';
 
@@ -5107,16 +5168,11 @@ function renderHomeView() {
   html += '<div class="dh-b-6 dh-fold" id="dh-q-inbox">'
     + '<div class="dh-fold-tab">'
     + IC.inbox + 'Inbox'
-    + (critCount > 0 ? '<span class="dh-fold-badge" style="background:rgba(239,68,68,0.15);color:#ef4444">⚠ ' + critCount + ' critical</span>' : '')
-    + (actionsCount > 0 && !critCount ? '<span class="dh-fold-badge" style="background:rgba(245,158,11,0.15);color:var(--amber)">' + actionsCount + ' actions</span>' : '')
+    + (hasIssues ? '<span class="dh-fold-badge" style="background:rgba(239,68,68,0.15);color:#ef4444">⚠ ' + (critCount + unlinkedCount) + ' issue' + (critCount + unlinkedCount !== 1 ? 's' : '') + '</span>' : '')
+    + (actionsCount > 0 && !hasIssues ? '<span class="dh-fold-badge" style="background:rgba(245,158,11,0.15);color:var(--amber)">' + actionsCount + ' actions</span>' : '')
     + (newEnquiries.length ? '<span class="dh-fold-badge">' + newEnquiries.length + ' new</span>' : '')
-    + (unlinkedCount ? '<span class="dh-fold-badge" style="background:rgba(224,123,57,0.15);color:#b85a1e">' + unlinkedCount + ' unlinked</span>' : '')
     + '</div>'
     + '<div class="dh-attn-card">';
-  // Issue buckets used in sidebar
-  var critCount    = _dhHalaxyNoInvoice.length;
-  var actionsCount = _dhNonHalaxyActions.length;
-  var hasIssues    = critCount > 0 || actionsCount > 0;
 
   html += '<div class="dh-inbox-sidebar">';
 
@@ -5127,6 +5183,11 @@ function renderHomeView() {
       html += '<div class="dh-inbox-folder dh-if-critical" data-status="critical" onclick="dhInboxFilter(\'critical\',this)">'
         + '<span class="dh-if-label">⚠ No Invoice</span>'
         + '<span class="dh-if-count dh-if-count-crit">' + critCount + '</span></div>';
+    }
+    if (unlinkedCount > 0) {
+      html += '<div class="dh-inbox-folder dh-if-unlinked" data-status="unlinked" onclick="dhInboxFilter(\'unlinked\',this)">'
+        + '<span class="dh-if-label">⚠ Unlinked Events</span>'
+        + '<span class="dh-if-count" style="color:#b85a1e">' + unlinkedCount + '</span></div>';
     }
     if (actionsCount > 0) {
       html += '<div class="dh-inbox-folder dh-if-actions" data-status="actions" onclick="dhInboxFilter(\'actions\',this)">'
@@ -5143,8 +5204,6 @@ function renderHomeView() {
     + '<span class="dh-if-label">Contacted</span><span class="dh-if-count">' + contactedEnqs.length + '</span></div>'
     + '<div class="dh-inbox-folder" data-status="upcoming_appt" onclick="dhInboxFilter(\'upcoming_appt\',this)">'
     + '<span class="dh-if-label">Upcoming</span><span class="dh-if-count"' + (upcomingApptEnqs.length ? ' style="color:var(--teal)"' : '') + '>' + upcomingApptEnqs.length + '</span></div>'
-    + '<div class="dh-inbox-folder" data-status="unlinked" onclick="dhInboxFilter(\'unlinked\',this)">'
-    + '<span class="dh-if-label">Unlinked</span><span class="dh-if-count"' + (unlinkedCount ? ' style="color:#b85a1e"' : '') + '>' + unlinkedCount + '</span></div>'
     + '<div class="dh-inbox-folder" data-status="closed" onclick="dhInboxFilter(\'closed\',this)">'
     + '<span class="dh-if-label">Closed</span><span class="dh-if-count">' + closedEnqs.length + '</span></div>'
     + '<div class="dh-inbox-folder" data-status="all" onclick="dhInboxFilter(\'all\',this)">'
@@ -5201,8 +5260,15 @@ function renderHomeView() {
         f.classList.toggle('active', f.dataset.status === 'critical');
       });
       _dhRenderSessionItems(_inboxListEl, _dhHalaxyNoInvoice, 'critical');
+    } else if (unlinkedCount > 0) {
+      // Auto-open unlinked if that's the only issue
+      _dhInboxFilter = 'unlinked';
+      document.querySelectorAll('.dh-inbox-folder').forEach(function(f) {
+        f.classList.toggle('active', f.dataset.status === 'unlinked');
+      });
+      _dhRenderUnlinkedCalItems(_inboxListEl, _dhUnlinkedCalAppts);
     } else {
-      _dhRenderInboxItems(_inboxListEl, newEnquiries);
+      _dhRenderInboxItems(_inboxListEl, newEnquiries, 'new');
     }
   }
   _updateMobileDock('home');
@@ -5357,11 +5423,15 @@ function _dhRenderBillingBento() {
     outstanding.slice(0, 10).forEach(function(inv) {
       var name = _resolvePatientName(inv.patientId);
       var dt   = inv.date ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—';
-      var bal  = parseFloat(inv.totalBalance != null ? inv.totalBalance : (inv.amount || 0));
+      var _rawBal2 = parseFloat(inv.totalBalance != null ? inv.totalBalance : 0);
+      var bal  = _rawBal2 > 0 ? _rawBal2 : parseFloat(inv.amount || 0);
       var sub  = _getSubStatus(inv.id);
+      var _isPR2 = _invIsPendingRecon(inv);
       var subBadge = sub
         ? '<span class="dh-inv-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
-        : '<button class="dh-inv-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\')">Mark submitted</button>';
+        : _isPR2
+          ? '<span class="dh-inv-sub ok">✓ Submitted · Halaxy</span>'
+          : '<button class="dh-inv-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\')">Mark submitted</button>';
       var bentoRef = _fmtInvRef(inv);
       html += '<div class="dh-bill-inv-row" onclick="openInvoiceModal(\'' + escHtml(String(inv.id)) + '\')">'
         + '<div class="dh-bir-name">' + escHtml(name) + (bentoRef ? '<span class="dh-bir-ref">' + escHtml(bentoRef) + '</span>' : '') + '</div>'
@@ -6908,8 +6978,13 @@ function openInvoiceModal(invId) {
   var dt       = inv.date
     ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
     : '—';
-  var bal      = parseFloat(inv.totalBalance != null ? inv.totalBalance : (inv.amount || 0));
+  // amt = gross billed amount (what was invoiced). Always use this for display.
+  // bal = remaining balance (only positive when partially paid).
+  // Do NOT use bal for display — it's 0 for both "paid" and "submitted-pending-recon" invoices.
+  var amt      = parseFloat(inv.amount != null ? inv.amount : (inv.totalPaid || 0));
+  var bal      = parseFloat(inv.totalBalance != null ? inv.totalBalance : 0);
   var paid     = _invIsPaid(inv);
+  var pendRecon = _invIsPendingRecon(inv); // submitted to funder, awaiting reconciliation
   var sub      = _getSubStatus(inv.id);
 
   // Look up the appointment time directly from Halaxy appointments (no date-range cutoff)
@@ -6938,16 +7013,21 @@ function openInvoiceModal(invId) {
   }
 
   // Reminders section visibility:
-  // Paid invoices → only show if there are already-linked reminders (so they can be actioned)
-  // Outstanding/submitted → always show including the add-reminder input
+  // Paid or pending-reconciliation invoices → only show if already-linked reminders exist
+  // Outstanding → always show including the add-reminder input
+  var _settled           = paid || pendRecon;
   var _hasLinkedTasks    = _invGetTaskIds(inv.id).length > 0;
-  var _showReminders     = !paid || _hasLinkedTasks;
-  var _showAddReminder   = !paid;
+  var _showReminders     = !_settled || _hasLinkedTasks;
+  var _showAddReminder   = !_settled;
 
   // Status chip — use explicit hex so dark theme CSS vars can't interfere
   var statusHtml;
   if (paid) {
     statusHtml = '<span style="color:#34D399;font-weight:600">✓ Paid</span>';
+  } else if (pendRecon) {
+    // Payment submitted to funder in Halaxy but not yet reconciled by practitioner
+    statusHtml = '<span style="color:#34D399;font-weight:600">✓ Submitted</span>'
+      + '<span style="color:rgba(255,255,255,0.4);font-size:11px;margin-left:6px">· Pending reconciliation</span>';
   } else if (sub) {
     statusHtml = sub.chase
       ? '<span style="color:#FBBF24;font-weight:600">⚠ Submitted ' + escHtml(sub.date) + ' — follow up</span>'
@@ -6972,7 +7052,7 @@ function openInvoiceModal(invId) {
 
   // Primary action
   var primaryAction = '';
-  if (!paid) {
+  if (!paid && !pendRecon) {
     if (sub) {
       primaryAction = '<button class="db-btn-ghost" onclick="_clearBillingSubmission(\'' + escHtml(String(inv.id)) + '\')">Clear submission</button>';
     } else {
@@ -7010,8 +7090,8 @@ function openInvoiceModal(invId) {
     // Amount — large top treatment
     +   '<div style="padding:16px 0 12px;border-bottom:1px solid rgba(255,255,255,0.06)">'
     +     '<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.38);margin-bottom:4px">Amount</div>'
-    +     '<div style="font-size:26px;font-weight:700;color:' + (paid ? '#34D399' : '#FBBF24') + ';letter-spacing:-0.02em">'
-    +       (bal ? _fmtAUD(Math.abs(bal)) : '—')
+    +     '<div style="font-size:26px;font-weight:700;color:' + (paid ? '#34D399' : pendRecon ? '#34D399' : '#FBBF24') + ';letter-spacing:-0.02em">'
+    +       (amt ? _fmtAUD(amt) : '—')
     +     '</div>'
     +   '</div>'
     +   _row('Date',    escHtml(dt + _invSessTime))

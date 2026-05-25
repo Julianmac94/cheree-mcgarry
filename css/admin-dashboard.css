@@ -1572,6 +1572,12 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .dh-if-critical .dh-if-label::before { content: ''; }
 .dh-if-count-crit { background: rgba(239,68,68,0.15) !important; color: #ef4444 !important; }
 .dh-if-critical.active .dh-if-count { background: rgba(239,68,68,0.2) !important; color: #ef4444 !important; }
+/* Unlinked: GCal events with no Halaxy patient — orange */
+.dh-if-unlinked { color: #b85a1e; }
+.dh-if-unlinked:hover { background: rgba(224,123,57,0.07); color: #b85a1e; }
+.dh-if-unlinked.active { color: #b85a1e; font-weight: 700; }
+.dh-if-count-unlinked { background: rgba(224,123,57,0.15) !important; color: #b85a1e !important; }
+.dh-if-unlinked.active .dh-if-count { background: rgba(224,123,57,0.2) !important; color: #b85a1e !important; }
 /* Actions: non-Halaxy merge/dismiss — amber */
 .dh-if-actions { color: var(--amber); }
 .dh-if-actions:hover { background: rgba(245,158,11,0.07); color: var(--amber); }
