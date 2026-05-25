@@ -3964,10 +3964,11 @@ function renderAppointmentsPanel() {
  * totalBalance=0 alone is therefore NOT sufficient to declare an invoice paid.
  */
 function _invIsPaid(inv) {
-  // "issued" = Halaxy's PENDING state. Even if totalBalance is 0 (payment submitted
-  // but not yet reconciled), do NOT treat this as paid.
-  if (inv.status === 'issued') return false;
-  // Credit-balance or zero-balance invoices with any other status are settled.
+  // 'issued' and 'active' are Halaxy's pre-reconciliation states.
+  // Even if totalBalance is 0 (payment submitted/received by funder but not yet
+  // reconciled by the practitioner), do NOT treat this as paid.
+  // Only 'balanced' (or 'paid') means the practitioner has confirmed settlement.
+  if (inv.status === 'issued' || inv.status === 'active') return false;
   if (inv.totalBalance !== null && inv.totalBalance !== undefined) return inv.totalBalance <= 0;
   return inv.status === 'balanced' || inv.status === 'paid';
 }
@@ -3975,10 +3976,14 @@ function _invIsPaid(inv) {
 /**
  * Returns true for invoices that have been submitted to a funder (totalPaid > 0,
  * totalBalance = 0) but are still awaiting practitioner reconciliation in Halaxy
- * (status = "issued"). These are NOT yet fully paid.
+ * (status = "issued" or "active"). These are NOT yet fully paid.
+ *
+ * Halaxy WorkCover flow:
+ *   status="active" + totalBalance=0  → payment received from WorkCover, not yet reconciled
+ *   status="balanced" + totalBalance=0 → practitioner reconciled → truly paid
  */
 function _invIsPendingRecon(inv) {
-  return inv.status === 'issued'
+  return (inv.status === 'issued' || inv.status === 'active')
     && parseFloat(inv.totalPaid  || 0) > 0
     && parseFloat(inv.totalBalance || 0) <= 0;
 }
@@ -5071,7 +5076,10 @@ function renderHomeView() {
 
   // Billing
   var needsInvoiceCount = _uni.past.filter(function(s) { return s.status === 'pending-invoice'; }).length;
-  var awaitingPayCount  = invoices.filter(function(i) { return parseFloat(i.totalBalance || 0) > 0; }).length;
+  // Outstanding = genuinely unpaid (balance > 0) OR submitted to funder but not yet reconciled
+  var awaitingPayCount  = invoices.filter(function(i) {
+    return parseFloat(i.totalBalance || 0) > 0 || _invIsPendingRecon(i);
+  }).length;
 
   // ── Issue counts (needed by snapshot + inbox sidebar) ─────────
   var critCount    = _dhHalaxyNoInvoice.length;
@@ -5413,7 +5421,7 @@ function _mobRenderHome() {
   var newEnqs       = enquiries.filter(function(e){ return (e.status||'new') === 'new'; });
   var critCnt       = (_dhHalaxyNoInvoice  || []).length;
   var unlinkedCnt   = (_dhUnlinkedCalAppts || []).length;
-  var awaitPayCnt   = invoices.filter(function(i){ return parseFloat(i.totalBalance||0) > 0; }).length;
+  var awaitPayCnt   = invoices.filter(function(i){ return parseFloat(i.totalBalance||0) > 0 || _invIsPendingRecon(i); }).length;
   _loadAIBrief({
     todaySessions:   todaySessAll.map(function(a){ return { name: (a.name||'Client').split(' ')[0], time: a.timeStr||(a.startIso?_fmtMobT(a.startIso):'') }; }),
     nextAppt: nextMob ? {
