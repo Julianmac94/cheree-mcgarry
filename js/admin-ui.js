@@ -6630,14 +6630,15 @@ function _renderClientsViewLegacy() {
 function _invRenderTasks(invId, overlay) {
   var el = overlay.querySelector('#inv-task-list-' + CSS.escape(String(invId)));
   if (!el) return;
-  var taskIds = _invGetTaskIds(invId);
-  var allTasks = (_pipelineData && _pipelineData.tasks) || [];
-  var linked = taskIds.map(function(tid) {
+  var taskIds  = _invGetTaskIds(invId);
+  // Use _dhTasks — the canonical module-level cache shared with Reminders
+  var allTasks = _dhTasks || [];
+  var linked   = taskIds.map(function(tid) {
     return allTasks.find(function(t) { return String(t.id) === String(tid); });
   }).filter(Boolean);
 
   if (!linked.length) {
-    el.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.28);padding:6px 0 2px">No tasks yet</div>';
+    el.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.28);padding:6px 0 2px">No reminders yet</div>';
     return;
   }
   el.innerHTML = linked.map(function(t) {
@@ -6658,10 +6659,9 @@ function _invRenderTasks(invId, overlay) {
   }).join('');
 }
 
-/** Toggle a task done/undone from inside the invoice modal. */
+/** Toggle a reminder done/undone from inside the invoice modal. */
 async function _invToggleTask(invId, taskId, btn) {
-  var allTasks = (_pipelineData && _pipelineData.tasks) || [];
-  var task = allTasks.find(function(t) { return String(t.id) === String(taskId); });
+  var task = (_dhTasks || []).find(function(t) { return String(t.id) === String(taskId); });
   if (!task) return;
   var newVal = !task.completed;
   try {
@@ -6669,11 +6669,14 @@ async function _invToggleTask(invId, taskId, btn) {
     task.completed = newVal;
     var overlay = btn.closest('.inv-modal-overlay');
     if (overlay) _invRenderTasks(invId, overlay);
-    renderHomeView && renderHomeView();
+    // Refresh reminders view / home if open
+    if (_currentView === 'reminders') renderRemindersView();
+    else if (_mobCurrentApp === 'reminders') _mobRenderReminders();
+    else if (_currentView === 'home') renderHomeView();
   } catch(e) { toast(e.message, 'err'); }
 }
 
-/** Create a new task from the invoice modal quick-add field. */
+/** Create a new reminder from the invoice modal quick-add field. */
 async function _invAddTask(invId, overlay) {
   var input = overlay.querySelector('#inv-task-input-' + CSS.escape(String(invId)));
   if (!input) return;
@@ -6682,11 +6685,16 @@ async function _invAddTask(invId, overlay) {
   input.value = '';
   try {
     var task = await apiFetch('/api/admin-tasks', { method: 'POST', body: { title: title } });
-    if (!_pipelineData.tasks) _pipelineData.tasks = [];
-    _pipelineData.tasks.push(task);
+    // Push into _dhTasks — the single source of truth used by Reminders
+    if (!Array.isArray(_dhTasks)) _dhTasks = [];
+    _dhTasks.push(task);
+    _dhTasksLoaded = true;
     _invLinkTask(invId, task.id);
     _invRenderTasks(invId, overlay);
-  } catch(e) { toast('Could not add task: ' + e.message, 'err'); }
+    // Refresh reminders view / home if open
+    if (_currentView === 'reminders') renderRemindersView();
+    else if (_mobCurrentApp === 'reminders') _mobRenderReminders();
+  } catch(e) { toast('Could not add reminder: ' + e.message, 'err'); }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -6798,12 +6806,12 @@ function openInvoiceModal(invId) {
         })()
     // ── Tasks section
     +   '<div style="padding:14px 0 4px">'
-    +     '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:rgba(255,255,255,0.38);margin-bottom:8px">Tasks</div>'
+    +     '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:rgba(255,255,255,0.38);margin-bottom:8px">Reminders</div>'
     +     '<div id="inv-task-list-' + escHtml(String(inv.id)) + '"></div>'
     // Quick-add row
     +     '<div style="display:flex;gap:8px;margin-top:10px;align-items:center">'
     +       '<input id="inv-task-input-' + escHtml(String(inv.id)) + '"'
-    +         ' type="text" placeholder="Add a task…"'
+    +         ' type="text" placeholder="Add a reminder…"'
     +         ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();_invAddTask(\'' + escHtml(String(inv.id)) + '\',this.closest(\'.inv-modal-overlay\'))}"'
     +         ' style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px'
     +           ';padding:7px 12px;font-size:12.5px;color:rgba(255,255,255,0.8);font-family:inherit;outline:none">'
