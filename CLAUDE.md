@@ -87,10 +87,18 @@ Practice management system. Used for appointments, patients, invoices, funders, 
 OAuth tokens stored in `settings` table (`google_refresh_token`). Used for "pending clients" calendar and session events. `calendar-pending.js` exports `createCalendarEvent` / `deleteCalendarEvent` used by other handlers.
 
 ### Resend (email)
-From address: `reachout@chereemcgarry.com` (domain verified). Used for onboarding emails (`admin-intake.js`) and 48h appointment reminders (cron in `admin-enquiries.js`). **Important:** Supabase client does not support `.catch()` chained on query builders — use `try/catch` instead.
+From address: `reachout@chereemcgarry.com` (domain verified). Used for onboarding emails (`admin-intake.js`) and 48h appointment reminders (cron in `admin-enquiries.js`).
+
+**Important:** Supabase query builders do not support `.catch()` chained directly — always use `try/catch` with `await`. Using `.catch(() => {})` throws `TypeError: .catch is not a function` at runtime, which surfaces to the user as a failed request even if the main operation (e.g. sending an email) already succeeded.
 
 ### Anthropic API (AI brief)
-`POST /api/admin-tasks?brief=1` — calls `claude-haiku-4-5-20251001`. API key from `platform.claude.com` workspace (not console.anthropic.com — these are different key pools). Brief is cached client-side in `sessionStorage` keyed by target element + ISO hour. Passes `currentTime` + per-session `done: true/false` flags so the brief is time-aware.
+`POST /api/admin-tasks?brief=1` — calls `claude-haiku-4-5-20251001`. API key from `platform.claude.com` workspace (not `console.anthropic.com` — these are different key pools with different available models). The `platform.claude.com` workspace only has Claude 4.x models — Claude 3.x model IDs return 404. If the model 404s, check available models via `GET https://api.anthropic.com/v1/models` with the key.
+
+**If the API key stops working:** Always update via CLI (`vercel env rm` / `vercel env add`) not the Vercel dashboard UI — the dashboard edit form has shown issues where the old value persists. Confirm the key is active by checking "Last Used" in the Claude Console after a page load.
+
+Brief is cached client-side in `sessionStorage` keyed by target element + ISO hour. Passes `currentTime` + per-session `done: true/false` flags so the brief is time-aware. The brief handler **must** appear before the `title` guard in the POST block of `admin-tasks.js`, otherwise it returns 400 "Title required" before reaching the brief code.
+
+The brief response is rendered as paragraph chunks split on `\n\n` — each chunk gets `.ai-brief-para` class with a subtle teal divider between them. Fades in via `ai-brief-pulse-in` CSS animation (no typewriter).
 
 ## Key Env Vars
 
@@ -103,6 +111,23 @@ From address: `reachout@chereemcgarry.com` (domain verified). Used for onboardin
 | `ANTHROPIC_API_KEY` | AI brief — must be from `platform.claude.com` |
 | `RESEND_API_KEY` | Outbound email |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Calendar OAuth |
+
+## Mobile UI
+
+The mobile layout lives entirely in `api/admin.js` (inline CSS) and `js/admin-ui.js`. Key pieces:
+
+- **Dock:** Floating glass pill (`mob-dock-pill`) with `backdrop-filter: blur(32px) saturate(180%)`. No text labels. Center `+` button rotates to `×` via `sheet-open` class. Active icon gets `dock-icon-pop` keyframe animation.
+- **`_mobRenderApp(app)`** dispatches to view renderers. `'reminders'` is aliased to `_mobRenderInbox()`.
+- **`_mobRenderHome()`** shows the AI brief card + today's sessions. After 4pm (or if no sessions remain today) it switches to show tomorrow's sessions with label "Tomorrow".
+- **Brief card** (`mob-home-brief-card`): teal-tinted background, brief text in `.mob-home-brief-text`, therapy quote as `.mob-home-brief-signoff` below a divider. Quote rotates daily by day-of-year index from `_MOB_QUOTES` array (10 quotes, not AI-generated).
+- **Bottom padding:** `mob-home-wrap` has 100px bottom padding to clear the floating dock.
+
+## Vercel / Deployment Gotchas
+
+- **Hobby plan:** Max 12 serverless functions. Streaming responses are buffered — use plain JSON responses, not `res.write()` streaming.
+- **Log access:** `vercel logs` defaults to current git branch. Always use `--no-branch --environment production` for production logs. Pipe through `--json` and Python to see untruncated messages.
+- **Env var updates** require a redeploy to take effect in serverless functions.
+- **GitHub auto-deploy** is connected — every `git push` to `main` triggers a production deploy. Running `vercel --prod` from the CLI also works and is faster for iteration.
 
 ## Cron
 
