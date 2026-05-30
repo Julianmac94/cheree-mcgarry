@@ -8360,6 +8360,10 @@ function _rdpUpdateIntakeUrl(enquiryId) {
   if (!known) urlEl.focus();
 }
 
+// Guards against double-submit (double-click → duplicate email/PATCH)
+var _rdpIntakeInFlight = {};
+var _advanceInFlight   = {};
+
 // Helper: send onboarding (intake) email from detail panel
 async function _rdpSendIntake(enquiryId) {
   var funderSel = document.getElementById('rdp-intake-funder-' + enquiryId);
@@ -8378,6 +8382,10 @@ async function _rdpSendIntake(enquiryId) {
 
   var personType = ctypeSel ? ctypeSel.value : '';
 
+  if (_rdpIntakeInFlight[enquiryId]) return;              // block double-submit
+  _rdpIntakeInFlight[enquiryId] = true;
+  var sendBtn = document.querySelector('#rdp-body .m-btn-teal');
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.6'; }
   try {
     await apiFetch('/api/admin-intake', { method: 'POST', body: { enquiryId: enquiryId, clientType: clientType, personType: personType, intakeUrl: intakeUrl } });
     // Also record the funder selection on the enquiry
@@ -8387,6 +8395,9 @@ async function _rdpSendIntake(enquiryId) {
     refreshPipeline();
   } catch (e) {
     toast('Could not send onboarding email: ' + e.message, 'err');
+  } finally {
+    delete _rdpIntakeInFlight[enquiryId];
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = ''; }
   }
 }
 
@@ -8477,12 +8488,17 @@ async function advanceSessionPl(sessionId, newStatus, clientId) {
 
 /* ── Advance enquiry status ── */
 async function advanceEnquiryStatus(id, newStatus) {
+  var key = id + ':' + newStatus;
+  if (_advanceInFlight[key]) return;                     // block double-submit
+  _advanceInFlight[key] = true;
   try {
     await apiFetch('/api/admin-enquiries?id=' + id, { method: 'PATCH', body: { status: newStatus } });
     _showSuccess('mark', newStatus === 'contacted' ? 'Marked contacted' : 'Status updated');
     refreshPipeline();
   } catch (err) {
     toast('Could not update: ' + err.message, 'err');
+  } finally {
+    delete _advanceInFlight[key];
   }
 }
 

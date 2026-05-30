@@ -5,6 +5,7 @@
  * PATCH /api/admin-enquiries?id=xxx  — update status, notes, or halaxy_client_url
  */
 
+import crypto from 'node:crypto';
 import { Resend } from 'resend';
 import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
@@ -31,6 +32,21 @@ async function writeCache(db, key, value) {
     value:      JSON.stringify(value),
     updated_at: new Date().toISOString(),
   });
+}
+
+/* ── Verify a request is a genuine Vercel cron invocation ──
+   When CRON_SECRET is set, Vercel injects `Authorization: Bearer <CRON_SECRET>`
+   on cron requests — require it (timing-safe). Until it's set we fall back to the
+   Vercel-only `x-vercel-cron` header so the daily job keeps running, but the
+   public `?reminder_cron=1` query trigger alone is no longer accepted. */
+function _isCronAuthed(req) {
+  const secret = process.env.CRON_SECRET;
+  if (secret) {
+    const got  = Buffer.from(req.headers['authorization'] || '');
+    const want = Buffer.from('Bearer ' + secret);
+    return got.length === want.length && crypto.timingSafeEqual(got, want);
+  }
+  return !!req.headers['x-vercel-cron'];
 }
 
 /**
@@ -471,9 +487,13 @@ function _reminderHtml({ clientName, dateLabel, timeLabel, locationLabel }) {
 export default async function handler(req, res) {
   /* ── Cron mode: scan Halaxy for appointments ~48 hrs away and send reminders ──
    * Called by Vercel cron: GET /api/admin-enquiries?reminder_cron=1
-   * Also triggered by x-vercel-cron header (no auth required — runs server-side only).
+   * Auth: requires a genuine Vercel cron invocation (CRON_SECRET bearer, or the
+   * x-vercel-cron header until CRON_SECRET is set) — see _isCronAuthed.
    * ─────────────────────────────────────────────────────────────────────────── */
   if (req.method === 'GET' && (req.query?.reminder_cron === '1' || req.headers['x-vercel-cron'])) {
+    if (!_isCronAuthed(req)) {
+      return res.status(401).json({ ok: false, error: 'Unauthorised' });
+    }
     if (!process.env.HALAXY_CLIENT_ID) {
       return res.status(200).json({ ok: false, reason: 'Halaxy not configured' });
     }
@@ -508,11 +528,22 @@ export default async function handler(req, res) {
         if (emailTelecom) patientEmailMap[p.id] = emailTelecom.value;
       });
 
+      // Idempotency ledger: appt IDs already reminded → never email twice
+      // (survives cron retries / manual re-triggers). Pruned to a 7-day window.
+      const db        = supabase();
+      const SENT_KEY  = 'reminder_sent_appts';
+      const ledger    = (await readCache(db, SENT_KEY)) || {};
+      const cutoffMs  = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+      for (const k of Object.keys(ledger)) {
+        if (!ledger[k] || new Date(ledger[k]).getTime() < cutoffMs) delete ledger[k];
+      }
+
       let sent = 0, skipped = 0;
       for (const appt of appts) {
         if (!appt.start) { skipped++; continue; }
         const apptMs = new Date(appt.start).getTime();
         if (apptMs < in48h.getTime() || apptMs > in50h.getTime()) { skipped++; continue; }
+        if (appt.id && ledger[appt.id]) { skipped++; continue; }  // already reminded
 
         const patRef = (appt.participant || []).find(p => p.actor?.type === 'Patient' || (p.actor?.reference || '').includes('Patient/'));
         const pid    = patRef?.actor?.reference?.split('/').pop();
@@ -525,19 +556,28 @@ export default async function handler(req, res) {
                        : (appt.appointmentType?.text || '').toLowerCase().includes('phone') ? 'phone'
                        : 'clinic';
 
-        await _resend.emails.send({
-          from:    'Cheree McGarry <reachout@chereemcgarry.com>',
-          to:      email,
-          subject: 'Appointment reminder — ' + _reminderFmtDate(appt.start),
-          html:    _reminderHtml({
-            clientName:    fullName,
-            dateLabel:     _reminderFmtDate(appt.start),
-            timeLabel:     _reminderFmtTime(appt.start),
-            locationLabel: _reminderLocationLabel(locType),
-          }),
-        });
-        sent++;
+        // Per-send fault isolation: one bad address must not abort the batch
+        try {
+          await _resend.emails.send({
+            from:    'Cheree McGarry <reachout@chereemcgarry.com>',
+            to:      email,
+            subject: 'Appointment reminder — ' + _reminderFmtDate(appt.start),
+            html:    _reminderHtml({
+              clientName:    fullName,
+              dateLabel:     _reminderFmtDate(appt.start),
+              timeLabel:     _reminderFmtTime(appt.start),
+              locationLabel: _reminderLocationLabel(locType),
+            }),
+          });
+          if (appt.id) ledger[appt.id] = new Date().toISOString();
+          sent++;
+        } catch (sendErr) {
+          console.error('Reminder send failed for appt', appt.id, '—', sendErr.message);
+          skipped++;
+        }
       }
+
+      try { await writeCache(db, SENT_KEY, ledger); } catch (_) {}
 
       return res.status(200).json({ ok: true, sent, skipped });
     } catch (err) {
@@ -1594,10 +1634,13 @@ export default async function handler(req, res) {
       } = req.body || {};
 
       // ── Log-only path: just insert to activity_log, no enquiry row update ──
+      // NOTE: Supabase query builders have no .catch() — must use try/catch.
       if (log_action) {
-        await db.from('activity_log').insert({
-          enquiry_id: id, actor, action: log_action, detail: log_detail || null,
-        }).catch(() => {});
+        try {
+          await db.from('activity_log').insert({
+            enquiry_id: id, actor, action: log_action, detail: log_detail || null,
+          });
+        } catch (_) {}
         return res.status(200).json({ ok: true });
       }
 
@@ -1622,7 +1665,9 @@ export default async function handler(req, res) {
       if (halaxy_client_url !== undefined) logs.push({ enquiry_id: id, actor, action: 'halaxy',    detail: halaxy_client_url ? 'linked' : 'cleared' });
       if (client_id         !== undefined) logs.push({ enquiry_id: id, actor, action: 'converted', detail: String(client_id) });
       if (intake_funder     !== undefined) logs.push({ enquiry_id: id, actor, action: 'intake',    detail: intake_funder });
-      if (logs.length) await db.from('activity_log').insert(logs).catch(() => {});
+      if (logs.length) {
+        try { await db.from('activity_log').insert(logs); } catch (_) {}
+      }
 
       return res.status(200).json({ ok: true });
     } catch (err) {

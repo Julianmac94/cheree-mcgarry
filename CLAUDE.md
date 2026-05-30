@@ -64,10 +64,14 @@ vercel.json     Rewrites /admin→/api/admin, /admin-login→/api/admin-login + 
 
 **Mobile vs Desktop:** `admin-ui.js` renders both layouts. Mobile has a floating glass dock nav (`_mobRenderApp()` dispatcher). Desktop has a sidebar. The brief loads into `#dh-hd-meta` (desktop) or `#mob-brief-text` (mobile).
 
-**⚠ Two-layer CSS — the dark theme lives in `admin-dashboard.css`, NOT the inline styles.** `api/admin.js` has a large inline `<style>` block that is a leftover **light/cream** theme (`--bg: #F5F2EE`, `.modal-card: #F3EFE6`, etc.). `css/admin-dashboard.css` loads *first* (in `<head>`) and repaints the entire dashboard **dark glass** (`--canvas: #080C18`, white text) by overriding with `!important`. So:
-- The inline light styles are almost entirely **dead** — visible only if `admin-dashboard.css` fails to load. Editing them usually has **no effect** on the live (dark) site.
-- To change the live appearance, edit `css/admin-dashboard.css` (and match its `!important` pattern). The detail-panel modal lives there at ~L1645–2212.
-- When previewing in isolation, you **must** load `admin-dashboard.css` or you'll see the cream fallback and think the app looks old.
+**⚠ Two-layer CSS — the dark theme is produced by TWO mechanisms, not one.** `api/admin.js` has a large inline `<style>` block whose `:root` and hardcoded colours are a leftover **light/cream** theme (`--bg: #F5F2EE`, `.modal-card: #F3EFE6`). The dashboard looks dark because of two things working together:
+1. `css/admin-dashboard.css` loads *first* (in `<head>`) and overrides **colours/appearance** with `!important` (`--canvas: #080C18`, white text, ~320 `!important` decls).
+2. A **dark `:root` re-declaration sits LAST inside the inline block** (`api/admin.js` ~L3263, commented) that re-points `--teal`/`--amber`/`--canvas` to dark values — so the inline block's `var(--*)` references resolve **dark**.
+
+Practical consequences:
+- The inline block is **mostly load-bearing** (~75%): it holds the only copy of **layout/positioning** for hundreds of selectors, plus token refs that resolve dark. Only the hardcoded *light hex* on selectors also defined in `admin-dashboard.css` is truly dead-overridden.
+- So: editing inline **layout** (width/flex/position) **works**; editing inline **hardcoded colours** that `admin-dashboard.css` overrides with `!important` does **not** — change those in `admin-dashboard.css`. The detail-panel modal styling lives there at ~L1645–2240.
+- When previewing in isolation you **must** load `admin-dashboard.css` or you'll see the cream fallback and think the app looks old.
 - The detail panel (`#modal-overlay`/`.modal-card`, opened by `openDetailPanel()`) is a **right-docked drawer** on desktop / **full-screen drill-in** (back arrow) on mobile. Form modals that reuse these classes (e.g. Add Reminder) opt back into a centered dialog via the `modal-centered` class.
 
 ## Auth
