@@ -458,7 +458,9 @@ body {
 }
 
 /* ── Right detail panel ── */
-/* ── Modal detail overlay (replaces slide-in rdp panel) ── */
+/* ── Modal detail overlay (replaces slide-in rdp panel) ──
+   NOTE: geometry/appearance is overridden by css/admin-dashboard.css (dark, !important).
+   The drawer / drill-in behaviour lives there — these are the light-fallback base rules. */
 .modal-overlay {
   display: none; position: fixed; inset: 0; z-index: 300;
   background: rgba(12,22,20,0.42);
@@ -3467,6 +3469,10 @@ body {
 <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeDetailPanel()">
   <div class="modal-card" id="modal-card">
     <div class="modal-header">
+      <button class="modal-back" onclick="closeDetailPanel()" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
       <div class="modal-title" id="rdp-title">Detail</div>
       <button class="modal-close" onclick="closeDetailPanel()">×</button>
     </div>

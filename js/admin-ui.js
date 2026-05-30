@@ -1622,7 +1622,7 @@ function openAddReminderModal(opts) {
   var today = new Date().toISOString().slice(0,10);
   var overlay = document.createElement('div');
   overlay.id = existingId;
-  overlay.className = 'modal-overlay';
+  overlay.className = 'modal-overlay modal-centered';
   overlay.style.cssText = 'display:flex;z-index:400';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
@@ -2520,6 +2520,10 @@ document.addEventListener('keydown', function(e) {
     var overlay = document.getElementById('cmd-overlay');
     if (overlay && overlay.classList.contains('open')) { closeCmdBar(); }
     else { openCmdBar(); }
+  } else if (e.key === 'Escape') {
+    // Close the detail drawer if it's open (no backdrop to click away on)
+    var dp = document.getElementById('modal-overlay');
+    if (dp && dp.classList.contains('is-open')) { closeDetailPanel(); }
   }
 });
 

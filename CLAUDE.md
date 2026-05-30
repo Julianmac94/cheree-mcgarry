@@ -64,6 +64,12 @@ vercel.json     Rewrites /admin→/api/admin, /admin-login→/api/admin-login + 
 
 **Mobile vs Desktop:** `admin-ui.js` renders both layouts. Mobile has a floating glass dock nav (`_mobRenderApp()` dispatcher). Desktop has a sidebar. The brief loads into `#dh-hd-meta` (desktop) or `#mob-brief-text` (mobile).
 
+**⚠ Two-layer CSS — the dark theme lives in `admin-dashboard.css`, NOT the inline styles.** `api/admin.js` has a large inline `<style>` block that is a leftover **light/cream** theme (`--bg: #F5F2EE`, `.modal-card: #F3EFE6`, etc.). `css/admin-dashboard.css` loads *first* (in `<head>`) and repaints the entire dashboard **dark glass** (`--canvas: #080C18`, white text) by overriding with `!important`. So:
+- The inline light styles are almost entirely **dead** — visible only if `admin-dashboard.css` fails to load. Editing them usually has **no effect** on the live (dark) site.
+- To change the live appearance, edit `css/admin-dashboard.css` (and match its `!important` pattern). The detail-panel modal lives there at ~L1645–2212.
+- When previewing in isolation, you **must** load `admin-dashboard.css` or you'll see the cream fallback and think the app looks old.
+- The detail panel (`#modal-overlay`/`.modal-card`, opened by `openDetailPanel()`) is a **right-docked drawer** on desktop / **full-screen drill-in** (back arrow) on mobile. Form modals that reuse these classes (e.g. Add Reminder) opt back into a centered dialog via the `modal-centered` class.
+
 ## Auth
 
 HMAC-signed cookie (`ast`). Two named users from env: `JULIAN_PASS`, `CHEREE_PASS`. All API handlers call `isAuthed(req)` as first line. `getSessionUser(req)` returns `{ name, initials }`. Legacy `ADMIN_PASS` still works (logs in as Julian).

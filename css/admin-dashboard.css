@@ -1783,6 +1783,71 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .modal-close  { background: rgba(255,255,255,0.06) !important; color: var(--t2) !important; }
 .modal-close:hover { background: rgba(255,255,255,0.10) !important; color: var(--t1) !important; }
 
+/* ════════════════════════════════════════════════════════════════════
+   Detail panel → RIGHT-DOCKED DRAWER (desktop) / FULL-SCREEN DRILL-IN
+   (mobile, see @media below). Overrides the centered-modal base from the
+   inline <style> in admin.js. A reuser can opt back into a centered
+   dialog with .modal-centered (e.g. the Add Reminder form modal).
+   ════════════════════════════════════════════════════════════════════ */
+@keyframes drawerIn { from { transform: translateX(102%); } to { transform: none; } }
+
+/* Overlay: non-blocking, no dim backdrop — the list behind stays usable */
+.modal-overlay {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  align-items: stretch !important;
+  justify-content: flex-end !important;
+}
+/* Card: docked to the right edge, full height, slides in from the right */
+.modal-card {
+  pointer-events: auto !important;
+  width: 440px !important; max-width: 92vw !important;
+  height: 100% !important; max-height: 100% !important;
+  margin: 0 !important;
+  border: none !important;
+  border-left: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 0 !important;
+  box-shadow: -28px 0 80px rgba(0,0,0,0.60), -6px 0 24px rgba(0,0,0,0.40) !important;
+  animation: drawerIn 0.28s cubic-bezier(0.22,0.9,0.36,1) !important;
+}
+
+/* Header back button — hidden on desktop (× is used), shown on mobile drill-in */
+.modal-back {
+  display: none; align-items: center; gap: 3px;
+  background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 600; color: var(--teal);
+  padding: 4px 6px 4px 0; line-height: 1; flex-shrink: 0;
+}
+.modal-back svg { width: 18px; height: 18px; }
+.modal-back:active { opacity: 0.6; }
+
+/* ── Centered-dialog opt-out — for form modals (Add Reminder) that reuse
+   .modal-overlay/.modal-card but should stay a centered popup. ── */
+.modal-overlay.modal-centered {
+  background: rgba(4,8,20,0.7) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  pointer-events: auto !important;
+  overflow: visible !important;
+  padding: 20px !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.modal-overlay.modal-centered .modal-card {
+  width: 100% !important; max-width: 420px !important;
+  height: auto !important; max-height: 88vh !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 32px 96px rgba(0,0,0,0.72), 0 4px 16px rgba(0,0,0,0.45) !important;
+  animation: modalIn 0.24s cubic-bezier(0.34,1.4,0.64,1) !important;
+}
+.modal-overlay.modal-centered .modal-back  { display: none !important; }
+.modal-overlay.modal-centered .modal-close { display: flex !important; }
+
 /* ══ Unified panel design system — .m-* ══════════════════════════════
    Applies to all detail panel renderers. No !important needed here —
    these classes are new and only live inside .rdp-body.             */
@@ -2188,13 +2253,34 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   .settings-section        { border-radius: 12px !important; }
   .settings-danger-confirm { flex-direction: column !important; }
 
-  /* ── Modal — slide up from bottom ── */
-  .modal-overlay { padding: 0 !important; align-items: flex-end !important; }
+  /* ── Detail panel → full-screen drill-in (slides in from the right, back arrow) ── */
+  .modal-overlay {
+    padding: 0 !important; z-index: 400 !important;
+    align-items: stretch !important; justify-content: flex-end !important;
+  }
   .modal-card {
     max-width: 100% !important; width: 100% !important;
-    max-height: 92dvh !important;
-    border-radius: 22px 22px 0 0 !important; margin: 0 !important;
+    height: 100% !important; max-height: 100% !important;
+    border-radius: 0 !important; border-left: none !important;
+    box-shadow: none !important; margin: 0 !important;
+    animation: drawerIn 0.24s cubic-bezier(0.22,0.9,0.36,1) !important;
   }
+  .modal-back   { display: inline-flex !important; }
+  .modal-close  { display: none !important; }
+  .modal-header { padding: 16px 16px 12px !important; }
+
+  /* Centered form modals (Add Reminder) keep the bottom-sheet on mobile */
+  .modal-overlay.modal-centered {
+    align-items: flex-end !important; justify-content: center !important;
+    pointer-events: auto !important;
+  }
+  .modal-overlay.modal-centered .modal-card {
+    height: auto !important; max-height: 92dvh !important;
+    border-radius: 22px 22px 0 0 !important;
+    animation: modalIn 0.24s cubic-bezier(0.34,1.4,0.64,1) !important;
+  }
+  .modal-overlay.modal-centered .modal-back  { display: none !important; }
+  .modal-overlay.modal-centered .modal-close { display: flex !important; }
 
   /* ── Typography ── */
   .view-title { font-size: 20px !important; }
