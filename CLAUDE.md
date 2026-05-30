@@ -120,6 +120,7 @@ The brief response is rendered as paragraph chunks split on `\n\n` — each chun
 | `HALAXY_CLIENT_ID` / `HALAXY_CLIENT_SECRET` | Halaxy OAuth |
 | `ANTHROPIC_API_KEY` | AI brief — must be from `platform.claude.com` |
 | `RESEND_API_KEY` | Outbound email |
+| `CRON_SECRET` | Authenticates the reminder cron. Vercel auto-injects it as `Authorization: Bearer <CRON_SECRET>` on cron calls. **If unset, cron auth falls back to the spoofable `x-vercel-cron` header** — keep it set. See `_isCronAuthed` in `admin-enquiries.js`. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Calendar OAuth |
 
 ## Mobile UI
