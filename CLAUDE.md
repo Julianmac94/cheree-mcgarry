@@ -74,6 +74,18 @@ Practical consequences:
 - When previewing in isolation you **must** load `admin-dashboard.css` or you'll see the cream fallback and think the app looks old.
 - The detail panel (`#modal-overlay`/`.modal-card`, opened by `openDetailPanel()`) is a **right-docked drawer** on desktop / **full-screen drill-in** (back arrow) on mobile. Form modals that reuse these classes (e.g. Add Reminder) opt back into a centered dialog via the `modal-centered` class.
 
+### 🚧 In progress: CSS consolidation — branch `refactor/css-consolidation` (NOT on main/prod yet)
+
+Collapsing the two-layer CSS above into ONE clean dark stylesheet. On that branch the description above is partly superseded; on `main`/prod it still holds.
+
+Done on the branch (each step verified **pixel-identical** via a computed-style diff — old `git HEAD` CSS vs working tree in a standalone harness, not just screenshots):
+- **Foundation:** the ~3,070-line inline `<style>` was moved out of `api/admin.js` into `css/admin-dashboard.css`; the 3 `:root` blocks collapsed into one (net values preserved); `${C.color}` interpolations replaced with literals; stylesheet `<link>` cache-busted with `?v=${VERCEL_GIT_COMMIT_SHA}`. `api/admin.js` dropped 3,958 → 888 lines.
+- **Slice 1** detail panel/modals, **Slice 2** sidebar (icon rail; dead 220px base deleted), **Slice 3** settings — all merged into `!important`-free rules. `!important`: 423 → 158.
+
+Remaining: **app-shell slice** (`.app-shell`/`.app-main`/`.view-content`/`.app-topbar`/`.view-title`/`.home-view`, ~26 base-fight `!important`, structural — affects every page) + ~3 mobile `@media` settings stragglers. The other ~130 `!important` are **legit dark-native** (defensive/responsive) and are intentionally being LEFT — zero `!important` is NOT the goal.
+
+Known quirk surfaced: the sidebar nav badge (`.si-badge`) renders as an 8×18 amber *stadium* on prod (latent bug — base overrode the dark layer's intended 8px **dot**); currently preserved as-is, could be flipped to the dot. When the branch merges, replace the two-layer note above with "single dark stylesheet".
+
 ## Auth
 
 HMAC-signed cookie (`ast`). Two named users from env: `JULIAN_PASS`, `CHEREE_PASS`. All API handlers call `isAuthed(req)` as first line. `getSessionUser(req)` returns `{ name, initials }`. Legacy `ADMIN_PASS` still works (logs in as Julian).
