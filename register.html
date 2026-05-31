@@ -72,6 +72,9 @@
   .rg-back:hover{color:var(--terra)}
   .bar-title{flex:1;min-width:0;font-family:var(--serif);font-weight:500;font-size:17px;color:var(--teal-deep);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bar-secure{flex-shrink:0;font-family:var(--sans);font-size:10px;font-weight:400;letter-spacing:.06em;color:var(--soft)}
+  .bar-step{flex-shrink:0;font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--teal)}
+  .form-prog{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(42,88,80,.08)}
+  .form-prog-fill{height:100%;width:0;background:var(--teal);transition:width .45s var(--ease)}
   /* Narrow column → Halaxy renders its single-column layout (no step sidebar) */
   .iframe-box{flex:1;min-height:0;background:var(--cream);display:flex;justify-content:center;-webkit-overflow-scrolling:touch}
   .iframe-box iframe{display:block;width:100%;max-width:680px;height:100%;border:0;background:#fff;box-shadow:0 0 40px rgba(20,48,43,.05)}
@@ -110,7 +113,9 @@
     <div class="form-bar">
       <button class="rg-back" id="back">&larr; Back</button>
       <span class="bar-title" id="fh-title"></span>
+      <span class="bar-step" id="bar-step"></span>
       <span class="bar-secure">Secure &middot; via Halaxy</span>
+      <div class="form-prog"><div class="form-prog-fill" id="prog-fill"></div></div>
     </div>
     <div class="iframe-box"><iframe id="hx" title="Registration form" src="" allow="payment"></iframe></div>
   </section>
@@ -131,6 +136,22 @@
   var form = document.getElementById('step-form');
   var hx   = document.getElementById('hx');
 
+  // ── Experimental progress: count iframe page-loads as steps ──
+  // We can't read inside the cross-origin Halaxy form, but its iframe fires a
+  // `load` event each time it navigates to a new page. IF the wizard loads a
+  // fresh page per "Save and Continue", this advances. If it's a single-page
+  // form, it'll stay at Step 1 (then we'd switch to a static overview).
+  var step = 0;
+  var EST_STEPS = 7;
+  function updateProg(){
+    document.getElementById('prog-fill').style.width = Math.min(step / EST_STEPS * 100, 96) + '%';
+    document.getElementById('bar-step').textContent = step ? 'Step ' + step : '';
+  }
+  hx.addEventListener('load', function(){
+    if(!hx.getAttribute('src')) return;   // ignore the blank unload on Back
+    step++; updateProg();
+  });
+
   function render(){
     document.getElementById('funders').innerHTML = FUNDERS.map(function(f){
       var live = !!f.url;
@@ -147,6 +168,7 @@
     var f = FUNDERS.filter(function(x){return x.key===key;})[0];
     if(!f || !f.url) return;
     document.getElementById('fh-title').innerHTML = f.label;
+    step = 0; updateProg();
     hx.src = f.url;
     wrap.style.display = 'none';
     form.classList.add('on');
