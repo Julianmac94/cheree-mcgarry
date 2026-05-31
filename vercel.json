@@ -1,7 +1,8 @@
 {
   "rewrites": [
     { "source": "/admin",       "destination": "/api/admin" },
-    { "source": "/admin-login", "destination": "/api/admin-login" }
+    { "source": "/admin-login", "destination": "/api/admin-login" },
+    { "source": "/register",    "destination": "/register.html" }
   ],
   "crons": [
     {

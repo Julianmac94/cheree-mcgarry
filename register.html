@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Register — Cheree McGarry Counselling &amp; Wellness</title>
+<link rel="icon" href="/assets/pwa-icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F5F2EE; --card:#ffffff;
+    --teal:#2A5850; --teal-deep:#192E2A; --mint:#77CFBD; --terra:#BE6E44;
+    --soft:#7A948F; --mid:#3E5C56; --note:#5C746E;
+    --line:rgba(42,88,80,0.12);
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --serif:'Cormorant Garamond',Georgia,serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--cream); color:var(--teal-deep);
+    font-family:var(--sans); -webkit-font-smoothing:antialiased;
+    line-height:1.55;
+  }
+  .page{max-width:720px;margin:0 auto;padding:40px 22px 64px;transition:max-width .25s ease}
+  .page.wide{max-width:1040px}
+
+  /* Header */
+  .hd{display:flex;align-items:center;gap:12px;margin:0 0 30px}
+  .hd img{width:46px;height:46px;display:block}
+  .wordmark{display:flex;flex-direction:column;line-height:1.1}
+  .nm{font-family:var(--serif);font-size:23px;font-weight:500;color:var(--teal)}
+  .sub{font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--soft);margin-top:3px}
+
+  /* Card */
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:36px 36px 30px;
+    box-shadow:0 1px 3px rgba(20,38,34,.04),0 18px 50px rgba(20,38,34,.06);
+  }
+  .accent{height:4px;background:var(--teal);background:linear-gradient(90deg,var(--teal),var(--mint));border-radius:18px 18px 0 0;margin:-36px -36px 28px}
+  .eyebrow{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--terra);margin:0 0 14px}
+  h1{font-family:var(--serif);font-weight:500;font-size:36px;line-height:1.12;color:var(--teal-deep);margin:0 0 16px}
+  .lede{font-size:15px;color:var(--mid);margin:0 0 26px;max-width:46ch}
+  .step-label{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin:0 0 14px}
+
+  /* Funder cards */
+  .funders{display:flex;flex-direction:column;gap:8px}
+  .funder{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    background:#fff;border:1px solid rgba(42,88,80,.16);border-radius:11px;
+    padding:13px 16px;cursor:pointer;font-family:inherit;
+    transition:border-color .14s,box-shadow .14s,transform .05s;
+  }
+  .funder:hover{border-color:rgba(42,88,80,.4);box-shadow:0 4px 16px rgba(42,88,80,.08)}
+  .funder:active{transform:scale(.995)}
+  .funder .ftext{flex:1;min-width:0}
+  .funder .flabel{display:block;font-size:14px;font-weight:600;color:var(--teal-deep);margin:0 0 1px}
+  .funder .fnote{display:block;font-size:12px;color:var(--note);margin:0;line-height:1.4}
+  .funder .fcta{font-size:12.5px;font-weight:600;color:var(--teal);white-space:nowrap;flex-shrink:0}
+  .funder[disabled]{cursor:default;opacity:.55;background:rgba(42,88,80,.03)}
+  .funder[disabled]:hover{border-color:rgba(42,88,80,.16);box-shadow:none}
+  .funder[disabled] .fcta{color:var(--soft);font-weight:500}
+  .help{font-size:12.5px;color:var(--soft);line-height:1.6;margin:18px 0 0}
+
+  /* Embedded form step */
+  .formwrap{display:none}
+  .formwrap.on{display:block}
+  .back{
+    display:inline-flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;
+    font-family:inherit;font-size:13.5px;font-weight:600;color:var(--teal);padding:0;margin:0 0 16px;
+  }
+  .back:hover{text-decoration:underline}
+  .form-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+  .form-head .fh-title{font-family:var(--serif);font-size:24px;font-weight:500;color:var(--teal-deep);margin:0}
+  .form-head .fh-secure{font-size:11.5px;color:var(--soft)}
+  .iframe-box{
+    background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(20,38,34,.04),0 18px 50px rgba(20,38,34,.06);
+    width:100%;height:1180px;
+  }
+  .iframe-box iframe{display:block;width:100%;height:100%;border:0}
+
+  .ft{text-align:center;font-size:11px;color:var(--soft);margin:30px 0 0}
+  .ft a{color:var(--soft)}
+
+  @media (max-width:640px){
+    .page{padding:28px 16px 56px}
+    .card{padding:28px 20px 24px}
+    .accent{margin:-28px -20px 24px}
+    h1{font-size:30px}
+    .iframe-box{height:1320px}
+  }
+</style>
+</head>
+<body>
+<div class="page" id="page">
+
+  <header class="hd">
+    <img src="/assets/logo.svg" alt="Cheree McGarry">
+    <div class="wordmark"><span class="nm">Cheree McGarry</span><span class="sub">Counselling &amp; Wellness</span></div>
+  </header>
+
+  <!-- STEP 1 — intro + funding picker -->
+  <section class="card" id="step-pick">
+    <div class="accent"></div>
+    <p class="eyebrow">You&rsquo;re in the right place</p>
+    <h1>Let&rsquo;s get you registered.</h1>
+    <p class="lede">Choose how you&rsquo;ll be funding your sessions to get started. It only takes a few minutes, and everything is completed securely.</p>
+    <p class="step-label">Choose your funding</p>
+    <div class="funders" id="funders"></div>
+    <p class="help">Not sure which one applies to you? Just reply to your email, or contact Cheree, and she&rsquo;ll point you in the right direction.</p>
+  </section>
+
+  <!-- STEP 2 — embedded Halaxy form -->
+  <section class="formwrap" id="step-form">
+    <button class="back" id="back">&larr; Choose a different funding option</button>
+    <div class="form-head">
+      <p class="fh-title" id="fh-title"></p>
+      <span class="fh-secure">Completed securely via Halaxy &mdash; our practice system</span>
+    </div>
+    <div class="iframe-box"><iframe id="hx" title="Registration form" src="" allow="payment"></iframe></div>
+  </section>
+
+  <footer class="ft">Cheree McGarry Counselling &amp; Wellness &middot; <a href="https://chereemcgarry.com">chereemcgarry.com</a></footer>
+</div>
+
+<script>
+  // PLACEHOLDER urls (empty) become disabled cards until Cheree's forms are ready.
+  var FUNDERS = [
+    { key:'private',   label:'Private / Self-funded',                   note:'No referral needed.',                       url:'https://www.halaxy.com/a/widget/form/new-patient/1429515/QbMZckKL2wNiEI52_hERaElqejBjNUplOExRR3VhMnFFZEc2Q2lLN2RpNUlhQT09' },
+    { key:'medicare',  label:'Medicare (Mental Health Care Plan)',      note:'GP referral required prior to your appointment.', url:'https://www.halaxy.com/a/widget/form/new-patient/245011/uwaXpvH_LYgF5LhA2zF0pVV6aFp6cDd3NG0zL0IzMWtlQ0E0OWJ4YVA2Zmk' },
+    { key:'ndis',      label:'NDIS',                                    note:'Plan managed.',                             url:'' },
+    { key:'bupa',      label:'Bupa',                                    note:'Referral required.',                        url:'' },
+    { key:'qfes',      label:'Queensland Fire &amp; Emergency Service', note:'Self referred.',                            url:'' },
+    { key:'workcover', label:'WorkCover',                               note:'Referral required.',                        url:'' },
+  ];
+
+  var pick = document.getElementById('step-pick');
+  var form = document.getElementById('step-form');
+  var page = document.getElementById('page');
+  var hx   = document.getElementById('hx');
+
+  function render(){
+    document.getElementById('funders').innerHTML = FUNDERS.map(function(f){
+      var live = !!f.url;
+      return '<button class="funder" data-key="'+f.key+'"'+(live?'':' disabled')+'>'
+        + '<span class="ftext"><span class="flabel">'+f.label+'</span><span class="fnote">'+f.note+'</span></span>'
+        + '<span class="fcta">'+(live?'Register &rarr;':'Available soon')+'</span></button>';
+    }).join('');
+    document.querySelectorAll('.funder:not([disabled])').forEach(function(b){
+      b.addEventListener('click', function(){ select(b.getAttribute('data-key')); });
+    });
+  }
+
+  function select(key){
+    var f = FUNDERS.filter(function(x){return x.key===key;})[0];
+    if(!f || !f.url) return;
+    document.getElementById('fh-title').innerHTML = f.label;
+    hx.src = f.url;
+    pick.style.display = 'none';
+    form.classList.add('on');
+    page.classList.add('wide');
+    window.scrollTo({top:0,behavior:'smooth'});
+    try { history.replaceState(null,'','?funder='+key); } catch(e){}
+  }
+
+  document.getElementById('back').addEventListener('click', function(){
+    hx.src = '';                 // unload the Halaxy form
+    form.classList.remove('on');
+    page.classList.remove('wide');
+    pick.style.display = '';
+    window.scrollTo({top:0,behavior:'smooth'});
+    try { history.replaceState(null,'',location.pathname); } catch(e){}
+  });
+
+  render();
+
+  // Deep-link support: /register?funder=medicare pre-selects (used later by the email's picker)
+  var qp = new URLSearchParams(location.search).get('funder');
+  if(qp){ select(qp); }
+</script>
+</body>
+</html>
