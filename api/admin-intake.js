@@ -347,13 +347,6 @@ function registrationEmailHtml({ firstName }) {
       </div>
     </div>
 
-    <div style="border-top:1px solid rgba(42,88,80,0.10);padding:18px 40px;">
-      <p style="font-size:11px;color:${C.soft};line-height:1.9;margin:0;text-align:center;">
-        <a href="${SITE}/info.html" style="color:${C.teal};text-decoration:none;">Client information guide</a> &nbsp;&middot;&nbsp;
-        <a href="${SITE}/info.html" style="color:${C.teal};text-decoration:none;">Fees &amp; funding</a>
-      </p>
-    </div>
-
     <div style="background:rgba(42,88,80,0.04);border-top:1px solid rgba(42,88,80,0.08);padding:22px 40px;">
       <p style="font-size:14px;color:${C.tealDeep};margin:0 0 4px;font-weight:400;">Thank you for reaching out.</p>
       <p style="font-size:18px;color:${C.teal};font-style:italic;font-weight:400;margin:14px 0 2px;">Cheree</p>
