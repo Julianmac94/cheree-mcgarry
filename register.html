@@ -113,7 +113,6 @@
     <div class="form-bar">
       <button class="rg-back" id="back">&larr; Back</button>
       <span class="bar-title" id="fh-title"></span>
-      <span class="bar-step" id="bar-step"></span>
       <span class="bar-secure">Secure &middot; via Halaxy</span>
       <div class="form-prog"><div class="form-prog-fill" id="prog-fill"></div></div>
     </div>
@@ -141,15 +140,16 @@
   // `load` event each time it navigates to a new page. IF the wizard loads a
   // fresh page per "Save and Continue", this advances. If it's a single-page
   // form, it'll stay at Step 1 (then we'd switch to a static overview).
-  var step = 0;
-  var EST_STEPS = 7;
-  function updateProg(){
-    document.getElementById('prog-fill').style.width = Math.min(step / EST_STEPS * 100, 96) + '%';
-    document.getElementById('bar-step').textContent = step ? 'Step ' + step : '';
-  }
+  // We can't tell a forward navigation from a back one across origins (each is
+  // just a `load`), so a literal step number would miscount on "Go Back".
+  // Instead the bar EASES toward ~90% with each navigation — it always reads as
+  // "making progress", and going back only nudges it a hair. Completion (100%)
+  // will come from the Patient-Create webhook.
+  var progress = 0;
+  function setProg(p){ progress = p; document.getElementById('prog-fill').style.width = (p*100).toFixed(1)+'%'; }
   hx.addEventListener('load', function(){
     if(!hx.getAttribute('src')) return;   // ignore the blank unload on Back
-    step++; updateProg();
+    setProg(progress + (0.9 - progress) * 0.4);
   });
 
   function render(){
@@ -168,7 +168,7 @@
     var f = FUNDERS.filter(function(x){return x.key===key;})[0];
     if(!f || !f.url) return;
     document.getElementById('fh-title').innerHTML = f.label;
-    step = 0; updateProg();
+    setProg(0);
     hx.src = f.url;
     wrap.style.display = 'none';
     form.classList.add('on');
