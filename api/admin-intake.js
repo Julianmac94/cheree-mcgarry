@@ -287,7 +287,7 @@ const FUNDING_FORMS = [
   { label: 'Private / Self-funded',                   note: 'No referral needed.',                                     url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=private' },
   { label: 'Medicare (Mental Health Care Plan)',      note: 'GP referral required prior to attendance at appointment.', url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=medicare' },
   { label: 'NDIS',                                    note: 'Plan managed.',                                           url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=ndis' },
-  { label: 'Bupa',                                    note: 'Via your Bupa cover.',                                    url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=bupa' },
+  { label: 'Bupa',                                    note: 'Referral required.',                                      url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=bupa' },
   { label: 'Queensland Fire &amp; Emergency Service', note: 'Self referred.',                                          url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=qfes' },
   { label: 'WorkCover',                               note: 'Referral required.',                                      url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=workcover' },
 ];
@@ -333,7 +333,7 @@ function registrationEmailHtml({ firstName }) {
         <p style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:${C.teal};margin:0 0 10px;">Good to know</p>
         <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0 0 6px;"><strong style="color:${C.tealDeep};font-weight:500;">Where</strong> &#8212; in person at Karalee QLD, or by video or phone anywhere in Australia.</p>
         <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0 0 6px;"><strong style="color:${C.tealDeep};font-weight:500;">Sessions</strong> &#8212; 60 minutes for individual, intake sessions may take longer. Session duration for couples, families &amp; groups will be negotiated.</p>
-        <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0 0 6px;"><strong style="color:${C.tealDeep};font-weight:500;">Cancellations</strong> &#8212; 48 hours&rsquo; notice for cancellation without a fee. <a href="${SITE}/info.html#ci-appointments" style="color:${C.teal};text-decoration:underline;">Our cancellation policy &rarr;</a></p>
+        <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0 0 6px;"><strong style="color:${C.tealDeep};font-weight:500;">Cancellations</strong> &#8212; 48 hours notice for cancellation to avoid full cancellation fee. <a href="${SITE}/info.html#ci-appointments" style="color:${C.teal};text-decoration:underline;">Our cancellation policy &rarr;</a></p>
         <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0;"><strong style="color:${C.tealDeep};font-weight:500;">Your privacy</strong> &#8212; your information is kept private and securely stored. <a href="${SITE}/info.html#ci-privacy" style="color:${C.teal};text-decoration:underline;">How your information is handled &rarr;</a></p>
       </div>
 
