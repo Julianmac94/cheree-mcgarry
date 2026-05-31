@@ -8,125 +8,111 @@
 <link rel="icon" href="/assets/pwa-icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Raleway:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<!-- the site's design system (tokens, fonts, cream bg + organic glow, neumorphism) -->
+<link rel="stylesheet" href="/css/styles.css">
 <style>
-  :root{
-    --cream:#F5F2EE; --card:#ffffff;
-    --teal:#2A5850; --teal-deep:#192E2A; --mint:#77CFBD; --terra:#BE6E44;
-    --soft:#7A948F; --mid:#3E5C56; --note:#5C746E;
-    --line:rgba(42,88,80,0.12);
-    --sans:'Inter',system-ui,-apple-system,sans-serif;
-    --serif:'Cormorant Garamond',Georgia,serif;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
-  body{
-    background:var(--cream); color:var(--teal-deep);
-    font-family:var(--sans); -webkit-font-smoothing:antialiased;
-    line-height:1.55;
-  }
-  .page{max-width:720px;margin:0 auto;padding:40px 22px 64px;transition:max-width .25s ease}
-  .page.wide{max-width:1040px}
+  .rg-wrap{position:relative;z-index:2;max-width:660px;margin:0 auto;padding:52px 22px 80px}
 
-  /* Header */
-  .hd{display:flex;align-items:center;gap:12px;margin:0 0 30px}
-  .hd img{width:46px;height:46px;display:block}
-  .wordmark{display:flex;flex-direction:column;line-height:1.1}
-  .nm{font-family:var(--serif);font-size:23px;font-weight:500;color:var(--teal)}
-  .sub{font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--soft);margin-top:3px}
+  /* Brand */
+  .rg-brand{display:flex;flex-direction:column;align-items:center;text-align:center;margin:0 0 40px}
+  .rg-brand img{width:62px;height:62px;margin:0 0 14px}
+  .rg-brand .nm{font-family:var(--serif);font-size:30px;font-weight:400;color:var(--teal);line-height:1}
+  .rg-brand .sub{font-family:var(--sans);font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--terra);margin-top:9px}
 
-  /* Card */
-  .card{
-    background:var(--card);border:1px solid var(--line);border-radius:18px;
-    padding:36px 36px 30px;
-    box-shadow:0 1px 3px rgba(20,38,34,.04),0 18px 50px rgba(20,38,34,.06);
-  }
-  .accent{height:4px;background:var(--teal);background:linear-gradient(90deg,var(--teal),var(--mint));border-radius:18px 18px 0 0;margin:-36px -36px 28px}
-  .eyebrow{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--terra);margin:0 0 14px}
-  h1{font-family:var(--serif);font-weight:500;font-size:36px;line-height:1.12;color:var(--teal-deep);margin:0 0 16px}
-  .lede{font-size:15px;color:var(--mid);margin:0 0 26px;max-width:46ch}
-  .step-label{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin:0 0 14px}
+  /* Intro */
+  .rg-eyebrow{font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--terra);text-align:center;margin:0 0 14px}
+  .rg-h1{font-family:var(--serif);font-weight:400;font-size:42px;line-height:1.06;color:var(--teal-deep);text-align:center;margin:0 0 16px}
+  .rg-lede{font-family:var(--sans);font-weight:300;font-size:15.5px;line-height:1.72;color:var(--mid);text-align:center;max-width:46ch;margin:0 auto 38px}
 
-  /* Funder cards */
-  .funders{display:flex;flex-direction:column;gap:8px}
+  .rg-pick-label{font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--soft);text-align:center;margin:0 0 20px}
+
+  /* Funder cards — neumorphic cream surfaces */
+  .funders{display:flex;flex-direction:column;gap:12px}
   .funder{
-    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
-    background:#fff;border:1px solid rgba(42,88,80,.16);border-radius:11px;
-    padding:13px 16px;cursor:pointer;font-family:inherit;
-    transition:border-color .14s,box-shadow .14s,transform .05s;
+    display:flex;align-items:center;gap:16px;width:100%;text-align:left;cursor:pointer;
+    background:var(--cream);border:none;border-radius:17px;padding:17px 20px;
+    box-shadow:var(--neu-card);font-family:var(--sans);
+    transition:box-shadow .3s var(--ease),transform .12s var(--ease);
   }
-  .funder:hover{border-color:rgba(42,88,80,.4);box-shadow:0 4px 16px rgba(42,88,80,.08)}
-  .funder:active{transform:scale(.995)}
+  .funder:hover{box-shadow:var(--neu-card-hi);transform:translateY(-1px)}
+  .funder:active{box-shadow:var(--neu-inset);transform:translateY(0)}
   .funder .ftext{flex:1;min-width:0}
-  .funder .flabel{display:block;font-size:14px;font-weight:600;color:var(--teal-deep);margin:0 0 1px}
-  .funder .fnote{display:block;font-size:12px;color:var(--note);margin:0;line-height:1.4}
-  .funder .fcta{font-size:12.5px;font-weight:600;color:var(--teal);white-space:nowrap;flex-shrink:0}
-  .funder[disabled]{cursor:default;opacity:.55;background:rgba(42,88,80,.03)}
-  .funder[disabled]:hover{border-color:rgba(42,88,80,.16);box-shadow:none}
-  .funder[disabled] .fcta{color:var(--soft);font-weight:500}
-  .help{font-size:12.5px;color:var(--soft);line-height:1.6;margin:18px 0 0}
+  .funder .flabel{display:block;font-family:var(--serif);font-size:20px;font-weight:500;color:var(--teal-deep);line-height:1.12}
+  .funder .fnote{display:block;font-size:12.5px;font-weight:300;color:var(--mid);margin-top:3px;line-height:1.4}
+  .funder .fcta{
+    flex-shrink:0;width:36px;height:36px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--mint);color:var(--teal-deep);box-shadow:var(--neu-cta);font-size:16px;
+    transition:box-shadow .3s var(--ease);
+  }
+  .funder:hover .fcta{box-shadow:var(--neu-cta-hi)}
+  .funder[disabled]{cursor:default;box-shadow:var(--neu-inset);opacity:.72}
+  .funder[disabled]:hover{transform:none}
+  .funder[disabled] .flabel{color:var(--mid)}
+  .funder[disabled] .fcta{background:none;box-shadow:none;color:var(--soft);width:auto;height:auto;border-radius:0;font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
 
-  /* Embedded form step — takes over the viewport so there's ONLY one scroll (inside the iframe) */
+  .rg-help{font-family:var(--sans);font-size:12.5px;font-weight:300;color:var(--soft);line-height:1.65;text-align:center;margin:24px auto 0;max-width:52ch}
+  .rg-ft{font-family:var(--sans);text-align:center;font-size:11px;font-weight:300;color:var(--faint);margin:42px 0 0}
+  .rg-ft a{color:var(--faint)}
+
+  /* Form mode — takes over the viewport so there's ONE scroll (inside the iframe) */
   .formwrap{display:none}
-  .formwrap.on{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;background:var(--cream)}
+  .formwrap.on{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;background:var(--cream)}
   body.form-open{overflow:hidden}
   .form-bar{
-    flex-shrink:0;display:flex;align-items:center;gap:12px;
-    padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);
+    flex-shrink:0;display:flex;align-items:center;gap:14px;padding:11px 18px;
+    background:var(--cream);box-shadow:0 2px 12px rgba(20,48,43,.06);position:relative;z-index:2;
   }
-  .back{
-    display:inline-flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;
-    font-family:inherit;font-size:13.5px;font-weight:600;color:var(--teal);padding:6px 6px 6px 2px;flex-shrink:0;
+  .rg-back{
+    display:inline-flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;
+    font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--teal);padding:7px 8px 7px 2px;flex-shrink:0;transition:color .2s;
   }
-  .back:hover{text-decoration:underline}
-  .bar-title{flex:1;min-width:0;font-weight:600;font-size:14px;color:var(--teal-deep);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bar-secure{flex-shrink:0;font-size:11px;color:var(--soft)}
+  .rg-back:hover{color:var(--terra)}
+  .bar-title{flex:1;min-width:0;font-family:var(--serif);font-weight:500;font-size:17px;color:var(--teal-deep);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-secure{flex-shrink:0;font-family:var(--sans);font-size:10px;font-weight:400;letter-spacing:.06em;color:var(--soft)}
   .iframe-box{flex:1;min-height:0;background:#fff;-webkit-overflow-scrolling:touch}
   .iframe-box iframe{display:block;width:100%;height:100%;border:0}
-  @media (max-width:480px){ .bar-secure{display:none} }
 
-  .ft{text-align:center;font-size:11px;color:var(--soft);margin:30px 0 0}
-  .ft a{color:var(--soft)}
-
-  @media (max-width:640px){
-    .page{padding:28px 16px 56px}
-    .card{padding:28px 20px 24px}
-    .accent{margin:-28px -20px 24px}
-    h1{font-size:30px}
+  @media (max-width:560px){
+    .rg-wrap{padding:38px 18px 64px}
+    .rg-h1{font-size:34px}
+    .funder .flabel{font-size:18px}
+    .bar-secure{display:none}
   }
 </style>
 </head>
-<body>
-<div class="page" id="page">
+<body data-page="register">
 
-  <header class="hd">
-    <img src="/assets/logo.svg" alt="Cheree McGarry">
-    <div class="wordmark"><span class="nm">Cheree McGarry</span><span class="sub">Counselling &amp; Wellness</span></div>
-  </header>
+  <div class="rg-wrap" id="rg-wrap">
+    <div class="rg-brand">
+      <img src="/assets/logo.svg" alt="Cheree McGarry">
+      <span class="nm">Cheree McGarry</span>
+      <span class="sub">Counselling &amp; Wellness</span>
+    </div>
 
-  <!-- STEP 1 — intro + funding picker -->
-  <section class="card" id="step-pick">
-    <div class="accent"></div>
-    <p class="eyebrow">You&rsquo;re in the right place</p>
-    <h1>Let&rsquo;s get you registered.</h1>
-    <p class="lede">Choose how you&rsquo;ll be funding your sessions to get started. It only takes a few minutes, and everything is completed securely.</p>
-    <p class="step-label">Choose your funding</p>
-    <div class="funders" id="funders"></div>
-    <p class="help">Not sure which one applies to you? Just reply to your email, or contact Cheree, and she&rsquo;ll point you in the right direction.</p>
-  </section>
+    <!-- STEP 1 — intro + funding picker -->
+    <section id="step-pick">
+      <p class="rg-eyebrow">You&rsquo;re in the right place</p>
+      <h1 class="rg-h1">Let&rsquo;s get you registered.</h1>
+      <p class="rg-lede">Choose how you&rsquo;ll be funding your sessions to get started. It only takes a few minutes, and everything is completed securely.</p>
+      <p class="rg-pick-label">Choose your funding</p>
+      <div class="funders" id="funders"></div>
+      <p class="rg-help">Not sure which one applies to you? Just reply to your email, or contact Cheree, and she&rsquo;ll point you in the right direction.</p>
+      <p class="rg-ft">Cheree McGarry Counselling &amp; Wellness &middot; <a href="https://chereemcgarry.com">chereemcgarry.com</a></p>
+    </section>
+  </div>
 
   <!-- STEP 2 — embedded Halaxy form (full-viewport, single scroll) -->
   <section class="formwrap" id="step-form">
     <div class="form-bar">
-      <button class="back" id="back">&larr; Back</button>
+      <button class="rg-back" id="back">&larr; Back</button>
       <span class="bar-title" id="fh-title"></span>
       <span class="bar-secure">Secure &middot; via Halaxy</span>
     </div>
     <div class="iframe-box"><iframe id="hx" title="Registration form" src="" allow="payment"></iframe></div>
   </section>
-
-  <footer class="ft">Cheree McGarry Counselling &amp; Wellness &middot; <a href="https://chereemcgarry.com">chereemcgarry.com</a></footer>
-</div>
 
 <script>
   // PLACEHOLDER urls (empty) become disabled cards until Cheree's forms are ready.
@@ -140,8 +126,8 @@
   ];
 
   var pick = document.getElementById('step-pick');
+  var wrap = document.getElementById('rg-wrap');
   var form = document.getElementById('step-form');
-  var page = document.getElementById('page');
   var hx   = document.getElementById('hx');
 
   function render(){
@@ -149,7 +135,7 @@
       var live = !!f.url;
       return '<button class="funder" data-key="'+f.key+'"'+(live?'':' disabled')+'>'
         + '<span class="ftext"><span class="flabel">'+f.label+'</span><span class="fnote">'+f.note+'</span></span>'
-        + '<span class="fcta">'+(live?'Register &rarr;':'Available soon')+'</span></button>';
+        + '<span class="fcta">'+(live?'&rarr;':'Soon')+'</span></button>';
     }).join('');
     document.querySelectorAll('.funder:not([disabled])').forEach(function(b){
       b.addEventListener('click', function(){ select(b.getAttribute('data-key')); });
@@ -161,7 +147,7 @@
     if(!f || !f.url) return;
     document.getElementById('fh-title').innerHTML = f.label;
     hx.src = f.url;
-    pick.style.display = 'none';
+    wrap.style.display = 'none';
     form.classList.add('on');
     document.body.classList.add('form-open');
     try { history.replaceState(null,'','?funder='+key); } catch(e){}
@@ -171,13 +157,11 @@
     hx.src = '';                 // unload the Halaxy form
     form.classList.remove('on');
     document.body.classList.remove('form-open');
-    pick.style.display = '';
+    wrap.style.display = '';
     try { history.replaceState(null,'',location.pathname); } catch(e){}
   });
 
   render();
-
-  // Deep-link support: /register?funder=medicare pre-selects (used later by the email's picker)
   var qp = new URLSearchParams(location.search).get('funder');
   if(qp){ select(qp); }
 </script>
