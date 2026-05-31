@@ -72,9 +72,28 @@
   .rg-back:hover{color:var(--terra)}
   .bar-title{flex:1;min-width:0;font-family:var(--serif);font-weight:500;font-size:17px;color:var(--teal-deep);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bar-secure{flex-shrink:0;font-family:var(--sans);font-size:10px;font-weight:400;letter-spacing:.06em;color:var(--soft)}
-  .bar-step{flex-shrink:0;font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--teal)}
-  .form-prog{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(42,88,80,.08)}
-  .form-prog-fill{height:100%;width:0;background:var(--teal);transition:width .45s var(--ease)}
+  /* Desktop "what you'll fill in" strip (hidden on mobile — the pop-up is used instead) */
+  .form-info{flex-shrink:0;padding:13px 22px 15px;background:var(--cream);border-bottom:1px solid rgba(42,88,80,.08);text-align:center}
+  .fi-title{font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin:0 0 5px}
+  .fi-list{font-family:var(--serif);font-size:16px;font-weight:500;color:var(--teal-deep);margin:0 0 5px}
+  .fi-scroll{font-family:var(--sans);font-size:12px;font-weight:300;color:var(--soft);margin:0}
+  @media (max-width:640px){ .form-info{display:none} }
+
+  /* Mobile "before you start" pop-up */
+  .rg-modal{display:none;position:fixed;inset:0;z-index:80;background:rgba(20,48,43,.42);align-items:flex-end;justify-content:center}
+  .rg-modal.on{display:flex}
+  .rg-modal-card{width:100%;max-width:520px;background:var(--cream);border-radius:22px 22px 0 0;padding:26px 24px calc(24px + env(safe-area-inset-bottom));box-shadow:0 -12px 44px rgba(20,48,43,.22);animation:rgmUp .3s var(--ease)}
+  @keyframes rgmUp{from{transform:translateY(100%)}to{transform:none}}
+  .rgm-eyebrow{font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--terra);margin:0 0 8px}
+  .rgm-title{font-family:var(--serif);font-size:25px;font-weight:500;color:var(--teal-deep);margin:0 0 14px;line-height:1.1}
+  .rgm-sub{font-family:var(--sans);font-size:13px;font-weight:300;color:var(--mid);margin:0 0 12px}
+  .rgm-list{list-style:none;margin:0 0 16px;padding:0}
+  .rgm-list li{font-family:var(--sans);font-size:14px;font-weight:400;color:var(--teal-deep);padding:8px 0 8px 26px;position:relative}
+  .rgm-list li+li{border-top:1px solid rgba(42,88,80,.07)}
+  .rgm-list li:before{content:'✓';position:absolute;left:2px;top:8px;color:var(--mint);font-weight:700}
+  .rgm-scroll{font-family:var(--sans);font-size:12px;font-weight:300;color:var(--soft);line-height:1.55;margin:0 0 20px}
+  .rgm-go{display:block;width:100%;padding:15px;border:none;border-radius:14px;background:var(--mint);color:var(--teal-deep);font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;box-shadow:var(--neu-cta)}
+  .rgm-go:hover{background:var(--mint-lt)}
   /* Narrow column → Halaxy renders its single-column layout (no step sidebar) */
   .iframe-box{flex:1;min-height:0;background:var(--cream);display:flex;justify-content:center;-webkit-overflow-scrolling:touch}
   .iframe-box iframe{display:block;width:100%;max-width:680px;height:100%;border:0;background:#fff;box-shadow:0 0 40px rgba(20,48,43,.05)}
@@ -114,10 +133,32 @@
       <button class="rg-back" id="back">&larr; Back</button>
       <span class="bar-title" id="fh-title"></span>
       <span class="bar-secure">Secure &middot; via Halaxy</span>
-      <div class="form-prog"><div class="form-prog-fill" id="prog-fill"></div></div>
+    </div>
+    <!-- desktop only -->
+    <div class="form-info">
+      <p class="fi-title">What you&rsquo;ll be asked to fill in</p>
+      <p class="fi-list">Your details &amp; contacts &middot; Address &middot; Payment &middot; Service agreement &amp; signature &middot; Funding</p>
+      <p class="fi-scroll">The form below scrolls &mdash; scroll within it and use &ldquo;Save and Continue&rdquo; at the bottom of each section.</p>
     </div>
     <div class="iframe-box"><iframe id="hx" title="Registration form" src="" allow="payment"></iframe></div>
   </section>
+
+  <!-- Mobile "before you start" pop-up -->
+  <div class="rg-modal" id="rg-modal">
+    <div class="rg-modal-card">
+      <p class="rgm-eyebrow">Before you start</p>
+      <p class="rgm-title" id="rgm-title"></p>
+      <p class="rgm-sub">Here&rsquo;s what you&rsquo;ll be asked to complete:</p>
+      <ul class="rgm-list">
+        <li>Your details, contacts &amp; address</li>
+        <li>Payment details</li>
+        <li>Service agreement &amp; signature</li>
+        <li>Your funding details</li>
+      </ul>
+      <p class="rgm-scroll">It only takes a few minutes. The form scrolls &mdash; scroll through it and tap &ldquo;Save and Continue&rdquo; at the bottom of each section.</p>
+      <button class="rgm-go" id="rgm-go">Get started &rarr;</button>
+    </div>
+  </div>
 
 <script>
   // PLACEHOLDER urls (empty) become disabled cards until Cheree's forms are ready.
@@ -140,17 +181,23 @@
   // `load` event each time it navigates to a new page. IF the wizard loads a
   // fresh page per "Save and Continue", this advances. If it's a single-page
   // form, it'll stay at Step 1 (then we'd switch to a static overview).
-  // We can't tell a forward navigation from a back one across origins (each is
-  // just a `load`), so a literal step number would miscount on "Go Back".
-  // Instead the bar EASES toward ~90% with each navigation — it always reads as
-  // "making progress", and going back only nudges it a hair. Completion (100%)
-  // will come from the Patient-Create webhook.
-  var progress = 0;
-  function setProg(p){ progress = p; document.getElementById('prog-fill').style.width = (p*100).toFixed(1)+'%'; }
-  hx.addEventListener('load', function(){
-    if(!hx.getAttribute('src')) return;   // ignore the blank unload on Back
-    setProg(progress + (0.9 - progress) * 0.4);
-  });
+  var modal = document.getElementById('rg-modal');
+  var pendingKey = null;
+  function isMobile(){ return window.matchMedia('(max-width: 640px)').matches; }
+
+  function openForm(key){
+    var f = FUNDERS.filter(function(x){return x.key===key;})[0];
+    if(!f || !f.url) return;
+    document.getElementById('fh-title').innerHTML = f.label;
+    hx.src = f.url;
+    modal.classList.remove('on');
+    wrap.style.display = 'none';
+    form.classList.add('on');
+    document.body.classList.add('form-open');
+    try { history.replaceState(null,'','?funder='+key); } catch(e){}
+  }
+  document.getElementById('rgm-go').addEventListener('click', function(){ if(pendingKey) openForm(pendingKey); });
+  modal.addEventListener('click', function(e){ if(e.target===modal){ modal.classList.remove('on'); pendingKey=null; } });
 
   function render(){
     document.getElementById('funders').innerHTML = FUNDERS.map(function(f){
@@ -167,13 +214,14 @@
   function select(key){
     var f = FUNDERS.filter(function(x){return x.key===key;})[0];
     if(!f || !f.url) return;
-    document.getElementById('fh-title').innerHTML = f.label;
-    setProg(0);
-    hx.src = f.url;
-    wrap.style.display = 'none';
-    form.classList.add('on');
-    document.body.classList.add('form-open');
-    try { history.replaceState(null,'','?funder='+key); } catch(e){}
+    if(isMobile()){
+      // Mobile: show the "before you start" pop-up first, then the full-screen form
+      pendingKey = key;
+      document.getElementById('rgm-title').innerHTML = f.label;
+      modal.classList.add('on');
+    } else {
+      openForm(key);
+    }
   }
 
   document.getElementById('back').addEventListener('click', function(){
