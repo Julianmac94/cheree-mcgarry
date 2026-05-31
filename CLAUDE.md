@@ -56,6 +56,8 @@ vercel.json     Rewrites /admin→/api/admin, /admin-login→/api/admin-login + 
 
 **Routing:** `/admin` and `/admin-login` are rewritten to serverless functions via `vercel.json`. All other HTML files are static.
 
+**`/register`** (`register.html`, rewrite in `vercel.json`) — **unlisted** (`noindex`, not linked) client registration page. Branded funding picker → embeds the chosen funder's **Halaxy new-patient form widget** in an iframe (capped at 680px so Halaxy hides its step sidebar). Desktop shows a "what you'll fill in" strip; mobile shows a "before you start" pop-up then a full-screen iframe. Card capture stays inside Halaxy (no PCI for us). **Full rationale + remaining work in `docs/registration-form-spec.md` and `TODO.md`.** Private + Medicare wired; other funders are "Available soon" until Cheree sends their widget URLs.
+
 **Page load flow:**
 1. `GET /admin` → `api/admin.js` renders the full HTML shell (inline CSS, meta tags, script tags)
 2. Browser loads `js/admin-ui.js` and `css/admin-dashboard.css` as static assets

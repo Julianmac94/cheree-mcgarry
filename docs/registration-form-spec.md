@@ -1,90 +1,64 @@
-# Registration form → Halaxy (spec / exploration)
+# Registration → Halaxy (DECIDED architecture + current state)
 
-Goal: replace the link-laden registration email with **our own registration form** on
-chereemcgarry.com that pushes the client straight into Halaxy (creates the Patient +
-funding Coverage) and sends our own thank-you. The email then becomes a single clean
-"Complete your registration →" link. This form is the client's biggest touchpoint with
-the practice, so UX + trust matter.
+> Supersedes the earlier "custom form + Halaxy API" exploration. **We embed Halaxy's
+> form widgets behind our own branded funding picker.** This is live (unlisted) at
+> `/register` — Private + Medicare wired, the rest pending Cheree's forms.
 
-Status: **exploration / not built.** Research done against developers.halaxy.com.
+## Why embed (not a custom form + API)
+- **Card capture = PCI.** Collecting card details in our own form/server puts us at SAQ-D
+  (full PCI-DSS). Letting Halaxy's iframe capture the card keeps us at SAQ-A (nothing
+  sensitive touches us). Stripe "hosted fields" don't help — the card has to land in
+  **Halaxy's** gateway so Halaxy can auto-bill.
+- **Halaxy API is READ-ONLY for money.** `createPatient` / `createCoverage` /
+  `createDocumentReference` exist, but **Invoice and PaymentTransaction are List/Get only**
+  — you cannot mark an invoice paid, record an external payment, or fetch the rendered
+  invoice PDF via the API. So a "charge in Stripe → mark paid in Halaxy" flow would be
+  manual reconciliation forever.
+- Embedding the full widget = Halaxy creates the patient + coverage, captures the card,
+  then **auto-bills, marks its own invoices paid, and emails the compliant
+  Medicare/NDIS/QFES invoices**. We write no backend and store no PII.
+- The per-patient "card-only" form (the one that skips details for an existing patient) is
+  a Halaxy-generated **emailed** instance (`/a/online/form/<id>/<token>`) we **cannot
+  construct** — so a seamless inline card-only step isn't possible. Embedding the full
+  `new-patient` widget (details + card together) is the workable path.
 
----
+## The page — `register.html` (served at `/register`)
+- **Unlisted:** `noindex`, not linked anywhere, `/register` rewrite in `vercel.json`. Reachable by URL only.
+- Links **`css/styles.css`** so it inherits the site's real design (Cormorant + Raleway, cream organic glow, neumorphism). NOT a generic layout.
+- **Funder picker** (neumorphic cards) → on select, embeds that funder's Halaxy widget.
+  - `FUNDERS` array in the file: **Private** (`…/new-patient/1429515/…`) + **Medicare**
+    (`…/new-patient/245011/…`) have real widget URLs; **NDIS / Bupa / QFES / WorkCover**
+    have empty `url` → render as disabled "Available soon" cards.
+  - Deep-link: `/register?funder=medicare` auto-selects (for the email's per-funder links).
+- **Form view (full-viewport, single scroll):**
+  - Iframe capped at **`max-width:680px`** → forces Halaxy's single-column layout (its step
+    sidebar only appears at wide widths). Centered on cream.
+  - **Desktop:** a "What you'll be asked to fill in" strip + scroll note sit above the iframe.
+  - **Mobile:** picking a funder shows a "Before you start" **bottom-sheet pop-up** (checklist
+    + Get started), then the form opens full-screen with the info strip **hidden** — a clean
+    full iframe with native scrolling (no nested-scroll fiddliness).
+- **No progress bar.** Cross-origin we can't read inside the iframe (no step/field access);
+  a `load`-event counter "worked" going forward but mis-counted on the form's "Go Back", so
+  it was dropped in favour of the static "what you'll fill in" summary.
 
-## 1. Flow
+## Halaxy facts (researched, developers.halaxy.com)
+- **Webhooks:** Patient/Appointment/Invoice × Create/Update/Delete (set up in Halaxy
+  Settings → Integrations → Webhooks). **Patient·Create** fires when someone completes the
+  form → our signal for the thank-you + enquiry auto-advance.
+- **Payment fees:** Halaxy ~1.5–1.9% (volume-tiered, +75c–$1 on lower bands); Stripe 1.7%+30c;
+  Square 2.2%. Halaxy can pass the fee to the patient. Fees do not justify leaving Halaxy
+  (you'd lose integrated claiming + face the read-only-API reconciliation problem).
 
-1. Cheree sends the registration email (one link → `chereemcgarry.com/register?t=<signed-token>`).
-2. Client opens the form. The link token (HMAC over enquiry id + email, signed with `ADMIN_SECRET`)
-   ties the submission to a known enquiry, pre-fills name/email, and gates the public endpoint
-   against abuse.
-3. Client picks **funding type** → form branches to the right fields.
-4. Client fills details + consents → submit.
-5. Server: verify token → create **Patient** in Halaxy → create **Coverage** (per funding) →
-   (optional) attach consent **DocumentReference** → send thank-you email (Resend) →
-   advance the enquiry (match by email) to `in_halaxy`/`registered`.
-6. Client sees a thank-you page ("Cheree will be in touch to confirm a time").
+## Remaining work
+1. **Cheree:** create the other 4 funder forms in Halaxy (NDIS/Bupa/QFES/WorkCover) → send the
+   widget URLs → drop into `FUNDERS` in `register.html` (they auto-go-live).
+2. **Patient-Create webhook** → thank-you email (`wrap()` shell) + advance the enquiry; this is
+   also the real "registration complete" signal.
+3. Point the **registration email** CTA at `/register` (optionally per-funder deep-links
+   `/register?funder=…`); the email's in-body funding picker can then be simplified/retired.
+4. Confirm the "what you'll fill in" wording (and whether to make it funder-specific).
+5. Mobile: confirm the full-iframe scroll feels good on a real device.
 
-> Register-only for now. **Booking a time is out of scope** (that's the Appointment resource +
-> Cheree's confirmation email — see TODO). Keeps this build focused.
-
-## 2. Form fields
-
-**Always:**
-- Funding type (Private / Medicare / NDIS / Bupa / QFES / WorkCover) — drives branching
-- Legal name (family + given), preferred name, DOB, gender, pronouns (optional)
-- Email, mobile, postal address
-- Emergency contact (name, relationship, phone)
-- GP name + clinic (needed for Medicare referrals; optional otherwise)
-- **Consents** (checkboxes, required): consent to treatment, privacy & information handling,
-  telehealth (if online), acknowledge 48-hr cancellation policy
-- If client is a **minor**: parent/guardian details + guardian consent
-
-**Funding-specific (the fiddly part):**
-| Funding | Extra fields | Halaxy Coverage |
-|---|---|---|
-| Private / Self-funded | — | none (patient is payor) |
-| Medicare (MHCP) | Medicare no., IRN, card expiry, GP referral details | `Coverage` code `MC`, `subscriberId`=number, `dependent`=IRN, `period.end`=expiry, `payor`→Medicare Org |
-| NDIS | NDIS no., plan dates, management type (self / plan / agency), plan-manager contact | `Coverage` + `coverage_payer` billing direction; plan-managed → invoice to plan manager Org |
-| Bupa / private health | fund, membership no. | `Coverage` generic; `payor`→fund Org |
-| WorkCover | claim no., insurer, case manager | `Coverage` third-party `payor`→insurer Org |
-| QFES | self-referred details | likely `payor`→QFES Org or patient-billed; **confirm with Cheree** |
-
-> Medicare/DVA have clean FHIR codes (`MC` / `DVAU`). NDIS plan-management + WorkCover/QFES
-> billing direction use Halaxy extensions (`coverage_payer`, `coverage_organisation`) and the
-> funder **Organization IDs** — we already cache funders in `_halaxy.js`; map each type to its Org id.
-
-## 3. Halaxy API (au-api.halaxy.com, existing OAuth in `_halaxy.js`)
-
-- `POST /Patient` — FHIR Patient (name/gender/birthDate/telecom/address/contact). Returns `{"success":true}` (need to confirm it returns the new id, else look it up by email).
-- `POST /Coverage` — per funding (see table). `subscriber`+`beneficiary`→`Patient/<id>`, `payor`→`Organization/<funderId>`.
-- `POST /DocumentReference` — optional, store the signed consent text as a clinical note on the patient.
-
-## 4. Security / privacy (important — this collects health identifiers)
-
-- **Store as little as possible our side.** Push Patient + Coverage straight to Halaxy; do NOT
-  persist Medicare/NDIS numbers in Supabase. On our side only set the enquiry → registered + timestamp.
-- Public submit endpoint must be abuse-resistant: **require the signed link token**, validate it,
-  rate-limit, and only allow creating a patient for an enquiry that exists + is in a sendable state.
-- HTTPS only; never put identifiers in URLs/logs.
-- Consents captured with timestamp + version; store the acknowledgement (not health data) for the record.
-
-## 5. Constraints / decisions to make first
-
-- **Vercel 12-function limit (currently 12/12).** A public submit endpoint = +1 → over the cap.
-  Must either fold the handler into an existing public endpoint (`contact.js`/`session.js` with an
-  `action`) or consolidate two functions (e.g. merge `google-auth`+`google-callback`) to free a slot.
-- **Form page** = static `register.html` (no function); only the submit handler is a function.
-- **Confirm Cheree's current Halaxy form parity** — exact fields + which consents are legally required,
-  so we don't drop anything she relies on.
-
-## 6. Suggested build phases
-
-1. **Pipeline proof:** Private-only form (no Coverage) → create Patient + thank-you + advance enquiry. End-to-end.
-2. **Funding branches + Coverage:** Medicare → NDIS → Bupa → WorkCover → QFES (map Org ids, handle billing direction).
-3. **Consents (DocumentReference), minors/guardian, validation + error handling, polish.**
-4. **Retire the link email** → single "Complete your registration →" link to the form.
-
-## 7. Open questions for Cheree
-- Exact fields + required consents on her current Halaxy registration form?
-- Keep registration purely administrative (no presenting-concern), or capture a brief reason?
-- Separate flows for couples / children, or one form with a "who is this for" branch?
-- Register-only (Cheree books the time) confirmed? (vs. client self-booking — bigger build)
+## Still parked (see TODO.md)
+- Appointment **confirmation** email (+ combined "confirmation + registration" variant).
+- Simplify the admin "send" flow to one button.
