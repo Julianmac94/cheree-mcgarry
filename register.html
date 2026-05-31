@@ -66,23 +66,24 @@
   .funder[disabled] .fcta{color:var(--soft);font-weight:500}
   .help{font-size:12.5px;color:var(--soft);line-height:1.6;margin:18px 0 0}
 
-  /* Embedded form step */
+  /* Embedded form step — takes over the viewport so there's ONLY one scroll (inside the iframe) */
   .formwrap{display:none}
-  .formwrap.on{display:block}
+  .formwrap.on{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;background:var(--cream)}
+  body.form-open{overflow:hidden}
+  .form-bar{
+    flex-shrink:0;display:flex;align-items:center;gap:12px;
+    padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);
+  }
   .back{
-    display:inline-flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;
-    font-family:inherit;font-size:13.5px;font-weight:600;color:var(--teal);padding:0;margin:0 0 16px;
+    display:inline-flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;
+    font-family:inherit;font-size:13.5px;font-weight:600;color:var(--teal);padding:6px 6px 6px 2px;flex-shrink:0;
   }
   .back:hover{text-decoration:underline}
-  .form-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin:0 0 12px}
-  .form-head .fh-title{font-family:var(--serif);font-size:24px;font-weight:500;color:var(--teal-deep);margin:0}
-  .form-head .fh-secure{font-size:11.5px;color:var(--soft)}
-  .iframe-box{
-    background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;
-    box-shadow:0 1px 3px rgba(20,38,34,.04),0 18px 50px rgba(20,38,34,.06);
-    width:100%;height:1180px;
-  }
+  .bar-title{flex:1;min-width:0;font-weight:600;font-size:14px;color:var(--teal-deep);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-secure{flex-shrink:0;font-size:11px;color:var(--soft)}
+  .iframe-box{flex:1;min-height:0;background:#fff;-webkit-overflow-scrolling:touch}
   .iframe-box iframe{display:block;width:100%;height:100%;border:0}
+  @media (max-width:480px){ .bar-secure{display:none} }
 
   .ft{text-align:center;font-size:11px;color:var(--soft);margin:30px 0 0}
   .ft a{color:var(--soft)}
@@ -92,7 +93,6 @@
     .card{padding:28px 20px 24px}
     .accent{margin:-28px -20px 24px}
     h1{font-size:30px}
-    .iframe-box{height:1320px}
   }
 </style>
 </head>
@@ -115,12 +115,12 @@
     <p class="help">Not sure which one applies to you? Just reply to your email, or contact Cheree, and she&rsquo;ll point you in the right direction.</p>
   </section>
 
-  <!-- STEP 2 — embedded Halaxy form -->
+  <!-- STEP 2 — embedded Halaxy form (full-viewport, single scroll) -->
   <section class="formwrap" id="step-form">
-    <button class="back" id="back">&larr; Choose a different funding option</button>
-    <div class="form-head">
-      <p class="fh-title" id="fh-title"></p>
-      <span class="fh-secure">Completed securely via Halaxy &mdash; our practice system</span>
+    <div class="form-bar">
+      <button class="back" id="back">&larr; Back</button>
+      <span class="bar-title" id="fh-title"></span>
+      <span class="bar-secure">Secure &middot; via Halaxy</span>
     </div>
     <div class="iframe-box"><iframe id="hx" title="Registration form" src="" allow="payment"></iframe></div>
   </section>
@@ -163,17 +163,15 @@
     hx.src = f.url;
     pick.style.display = 'none';
     form.classList.add('on');
-    page.classList.add('wide');
-    window.scrollTo({top:0,behavior:'smooth'});
+    document.body.classList.add('form-open');
     try { history.replaceState(null,'','?funder='+key); } catch(e){}
   }
 
   document.getElementById('back').addEventListener('click', function(){
     hx.src = '';                 // unload the Halaxy form
     form.classList.remove('on');
-    page.classList.remove('wide');
+    document.body.classList.remove('form-open');
     pick.style.display = '';
-    window.scrollTo({top:0,behavior:'smooth'});
     try { history.replaceState(null,'',location.pathname); } catch(e){}
   });
 
