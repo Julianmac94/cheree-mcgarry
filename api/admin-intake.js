@@ -55,8 +55,8 @@ function wrap(innerHtml) {
           <td style="padding:0 0 28px;">
             <table cellpadding="0" cellspacing="0">
               <tr>
-                <td style="padding-right:14px;vertical-align:middle;">
-                  <div style="width:38px;height:38px;background:${C.teal};border-radius:50%;"></div>
+                <td style="padding-right:13px;vertical-align:middle;">
+                  <img src="https://chereemcgarry.com/assets/email-logo.png" width="48" height="48" alt="Cheree McGarry" style="display:block;border:1px solid rgba(42,88,80,0.10);border-radius:11px;">
                 </td>
                 <td style="vertical-align:middle;">
                   <span style="display:block;font-size:17px;font-weight:500;color:${C.teal};letter-spacing:0.01em;">Cheree McGarry</span>
@@ -80,8 +80,6 @@ function wrap(innerHtml) {
             <p style="font-size:11px;color:${C.soft};margin:0 0 6px;">Cheree McGarry Counselling &amp; Wellness</p>
             <p style="font-size:11px;color:${C.soft};margin:0;">
               <a href="https://chereemcgarry.com" style="color:${C.soft};text-decoration:underline;">chereemcgarry.com</a>
-              &nbsp;&middot;&nbsp;
-              <a href="mailto:reachout@chereemcgarry.com" style="color:${C.soft};text-decoration:underline;">reachout@chereemcgarry.com</a>
             </p>
           </td>
         </tr>
@@ -289,23 +287,24 @@ const SITE = 'https://chereemcgarry.com';
 
 // TODO: replace each `url` with the real Halaxy registration form link for that funding type.
 const FUNDING_FORMS = [
-  { label: 'Private / Self-funded',              note: 'No referral needed &#8212; simple pay-as-you-go.',                       url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=private' },
-  { label: 'Medicare (Mental Health Care Plan)', note: 'Have your GP referral &amp; Medicare card handy to claim your rebate.',  url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=medicare' },
-  { label: 'NDIS',                               note: 'Self- or plan-managed. I&#8217;ll send a Service Agreement before we begin.', url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=ndis' },
-  { label: 'EAP (Employee Assistance)',          note: 'Through your employer&#8217;s program.',                                 url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=eap' },
-  { label: 'WorkCover',                          note: 'For an approved work-related claim.',                                    url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=workcover' },
+  { label: 'Private / Self-funded',                   note: 'No referral needed.',                                     url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=private' },
+  { label: 'Medicare (Mental Health Care Plan)',      note: 'GP referral required prior to attendance at appointment.', url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=medicare' },
+  { label: 'NDIS',                                    note: 'Plan managed.',                                           url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=ndis' },
+  { label: 'Bupa',                                    note: 'Via your Bupa cover.',                                    url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=bupa' },
+  { label: 'Queensland Fire &amp; Emergency Service', note: 'Self referred.',                                          url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=qfes' },
+  { label: 'WorkCover',                               note: 'Referral required.',                                      url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=workcover' },
 ];
 
 function fundingPicker() {
   return FUNDING_FORMS.map(f => `
-    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(42,88,80,0.14);border-radius:10px;margin:0 0 10px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(42,88,80,0.14);border-radius:9px;margin:0 0 6px;">
       <tr>
-        <td class="fcard-txt" style="padding:13px 8px 13px 18px;vertical-align:middle;">
-          <p style="font-size:14px;font-weight:600;color:${C.tealDeep};margin:0 0 2px;">${f.label}</p>
-          <p style="font-size:12px;color:${C.soft};margin:0;line-height:1.5;">${f.note}</p>
+        <td class="fcard-txt" style="padding:9px 8px 9px 16px;vertical-align:middle;">
+          <p style="font-size:13.5px;font-weight:600;color:${C.tealDeep};margin:0 0 1px;">${f.label}</p>
+          <p style="font-size:11.5px;color:${C.soft};margin:0;line-height:1.45;">${f.note}</p>
         </td>
-        <td class="fcard-btn" style="padding:13px 18px 13px 8px;text-align:right;white-space:nowrap;vertical-align:middle;">
-          <a href="${f.url}" style="display:inline-block;background:${C.teal};color:#ffffff;font-size:12.5px;font-weight:500;padding:9px 16px;border-radius:8px;text-decoration:none;">Register &rarr;</a>
+        <td class="fcard-btn" style="padding:9px 16px 9px 8px;text-align:right;white-space:nowrap;vertical-align:middle;">
+          <a href="${f.url}" style="display:inline-block;background:${C.teal};color:#ffffff;font-size:12px;font-weight:500;padding:8px 15px;border-radius:7px;text-decoration:none;">Register &rarr;</a>
         </td>
       </tr>
     </table>`).join('');
@@ -316,35 +315,36 @@ function registrationEmailHtml({ firstName }) {
     <div style="height:4px;background:linear-gradient(90deg,${C.teal},${C.mint});border-radius:14px 14px 0 0;"></div>
     <div style="padding:36px 40px 32px;">
       <p style="font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${C.terra};margin:0 0 18px;">You&rsquo;re in the right place</p>
-      <h1 style="font-size:28px;font-weight:400;color:${C.tealDeep};margin:0 0 22px;line-height:1.25;">
-        Hi ${firstName} &#8212;<br><span style="font-style:italic;">I&rsquo;m really glad you reached out.</span>
+      <h1 style="font-size:28px;font-weight:400;color:${C.tealDeep};margin:0 0 20px;line-height:1.25;">
+        Hi ${firstName} &#8212;<br><span style="font-style:italic;">Thank you for reaching out.</span>
       </h1>
-      <p style="font-size:14px;color:${C.mid};line-height:1.75;margin:0 0 16px;">
-        Taking this first step isn&rsquo;t always easy, and it&rsquo;s not lost on me that you have. Before we meet,
-        I&rsquo;ll ask you to complete a short registration form &#8212; just a few details so I can get you set up and book you in.
-      </p>
-      <p style="font-size:14px;color:${C.mid};line-height:1.75;margin:0 0 26px;">
-        Choose the option below that matches how you&rsquo;ll be funding your sessions, and complete that form. It only takes a few minutes.
+      <p style="font-size:14px;color:${C.mid};line-height:1.75;margin:0 0 24px;">
+        Please choose your preferred funding &amp; complete your registration.
       </p>
 
       <p style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${C.teal};margin:0 0 14px;">Choose your registration form</p>
       ${fundingPicker()}
 
-      <p style="font-size:12.5px;color:${C.soft};line-height:1.6;margin:14px 0 30px;">
-        Not sure which one applies to you? Just reply to this email and I&rsquo;ll point you in the right direction.
+      <p style="font-size:12.5px;color:${C.soft};line-height:1.6;margin:12px 0 28px;">
+        Please feel free to contact me if you need further information about your funding options.
       </p>
 
-      <div style="background:rgba(42,88,80,0.04);border-radius:10px;border:1px solid rgba(42,88,80,0.10);padding:16px 20px;margin:0 0 28px;">
+      <div style="background:rgba(42,88,80,0.04);border-radius:10px;border:1px solid rgba(42,88,80,0.10);padding:16px 20px;margin:0 0 18px;">
         <p style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:${C.teal};margin:0 0 10px;">Good to know</p>
-        <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0 0 6px;"><strong style="color:${C.tealDeep};font-weight:500;">Where</strong> &#8212; in person at Karalee, QLD, or online by video, anywhere in Australia.</p>
-        <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0 0 6px;"><strong style="color:${C.tealDeep};font-weight:500;">Sessions</strong> &#8212; 60 minutes, one-to-one. A 24-hour cancellation policy applies once your time is confirmed.</p>
+        <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0 0 6px;"><strong style="color:${C.tealDeep};font-weight:500;">Where</strong> &#8212; in person at Karalee QLD, or by video or phone anywhere in Australia.</p>
+        <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0 0 6px;"><strong style="color:${C.tealDeep};font-weight:500;">Sessions</strong> &#8212; 60 minutes for individual, intake sessions may take longer. Session duration for couples, families &amp; groups will be negotiated.</p>
+        <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0 0 6px;"><strong style="color:${C.tealDeep};font-weight:500;">Cancellations</strong> &#8212; 48 hours&rsquo; notice for cancellation without a fee. <a href="${SITE}/info.html#ci-appointments" style="color:${C.teal};text-decoration:underline;">Our cancellation policy &rarr;</a></p>
         <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0;"><strong style="color:${C.tealDeep};font-weight:500;">Your privacy</strong> &#8212; your information is kept private and securely stored. <a href="${SITE}/info.html#ci-privacy" style="color:${C.teal};text-decoration:underline;">How your information is handled &rarr;</a></p>
       </div>
 
-      <p style="font-size:14px;color:${C.mid};line-height:1.75;margin:0;">
-        Once you&rsquo;re registered, I&rsquo;ll be in touch to confirm a day and time that suits you. Then it&rsquo;s just you and me &#8212;
-        no judgement, no pressure, just a real conversation.
-      </p>
+      <div style="background:rgba(42,88,80,0.04);border-radius:10px;border:1px solid rgba(42,88,80,0.10);padding:16px 20px;margin:0;">
+        <p style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:${C.teal};margin:0 0 10px;">What&rsquo;s next</p>
+        <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0;">
+          Once you&rsquo;re registered, when you&rsquo;re ready to book an appointment (if you haven&rsquo;t already) just message Cheree on
+          <a href="tel:+61418742087" style="color:${C.teal};text-decoration:underline;white-space:nowrap;">0418&nbsp;742&nbsp;087</a>
+          or email <a href="mailto:reachout@chereemcgarry.com" style="color:${C.teal};text-decoration:underline;">reachout@chereemcgarry.com</a>.
+        </p>
+      </div>
     </div>
 
     <div style="border-top:1px solid rgba(42,88,80,0.10);padding:18px 40px;">
@@ -357,10 +357,10 @@ function registrationEmailHtml({ firstName }) {
     </div>
 
     <div style="background:rgba(42,88,80,0.04);border-top:1px solid rgba(42,88,80,0.08);padding:22px 40px;">
-      <p style="font-size:14px;color:${C.tealDeep};margin:0 0 4px;font-weight:400;">I&rsquo;m looking forward to meeting you.</p>
+      <p style="font-size:14px;color:${C.tealDeep};margin:0 0 4px;font-weight:400;">Thank you for reaching out.</p>
       <p style="font-size:18px;color:${C.teal};font-style:italic;font-weight:400;margin:14px 0 2px;">Cheree</p>
-      <p style="font-size:11px;color:${C.soft};margin:0 0 14px;letter-spacing:0.06em;">Accredited Mental Health Social Worker (AMHSW) &middot; 25+ years</p>
-      <a href="${SITE}/about.html" style="font-size:12px;color:${C.teal};text-decoration:underline;">More about Cheree &rarr;</a>
+      <p style="font-size:11px;color:${C.soft};margin:0;letter-spacing:0.04em;">Accredited Mental Health Social Worker</p>
+      <p style="font-size:11px;color:${C.soft};margin:2px 0 0;letter-spacing:0.04em;">(AMHSW) &middot; 25+ years</p>
     </div>
   `);
 }
