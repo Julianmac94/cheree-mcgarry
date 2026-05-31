@@ -30,22 +30,19 @@ const C = {
 };
 
 // ── Shared wrapper (matches contact.js / session.js) ─────────────
-function wrap(innerHtml) {
+function wrap(innerHtml, preheader = '') {
+  const preheaderHtml = preheader
+    ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:${C.cream};opacity:0;">${preheader}&#8199;&zwnj;&#8199;&zwnj;&#8199;&zwnj;&#8199;&zwnj;&#8199;&zwnj;&#8199;&zwnj;&#8199;&zwnj;&#8199;&zwnj;&#8199;&zwnj;&#8199;&zwnj;&#8199;&zwnj;&#8199;&zwnj;</div>`
+    : '';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cheree McGarry Counselling &amp; Wellness</title>
-<style>
-  @media (max-width: 600px) {
-    /* Funding-form cards: stack label above the button on phones */
-    .fcard-txt { display: block !important; width: 100% !important; padding: 14px 18px 2px !important; }
-    .fcard-btn { display: block !important; width: 100% !important; text-align: left !important; padding: 0 18px 14px !important; }
-  }
-</style>
 </head>
 <body style="margin:0;padding:0;background:${C.cream};font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  ${preheaderHtml}
   <table width="100%" cellpadding="0" cellspacing="0" style="background:${C.cream};padding:40px 20px 60px;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
@@ -55,8 +52,8 @@ function wrap(innerHtml) {
           <td style="padding:0 0 28px;">
             <table cellpadding="0" cellspacing="0">
               <tr>
-                <td style="padding-right:13px;vertical-align:middle;">
-                  <img src="https://chereemcgarry.com/assets/email-logo.png" width="48" height="48" alt="Cheree McGarry" style="display:block;border:1px solid rgba(42,88,80,0.10);border-radius:11px;">
+                <td style="padding-right:12px;vertical-align:middle;">
+                  <img src="https://chereemcgarry.com/assets/email-logo.png" width="50" height="50" alt="Cheree McGarry" style="display:block;border:0;">
                 </td>
                 <td style="vertical-align:middle;">
                   <span style="display:block;font-size:17px;font-weight:500;color:${C.teal};letter-spacing:0.01em;">Cheree McGarry</span>
@@ -154,7 +151,7 @@ function intakeEmailHtml({ firstName, clientType, intakeUrl }) {
 
   return wrap(`
     <!-- Accent bar -->
-    <div style="height:4px;background:linear-gradient(90deg,${C.teal},${C.mint});border-radius:14px 14px 0 0;"></div>
+    <div style="height:4px;background:${C.teal};background:linear-gradient(90deg,${C.teal},${C.mint});border-radius:14px 14px 0 0;"></div>
 
     <div style="padding:36px 40px 32px;">
       <p style="font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${C.terra};margin:0 0 18px;">${topLabel(clientType)}</p>
@@ -228,7 +225,7 @@ function personalEmailHtml({ firstName, intakeUrl }) {
       </tr>`;
   }
   return wrap(`
-    <div style="height:4px;background:linear-gradient(90deg,${C.teal},${C.mint});border-radius:14px 14px 0 0;"></div>
+    <div style="height:4px;background:${C.teal};background:linear-gradient(90deg,${C.teal},${C.mint});border-radius:14px 14px 0 0;"></div>
     <div style="padding:36px 40px 32px;">
       <p style="font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${C.terra};margin:0 0 18px;">You&rsquo;re in the right place</p>
       <h1 style="font-size:28px;font-weight:400;color:${C.tealDeep};margin:0 0 22px;line-height:1.25;">
@@ -296,23 +293,26 @@ const FUNDING_FORMS = [
 ];
 
 function fundingPicker() {
+  // Whole card is the link (bigger tap target, shorter on mobile — no separate button)
   return FUNDING_FORMS.map(f => `
-    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(42,88,80,0.14);border-radius:9px;margin:0 0 6px;">
-      <tr>
-        <td class="fcard-txt" style="padding:9px 8px 9px 16px;vertical-align:middle;">
-          <p style="font-size:13.5px;font-weight:600;color:${C.tealDeep};margin:0 0 1px;">${f.label}</p>
-          <p style="font-size:11.5px;color:${C.soft};margin:0;line-height:1.45;">${f.note}</p>
-        </td>
-        <td class="fcard-btn" style="padding:9px 16px 9px 8px;text-align:right;white-space:nowrap;vertical-align:middle;">
-          <a href="${f.url}" style="display:inline-block;background:${C.teal};color:#ffffff;font-size:12px;font-weight:500;padding:8px 15px;border-radius:7px;text-decoration:none;">Register &rarr;</a>
-        </td>
-      </tr>
-    </table>`).join('');
+    <a href="${f.url}" style="display:block;text-decoration:none;background:#ffffff;border:1px solid rgba(42,88,80,0.16);border-radius:9px;margin:0 0 6px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="padding:11px 6px 11px 16px;vertical-align:middle;">
+            <p style="font-size:13.5px;font-weight:600;color:${C.tealDeep};margin:0 0 1px;">${f.label}</p>
+            <p style="font-size:11.5px;color:#5C746E;margin:0;line-height:1.45;">${f.note}</p>
+          </td>
+          <td style="padding:11px 16px 11px 6px;text-align:right;white-space:nowrap;vertical-align:middle;width:1%;">
+            <span style="font-size:12px;font-weight:600;color:${C.teal};">Register &rarr;</span>
+          </td>
+        </tr>
+      </table>
+    </a>`).join('');
 }
 
 function registrationEmailHtml({ firstName }) {
   return wrap(`
-    <div style="height:4px;background:linear-gradient(90deg,${C.teal},${C.mint});border-radius:14px 14px 0 0;"></div>
+    <div style="height:4px;background:${C.teal};background:linear-gradient(90deg,${C.teal},${C.mint});border-radius:14px 14px 0 0;"></div>
     <div style="padding:36px 40px 32px;">
       <p style="font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${C.terra};margin:0 0 18px;">You&rsquo;re in the right place</p>
       <h1 style="font-size:28px;font-weight:400;color:${C.tealDeep};margin:0 0 20px;line-height:1.25;">
@@ -325,7 +325,7 @@ function registrationEmailHtml({ firstName }) {
       <p style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${C.teal};margin:0 0 14px;">Choose your registration form</p>
       ${fundingPicker()}
 
-      <p style="font-size:12.5px;color:${C.soft};line-height:1.6;margin:12px 0 28px;">
+      <p style="font-size:12.5px;color:#5C746E;line-height:1.6;margin:12px 0 28px;">
         Please feel free to contact me if you need further information about your funding options.
       </p>
 
@@ -337,7 +337,7 @@ function registrationEmailHtml({ firstName }) {
         <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0;"><strong style="color:${C.tealDeep};font-weight:500;">Your privacy</strong> &#8212; your information is kept private and securely stored. <a href="${SITE}/info.html#ci-privacy" style="color:${C.teal};text-decoration:underline;">How your information is handled &rarr;</a></p>
       </div>
 
-      <div style="background:rgba(42,88,80,0.04);border-radius:10px;border:1px solid rgba(42,88,80,0.10);padding:16px 20px;margin:0;">
+      <div style="background:rgba(52,211,153,0.07);border-radius:10px;border:1px solid rgba(42,88,80,0.10);border-left:3px solid ${C.teal};padding:16px 20px;margin:0;">
         <p style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:${C.teal};margin:0 0 10px;">What&rsquo;s next</p>
         <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0;">
           Once you&rsquo;re registered, when you&rsquo;re ready to book an appointment (if you haven&rsquo;t already) just message Cheree on
@@ -349,10 +349,8 @@ function registrationEmailHtml({ firstName }) {
 
     <div style="border-top:1px solid rgba(42,88,80,0.10);padding:18px 40px;">
       <p style="font-size:11px;color:${C.soft};line-height:1.9;margin:0;text-align:center;">
-        <a href="${SITE}/info.html" style="color:${C.teal};text-decoration:none;">Client guide</a> &nbsp;&middot;&nbsp;
-        <a href="${SITE}/info.html#ci-appointments" style="color:${C.teal};text-decoration:none;">Cancellation policy</a> &nbsp;&middot;&nbsp;
-        <a href="${SITE}/info.html" style="color:${C.teal};text-decoration:none;">Fees &amp; funding</a> &nbsp;&middot;&nbsp;
-        <a href="${SITE}/info.html#ci-privacy" style="color:${C.teal};text-decoration:none;">Privacy &amp; your information</a>
+        <a href="${SITE}/info.html" style="color:${C.teal};text-decoration:none;">Client information guide</a> &nbsp;&middot;&nbsp;
+        <a href="${SITE}/info.html" style="color:${C.teal};text-decoration:none;">Fees &amp; funding</a>
       </p>
     </div>
 
@@ -362,7 +360,7 @@ function registrationEmailHtml({ firstName }) {
       <p style="font-size:11px;color:${C.soft};margin:0;letter-spacing:0.04em;">Accredited Mental Health Social Worker</p>
       <p style="font-size:11px;color:${C.soft};margin:2px 0 0;letter-spacing:0.04em;">(AMHSW) &middot; 25+ years</p>
     </div>
-  `);
+  `, `A few quick details and we'll get you booked in.`);
 }
 
 // Choose the right template for a funding type
