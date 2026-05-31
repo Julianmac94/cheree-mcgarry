@@ -109,7 +109,15 @@ Practice management system. Used for appointments, patients, invoices, funders, 
 OAuth tokens stored in `settings` table (`google_refresh_token`). Used for "pending clients" calendar and session events. `calendar-pending.js` exports `createCalendarEvent` / `deleteCalendarEvent` used by other handlers.
 
 ### Resend (email)
-From address: `reachout@chereemcgarry.com` (domain verified). Used for onboarding emails (`admin-intake.js`) and 48h appointment reminders (cron in `admin-enquiries.js`).
+From address: `reachout@chereemcgarry.com` (domain verified). Used for registration/onboarding emails (`admin-intake.js`) and 48h appointment reminders (cron in `admin-enquiries.js`).
+
+**Email templates live in `api/admin-intake.js`** — all built as inline-styled HTML tables (no external CSS) and rendered through a shared `wrap(innerHtml, preheader)` shell:
+- **Branding/shell:** light **cream + teal** theme (the `C` colour map). Logo at `/assets/email-logo.png` (transparent PNG, rasterized from `assets/logo.svg` via a browser canvas — `qlmanage` bakes a white bg, so use the canvas-download route). `wrap()` supports a hidden **preheader** (inbox-preview text).
+- **Templates:** `registrationEmailHtml` (the PRIMARY — one email with an in-email **funding-form picker**; `FUNDING_FORMS` = Private/Medicare/NDIS/Bupa/QFES/WorkCover, each a fully-tappable card with its own Halaxy link — **URLs are PLACEHOLDERS** pending the real links). Legacy: `personalEmailHtml`, `intakeEmailHtml` (per-funding, single-link). `buildIntakeHtml(clientType, …)` dispatches; `clientType ∈ {registration, new, personal, medicare, ndis}`.
+- **Terminology rule:** these are **"registration"** emails (administrative: get the client set up + booked), **never "intake"**. "Intake" is reserved for a future clinical questionnaire (couples/children intake). Don't reintroduce "intake" in client-facing copy.
+- **Email design constraints:** NO frosted glass / `backdrop-filter` / CSS gradients-as-sole-bg / web fonts — none render reliably in email. Keep it light (dark designs break under clients' dark-mode inversion). Gradient accent bars need a solid-colour fallback for Outlook. Mobile relies on simple stacking, not media queries.
+- **Test harness:** Settings → **"Email tests"** picker (`renderSettingsView` + `sendTestEmail()` in `admin-ui.js`) → `POST /api/admin-intake { test:1, clientType }` renders the chosen template with sample data and sends **only to `admin@chereemcgarry.com`** (no enquiry lookup, no DB writes). The registration email is currently reachable ONLY via this test picker — the real client-facing send still uses the old per-funding flow until the real links land.
+- **Parked work is in `TODO.md`** (repo root): appointment **confirmation email** (+ a combined "confirmation + registration" variant), simplifying the admin "send" flow to one button, and wiring the registration email live.
 
 **Important:** Supabase query builders do not support `.catch()` chained directly — always use `try/catch` with `await`. Using `.catch(() => {})` throws `TypeError: .catch is not a function` at runtime, which surfaces to the user as a failed request even if the main operation (e.g. sending an email) already succeeded.
 
