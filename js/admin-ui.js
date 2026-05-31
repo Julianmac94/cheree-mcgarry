@@ -7588,6 +7588,20 @@ function renderSettingsView() {
   html += '<div class="settings-row"><span class="settings-row-label">Practice management</span><span class="settings-row-val">Halaxy</span><div class="settings-row-action"><a href="https://www.halaxy.com/practitioner" target="_blank">Open ↗</a></div></div>';
   html += '</div>';
 
+  // Email tests — send any onboarding template to admin@ for review
+  html += '<div class="settings-section"><div class="settings-section-title">Email tests</div>';
+  html += '<div class="settings-row">'
+    + '<span class="settings-row-label">Send a test to admin@chereemcgarry.com</span>'
+    + '<select id="email-test-type" style="background:rgba(255,255,255,0.06);color:var(--t1);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 10px;font-size:12px;font-family:var(--sans);color-scheme:dark;cursor:pointer">'
+    + '<option value="personal">Personal / Private</option>'
+    + '<option value="new">New (generic)</option>'
+    + '<option value="medicare">Medicare</option>'
+    + '<option value="ndis">NDIS</option>'
+    + '</select>'
+    + '<div class="settings-row-action"><button id="email-test-btn" onclick="sendTestEmail()">Send test →</button></div>'
+    + '</div>';
+  html += '</div>';
+
   // Danger zone
   html += '<div class="settings-section settings-danger-section">';
   html += '<div class="settings-section-title settings-danger-title">Danger zone</div>';
@@ -7602,6 +7616,22 @@ function renderSettingsView() {
 
   html += '</div>';
   content.innerHTML = html;
+}
+
+// Send a test onboarding email (chosen template) to admin@chereemcgarry.com
+async function sendTestEmail() {
+  var sel = document.getElementById('email-test-type');
+  var btn = document.getElementById('email-test-btn');
+  var clientType = sel ? sel.value : 'personal';
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    await apiFetch('/api/admin-intake', { method: 'POST', body: { test: 1, clientType: clientType } });
+    toast('Test email sent to admin@chereemcgarry.com', 'ok');
+  } catch (e) {
+    toast('Could not send test: ' + (e && e.message ? e.message : 'error'), 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Send test →'; }
+  }
 }
 
 async function _resetDashboardData() {
