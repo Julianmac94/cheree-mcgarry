@@ -95,7 +95,7 @@ function fundingNote(clientType) {
         <p style="font-size:13.5px;color:${C.mid};line-height:1.7;margin:0;">
           As you're accessing sessions under a Mental Health Care Plan, please have your
           <strong style="color:${C.tealDeep};font-weight:500;">GP referral and Medicare card</strong> handy
-          when completing your intake form. You'll need these to claim your rebate through Medicare.
+          when you complete your registration. You'll need these to claim your rebate through Medicare.
           If you haven't received your referral yet, no rush — just bring it to your first session.
         </p>
       </div>`;
@@ -107,7 +107,7 @@ function fundingNote(clientType) {
         <p style="font-size:13.5px;color:${C.mid};line-height:1.7;margin:0;">
           Cheree will send a <strong style="color:${C.tealDeep};font-weight:500;">Service Agreement</strong>
           before your first session. If your plan is <strong style="font-weight:500;">plan-managed</strong>,
-          please include your plan manager's contact details in the intake form so invoices can be
+          please include your plan manager's contact details in your registration so invoices can be
           directed to them. If you're <strong style="font-weight:500;">self-managed</strong>, invoices will
           be sent directly to you for reimbursement.
         </p>
@@ -118,9 +118,9 @@ function fundingNote(clientType) {
 
 function subjectLine(clientType, firstName) {
   if (clientType === 'personal') return `A few details before we begin, ${firstName}`;
-  if (clientType === 'medicare') return `Your intake form is ready — Medicare sessions with Cheree McGarry`;
-  if (clientType === 'ndis')     return `Your intake form is ready — NDIS sessions with Cheree McGarry`;
-  return `Welcome, ${firstName} — your intake form is ready`;
+  if (clientType === 'medicare') return `Let's get you registered — Medicare sessions with Cheree McGarry`;
+  if (clientType === 'ndis')     return `Let's get you registered — NDIS sessions with Cheree McGarry`;
+  return `Welcome, ${firstName} — let's get you registered`;
 }
 
 function topLabel(clientType) {
@@ -154,17 +154,17 @@ function intakeEmailHtml({ firstName, clientType, intakeUrl }) {
       <p style="font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${C.terra};margin:0 0 18px;">${topLabel(clientType)}</p>
       <h1 style="font-size:28px;font-weight:400;color:${C.tealDeep};margin:0 0 22px;line-height:1.2;">
         Hi ${firstName} &#8212;<br>
-        <span style="font-style:italic;">your intake form is ready.</span>
+        <span style="font-style:italic;">let&rsquo;s get you registered.</span>
       </h1>
 
       <p style="font-size:14px;color:${C.mid};line-height:1.7;margin:0 0 20px;">
         Cheree has reviewed your request and is looking forward to connecting with you.
-        Before your first session, please complete a short intake form &#8212; it helps Cheree
-        prepare and means you can get straight into the conversation.
+        Before your first session, please complete a short registration form &#8212; it gets you
+        set up so you can come straight into the conversation when we meet.
       </p>
 
       <p style="font-size:14px;color:${C.mid};line-height:1.7;margin:0 0 28px;">
-        It only takes a few minutes and there are no right or wrong answers.
+        It only takes a few minutes.
       </p>
 
       ${fundingNote(clientType)}
@@ -174,7 +174,7 @@ function intakeEmailHtml({ firstName, clientType, intakeUrl }) {
         <tr>
           <td style="background:${C.teal};border-radius:10px;">
             <a href="${intakeUrl}" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:14px;font-weight:500;letter-spacing:0.04em;text-decoration:none;">
-              Complete your intake form &rarr;
+              Complete your registration &rarr;
             </a>
           </td>
         </tr>
@@ -188,8 +188,8 @@ function intakeEmailHtml({ firstName, clientType, intakeUrl }) {
       <div style="border-top:1px solid rgba(42,88,80,0.10);padding-top:26px;">
         <p style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${C.teal};margin:0 0 20px;">What happens next</p>
         <table width="100%" cellpadding="0" cellspacing="0">
-          ${step('1', 'Complete your intake form', 'Takes about 5 minutes. Your answers are confidential and help Cheree prepare for your first session.')}
-          ${step('2', 'Cheree confirms your appointment', 'Once your intake is complete, Cheree will be in touch to confirm the date, time, and joining details.')}
+          ${step('1', 'Complete your registration', 'Takes about 5 minutes &mdash; just your details. Confidential, and it gets you set up for your first session.')}
+          ${step('2', 'Cheree confirms your appointment', 'Once you&rsquo;re registered, Cheree will be in touch to confirm the date, time, and joining details.')}
           ${step('3', 'Your first session', 'In person at Karalee (QLD) or online &mdash; wherever works best for you.')}
         </table>
       </div>
@@ -232,18 +232,17 @@ function personalEmailHtml({ firstName, intakeUrl }) {
 
       <p style="font-size:14px;color:${C.mid};line-height:1.75;margin:0 0 20px;">
         Taking this first step isn&rsquo;t always easy, and it&rsquo;s not lost on me that you have. Before we meet,
-        I&rsquo;ll ask you to fill in a short intake form &#8212; nothing formal, just a few details that help me
-        understand a little about you and what&rsquo;s brought you here.
+        I&rsquo;ll ask you to complete a short registration form &#8212; nothing formal, just a few details so I can
+        get you set up and book you in.
       </p>
       <p style="font-size:14px;color:${C.mid};line-height:1.75;margin:0 0 28px;">
-        It means our first session can be about <em>you</em>, not paperwork. It only takes a few minutes,
-        and there are no right or wrong answers.
+        It only takes a few minutes, and it means our first session can be about <em>you</em>, not paperwork.
       </p>
 
       <table cellpadding="0" cellspacing="0" style="margin-bottom:18px;">
         <tr><td style="background:${C.teal};border-radius:10px;">
           <a href="${intakeUrl}" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:14px;font-weight:500;letter-spacing:0.04em;text-decoration:none;">
-            Fill in your intake form &rarr;
+            Complete your registration &rarr;
           </a>
         </td></tr>
       </table>
@@ -261,8 +260,8 @@ function personalEmailHtml({ firstName, intakeUrl }) {
       <div style="border-top:1px solid rgba(42,88,80,0.10);padding-top:26px;">
         <p style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${C.teal};margin:0 0 20px;">What happens next</p>
         <table width="100%" cellpadding="0" cellspacing="0">
-          ${step('1','Fill in your intake form','A few minutes, and it&rsquo;s completely confidential. It just helps me prepare so we can get straight to the conversation.')}
-          ${step('2','We&rsquo;ll find a time that suits you','Once that&rsquo;s in, I&rsquo;ll be in touch to confirm a day and time &#8212; in person at Karalee, or online, wherever feels right for you.')}
+          ${step('1','Complete your registration','A few quick details &#8212; completely confidential. It&rsquo;s just how I get you set up, ready for your first session.')}
+          ${step('2','We&rsquo;ll find a time that suits you','Once you&rsquo;re registered, I&rsquo;ll be in touch to confirm a day and time &#8212; in person at Karalee, or online, wherever feels right for you.')}
           ${step('3','Your first session','Sixty minutes, just for you. No judgement, no pressure &#8212; just a real conversation.')}
         </table>
       </div>

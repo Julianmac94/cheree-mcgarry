@@ -3118,7 +3118,7 @@ function _intakeEnquiryCard(e) {
     primaryLabel = 'Mark contacted →';
     primaryFn    = 'advanceEnquiryStatus(\'' + e.id + '\',\'contacted\')';
   } else if (status === 'contacted') {
-    primaryLabel = 'Send intake →';
+    primaryLabel = 'Send registration →';
     primaryFn    = 'togglePipelineIntake(\'' + e.id + '\')';
   }
   // in_halaxy: handled separately with two buttons below
@@ -3137,7 +3137,7 @@ function _intakeEnquiryCard(e) {
     intakePanel = '<div class="pl-intake-panel" id="pl-intake-' + e.id + '">'
       + '<div class="pl-intake-row">'
       + _intakeTypeSelectorHtml(e.id)
-      + '<input class="pl-intake-url" id="pl-iurl-' + e.id + '" type="url" placeholder="Paste Halaxy intake URL…" onclick="event.stopPropagation()">'
+      + '<input class="pl-intake-url" id="pl-iurl-' + e.id + '" type="url" placeholder="Paste Halaxy registration URL…" onclick="event.stopPropagation()">'
       + '<button class="pl-intake-send" onclick="event.stopPropagation();sendIntakePl(\'' + e.id + '\')">Send →</button>'
       + '</div>'
       + '<div id="pl-imsg-' + e.id + '" style="font-size:10px;margin-top:4px"></div>'
@@ -4265,7 +4265,7 @@ function renderEnquiryCardPl(e) {
     intakeHtml = '<div class="pl-intake-panel" id="pl-intake-' + e.id + '">'
       + '<div class="pl-intake-row">'
       + _intakeTypeSelectorHtml(e.id)
-      + '<input class="pl-intake-url" id="pl-iurl-' + e.id + '" type="url" placeholder="Paste Halaxy intake URL…" onclick="event.stopPropagation()">'
+      + '<input class="pl-intake-url" id="pl-iurl-' + e.id + '" type="url" placeholder="Paste Halaxy registration URL…" onclick="event.stopPropagation()">'
       + '<button class="pl-intake-send" onclick="event.stopPropagation();sendIntakePl(\'' + e.id + '\')">Send →</button>'
       + '</div>'
       + '<div id="pl-imsg-' + e.id + '" style="font-size:10px;margin-top:4px"></div>'
@@ -7944,7 +7944,7 @@ function _renderEnquiryDetailPanel(enq) {
     html += '<select class="m-select" id="rdp-intake-funder-' + enq.id + '" onchange="_rdpUpdateIntakeUrl(\'' + enq.id + '\')">'
       + '<option value="">Funding type…</option>' + funderOpts
       + '</select>';
-    html += '<input class="m-input m-input-sm" id="rdp-intake-url-' + enq.id + '" type="url" placeholder="Intake form URL (auto-fills for known funders)…">';
+    html += '<input class="m-input m-input-sm" id="rdp-intake-url-' + enq.id + '" type="url" placeholder="Registration form URL (auto-fills for known funders)…">';
     html += '<button class="m-btn-teal m-btn-sm" onclick="_rdpSendIntake(\'' + enq.id + '\')">Send onboarding email</button>';
     html += '</div>';
 
