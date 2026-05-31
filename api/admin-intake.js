@@ -37,6 +37,13 @@ function wrap(innerHtml) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cheree McGarry Counselling &amp; Wellness</title>
+<style>
+  @media (max-width: 600px) {
+    /* Funding-form cards: stack label above the button on phones */
+    .fcard-txt { display: block !important; width: 100% !important; padding: 14px 18px 2px !important; }
+    .fcard-btn { display: block !important; width: 100% !important; text-align: left !important; padding: 0 18px 14px !important; }
+  }
+</style>
 </head>
 <body style="margin:0;padding:0;background:${C.cream};font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:${C.cream};padding:40px 20px 60px;">
@@ -117,6 +124,7 @@ function fundingNote(clientType) {
 }
 
 function subjectLine(clientType, firstName) {
+  if (clientType === 'registration') return `Let's get you registered, ${firstName}`;
   if (clientType === 'personal') return `A few details before we begin, ${firstName}`;
   if (clientType === 'medicare') return `Let's get you registered — Medicare sessions with Cheree McGarry`;
   if (clientType === 'ndis')     return `Let's get you registered — NDIS sessions with Cheree McGarry`;
@@ -276,11 +284,92 @@ function personalEmailHtml({ firstName, intakeUrl }) {
   `);
 }
 
+// ── Registration email (v3) — client picks their funding form inside the email ──
+const SITE = 'https://chereemcgarry.com';
+
+// TODO: replace each `url` with the real Halaxy registration form link for that funding type.
+const FUNDING_FORMS = [
+  { label: 'Private / Self-funded',              note: 'No referral needed &#8212; simple pay-as-you-go.',                       url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=private' },
+  { label: 'Medicare (Mental Health Care Plan)', note: 'Have your GP referral &amp; Medicare card handy to claim your rebate.',  url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=medicare' },
+  { label: 'NDIS',                               note: 'Self- or plan-managed. I&#8217;ll send a Service Agreement before we begin.', url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=ndis' },
+  { label: 'EAP (Employee Assistance)',          note: 'Through your employer&#8217;s program.',                                 url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=eap' },
+  { label: 'WorkCover',                          note: 'For an approved work-related claim.',                                    url: 'https://au.halaxy.com/profile/cheree-mcgarry?form=workcover' },
+];
+
+function fundingPicker() {
+  return FUNDING_FORMS.map(f => `
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(42,88,80,0.14);border-radius:10px;margin:0 0 10px;">
+      <tr>
+        <td class="fcard-txt" style="padding:13px 8px 13px 18px;vertical-align:middle;">
+          <p style="font-size:14px;font-weight:600;color:${C.tealDeep};margin:0 0 2px;">${f.label}</p>
+          <p style="font-size:12px;color:${C.soft};margin:0;line-height:1.5;">${f.note}</p>
+        </td>
+        <td class="fcard-btn" style="padding:13px 18px 13px 8px;text-align:right;white-space:nowrap;vertical-align:middle;">
+          <a href="${f.url}" style="display:inline-block;background:${C.teal};color:#ffffff;font-size:12.5px;font-weight:500;padding:9px 16px;border-radius:8px;text-decoration:none;">Register &rarr;</a>
+        </td>
+      </tr>
+    </table>`).join('');
+}
+
+function registrationEmailHtml({ firstName }) {
+  return wrap(`
+    <div style="height:4px;background:linear-gradient(90deg,${C.teal},${C.mint});border-radius:14px 14px 0 0;"></div>
+    <div style="padding:36px 40px 32px;">
+      <p style="font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${C.terra};margin:0 0 18px;">You&rsquo;re in the right place</p>
+      <h1 style="font-size:28px;font-weight:400;color:${C.tealDeep};margin:0 0 22px;line-height:1.25;">
+        Hi ${firstName} &#8212;<br><span style="font-style:italic;">I&rsquo;m really glad you reached out.</span>
+      </h1>
+      <p style="font-size:14px;color:${C.mid};line-height:1.75;margin:0 0 16px;">
+        Taking this first step isn&rsquo;t always easy, and it&rsquo;s not lost on me that you have. Before we meet,
+        I&rsquo;ll ask you to complete a short registration form &#8212; just a few details so I can get you set up and book you in.
+      </p>
+      <p style="font-size:14px;color:${C.mid};line-height:1.75;margin:0 0 26px;">
+        Choose the option below that matches how you&rsquo;ll be funding your sessions, and complete that form. It only takes a few minutes.
+      </p>
+
+      <p style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${C.teal};margin:0 0 14px;">Choose your registration form</p>
+      ${fundingPicker()}
+
+      <p style="font-size:12.5px;color:${C.soft};line-height:1.6;margin:14px 0 30px;">
+        Not sure which one applies to you? Just reply to this email and I&rsquo;ll point you in the right direction.
+      </p>
+
+      <div style="background:rgba(42,88,80,0.04);border-radius:10px;border:1px solid rgba(42,88,80,0.10);padding:16px 20px;margin:0 0 28px;">
+        <p style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:${C.teal};margin:0 0 10px;">Good to know</p>
+        <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0 0 6px;"><strong style="color:${C.tealDeep};font-weight:500;">Where</strong> &#8212; in person at Karalee, QLD, or online by video, anywhere in Australia.</p>
+        <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0 0 6px;"><strong style="color:${C.tealDeep};font-weight:500;">Sessions</strong> &#8212; 60 minutes, one-to-one. A 24-hour cancellation policy applies once your time is confirmed.</p>
+        <p style="font-size:13px;color:${C.mid};line-height:1.7;margin:0;"><strong style="color:${C.tealDeep};font-weight:500;">Your privacy</strong> &#8212; your information is kept private and securely stored. <a href="${SITE}/info.html#ci-privacy" style="color:${C.teal};text-decoration:underline;">How your information is handled &rarr;</a></p>
+      </div>
+
+      <p style="font-size:14px;color:${C.mid};line-height:1.75;margin:0;">
+        Once you&rsquo;re registered, I&rsquo;ll be in touch to confirm a day and time that suits you. Then it&rsquo;s just you and me &#8212;
+        no judgement, no pressure, just a real conversation.
+      </p>
+    </div>
+
+    <div style="border-top:1px solid rgba(42,88,80,0.10);padding:18px 40px;">
+      <p style="font-size:11px;color:${C.soft};line-height:1.9;margin:0;text-align:center;">
+        <a href="${SITE}/info.html" style="color:${C.teal};text-decoration:none;">Client guide</a> &nbsp;&middot;&nbsp;
+        <a href="${SITE}/info.html#ci-appointments" style="color:${C.teal};text-decoration:none;">Cancellation policy</a> &nbsp;&middot;&nbsp;
+        <a href="${SITE}/info.html" style="color:${C.teal};text-decoration:none;">Fees &amp; funding</a> &nbsp;&middot;&nbsp;
+        <a href="${SITE}/info.html#ci-privacy" style="color:${C.teal};text-decoration:none;">Privacy &amp; your information</a>
+      </p>
+    </div>
+
+    <div style="background:rgba(42,88,80,0.04);border-top:1px solid rgba(42,88,80,0.08);padding:22px 40px;">
+      <p style="font-size:14px;color:${C.tealDeep};margin:0 0 4px;font-weight:400;">I&rsquo;m looking forward to meeting you.</p>
+      <p style="font-size:18px;color:${C.teal};font-style:italic;font-weight:400;margin:14px 0 2px;">Cheree</p>
+      <p style="font-size:11px;color:${C.soft};margin:0 0 14px;letter-spacing:0.06em;">Accredited Mental Health Social Worker (AMHSW) &middot; 25+ years</p>
+      <a href="${SITE}/about.html" style="font-size:12px;color:${C.teal};text-decoration:underline;">More about Cheree &rarr;</a>
+    </div>
+  `);
+}
+
 // Choose the right template for a funding type
 function buildIntakeHtml(clientType, firstName, intakeUrl) {
-  return clientType === 'personal'
-    ? personalEmailHtml({ firstName, intakeUrl })
-    : intakeEmailHtml({ firstName, clientType, intakeUrl });
+  if (clientType === 'registration') return registrationEmailHtml({ firstName });
+  if (clientType === 'personal')     return personalEmailHtml({ firstName, intakeUrl });
+  return intakeEmailHtml({ firstName, clientType, intakeUrl });
 }
 
 // ── Handler ──────────────────────────────────────────────────────
@@ -291,7 +380,7 @@ export default async function handler(req, res) {
 
   const { enquiryId, clientType = 'new', intakeUrl = '', test = false } = req.body || {};
 
-  const VALID_TYPES = ['new', 'personal', 'medicare', 'ndis'];
+  const VALID_TYPES = ['registration', 'new', 'personal', 'medicare', 'ndis'];
   if (!VALID_TYPES.includes(clientType)) {
     return res.status(400).json({ error: 'clientType must be one of: ' + VALID_TYPES.join(', ') });
   }
