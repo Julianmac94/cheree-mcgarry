@@ -7634,56 +7634,20 @@ function _renderSessionDetailPanel(sess) {
 function _calUnlinkedActionHtml(eventId, calName) {
   var safeId   = escHtml(String(eventId));
   var safeName = escHtml(calName || 'Calendar event');
-  var listId   = 'cal-merge-list-' + safeId;
-
-  var halaxyUpcoming = (_dhAppts || []).filter(function(s) {
-    return s.source === 'halaxy' && s.patientId && s.status === 'upcoming';
-  }).sort(function(a, b) { return (a.startMs || 0) - (b.startMs || 0); });
-
-  var listHtml = halaxyUpcoming.slice(0, 25).map(function(s) {
-    var pname    = s.name || ('Patient #' + s.patientId);
-    var apptDate = s.dateLabel + (s.timeStr ? ' · ' + s.timeStr : '');
-    var ini      = pname.split(/\s+/).slice(0, 2).map(function(w) { return w[0]; }).join('').toUpperCase();
-    var dashClient = (_pipelineData && _pipelineData.clients || []).find(function(c) {
-      return c.halaxy_id && String(c.halaxy_id) === String(s.patientId);
-    });
-    return '<div class="m-merge-item" onclick="_calMergeConfirm(\'' + safeId + '\',\'' + escHtml(String(s.patientId)) + '\',\'' + escHtml(pname) + '\',\'' + escHtml(apptDate) + '\')">'
-      + '<div class="m-merge-av">' + escHtml(ini) + '</div>'
-      + '<div style="flex:1;min-width:0">'
-      + '<div class="m-merge-name">' + escHtml(pname) + '</div>'
-      + '<div class="m-merge-date">' + escHtml(apptDate) + '</div>'
-      + (dashClient ? '<div class="m-merge-badge">Dashboard record linked ✓</div>' : '')
-      + '</div>'
-      + '<span class="m-merge-arr">›</span>'
-      + '</div>';
-  }).join('');
-
-  if (!listHtml) {
-    listHtml = halaxyUpcoming.length === 0
-      ? '<div class="m-empty" style="padding:12px">No upcoming Halaxy appointments found. Create the appointment in Halaxy first, then come back to merge.</div>'
-      : '<div class="m-empty" style="padding:10px">No results.</div>';
-  }
 
   var html = '';
 
-  // Primary path: set up the client in Halaxy (create patient + book + invoice) in one go.
-  html += '<button class="m-btn-primary" style="margin-bottom:10px" onclick="_sihFromCalEvent(\'' + safeId + '\')">⚕ Set up in Halaxy &amp; book →</button>';
-  html += '<div class="m-question">…or link to an existing Halaxy appointment</div>';
+  // Primary: the wizard handles BOTH new and existing clients (it searches Halaxy by name + email),
+  // books the session and raises the invoice — no need to open Halaxy first.
+  html += '<button class="m-btn-primary" onclick="_sihFromCalEvent(\'' + safeId + '\')">⚕ Set up in Halaxy &amp; book →</button>';
+  html += '<div class="m-info-box" style="margin:8px 0 14px">Finds or creates the client in Halaxy, books this session, and raises the invoice — all here.</div>';
+
+  html += '<div class="m-question">Or…</div>';
   html += '<div class="m-option-list">';
 
-  html += '<button class="m-option-item" onclick="_calToggleMergeList(\'' + safeId + '\')">'
-    + '<span class="m-option-label">Someone already in Halaxy</span>'
-    + '<span class="m-option-hint">Match to an existing patient</span>'
-    + '</button>';
-
-  html += '<div id="' + listId + '" class="m-merge-list" style="display:none">'
-    + '<div class="m-merge-hd">Select the Halaxy appointment to match</div>'
-    + listHtml
-    + '</div>';
-
-  html += '<button class="m-option-item" onclick="_calAddDashboardClient(\'' + safeName + '\')">'
-    + '<span class="m-option-label">A new client I haven\'t added yet</span>'
-    + '<span class="m-option-hint">Create a new dashboard record</span>'
+  html += '<button class="m-option-item" onclick="_calDismissAlreadyBooked(\'' + safeId + '\',\'' + safeName + '\')">'
+    + '<span class="m-option-label">Already booked in Halaxy</span>'
+    + '<span class="m-option-hint">Just hide this calendar duplicate — no fee or invoice</span>'
     + '</button>';
 
   html += '<button class="m-option-item" onclick="_calMarkAsReminder(\'' + safeId + '\',\'' + safeName + '\')">'
@@ -7698,31 +7662,14 @@ function _calUnlinkedActionHtml(eventId, calName) {
   return html;
 }
 
-function _calToggleMergeList(eventId) {
-  var el = document.getElementById('cal-merge-list-' + eventId);
-  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
-}
-
-function _calMergeConfirm(eventId, patientId, patientName, apptDate) {
-  // This only HIDES the calendar event and treats an already-booked Halaxy appointment as the
-  // record — it does NOT create a fee/invoice. Confirm so it can't silently fire (use "Set up in
-  // Halaxy" instead when the client still needs booking + billing).
-  if (!window.confirm('Hide this calendar event and treat the existing Halaxy appointment for ' + patientName + ' as the record?\n\nThis does NOT create a fee or invoice. If this client still needs to be booked + billed, cancel and use "Set up in Halaxy" instead.')) return;
+// "Already booked in Halaxy" — only hides the dashboard's calendar duplicate (no billing).
+function _calDismissAlreadyBooked(eventId, name) {
+  if (!window.confirm('Hide "' + (name || 'this event') + '" from the dashboard?\n\nUse this only if you ALREADY booked this appointment directly in Halaxy — it just removes the calendar duplicate here. No fee or invoice is created.')) return;
   dismissCalEvent(eventId);
   closeDetailPanel();
-  _showSuccess('merge', 'Merged with ' + patientName);
+  _showSuccess('merge', 'Hidden — already in Halaxy');
 }
 
-function _calAddDashboardClient(calName) {
-  openDbModal('client');
-  setTimeout(function() {
-    var parts = (calName || '').trim().split(/\s+/);
-    var fnEl  = document.getElementById('db-cl-fname');
-    var lnEl  = document.getElementById('db-cl-lname');
-    if (fnEl) fnEl.value = parts[0] || calName;
-    if (lnEl) lnEl.value = parts.slice(1).join(' ');
-  }, 60);
-}
 
 async function _calMarkAsReminder(eventId, title) {
   _calReminders.add(String(eventId));
