@@ -8149,15 +8149,18 @@ function openSetupInHalaxy(prefill) {
     +   '<div class="db-modal-sub">Create the client &amp; book — the invoice is made automatically. No need to open Halaxy.</div>'
     + '</div><button class="db-modal-close" onclick="this.closest(\'.db-modal-overlay\').remove()">×</button></div>'
     + '<div class="db-modal-body" style="display:flex;flex-direction:column;gap:10px;padding:16px 24px;max-height:70vh;overflow:auto">'
-    +   '<div style="display:flex;gap:8px">'
-    +     '<input id="sih-first" class="db-form-input" placeholder="First name" value="' + escHtml(prefill.firstName || '') + '" style="flex:1">'
-    +     '<input id="sih-last"  class="db-form-input" placeholder="Last name"  value="' + escHtml(prefill.lastName  || '') + '" style="flex:1">'
+    +   '<div id="sih-client-entry" style="display:flex;flex-direction:column;gap:10px">'
+    +     '<div style="display:flex;gap:8px">'
+    +       '<input id="sih-first" class="db-form-input" placeholder="First name" value="' + escHtml(prefill.firstName || '') + '" style="flex:1">'
+    +       '<input id="sih-last"  class="db-form-input" placeholder="Last name"  value="' + escHtml(prefill.lastName  || '') + '" style="flex:1">'
+    +     '</div>'
+    +     '<input id="sih-email" class="db-form-input" type="email" placeholder="Email" value="' + escHtml(prefill.email || '') + '" oninput="_sihState.patientId=null" onblur="_sihSearchPatient()">'
+    +     '<input id="sih-phone" class="db-form-input" placeholder="Phone (optional)" value="' + escHtml(prefill.phone || '') + '">'
+    +     '<div id="sih-match" style="font-size:11.5px;color:var(--t3);min-height:16px"></div>'
+    +     '<input id="sih-namesearch" class="db-form-input" placeholder="🔍 …or find an existing Halaxy patient by name" oninput="_sihDebounceNameSearch()">'
+    +     '<div id="sih-nameresults"></div>'
     +   '</div>'
-    +   '<input id="sih-email" class="db-form-input" type="email" placeholder="Email" value="' + escHtml(prefill.email || '') + '" oninput="_sihState.patientId=null" onblur="_sihSearchPatient()">'
-    +   '<input id="sih-phone" class="db-form-input" placeholder="Phone (optional)" value="' + escHtml(prefill.phone || '') + '">'
-    +   '<div id="sih-match" style="font-size:11.5px;color:var(--t3);min-height:16px"></div>'
-    +   '<input id="sih-namesearch" class="db-form-input" placeholder="🔍 …or find an existing Halaxy patient by name" oninput="_sihDebounceNameSearch()">'
-    +   '<div id="sih-nameresults"></div>'
+    +   '<div id="sih-client-hero" style="display:none"></div>'
     +   '<select id="sih-funder" class="db-form-input" onchange="_sihOnFunderChange()">' + funderOpts + '</select>'
     +   '<select id="sih-pm" class="db-form-input" style="display:none"></select>'
     +   '<select id="sih-type" class="db-form-input" style="display:none" onchange="_sihOnTypeChange()"></select>'
@@ -8292,14 +8295,41 @@ async function _sihNameSearch() {
 
 function _sihPickPatient(id, name) {
   _sihState.patientId = String(id);
+  // Keep the name in the (now-hidden) fields so a later create still has it if cleared.
   var parts = (name || '').trim().split(/\s+/);
   var fe = document.getElementById('sih-first'), le = document.getElementById('sih-last');
-  if (fe && parts.length) fe.value = parts.shift();
-  if (le) le.value = parts.join(' ');
-  var md = document.getElementById('sih-match');
-  if (md) { md.innerHTML = '✓ Using existing Halaxy patient: <strong>' + escHtml(name) + '</strong> — no duplicate will be created.'; md.style.color = 'var(--teal)'; }
-  var box = document.getElementById('sih-nameresults'); if (box) box.innerHTML = '';
-  var ns = document.getElementById('sih-namesearch'); if (ns) ns.value = '';
+  if (fe && parts.length) fe.value = parts[0];
+  if (le) le.value = parts.slice(1).join(' ');
+
+  // Collapse the whole entry section and show a single "selected patient" hero.
+  var entry = document.getElementById('sih-client-entry');
+  var hero  = document.getElementById('sih-client-hero');
+  if (entry) entry.style.display = 'none';
+  if (hero) {
+    var ini = (name || '?').split(/\s+/).slice(0, 2).map(function(w) { return (w[0] || '').toUpperCase(); }).join('');
+    hero.style.display = '';
+    hero.innerHTML =
+        '<div style="display:flex;align-items:center;gap:12px;background:rgba(119,207,189,0.10);border:1px solid rgba(119,207,189,0.35);border-radius:12px;padding:13px 15px">'
+      + '<div style="width:38px;height:38px;flex:0 0 auto;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px">' + escHtml(ini) + '</div>'
+      + '<div style="flex:1;min-width:0">'
+      +   '<div style="font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--teal);font-weight:600">Existing Halaxy patient</div>'
+      +   '<div style="font-size:15px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(name) + '</div>'
+      +   '<div style="font-size:11px;color:var(--t3)">Booking against this patient — no duplicate created</div>'
+      + '</div>'
+      + '<button onclick="_sihClearPatient()" title="Change patient" style="flex:0 0 auto;background:transparent;border:1px solid rgba(255,255,255,0.18);color:var(--t2);border-radius:8px;padding:6px 11px;font-size:11.5px;cursor:pointer">Change</button>'
+      + '</div>';
+  }
+}
+
+// Undo a patient selection — restore the entry fields so a different patient (or a new one) can be entered.
+function _sihClearPatient() {
+  _sihState.patientId = null;
+  var entry = document.getElementById('sih-client-entry');
+  var hero  = document.getElementById('sih-client-hero');
+  if (hero)  { hero.style.display = 'none'; hero.innerHTML = ''; }
+  if (entry) entry.style.display = '';
+  var md = document.getElementById('sih-match'); if (md) md.textContent = '';
+  var ns = document.getElementById('sih-namesearch'); if (ns) { ns.value = ''; ns.focus(); }
 }
 
 async function _sihSubmit(confirmed) {
