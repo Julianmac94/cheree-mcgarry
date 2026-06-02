@@ -768,31 +768,33 @@ body {
 }
 .mm-ov.open { display: flex; }
 .mm-card {
-  background: var(--cream);
+  background: #111A2B;
   border-radius: 14px;
-  border: 1px solid rgba(0,0,0,0.09);
-  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
   padding: 24px 26px 20px;
   width: 380px; max-width: calc(100vw - 40px);
   animation: modalIn 0.2s ease;
+  color: var(--t1, #F4F7F6);
 }
-.mm-title { font-size: 14px; font-weight: 600; color: var(--tealDeep); margin-bottom: 16px; }
+.mm-title { font-size: 14px; font-weight: 600; color: var(--t1, #F4F7F6); margin-bottom: 16px; }
 .mm-field { margin-bottom: 12px; }
-.mm-field label { display: block; font-size: 11px; font-weight: 600; color: var(--soft); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+.mm-field label { display: block; font-size: 11px; font-weight: 600; color: var(--t3, #7E93A8); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
 .mm-field select, .mm-field input, .mm-field textarea {
   width: 100%; box-sizing: border-box;
   font-size: 12.5px; padding: 7px 9px;
-  border: 1px solid rgba(0,0,0,0.12); border-radius: 7px;
-  background: #fff; color: var(--tealDeep); outline: none; font-family: var(--sans);
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 7px;
+  background: rgba(255,255,255,0.05); color: var(--t1, #F4F7F6); outline: none; font-family: var(--sans);
+  color-scheme: dark;
 }
 .mm-field select:focus, .mm-field input:focus, .mm-field textarea:focus { border-color: var(--teal); }
 .mm-field textarea { min-height: 56px; resize: vertical; }
 .mm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .mm-btn-cancel {
   font-size: 12px; padding: 7px 14px; border-radius: 7px; cursor: pointer;
-  background: transparent; border: 1px solid rgba(0,0,0,0.12); color: var(--soft);
+  background: transparent; border: 1px solid rgba(255,255,255,0.18); color: var(--t2, #AEBECB);
 }
-.mm-btn-cancel:hover { background: rgba(0,0,0,0.05); }
+.mm-btn-cancel:hover { background: rgba(255,255,255,0.06); }
 .mm-btn-confirm {
   font-size: 12px; padding: 7px 16px; border-radius: 7px; cursor: pointer;
   background: var(--teal); border: none; color: #fff; font-weight: 500;
