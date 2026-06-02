@@ -8145,7 +8145,7 @@ function openSetupInHalaxy(prefill) {
     +   '<div class="db-modal-title">Set up in Halaxy</div>'
     +   '<div class="db-modal-sub">Create the client &amp; book — the invoice is made automatically. No need to open Halaxy.</div>'
     + '</div><button class="db-modal-close" onclick="this.closest(\'.db-modal-overlay\').remove()">×</button></div>'
-    + '<div class="db-modal-body" style="display:flex;flex-direction:column;gap:10px;padding:16px 24px;max-height:70vh;overflow:auto">'
+    + '<div class="db-modal-body" id="sih-body" style="display:flex;flex-direction:column;gap:10px;padding:16px 24px;max-height:70vh;overflow:auto;transition:opacity .15s">'
     +   '<div id="sih-client-entry" style="display:flex;flex-direction:column;gap:10px">'
     +     '<div style="display:flex;gap:8px">'
     +       '<input id="sih-first" class="db-form-input" placeholder="First name" value="' + escHtml(prefill.firstName || '') + '" style="flex:1">'
@@ -8167,11 +8167,10 @@ function openSetupInHalaxy(prefill) {
     +     '<input id="sih-time" class="db-form-input" type="time" value="' + escHtml(prefill.time || '10:00') + '" style="width:118px">'
     +     '<input id="sih-dur"  class="db-form-input" type="number" min="1" value="' + (prefill.durationMin || 60) + '" style="width:80px" title="Minutes">'
     +   '</div>'
-    +   '<div id="sih-confirm"></div>'
     +   '<div id="sih-msg" style="font-size:12px;min-height:16px"></div>'
     + '</div>'
     + '<div class="db-modal-ftr" style="padding:14px 20px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;justify-content:flex-end">'
-    +   '<button onclick="this.closest(\'.db-modal-overlay\').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.18);color:var(--t2);border-radius:9px;padding:8px 16px;font-size:13px;font-family:var(--sans);cursor:pointer">Cancel</button>'
+    +   '<button id="sih-cancel-btn" onclick="this.closest(\'.db-modal-overlay\').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.18);color:var(--t2);border-radius:9px;padding:8px 16px;font-size:13px;font-family:var(--sans);cursor:pointer">Cancel</button>'
     +   '<button class="db-btn-primary" id="sih-book-btn" onclick="_sihSubmit()">Book in Halaxy →</button>'
     + '</div>'
     + '</div>';
@@ -8329,6 +8328,17 @@ function _sihClearPatient() {
   var ns = document.getElementById('sih-namesearch'); if (ns) { ns.value = ''; ns.focus(); }
 }
 
+// Undo the armed state — restore the form and the Book/Cancel buttons.
+function _sihUnarm() {
+  var bodyEl = document.getElementById('sih-body');
+  if (bodyEl) { bodyEl.style.opacity = ''; bodyEl.style.pointerEvents = ''; }
+  var bk = document.getElementById('sih-book-btn');
+  var cn = document.getElementById('sih-cancel-btn');
+  if (bk) { bk.disabled = false; bk.textContent = 'Book in Halaxy →'; bk.setAttribute('onclick', '_sihSubmit()'); }
+  if (cn) { cn.textContent = 'Cancel'; cn.setAttribute('onclick', "this.closest('.db-modal-overlay').remove()"); }
+  var msg = document.getElementById('sih-msg'); if (msg) msg.textContent = '';
+}
+
 async function _sihSubmit(confirmed) {
   function val(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
   var msg = document.getElementById('sih-msg');
@@ -8348,26 +8358,24 @@ async function _sihSubmit(confirmed) {
   var pmName = funder.planManaged ? val('sih-pm') : '';
   if (funder.planManaged && !pmName) return err('Choose the NDIS plan manager.');
 
-  // In-modal confirmation (dark — no native popup). First click shows the summary; Confirm commits.
-  var confirmBox = document.getElementById('sih-confirm');
+  // Arm-to-confirm — no popup, no duplicated summary. First tap dims the form for a final glance
+  // and turns the button into a deliberate "Confirm — book $X" with the amount on it; a second tap
+  // commits. "Edit" un-arms. Proves intent without a dialog or repeating the details.
   if (!confirmed) {
     if (msg) msg.textContent = '';
-    if (confirmBox) {
-      confirmBox.innerHTML =
-          '<div style="background:rgba(119,207,189,0.08);border:1px solid rgba(119,207,189,0.30);border-radius:10px;padding:12px 14px;margin-top:4px;font-size:12.5px;color:var(--t1);line-height:1.55">'
-        + '<div style="font-weight:600;margin-bottom:6px">Confirm booking</div>'
-        + escHtml(first + ' ' + last) + ' · ' + escHtml(funder.label) + (pmName ? ' (' + escHtml(pmName) + ')' : '') + ' · ' + escHtml(item.label) + ' · <strong>$' + fee.amount.toFixed(2) + '</strong><br>'
-        + escHtml(date + ' ' + time) + ' (' + dur + ' min)<br>'
-        + '<span style="color:var(--t3)">' + (_sihState.patientId ? 'Uses the existing Halaxy patient' : 'Creates a NEW Halaxy patient')
-        + (funder.billingKey !== 'private' ? ', adds funder coverage' : '') + ', books the appointment, and creates the invoice in Halaxy.</span>'
-        + '<div style="display:flex;gap:8px;margin-top:12px">'
-        + '<button class="db-btn-primary" onclick="_sihSubmit(true)">Confirm &amp; book →</button>'
-        + '<button onclick="var c=document.getElementById(\'sih-confirm\');if(c)c.innerHTML=\'\'" style="background:transparent;border:1px solid rgba(255,255,255,0.18);color:var(--t2);border-radius:8px;padding:7px 13px;font-size:12px;cursor:pointer">Back</button>'
-        + '</div></div>';
+    var bodyEl = document.getElementById('sih-body');
+    if (bodyEl) { bodyEl.style.opacity = '0.45'; bodyEl.style.pointerEvents = 'none'; }
+    var bk = document.getElementById('sih-book-btn');
+    var cn = document.getElementById('sih-cancel-btn');
+    if (bk) {
+      bk.textContent = 'Confirm — book $' + fee.amount.toFixed(2) + ' →';
+      bk.setAttribute('onclick', '_sihSubmit(true)');
+      bk.disabled = true; // brief guard so an accidental double-tap can't auto-confirm
+      setTimeout(function () { var b = document.getElementById('sih-book-btn'); if (b) b.disabled = false; }, 350);
     }
+    if (cn) { cn.textContent = 'Edit'; cn.setAttribute('onclick', '_sihUnarm()'); }
     return;
   }
-  if (confirmBox) confirmBox.innerHTML = '';
 
   // Brisbane = UTC+10, no DST. Build start, derive end from duration.
   var TZ = '+10:00';
@@ -8376,12 +8384,6 @@ async function _sihSubmit(confirmed) {
   var _e = new Date(endMs + 10 * 3600 * 1000), _p = function(n) { return ('0' + n).slice(-2); };
   var apptEnd = _e.getUTCFullYear() + '-' + _p(_e.getUTCMonth() + 1) + '-' + _p(_e.getUTCDate())
     + 'T' + _p(_e.getUTCHours()) + ':' + _p(_e.getUTCMinutes()) + ':00' + TZ;
-
-  var confirmMsg = first + ' ' + last + ' · ' + funder.label + (pmName ? ' (' + pmName + ')' : '') + ' · ' + item.label + ' · $' + fee.amount.toFixed(2)
-    + '\n' + date + ' ' + time + ' (' + dur + ' min)\n\n'
-    + 'This will ' + (_sihState.patientId ? 'use the existing Halaxy patient' : 'create a NEW Halaxy patient')
-    + (funder.billingKey !== 'private' ? ', add funder coverage' : '') + ', and book the appointment + create the invoice in Halaxy.\n\nContinue?';
-  if (!window.confirm(confirmMsg)) return;
 
   var btn = document.getElementById('sih-book-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
@@ -8423,8 +8425,8 @@ async function _sihSubmit(confirmed) {
     var ov = document.getElementById('sih-overlay'); if (ov) ov.remove();
     refreshPipeline();
   } catch (e) {
+    _sihUnarm(); // restore the form + buttons so they can fix and retry
     err('Failed: ' + (e && e.message ? e.message : 'error'));
-    if (btn) { btn.disabled = false; btn.textContent = 'Book in Halaxy →'; }
   }
 }
 
