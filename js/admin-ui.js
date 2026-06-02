@@ -2676,7 +2676,7 @@ function refreshPipeline() {
     renderPipeline();
     updateHalaxyDot();
     _recomputeInboxBuckets(); // halaxy data now present — (re)build inbox issue buckets
-    toast('Pipeline refreshed');
+    // (silent — a background data sync should never announce itself)
   }).catch(function(err) {
     toast('Refresh failed: ' + err.message, 'err');
   }).finally(function() {
@@ -7778,15 +7778,16 @@ function _renderEnquiryDetailPanel(enq) {
     html += '</div>';
   }
 
-  // Details section
-  html += '<div class="m-section">';
-  html += '<div class="m-section-hd"><span class="m-section-label">Details</span></div>';
-  if (enq.service)       html += '<div class="m-row"><span class="m-key">Service</span><span class="m-val">' + escHtml(enq.service) + '</span></div>';
-  if (enq.reason)        html += '<div class="m-row"><span class="m-key">Reason</span><span class="m-val">' + escHtml(enq.reason) + '</span></div>';
-  if (enq.intake_funder) html += '<div class="m-row"><span class="m-key">Funder</span><span class="m-val">' + escHtml(FUNDER_LABELS[enq.intake_funder] || enq.intake_funder) + '</span></div>';
-  if (enq.message)       html += '<div class="m-row m-row-block"><span class="m-key">Message</span><span class="m-val m-val-wrap">' + escHtml(enq.message) + '</span></div>';
-  if (!enq.service && !enq.reason && !enq.intake_funder && !enq.message) html += '<div class="m-empty">No details recorded</div>';
-  html += '</div>';
+  // Details — only when there's something to show (no empty-state noise)
+  if (enq.service || enq.reason || enq.intake_funder || enq.message) {
+    html += '<div class="m-section">';
+    html += '<div class="m-section-hd"><span class="m-section-label">Details</span></div>';
+    if (enq.service)       html += '<div class="m-row"><span class="m-key">Service</span><span class="m-val">' + escHtml(enq.service) + '</span></div>';
+    if (enq.reason)        html += '<div class="m-row"><span class="m-key">Reason</span><span class="m-val">' + escHtml(enq.reason) + '</span></div>';
+    if (enq.intake_funder) html += '<div class="m-row"><span class="m-key">Funder</span><span class="m-val">' + escHtml(FUNDER_LABELS[enq.intake_funder] || enq.intake_funder) + '</span></div>';
+    if (enq.message)       html += '<div class="m-row m-row-block"><span class="m-key">Message</span><span class="m-val m-val-wrap">' + escHtml(enq.message) + '</span></div>';
+    html += '</div>';
+  }
 
   // Appointments (if linked Halaxy client)
   var _linkedClient = _dhEnqClientMap[enq.id];
@@ -7811,22 +7812,19 @@ function _renderEnquiryDetailPanel(enq) {
     }
   }
 
-  // Tasks
+  // Tasks — list only when present (the "+ Task" affordance lives in the actions row below)
   var _enqTasks = (_dhTasks || []).filter(function(t) { return t.enquiry_id === enq.id; });
-  html += '<div class="m-section">';
-  html += '<div class="m-section-hd"><span class="m-section-label">Tasks</span>'
-    + '<button class="m-action-btn" onclick="_rdpAddTask(\'' + escHtml(enq.id) + '\',\'' + escHtml(name) + '\')">+ Add</button></div>';
   if (_enqTasks.length) {
+    html += '<div class="m-section">';
+    html += '<div class="m-section-hd"><span class="m-section-label">Tasks</span></div>';
     _enqTasks.forEach(function(t) {
       html += '<div class="m-task-row">'
         + '<button class="m-task-chk ' + (t.completed ? 'm-task-chk-done' : '') + '" onclick="dhToggleTask(\'' + escHtml(String(t.id)) + '\',' + !t.completed + ')">' + (t.completed ? '✓' : '') + '</button>'
         + '<span class="m-task-lbl ' + (t.completed ? 'm-task-lbl-done' : '') + '">' + escHtml(t.title || '') + '</span>'
         + '</div>';
     });
-  } else {
-    html += '<div class="m-empty">No tasks yet</div>';
+    html += '</div>';
   }
-  html += '</div>';
 
   // Notes
   html += '<div class="m-section">';
@@ -7834,28 +7832,8 @@ function _renderEnquiryDetailPanel(enq) {
   html += '<textarea class="m-textarea" id="rdp-notes-' + enq.id + '" onblur="saveNotes(\'' + enq.id + '\',this.value)" placeholder="Add notes…">' + escHtml(enq.notes || '') + '</textarea>';
   html += '</div>';
 
-  // Activity timeline
+  // Activity timeline — only when there's history (no empty-state noise)
   var activity = enq.activity || [];
-  html += '<div class="m-section">';
-  html += '<div class="m-section-hd"><span class="m-section-label">Activity</span>'
-    + (isClosed ? '' : '<button class="m-action-btn" onclick="_toggleLogInteractionForm(\'' + enq.id + '\')">+ Log</button>')
-    + '</div>';
-
-  if (!isClosed) {
-    html += '<div id="rdp-log-form-' + enq.id + '" class="m-log-form" style="display:none">';
-    html += '<select class="m-select" id="rdp-log-type-' + enq.id + '">'
-      + '<option value="call">📞 Phone call</option>'
-      + '<option value="email">✉ Email</option>'
-      + '<option value="note">📝 Note</option>'
-      + '</select>';
-    html += '<textarea class="m-textarea" id="rdp-log-text-' + enq.id + '" placeholder="What happened? e.g. Left voicemail, client confirmed Thursday…"></textarea>';
-    html += '<div class="m-log-actions">'
-      + '<button class="m-btn-ghost m-btn-sm" onclick="_toggleLogInteractionForm(\'' + enq.id + '\')">Cancel</button>'
-      + '<button class="m-btn-teal m-btn-sm" onclick="_submitLogInteraction(\'' + enq.id + '\')">Save</button>'
-      + '</div>';
-    html += '</div>';
-  }
-
   if (activity.length) {
     var TL_DOT = { status: 'tl-status', notes: '', halaxy: 'tl-status', converted: 'tl-status', intake: 'tl-intake', call: 'tl-call', email: 'tl-email', note: '' };
     var TL_LABEL = {
@@ -7868,6 +7846,8 @@ function _renderEnquiryDetailPanel(enq) {
       email:     function(a) { return '✉ ' + escHtml(a.detail || 'Email'); },
       note:      function(a) { return '📝 ' + escHtml(a.detail || 'Note'); },
     };
+    html += '<div class="m-section">';
+    html += '<div class="m-section-hd"><span class="m-section-label">Activity</span></div>';
     html += '<div class="enq-timeline">';
     activity.slice(0, 8).forEach(function(a) {
       var dotClass = TL_DOT[a.action] || '';
@@ -7881,10 +7861,28 @@ function _renderEnquiryDetailPanel(enq) {
         + '</div>';
     });
     html += '</div>';
-  } else {
-    html += '<div class="m-empty" style="margin-top:4px">No activity yet</div>';
+    html += '</div>';
   }
-  html += '</div>';
+
+  // Secondary actions — one quiet row (task / log), plus the hidden log form. No empty sections.
+  if (!isClosed) {
+    html += '<div class="m-links" style="margin-top:2px">'
+      + '<button class="m-link" onclick="_rdpAddTask(\'' + escHtml(enq.id) + '\',\'' + escHtml(name) + '\')">+ Task</button>'
+      + '<button class="m-link" onclick="_toggleLogInteractionForm(\'' + enq.id + '\')">+ Log interaction</button>'
+      + '</div>';
+    html += '<div id="rdp-log-form-' + enq.id + '" class="m-log-form" style="display:none">';
+    html += '<select class="m-select" id="rdp-log-type-' + enq.id + '">'
+      + '<option value="call">📞 Phone call</option>'
+      + '<option value="email">✉ Email</option>'
+      + '<option value="note">📝 Note</option>'
+      + '</select>';
+    html += '<textarea class="m-textarea" id="rdp-log-text-' + enq.id + '" placeholder="What happened? e.g. Left voicemail, client confirmed Thursday…"></textarea>';
+    html += '<div class="m-log-actions">'
+      + '<button class="m-btn-ghost m-btn-sm" onclick="_toggleLogInteractionForm(\'' + enq.id + '\')">Cancel</button>'
+      + '<button class="m-btn-teal m-btn-sm" onclick="_submitLogInteraction(\'' + enq.id + '\')">Save</button>'
+      + '</div>';
+    html += '</div>';
+  }
 
   return html;
 }
