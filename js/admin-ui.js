@@ -8509,16 +8509,42 @@ async function advanceSessionPl(sessionId, newStatus, clientId) {
 }
 
 /* ── Advance enquiry status ── */
+// ── Optimistic enquiry mutation ──────────────────────────────────────────────
+// Apply `changes` to an enquiry in the local _pipelineData immediately (+ an optional
+// synthetic activity entry), so the UI reflects it instantly with no server round-trip.
+// Returns revert() to undo if the background PATCH fails. Callers re-render with
+// renderPipeline() (reads local data — no fetch, no "Pipeline refreshed" flash).
+function _optimisticEnquiry(id, changes, activityEntry) {
+  if (!_pipelineData || !_pipelineData.enquiries) return function () {};
+  var e = _pipelineData.enquiries.find(function (x) { return String(x.id) === String(id); });
+  if (!e) return function () {};
+  var prev = {};
+  Object.keys(changes).forEach(function (k) { prev[k] = e[k]; e[k] = changes[k]; });
+  if (activityEntry) e.activity = [activityEntry].concat(e.activity || []);
+  return function revert() {
+    Object.keys(prev).forEach(function (k) { e[k] = prev[k]; });
+    if (activityEntry && e.activity) { var i = e.activity.indexOf(activityEntry); if (i !== -1) e.activity.splice(i, 1); }
+  };
+}
+
 async function advanceEnquiryStatus(id, newStatus) {
   var key = id + ':' + newStatus;
   if (_advanceInFlight[key]) return;                     // block double-submit
   _advanceInFlight[key] = true;
+
+  // Optimistic: update local state + re-render in place (instant, no fetch), confirm with the
+  // success tick. The background PATCH reconciles; revert + re-render only if it fails.
+  var act = { action: 'status', detail: newStatus, created_at: new Date().toISOString(), actor: (window.ADMIN_USER || 'You') };
+  var revert = _optimisticEnquiry(id, { status: newStatus }, act);
+  renderPipeline();
+  _showSuccess('mark', newStatus === 'contacted' ? 'Marked contacted' : 'Status updated');
+
   try {
     await apiFetch('/api/admin-enquiries?id=' + id, { method: 'PATCH', body: { status: newStatus } });
-    _showSuccess('mark', newStatus === 'contacted' ? 'Marked contacted' : 'Status updated');
-    refreshPipeline();
   } catch (err) {
-    toast('Could not update: ' + err.message, 'err');
+    revert();
+    renderPipeline();
+    toast('Could not update — change reverted: ' + err.message, 'err');
   } finally {
     delete _advanceInFlight[key];
   }
@@ -10902,16 +10928,23 @@ async function _submitCloseEnquiry(enqId) {
   var note   = ((document.getElementById('mm-close-note') || {}).value || '').trim();
   var ov = document.getElementById('mini-modal-ov');
   if (ov) ov.classList.remove('open');
+
+  // Optimistic: close locally + re-render in place, success tick, no full re-fetch.
+  var changes = { status: 'closed' };
+  if (reason) changes.closed_reason = reason;
+  if (note)   changes.notes = note;
+  var act = { action: 'status', detail: 'closed' + (reason ? ':' + reason : ''), created_at: new Date().toISOString(), actor: (window.ADMIN_USER || 'You') };
+  var revert = _optimisticEnquiry(enqId, changes, act);
+  renderPipeline();
+  closeDetailPanel();
+  _showSuccess('delete', 'Enquiry closed');
+
   try {
-    var body = { status: 'closed' };
-    if (reason) body.closed_reason = reason;
-    if (note)   body.notes = note;
-    await apiFetch('/api/admin-enquiries?id=' + enqId, { method: 'PATCH', body: body });
-    toast('Enquiry closed');
-    refreshPipeline();
-    closeDetailPanel();
+    await apiFetch('/api/admin-enquiries?id=' + enqId, { method: 'PATCH', body: changes });
   } catch (err) {
-    toast('Could not close: ' + err.message, 'err');
+    revert();
+    renderPipeline();
+    toast('Could not close — change reverted: ' + err.message, 'err');
   }
 }
 
