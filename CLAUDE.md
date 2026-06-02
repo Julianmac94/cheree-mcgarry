@@ -102,9 +102,12 @@ The `settings` table is used as a key-value cache — Halaxy OAuth tokens and fu
 ### Halaxy FHIR R4 API (`au-api.halaxy.com`)
 Practice management system. Used for appointments, patients, invoices, funders, fees. Auth is OAuth2 client credentials — token is cached in `settings` table with 2-minute expiry buffer. Helpers: `halaxyGet()`, `halaxyPost()`, `halaxyPatch()`.
 
-**Critical Halaxy invoice status quirk:** Halaxy uses `status='active'` for ALL standard paid invoices (not the FHIR spec meaning). The correct paid/pending logic:
-- `_invIsPaid(inv)`: returns false for `status='issued'` and for funder invoices (`inv.payorOrg` set) with `status='active'` + balance=0 (awaiting reconciliation). Returns true for `status='balanced'` or `status='paid'`.
-- `_invIsPendingRecon(inv)`: funder invoices where payment received but not yet reconciled in Halaxy — amber "Submitted · Awaiting reconciliation" state (no tick, action still needed).
+**Critical Halaxy invoice paid/unpaid logic — THE BALANCE IS THE SOURCE OF TRUTH.** Halaxy keeps standard invoices at `status='active'` whether paid or not (verified against a "PAID IN FULL" NDIS invoice that was still `active`), so **status is NOT a reliable paid signal** — only `totalBalance` is.
+- `_invIsPaid(inv)` (`js/admin-ui.js`): `totalBalance <= 0` ⇒ **paid** (excludes only `cancelled`/`draft`). True whether the client paid by card, Medicare paid, or a funder (NDIS plan manager, WorkCover, DVA) sent remittance and the payment was recorded. **There is NO "paid but not yet reconciled" state** — recording the payment in Halaxy *is* the reconciliation, and that's what drives the balance to 0.
+- **Outstanding = `totalBalance > 0`** (money still owed). That's the only thing the billing block counts.
+- `_invIsAwaitingRemittance(inv)`: the *rare* case — a funder-billed invoice (`payorOrg` set) that is **still unpaid** (`balance > 0`), e.g. WorkCover (submit via Halaxy → wait for remittance → record payment → balance 0). It's a *flavour of outstanding* (money not in yet), shown amber "Submitted · awaiting remittance" — distinct from a private invoice the client owes (here we wait on the funder, don't chase a client). NOT a paid state.
+- ⚠ **The old model was wrong** (and broke the billing block): it treated `active + payorOrg + balance=0` as "paid-but-unreconciled" and counted ~78 fully-paid NDIS plan-managed invoices as "outstanding/unpaid". The retired function was `_invIsPendingRecon`. Don't reintroduce a "paid but unreconciled" concept.
+- Org-billed invoices (NDIS plan mgr / WorkCover / DVA) carry **no patient reference** in the bulk `/Invoice` fetch — `recipient` is the funder Org and `title` is just the funder name. Patient is resolved by the date-based fallback or a per-patient `/Invoice` fetch (`?halaxy_patient_invoices`). Unresolved → "Unknown" in the UI.
 - Never add `status === 'active'` as a blanket "unpaid" rule — it will flag every invoice as unpaid.
 
 ### Google Calendar

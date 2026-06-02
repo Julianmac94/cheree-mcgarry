@@ -775,11 +775,11 @@ function _mobRenderBilling() {
       var _rawBal = parseFloat(inv.totalBalance != null ? inv.totalBalance : 0);
       var bal  = _rawBal > 0 ? _rawBal : parseFloat(inv.amount || 0);
       var sub  = _getSubStatus(inv.id);
-      var _isPR = _invIsPendingRecon(inv);
-      var subBadge = sub
-        ? '<span class="mob-bill-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
-        : _isPR
-          ? '<span class="mob-bill-sub" style="color:#FBBF24">Submitted · Awaiting recon</span>'
+      var _isAR = _invIsAwaitingRemittance(inv);
+      var subBadge = _isAR
+        ? '<span class="mob-bill-sub" style="color:#FBBF24">Submitted · awaiting remittance</span>'
+        : sub
+          ? '<span class="mob-bill-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
           : '<button class="mob-bill-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\');_mobRenderBilling()">Mark submitted</button>';
       var refLabel = _fmtInvRef(inv);
       html += '<div class="mob-bill-row">'
@@ -3789,47 +3789,40 @@ function renderAppointmentsPanel() {
    ═══════════════════════════════════════════════════ */
 
 /**
- * Determine if a Halaxy invoice is fully settled.
+ * Determine if a Halaxy invoice is fully settled (nothing more owed to us).
  *
- * Halaxy FHIR status values relevant here:
- *   "active"   — normal unpaid invoice
- *   "issued"   — invoice sent to payer (shows as PENDING in Halaxy UI).
- *                For WorkCover/org invoices a payment can be "submitted" to the
- *                funder which drives totalBalance→0, but the invoice stays "issued"
- *                until the practitioner reconciles it. NOT the same as paid.
- *   "balanced" — fully reconciled / settled. This is the true paid state.
+ * THE BALANCE IS THE SOURCE OF TRUTH. `totalBalance <= 0` means the invoice is
+ * paid — whether the client paid by card/cash, Medicare paid, or a funder
+ * (NDIS plan manager, WorkCover, DVA) sent remittance and the payment was
+ * recorded. There is NO "paid but not yet reconciled" state: recording the
+ * payment in Halaxy IS the reconciliation, and that's what drives the balance
+ * to 0. (Halaxy keeps such invoices at status='active' — verified against a
+ * "PAID IN FULL" NDIS invoice — so status is NOT a reliable paid signal.)
  *
- * totalBalance=0 alone is therefore NOT sufficient to declare an invoice paid.
+ * Only genuine non-receivables (cancelled / draft) are excluded.
  */
 function _invIsPaid(inv) {
-  // 'issued' = Halaxy PENDING — never paid regardless of balances.
-  if (inv.status === 'issued') return false;
-  // Funder (WorkCover / Medicare / NDIS) invoices with status='active':
-  // 'active' + payorOrg + totalBalance=0 means payment received from funder but
-  // NOT yet reconciled by the practitioner. Not "paid" until status reaches 'balanced'.
-  // Regular patient invoices have no payorOrg so are unaffected by this check.
-  if (inv.status === 'active' && inv.payorOrg
-      && parseFloat(inv.totalPaid || 0) > 0
-      && parseFloat(inv.totalBalance || 0) <= 0) return false;
-  if (inv.totalBalance !== null && inv.totalBalance !== undefined) return inv.totalBalance <= 0;
+  if (inv.status === 'cancelled' || inv.status === 'draft') return false;
+  if (inv.totalBalance !== null && inv.totalBalance !== undefined) {
+    return parseFloat(inv.totalBalance) <= 0; // balance cleared = settled
+  }
+  // No balance figure — fall back to explicit settled statuses.
   return inv.status === 'balanced' || inv.status === 'paid';
 }
 
 /**
- * Returns true for invoices submitted to a funder but awaiting practitioner
- * reconciliation in Halaxy. Two cases:
- *   1. status="issued" + totalPaid>0 + totalBalance=0
- *      (payment noted by Halaxy but invoice not yet reconciled)
- *   2. status="active" + payorOrg + totalPaid>0 + totalBalance=0
- *      (WorkCover / Medicare flow — payment received, practitioner must confirm)
- * Regular patient invoices (no payorOrg) with status="active" are NOT affected.
+ * Returns true for the RARE case of a funder invoice we've submitted but NOT
+ * yet been paid for — e.g. WorkCover: submit via Halaxy → wait for remittance
+ * → record the payment (balance → 0). It is therefore a *flavour of
+ * outstanding* (the money isn't in yet), distinct from a private invoice the
+ * client owes: here we're waiting on the funder, not chasing a client.
+ *
+ * Detected as: funder-billed (payorOrg set) AND still unpaid (balance > 0).
+ * Once remittance is recorded the balance hits 0 and _invIsPaid() takes over.
  */
-function _invIsPendingRecon(inv) {
-  var hasPendingPayment = parseFloat(inv.totalPaid || 0) > 0
-                       && parseFloat(inv.totalBalance || 0) <= 0;
-  if (inv.status === 'issued' && hasPendingPayment) return true;
-  if (inv.status === 'active' && inv.payorOrg && hasPendingPayment) return true;
-  return false;
+function _invIsAwaitingRemittance(inv) {
+  if (inv.status === 'cancelled' || inv.status === 'draft') return false;
+  return !!inv.payorOrg && parseFloat(inv.totalBalance || 0) > 0;
 }
 
 /**
@@ -4909,9 +4902,11 @@ function renderHomeView() {
 
   // Billing
   var needsInvoiceCount = _uni.past.filter(function(s) { return s.status === 'pending-invoice'; }).length;
-  // Outstanding = genuinely unpaid (balance > 0) OR submitted to funder but not yet reconciled
+  // Outstanding = money still owed to us = balance > 0 (excludes cancelled/draft).
+  // Paid invoices have balance 0 and are NOT counted — including funder invoices
+  // (NDIS plan-managed etc.) once remittance is recorded.
   var awaitingPayCount  = invoices.filter(function(i) {
-    return parseFloat(i.totalBalance || 0) > 0 || _invIsPendingRecon(i);
+    return i.status !== 'cancelled' && i.status !== 'draft' && parseFloat(i.totalBalance || 0) > 0;
   }).length;
 
   // ── Issue counts (needed by snapshot + inbox sidebar) ─────────
@@ -5088,7 +5083,7 @@ function renderHomeView() {
     + '<div class="dh-fold-tab">'
     + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>'
     + 'Billing'
-    + (awaitingPayCount ? '<span class="dh-fold-badge" style="background:rgba(245,158,11,0.18);color:var(--amber)">' + awaitingPayCount + ' unpaid</span>' : '')
+    + (awaitingPayCount ? '<span class="dh-fold-badge" style="background:rgba(245,158,11,0.18);color:var(--amber)">' + awaitingPayCount + ' outstanding</span>' : '')
     + '</div>'
     + '<div class="dh-billing-card dh-billing-live" style="cursor:default;flex:1;min-height:0;display:flex;flex-direction:column">'
     + '<div id="dh-bill-bento-inner"></div>'
@@ -5251,7 +5246,7 @@ function _mobRenderHome() {
   var newEnqs       = enquiries.filter(function(e){ return (e.status||'new') === 'new'; });
   var critCnt       = (_dhHalaxyNoInvoice  || []).length;
   var unlinkedCnt   = _dhNotInHalaxy().length;
-  var awaitPayCnt   = invoices.filter(function(i){ return parseFloat(i.totalBalance||0) > 0 || _invIsPendingRecon(i); }).length;
+  var awaitPayCnt   = invoices.filter(function(i){ return i.status !== 'cancelled' && i.status !== 'draft' && parseFloat(i.totalBalance||0) > 0; }).length;
   var _mobNow = new Date();
   _loadAIBrief({
     currentTime: _mobNow.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true }),
@@ -5484,11 +5479,11 @@ function _dhRenderBillingBento() {
       var _rawBal2 = parseFloat(inv.totalBalance != null ? inv.totalBalance : 0);
       var bal  = _rawBal2 > 0 ? _rawBal2 : parseFloat(inv.amount || 0);
       var sub  = _getSubStatus(inv.id);
-      var _isPR2 = _invIsPendingRecon(inv);
-      var subBadge = sub
-        ? '<span class="dh-inv-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
-        : _isPR2
-          ? '<span class="dh-inv-sub" style="color:#FBBF24">Submitted · Awaiting recon</span>'
+      var _isAR2 = _invIsAwaitingRemittance(inv);
+      var subBadge = _isAR2
+        ? '<span class="dh-inv-sub" style="color:#FBBF24">Submitted · awaiting remittance</span>'
+        : sub
+          ? '<span class="dh-inv-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
           : '<button class="dh-inv-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\')">Mark submitted</button>';
       var bentoRef = _fmtInvRef(inv);
       html += '<div class="dh-bill-inv-row" onclick="openInvoiceModal(\'' + escHtml(String(inv.id)) + '\')">'
@@ -7037,12 +7032,12 @@ function openInvoiceModal(invId) {
     ? new Date(inv.date + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
     : '—';
   // amt = gross billed amount (what was invoiced). Always use this for display.
-  // bal = remaining balance (only positive when partially paid).
-  // Do NOT use bal for display — it's 0 for both "paid" and "submitted-pending-recon" invoices.
+  // bal = remaining balance (only positive when still owed).
+  // Do NOT use bal for display — it's 0 for paid invoices regardless of payor.
   var amt      = parseFloat(inv.amount != null ? inv.amount : (inv.totalPaid || 0));
   var bal      = parseFloat(inv.totalBalance != null ? inv.totalBalance : 0);
   var paid     = _invIsPaid(inv);
-  var pendRecon = _invIsPendingRecon(inv); // submitted to funder, awaiting reconciliation
+  var awaitingRemit = _invIsAwaitingRemittance(inv); // funder invoice submitted, remittance not yet in
   var sub      = _getSubStatus(inv.id);
 
   // Look up the appointment time directly from Halaxy appointments (no date-range cutoff)
@@ -7071,9 +7066,10 @@ function openInvoiceModal(invId) {
   }
 
   // Reminders section visibility:
-  // Paid or pending-reconciliation invoices → only show if already-linked reminders exist
-  // Outstanding → always show including the add-reminder input
-  var _settled           = paid || pendRecon;
+  // Paid invoices → only show if already-linked reminders exist.
+  // Outstanding (incl. awaiting-remittance) → always show including the add-reminder input,
+  // so you can set a follow-up while waiting on a funder.
+  var _settled           = paid;
   var _hasLinkedTasks    = _invGetTaskIds(inv.id).length > 0;
   var _showReminders     = !_settled || _hasLinkedTasks;
   var _showAddReminder   = !_settled;
@@ -7082,11 +7078,12 @@ function openInvoiceModal(invId) {
   var statusHtml;
   if (paid) {
     statusHtml = '<span style="color:#34D399;font-weight:600">✓ Paid</span>';
-  } else if (pendRecon) {
-    // Payment submitted to funder in Halaxy but not yet reconciled by practitioner
-    // Amber (not green) — action still required before money is confirmed received
+  } else if (awaitingRemit) {
+    // Funder invoice submitted via Halaxy — waiting on the funder's remittance.
+    // Amber, and genuinely outstanding (money not yet received), but we're waiting
+    // on the funder, not chasing the client.
     statusHtml = '<span style="color:#FBBF24;font-weight:600">Submitted to funder</span>'
-      + '<span style="color:rgba(255,255,255,0.4);font-size:11px;margin-left:6px">· Awaiting reconciliation</span>';
+      + '<span style="color:rgba(255,255,255,0.4);font-size:11px;margin-left:6px">· awaiting remittance</span>';
   } else if (sub) {
     statusHtml = sub.chase
       ? '<span style="color:#FBBF24;font-weight:600">⚠ Submitted ' + escHtml(sub.date) + ' — follow up</span>'
@@ -7111,7 +7108,7 @@ function openInvoiceModal(invId) {
 
   // Primary action
   var primaryAction = '';
-  if (!paid && !pendRecon) {
+  if (!paid && !awaitingRemit) {
     if (sub) {
       primaryAction = '<button class="db-btn-ghost" onclick="_clearBillingSubmission(\'' + escHtml(String(inv.id)) + '\')">Clear submission</button>';
     } else {
@@ -7149,7 +7146,7 @@ function openInvoiceModal(invId) {
     // Amount — large top treatment
     +   '<div style="padding:16px 0 12px;border-bottom:1px solid rgba(255,255,255,0.06)">'
     +     '<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.38);margin-bottom:4px">Amount</div>'
-    +     '<div style="font-size:26px;font-weight:700;color:' + (paid ? '#34D399' : pendRecon ? '#FBBF24' : '#FBBF24') + ';letter-spacing:-0.02em">'
+    +     '<div style="font-size:26px;font-weight:700;color:' + (paid ? '#34D399' : '#FBBF24') + ';letter-spacing:-0.02em">'
     +       (amt ? _fmtAUD(amt) : '—')
     +     '</div>'
     +   '</div>'

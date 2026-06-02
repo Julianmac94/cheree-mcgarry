@@ -1606,6 +1606,11 @@ export default async function handler(req, res) {
             // Keep invoices even without a resolvable patientId so the date-based
             // fallback in the dashboard can still detect that billing happened on a day.
             // patientId will be null — the dashboard handles this gracefully.
+            // NOTE: org-billed invoices (NDIS plan manager, WorkCover, DVA) carry NO
+            // patient reference at all in the bulk /Invoice fetch — recipient is the
+            // funder Organization and `title` is just the funder name. The only ways to
+            // resolve the patient are the date-based fallback below or a per-patient
+            // /Invoice fetch (see the ?halaxy_patient_invoices branch).
 
             // Halaxy date field is "created"; fall back to "date" for standard FHIR
             const invoiceDate = (inv.created || inv.date || '').slice(0, 10) || null;
