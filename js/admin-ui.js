@@ -1102,15 +1102,14 @@ function _mobRenderInbox() {
   var newEnqs   = enquiries.filter(function(e) { return (e.status || 'new') === 'new'; });
   var cntContacted = enquiries.filter(function(e) { return e.status === 'contacted'; }).length;
   var cntClosed    = enquiries.filter(function(e) { return e.status === 'closed'; }).length;
-  var unlinkedCount = _dhUnlinkedCalAppts ? _dhUnlinkedCalAppts.length : 0;
+  var unlinkedCount = _dhNotInHalaxy().length;
   var cntUpcoming = enquiries.filter(function(e) {
     var c = _dhEnqClientMap[e.id];
     return c && c.halaxy_id && (_dhPatientApptMap[String(c.halaxy_id)] || []).length > 0;
   }).length;
   var mobCritCount    = _dhHalaxyNoInvoice  ? _dhHalaxyNoInvoice.length  : 0;
-  var mobActionsCount = _dhNonHalaxyActions ? _dhNonHalaxyActions.length : 0;
 
-  // Default active: critical if issues exist, unlinked if that's the only issue, otherwise 'new'
+  // Default active: No-invoice issues first, else "Not in Halaxy", else New enquiries.
   var mobDefault = mobCritCount > 0 ? 'critical' : (unlinkedCount > 0 ? 'unlinked' : 'new');
 
   function _tab(status, label, cnt, extraCntStyle, extraBtnStyle) {
@@ -1131,10 +1130,7 @@ function _mobRenderInbox() {
     html += _tab('critical', '⚠ No Invoice', mobCritCount, 'color:#ef4444', 'mob-inbox-tab-crit');
   }
   if (unlinkedCount > 0) {
-    html += _tab('unlinked', '⚠ Unlinked', unlinkedCount, 'color:#b85a1e', 'mob-inbox-tab-unlinked');
-  }
-  if (mobActionsCount > 0) {
-    html += _tab('actions', 'Needs Action', mobActionsCount, 'color:var(--amber)', 'mob-inbox-tab-act');
+    html += _tab('unlinked', '⚕ Not in Halaxy', unlinkedCount, 'color:#b85a1e', 'mob-inbox-tab-unlinked');
   }
 
   // Pipeline tabs
@@ -1154,7 +1150,7 @@ function _mobRenderInbox() {
     _dhRenderSessionItems(mobListEl, _dhHalaxyNoInvoice, 'critical');
   } else if (unlinkedCount > 0) {
     _dhInboxFilter = 'unlinked';
-    _dhRenderUnlinkedCalItems(mobListEl, _dhUnlinkedCalAppts);
+    _dhRenderUnlinkedCalItems(mobListEl, _dhNotInHalaxy());
   } else {
     _dhRenderInboxItems(mobListEl, newEnqs, 'new');
   }
@@ -4422,20 +4418,29 @@ function _dhRenderSessionItems(listEl, sessions, mode) {
   }).join('');
 }
 
+// Merged "Not in Halaxy" bucket: calendar appts not yet booked in Halaxy — upcoming (unlinked) +
+// past (needs recording/invoicing), past-first (most urgent). All resolve via "Set up in Halaxy".
+function _dhNotInHalaxy() {
+  var up = _dhUnlinkedCalAppts || [];
+  var pa = _dhNonHalaxyActions || [];
+  return up.concat(pa).sort(function(a, b) { return (a.startMs || 0) - (b.startMs || 0); });
+}
+
 function _dhRenderUnlinkedCalItems(listEl, appts) {
   if (!appts || !appts.length) {
-    listEl.innerHTML = '<div class="dh-attn-empty" style="padding:32px 20px;text-align:center;color:var(--t3);font-size:13px">No unlinked calendar events</div>';
+    listEl.innerHTML = '<div class="dh-attn-empty" style="padding:32px 20px;text-align:center;color:var(--t3);font-size:13px">Nothing waiting to be set up in Halaxy</div>';
     return;
   }
-  listEl.innerHTML = appts.slice(0, 15).map(function(s) {
+  listEl.innerHTML = appts.slice(0, 20).map(function(s) {
     var nm      = s.name || 'Calendar event';
     var dateStr = (s.dateLabel || s.dateStr || '') + (s.timeStr ? ' · ' + s.timeStr : '');
     var sid     = escHtml(String(s.id || ''));
+    var note    = s.patientId ? 'Needs recording' : 'Not in Halaxy';
     return '<div class="dh-attn-item" onclick="openDetailPanel(\'session\',\'' + sid + '\')" style="border-left:3px solid #E07B39">'
       + '<div class="dh-attn-av" style="background:rgba(224,123,57,0.14);color:#b85a1e;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">'
       + escHtml((nm[0] || '?').toUpperCase()) + '</div>'
       + '<div class="dh-attn-body"><div class="dh-attn-name">' + escHtml(nm) + '</div>'
-      + '<div class="dh-attn-meta" style="color:#b85a1e">⚠ No client linked · ' + escHtml(dateStr) + '</div></div>'
+      + '<div class="dh-attn-meta" style="color:#b85a1e">⚕ ' + note + ' · ' + escHtml(dateStr) + '</div></div>'
       + '<span class="dh-attn-arrow">›</span></div>';
   }).join('');
 }
@@ -4452,12 +4457,8 @@ function dhInboxFilter(status, el) {
     _dhRenderSessionItems(listEl, _dhHalaxyNoInvoice, 'critical');
     return;
   }
-  if (status === 'actions') {
-    _dhRenderSessionItems(listEl, _dhNonHalaxyActions, 'actions');
-    return;
-  }
   if (status === 'unlinked') {
-    _dhRenderUnlinkedCalItems(listEl, _dhUnlinkedCalAppts);
+    _dhRenderUnlinkedCalItems(listEl, _dhNotInHalaxy());
     return;
   }
   if (!_pipelineData) return;
@@ -4877,7 +4878,7 @@ function renderHomeView() {
   var contactedEnqs = enquiries.filter(function(e){ return e.status === 'contacted'; });
   var closedEnqs    = enquiries.filter(function(e){ return e.status === 'closed'; });
   var unpaidCount   = _dhBillingSessions.length;
-  var unlinkedCount = _dhUnlinkedCalAppts.length;
+  var unlinkedCount = _dhNotInHalaxy().length;
   var upcomingApptEnqs = enquiries.filter(function(e) {
     var client = _dhEnqClientMap[e.id];
     return client && client.halaxy_id && (_dhPatientApptMap[String(client.halaxy_id)] || []).length > 0;
@@ -4915,8 +4916,7 @@ function renderHomeView() {
 
   // ── Issue counts (needed by snapshot + inbox sidebar) ─────────
   var critCount    = _dhHalaxyNoInvoice.length;
-  var actionsCount = _dhNonHalaxyActions.length;
-  var hasIssues    = critCount > 0 || actionsCount > 0 || unlinkedCount > 0;
+  var hasIssues    = critCount > 0 || unlinkedCount > 0;
 
   // ── Receptionist-style paragraph snapshot ─────────────────────
   // Build as natural sentences, like a front-desk briefing when you walk in.
@@ -5028,7 +5028,6 @@ function renderHomeView() {
     + '<div class="dh-fold-tab">'
     + IC.inbox + 'Inbox'
     + (hasIssues ? '<span class="dh-fold-badge" style="background:rgba(239,68,68,0.15);color:#ef4444">⚠ ' + (critCount + unlinkedCount) + ' issue' + (critCount + unlinkedCount !== 1 ? 's' : '') + '</span>' : '')
-    + (actionsCount > 0 && !hasIssues ? '<span class="dh-fold-badge" style="background:rgba(245,158,11,0.15);color:var(--amber)">' + actionsCount + ' actions</span>' : '')
     + (newEnquiries.length ? '<span class="dh-fold-badge">' + newEnquiries.length + ' new</span>' : '')
     + '</div>'
     + '<div class="dh-attn-card">';
@@ -5045,13 +5044,8 @@ function renderHomeView() {
     }
     if (unlinkedCount > 0) {
       html += '<div class="dh-inbox-folder dh-if-unlinked" data-status="unlinked" onclick="dhInboxFilter(\'unlinked\',this)">'
-        + '<span class="dh-if-label">⚠ Unlinked Events</span>'
+        + '<span class="dh-if-label">⚕ Not in Halaxy</span>'
         + '<span class="dh-if-count" style="color:#b85a1e">' + unlinkedCount + '</span></div>';
-    }
-    if (actionsCount > 0) {
-      html += '<div class="dh-inbox-folder dh-if-actions" data-status="actions" onclick="dhInboxFilter(\'actions\',this)">'
-        + '<span class="dh-if-label">Needs Action</span>'
-        + '<span class="dh-if-count dh-if-count-act">' + actionsCount + '</span></div>';
     }
     html += '<div class="dh-if-divider"></div>';
   }
@@ -5125,7 +5119,7 @@ function renderHomeView() {
       document.querySelectorAll('.dh-inbox-folder').forEach(function(f) {
         f.classList.toggle('active', f.dataset.status === 'unlinked');
       });
-      _dhRenderUnlinkedCalItems(_inboxListEl, _dhUnlinkedCalAppts);
+      _dhRenderUnlinkedCalItems(_inboxListEl, _dhNotInHalaxy());
     } else {
       _dhRenderInboxItems(_inboxListEl, newEnquiries, 'new');
     }
@@ -5256,7 +5250,7 @@ function _mobRenderHome() {
   var invoices      = (_halaxyData   && _halaxyData.invoices)    || [];
   var newEnqs       = enquiries.filter(function(e){ return (e.status||'new') === 'new'; });
   var critCnt       = (_dhHalaxyNoInvoice  || []).length;
-  var unlinkedCnt   = (_dhUnlinkedCalAppts || []).length;
+  var unlinkedCnt   = _dhNotInHalaxy().length;
   var awaitPayCnt   = invoices.filter(function(i){ return parseFloat(i.totalBalance||0) > 0 || _invIsPendingRecon(i); }).length;
   var _mobNow = new Date();
   _loadAIBrief({
