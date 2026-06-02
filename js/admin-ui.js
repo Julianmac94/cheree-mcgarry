@@ -8162,18 +8162,16 @@ function openSetupInHalaxy(prefill) {
     +   '<select id="sih-pm" class="db-form-input" style="display:none"></select>'
     +   '<select id="sih-type" class="db-form-input" style="display:none" onchange="_sihOnTypeChange()"></select>'
     +   '<div id="sih-fee" style="font-size:12px;color:var(--teal);min-height:16px"></div>'
-    +   '<select id="sih-modality" class="db-form-input" style="display:none">'
-    +     '<option value="clinic">In person</option><option value="online">Video</option><option value="phone">Phone</option>'
-    +   '</select>'
     +   '<div style="display:flex;gap:8px">'
     +     '<input id="sih-date" class="db-form-input" type="date" value="' + escHtml(prefill.dateISO || '') + '" style="flex:1">'
     +     '<input id="sih-time" class="db-form-input" type="time" value="' + escHtml(prefill.time || '10:00') + '" style="width:118px">'
     +     '<input id="sih-dur"  class="db-form-input" type="number" min="1" value="' + (prefill.durationMin || 60) + '" style="width:80px" title="Minutes">'
     +   '</div>'
+    +   '<div id="sih-confirm"></div>'
     +   '<div id="sih-msg" style="font-size:12px;min-height:16px"></div>'
     + '</div>'
     + '<div class="db-modal-ftr" style="padding:14px 20px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;justify-content:flex-end">'
-    +   '<button class="db-btn" onclick="this.closest(\'.db-modal-overlay\').remove()">Cancel</button>'
+    +   '<button onclick="this.closest(\'.db-modal-overlay\').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.18);color:var(--t2);border-radius:9px;padding:8px 16px;font-size:13px;font-family:var(--sans);cursor:pointer">Cancel</button>'
     +   '<button class="db-btn-primary" id="sih-book-btn" onclick="_sihSubmit()">Book in Halaxy →</button>'
     + '</div>'
     + '</div>';
@@ -8237,16 +8235,14 @@ function _sihOnTypeChange() {
   var tid    = (document.getElementById('sih-type') || {}).value || '';
   var item   = funder && funder.items.find(function(i) { return i.id === tid; });
   var feeDiv = document.getElementById('sih-fee');
-  var modSel = document.getElementById('sih-modality');
   var durEl  = document.getElementById('sih-dur');
-  if (!item) { if (feeDiv) feeDiv.textContent = ''; if (modSel) modSel.style.display = 'none'; return; }
+  if (!item) { if (feeDiv) feeDiv.textContent = ''; return; }
   var fee = _bookableResolveFee(item);
   if (feeDiv) {
     feeDiv.textContent = fee ? ('Fee: ' + fee.name + ' — $' + fee.amount.toFixed(2)) : '⚠ No fee configured — set it in Settings → Booking fees.';
     feeDiv.style.color = fee ? 'var(--teal)' : 'var(--amber)';
   }
-  if (item.modality) { modSel.value = item.modality; modSel.style.display = 'none'; }
-  else { modSel.style.display = ''; }
+  // QFES bands lock the duration (Halaxy invoicing requires the appt length to match).
   if (item.durationMin && durEl) { durEl.value = item.durationMin; durEl.readOnly = true; }
   else if (durEl) { durEl.readOnly = false; }
 }
@@ -8306,7 +8302,7 @@ function _sihPickPatient(id, name) {
   var ns = document.getElementById('sih-namesearch'); if (ns) ns.value = '';
 }
 
-async function _sihSubmit() {
+async function _sihSubmit(confirmed) {
   function val(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
   var msg = document.getElementById('sih-msg');
   function err(t) { if (msg) { msg.textContent = t; msg.style.color = 'var(--terra)'; } }
@@ -8324,8 +8320,27 @@ async function _sihSubmit() {
   if (!fee)            return err('This session type has no fee configured — set it in Settings → Booking fees.');
   var pmName = funder.planManaged ? val('sih-pm') : '';
   if (funder.planManaged && !pmName) return err('Choose the NDIS plan manager.');
-  var modEl = document.getElementById('sih-modality');
-  var locationType = item.modality || (modEl ? modEl.value : 'clinic') || 'clinic';
+
+  // In-modal confirmation (dark — no native popup). First click shows the summary; Confirm commits.
+  var confirmBox = document.getElementById('sih-confirm');
+  if (!confirmed) {
+    if (msg) msg.textContent = '';
+    if (confirmBox) {
+      confirmBox.innerHTML =
+          '<div style="background:rgba(119,207,189,0.08);border:1px solid rgba(119,207,189,0.30);border-radius:10px;padding:12px 14px;margin-top:4px;font-size:12.5px;color:var(--t1);line-height:1.55">'
+        + '<div style="font-weight:600;margin-bottom:6px">Confirm booking</div>'
+        + escHtml(first + ' ' + last) + ' · ' + escHtml(funder.label) + (pmName ? ' (' + escHtml(pmName) + ')' : '') + ' · ' + escHtml(item.label) + ' · <strong>$' + fee.amount.toFixed(2) + '</strong><br>'
+        + escHtml(date + ' ' + time) + ' (' + dur + ' min)<br>'
+        + '<span style="color:var(--t3)">' + (_sihState.patientId ? 'Uses the existing Halaxy patient' : 'Creates a NEW Halaxy patient')
+        + (funder.billingKey !== 'private' ? ', adds funder coverage' : '') + ', books the appointment, and creates the invoice in Halaxy.</span>'
+        + '<div style="display:flex;gap:8px;margin-top:12px">'
+        + '<button class="db-btn-primary" onclick="_sihSubmit(true)">Confirm &amp; book →</button>'
+        + '<button onclick="var c=document.getElementById(\'sih-confirm\');if(c)c.innerHTML=\'\'" style="background:transparent;border:1px solid rgba(255,255,255,0.18);color:var(--t2);border-radius:8px;padding:7px 13px;font-size:12px;cursor:pointer">Back</button>'
+        + '</div></div>';
+    }
+    return;
+  }
+  if (confirmBox) confirmBox.innerHTML = '';
 
   // Brisbane = UTC+10, no DST. Build start, derive end from duration.
   var TZ = '+10:00';
@@ -8370,9 +8385,12 @@ async function _sihSubmit() {
       } catch (ce) { console.warn('[sih] coverage failed:', ce && ce.message); }
     }
     if (msg) msg.textContent = 'Booking appointment + creating invoice…';
+    // Halaxy's $book only accepts location-type 'clinic' on CREATE (online/phone → 422). The
+    // modality is already captured by the chosen fee (e.g. "Online — $180"), so the invoice is
+    // correct; the appointment's location can be adjusted in Halaxy later if it matters.
     await apiFetch('/api/admin-enquiries?halaxy_appt_action=1', { method: 'POST', body: {
       action: 'book', patientId: String(patientId), apptStart: apptStart, apptEnd: apptEnd,
-      feeId: fee.feeId, feeName: fee.name, feeAmount: fee.amount, locationType: locationType,
+      feeId: fee.feeId, feeName: fee.name, feeAmount: fee.amount, locationType: 'clinic',
     } });
     toast('Set up in Halaxy ✓ — patient booked, invoice created', 'ok');
     var ov = document.getElementById('sih-overlay'); if (ov) ov.remove();
