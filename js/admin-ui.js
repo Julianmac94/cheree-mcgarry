@@ -2607,6 +2607,7 @@ async function loadPipeline() {
     renderHelloSection();
     renderPipeline();
     updateHalaxyDot();
+    _recomputeInboxBuckets(); // halaxy data now present — (re)build inbox issue buckets
   } catch (err) {
     var intakeBody = document.getElementById('intake-panel-body');
     var billingBody = document.getElementById('billing-panel-body');
@@ -2678,6 +2679,7 @@ function refreshPipeline() {
     renderHelloSection();
     renderPipeline();
     updateHalaxyDot();
+    _recomputeInboxBuckets(); // halaxy data now present — (re)build inbox issue buckets
     toast('Pipeline refreshed');
   }).catch(function(err) {
     toast('Refresh failed: ' + err.message, 'err');
@@ -2870,6 +2872,7 @@ function _mobInitPullToRefresh() {
             renderHelloSection();
             renderPipeline();
             updateHalaxyDot();
+            _recomputeInboxBuckets(); // halaxy data now present — (re)build inbox issue buckets
             _dhLoadTasks();
             resolve();
           })
