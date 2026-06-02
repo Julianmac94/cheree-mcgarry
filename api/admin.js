@@ -197,7 +197,7 @@ function adminPage({ enquiries = [], tasks = [], currentUser = null, activityByE
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/admin-dashboard.css">
+<link rel="stylesheet" href="/css/admin-dashboard.css?v=${process.env.VERCEL_GIT_COMMIT_SHA || Date.now()}">
 <style>
 :root {
   /* Background */
@@ -3890,7 +3890,7 @@ body {
 </div>
 
 <script>window.ADMIN_USER = '${currentUser?.name || ''}';</script>
-<script src="/js/admin-ui.js?v=${Date.now()}"></script>
+<script src="/js/admin-ui.js?v=${process.env.VERCEL_GIT_COMMIT_SHA || Date.now()}"></script>
 <script>
 function switchTab(tab, btn) { /* legacy compat — no-op */ }
 
