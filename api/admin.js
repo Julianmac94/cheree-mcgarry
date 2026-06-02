@@ -3101,8 +3101,9 @@ body {
 .pl-link-input {
   width: 100%; box-sizing: border-box; padding: 6px 9px;
   font-size: 11px; font-family: var(--sans);
-  border: 1px solid rgba(42,88,80,0.2); border-radius: 6px;
-  background: white; color: var(--dark); outline: none;
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 6px;
+  background: rgba(255,255,255,0.05); color: var(--t1, #F4F7F6); outline: none;
+  color-scheme: dark;
 }
 .pl-link-input:focus { border-color: var(--teal); }
 .pl-link-results { margin-top: 5px; max-height: 130px; overflow-y: auto; }

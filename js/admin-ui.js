@@ -10769,36 +10769,36 @@ function openNewSessionModal() {
   var modal = document.createElement('div');
   modal.id  = 'new-session-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-  modal.innerHTML = '<div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.18)">'
+  modal.innerHTML = '<div style="background:#111A2B;border:1px solid rgba(255,255,255,0.10);border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,0.5);color:var(--t1,#F4F7F6)">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
-    + '<strong style="font-size:15px">New Appointment</strong>'
-    + '<button onclick="closeNewSessionModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#666">&times;</button>'
+    + '<strong style="font-size:15px;color:var(--t1,#F4F7F6)">New Appointment</strong>'
+    + '<button onclick="closeNewSessionModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--t3,#7E93A8)">&times;</button>'
     + '</div>'
     + '<div style="font-size:11.5px;color:#9AABA8;margin-bottom:16px">Books directly into Halaxy — invoice auto-generated when a fee is selected</div>'
 
-    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Halaxy client</label>'
+    + '<label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Halaxy client</label>'
     + '<input list="ns-client-list" id="ns-client-input" class="pl-link-input" placeholder="Search Halaxy clients…" style="margin-bottom:10px" oninput="_nsClientChange()">'
     + '<datalist id="ns-client-list">' + clientOpts + '</datalist>'
     + '<input type="hidden" id="ns-halaxy-id">'
 
-    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Date</label>'
+    + '<label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Date</label>'
     + '<input type="date" id="ns-date" class="pl-link-input" value="' + defaultDate + '" style="margin-bottom:10px">'
 
     + '<div style="display:flex;gap:8px;margin-bottom:10px">'
-    + '<div style="flex:1"><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Start time</label>'
+    + '<div style="flex:1"><label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Start time</label>'
     + '<input type="time" id="ns-start" class="pl-link-input" value="' + defaultTime + '"></div>'
-    + '<div style="flex:1"><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Duration</label>'
+    + '<div style="flex:1"><label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Duration</label>'
     + '<select id="ns-duration" class="pl-link-input">'
     + '<option value="30">30 min</option><option value="45">45 min</option>'
     + '<option value="60" selected>60 min</option><option value="90">90 min</option>'
     + '<option value="120">2 hours</option></select></div>'
     + '</div>'
 
-    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Fee <span style="color:#9AABA8;font-weight:400">(optional — triggers auto-invoice in Halaxy)</span></label>'
+    + '<label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Fee <span style="color:#9AABA8;font-weight:400">(optional — triggers auto-invoice in Halaxy)</span></label>'
     + '<select id="ns-fee" class="pl-link-input" style="margin-bottom:10px">'
     + '<option value="">— select a fee —</option>' + feeOpts + '</select>'
 
-    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Location</label>'
+    + '<label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Location</label>'
     + '<select id="ns-location" class="pl-link-input" style="margin-bottom:10px">'
     + '<option value="clinic" selected>In-clinic</option>'
     + '<option value="telehealth">Telehealth (video)</option>'
@@ -10806,7 +10806,7 @@ function openNewSessionModal() {
     + '<option value="online">Online</option>'
     + '</select>'
 
-    + '<label style="font-size:12px;color:#666;display:block;margin-bottom:3px">Notes</label>'
+    + '<label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Notes</label>'
     + '<input type="text" id="ns-notes" class="pl-link-input" placeholder="Appointment notes…" style="margin-bottom:16px">'
 
     + '<div id="ns-error" style="color:#c0392b;font-size:12px;margin-bottom:8px;display:none"></div>'
