@@ -7704,7 +7704,10 @@ function _calToggleMergeList(eventId) {
 }
 
 function _calMergeConfirm(eventId, patientId, patientName, apptDate) {
-  // Dismiss the GCal placeholder — the Halaxy appointment is now the authoritative record
+  // This only HIDES the calendar event and treats an already-booked Halaxy appointment as the
+  // record — it does NOT create a fee/invoice. Confirm so it can't silently fire (use "Set up in
+  // Halaxy" instead when the client still needs booking + billing).
+  if (!window.confirm('Hide this calendar event and treat the existing Halaxy appointment for ' + patientName + ' as the record?\n\nThis does NOT create a fee or invoice. If this client still needs to be booked + billed, cancel and use "Set up in Halaxy" instead.')) return;
   dismissCalEvent(eventId);
   closeDetailPanel();
   _showSuccess('merge', 'Merged with ' + patientName);
@@ -8206,6 +8209,8 @@ function openSetupInHalaxy(prefill) {
     +   '<input id="sih-email" class="db-form-input" type="email" placeholder="Email" value="' + escHtml(prefill.email || '') + '" oninput="_sihState.patientId=null" onblur="_sihSearchPatient()">'
     +   '<input id="sih-phone" class="db-form-input" placeholder="Phone (optional)" value="' + escHtml(prefill.phone || '') + '">'
     +   '<div id="sih-match" style="font-size:11.5px;color:var(--t3);min-height:16px"></div>'
+    +   '<input id="sih-namesearch" class="db-form-input" placeholder="🔍 …or find an existing Halaxy patient by name" oninput="_sihDebounceNameSearch()">'
+    +   '<div id="sih-nameresults"></div>'
     +   '<select id="sih-funder" class="db-form-input" onchange="_sihOnFunderChange()">' + funderOpts + '</select>'
     +   '<select id="sih-pm" class="db-form-input" style="display:none"></select>'
     +   '<select id="sih-type" class="db-form-input" style="display:none" onchange="_sihOnTypeChange()"></select>'
@@ -8318,6 +8323,40 @@ async function _sihSearchPatient() {
     _sihState.patientId = null;
     if (matchDiv) { matchDiv.textContent = 'Could not check Halaxy (will create new on book).'; matchDiv.style.color = 'var(--amber)'; }
   }
+}
+
+var _sihNameTimer = null;
+function _sihDebounceNameSearch() { clearTimeout(_sihNameTimer); _sihNameTimer = setTimeout(_sihNameSearch, 350); }
+
+// Find an EXISTING Halaxy patient by name (so existing clients are booked, not duplicated).
+async function _sihNameSearch() {
+  var q = ((document.getElementById('sih-namesearch') || {}).value || '').trim();
+  var box = document.getElementById('sih-nameresults');
+  if (!box) return;
+  if (q.length < 2) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div style="font-size:11px;color:var(--t3);padding:4px 0">Searching Halaxy…</div>';
+  try {
+    var d = await apiFetch('/api/admin-enquiries?halaxy_patient_name=' + encodeURIComponent(q));
+    var pts = (d && d.patients) || [];
+    if (!pts.length) { box.innerHTML = '<div style="font-size:11px;color:var(--t3);padding:4px 0">No Halaxy patient found — fill the name above to create a new one.</div>'; return; }
+    box.innerHTML = pts.slice(0, 8).map(function(p) {
+      return '<div onclick="_sihPickPatient(\'' + escHtml(String(p.id)) + '\',\'' + escHtml(p.name) + '\')" '
+        + 'style="padding:7px 10px;border:1px solid rgba(255,255,255,0.12);border-radius:7px;margin-top:4px;cursor:pointer;font-size:12px;color:var(--t1)">'
+        + escHtml(p.name) + ' <span style="color:var(--t3)">#' + escHtml(String(p.id)) + '</span></div>';
+    }).join('');
+  } catch (e) { box.innerHTML = '<div style="font-size:11px;color:var(--amber)">Search failed — try again.</div>'; }
+}
+
+function _sihPickPatient(id, name) {
+  _sihState.patientId = String(id);
+  var parts = (name || '').trim().split(/\s+/);
+  var fe = document.getElementById('sih-first'), le = document.getElementById('sih-last');
+  if (fe && parts.length) fe.value = parts.shift();
+  if (le) le.value = parts.join(' ');
+  var md = document.getElementById('sih-match');
+  if (md) { md.innerHTML = '✓ Using existing Halaxy patient: <strong>' + escHtml(name) + '</strong> — no duplicate will be created.'; md.style.color = 'var(--teal)'; }
+  var box = document.getElementById('sih-nameresults'); if (box) box.innerHTML = '';
+  var ns = document.getElementById('sih-namesearch'); if (ns) ns.value = '';
 }
 
 async function _sihSubmit() {
