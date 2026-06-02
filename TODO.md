@@ -1,19 +1,51 @@
 # TODO — parked work
 
-## Registration → Halaxy  (DECIDED: embed Halaxy widgets behind our picker)
+## Registration → Halaxy  (DECIDED: embed Halaxy widgets in our own single-page screen)
 Full detail in **`docs/registration-form-spec.md`**. Built & live (unlisted) at **`/register`**
-(`register.html`). Private + Medicare wired; NDIS/Bupa/QFES/WorkCover are "Available soon" placeholders.
+(`register.html`). Now a **single unified screen** (no picker→form page jump, no back/forward):
+green header + persistent funder list (rail desktop / sheet mobile) + a form panel that shows a
+dashed placeholder until a funder is picked, then loads the Halaxy iframe in place. Private +
+Medicare wired; NDIS/Bupa/QFES/WorkCover hidden until their `url` is added.
+
+**DONE ✅ — Patient-Create webhook** (`POST /api/admin-enquiries?halaxy_webhook=1`, folded into the
+existing handler; `HALAXY_WEBHOOK_SECRET` set; Halaxy webhook configured). Client completes `/register`
+→ Halaxy Patient·Create → match enquiry by email → advance to `in_halaxy` (or create `self-registered`)
+→ thank-you email (`registrationCompleteEmailHtml` in `api/_emails.js`). Idempotent. **Principle:
+`/register` is the single front door to Halaxy — no manual patient entry, ever.** Full detail in spec.
 
 Remaining:
 1. **Cheree:** create the other 4 funder forms in Halaxy → send widget URLs → drop into the
-   `FUNDERS` array in `register.html` (auto-go-live).
-2. **Patient-Create webhook** → thank-you email (`wrap()` shell from `admin-intake.js`) + advance
-   the enquiry. Halaxy webhooks fire Patient·Create when the form completes; match to the pending
-   enquiry by **email**; use the webhook's optional auth header (no signature verification documented).
-   ⚠ Vercel is at 12/12 functions — fold the webhook into an existing endpoint or free a slot first.
+   `FUNDERS` array in `register.html` (empty `url` = hidden; they auto-appear in the list).
+2. **DONE ✅ — Retired the manual flow** (`js/admin-ui.js`, +18/−507): removed the pipeline's
+   **"Add to Halaxy →"** auto-advance (`ENQ_ADVANCE.contacted`), the pipeline card's "Send intake"
+   panel, the enquiry detail panel's **"Send onboarding / pick funding + paste Halaxy URL"** section,
+   the manual **"Add to Halaxy"** patient search/create/mark panel (`_openAddToHalaxyPanel` & friends),
+   and the dead `_intakeEnquiryCard`/`renderIntakePanel`/`sendIntake` remnants. The webhook now
+   auto-advances `contacted → in_halaxy` on `/register` completion, so no manual transition is needed.
+   **Note:** the non-test send path in `api/admin-intake.js` is intentionally KEPT (no UI calls it now)
+   — it's the email plumbing the planned "Send registration email" button (item 3 / Emails below) reuses.
+   The home-view `openIntakePicker` "copy Halaxy intake link" chip + `HALAXY_URLS` map were left as-is
+   (separate utility, out of scope) — candidates for a later cleanup once item 3 lands.
 3. Point the **registration email** CTA at `/register` (optionally per-funder deep-links
    `/register?funder=…`); the email's in-body `FUNDING_FORMS` picker can then be simplified/retired.
-4. Confirm the "what you'll fill in" wording (funder-specific?) + the mobile full-iframe scroll feel.
+
+## "Set up in Halaxy" — Cheree self-serve onboarding (DESIGNED, not built)
+The **second front door** (the first being `/register`). For clients Cheree books in Google
+Calendar / known existing clients who won't self-register. Cheree's only tools are GCal + the
+dashboard — she must get a client **billable in Halaxy without ever opening Halaxy**, fully
+self-serve. The dashboard API already does the whole chain (`POST /Patient` + `POST /Coverage`
++ `POST /Appointment/$book` → auto-invoice); this packages it into one guided flow.
+**Full design + decisions in `docs/halaxy-onboarding-spec.md`.** Build status:
+1. ✅ **Session-type → fee config** — Settings → "Booking fees" (`session_fee_map`, `BOOKABLE_MENU`,
+   auto-match by name+amount); persisted via `POST ?settings_set=1` in `admin-enquiries.js`.
+2. ✅ **"Set up in Halaxy" wizard** (`openSetupInHalaxy`) — match/create patient → coverage → `$book`.
+3. ✅ **GCal CTA** — "⚕ Set up in Halaxy" on upcoming unlinked calendar events (desktop list/card +
+   mobile) + "Not in Halaxy" badge; prefills from the event.
+4. ✅ Docs — CLAUDE.md updated to the **two front doors**; spec/this file updated.
+
+**⚠ Remaining: LIVE TEST before real use** — the wizard does irreversible Halaxy writes (patient +
+appt + invoice). Test once with a throwaway name + $0/$1 fee. Also: raise the Halaxy "Parent Intake /
+Child" fee to $180 (or map child → the $180 Face-to-Face fee in Settings → Booking fees).
 
 ## Emails
 

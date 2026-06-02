@@ -86,7 +86,8 @@ function wrap(innerHtml) {
 }
 
 // ── Client confirmation ──────────────────────────────────────────
-function clientConfirmationHtml({ firstName, service, coverage }) {
+// Exported so the admin Settings "Email tests" picker can render it.
+export function clientConfirmationHtml({ firstName, service, coverage }) {
   const serviceStr  = service  && service  !== '(not specified)' ? service  : null;
   const coverageStr = coverage && coverage !== '(not specified)' ? coverage : null;
 

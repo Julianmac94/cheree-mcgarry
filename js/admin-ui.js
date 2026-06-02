@@ -255,85 +255,6 @@ async function deleteTask(id) {
   }
 }
 
-/* ── Intake email ── */
-function updateIntakeUrl(id) {
-  var typeEl = document.getElementById('intake-type-' + id);
-  var urlEl  = document.getElementById('intake-url-' + id);
-  if (!typeEl || !urlEl) return;
-  var known = HALAXY_URLS[typeEl.value] || '';
-  urlEl.value = known;
-  urlEl.style.opacity = known ? '0.65' : '1';
-  urlEl.placeholder = known ? '' : 'Paste Halaxy form URL…';
-  if (!known) urlEl.focus();
-}
-
-function toggleIntakePanel(id) {
-  var panel = document.getElementById('intake-panel-' + id);
-  var btn = document.getElementById('intake-btn-' + id);
-  if (!panel || btn.classList.contains('sent')) return;
-  var open = panel.classList.toggle('open');
-  btn.textContent = open ? 'Cancel' : 'Send intake email';
-  if (open) updateIntakeUrl(id);
-}
-
-async function sendIntake(id) {
-  var typeEl  = document.getElementById('intake-type-' + id);
-  var urlEl   = document.getElementById('intake-url-' + id);
-  var msgEl   = document.getElementById('intake-msg-' + id);
-  var sendBtn = document.querySelector('#intake-panel-' + id + ' .eq-intake-send');
-
-  var intakeUrl  = (urlEl.value || '').trim();
-  var clientType = typeEl.value;
-
-  msgEl.className = 'eq-intake-msg';
-  msgEl.textContent = '';
-
-  if (!intakeUrl) {
-    msgEl.className = 'eq-intake-msg err';
-    msgEl.textContent = 'Paste the Halaxy intake form URL first.';
-    return;
-  }
-  if (!intakeUrl.startsWith('http')) {
-    msgEl.className = 'eq-intake-msg err';
-    msgEl.textContent = 'URL should start with https://';
-    return;
-  }
-
-  sendBtn.disabled = true;
-  sendBtn.textContent = 'Sending...';
-
-  try {
-    var result = await apiFetch('/api/admin-intake', {
-      method: 'POST',
-      body: { enquiryId: id, clientType: clientType, intakeUrl: intakeUrl }
-    });
-    msgEl.className = 'eq-intake-msg ok';
-    msgEl.textContent = 'Intake email sent. Status updated to In Halaxy.';
-    var card = document.querySelector('.eq-card[data-id="' + id + '"]');
-    if (card) {
-      card.dataset.status = 'in_halaxy';
-      var sel = card.querySelector('.eq-status-sel');
-      if (sel) sel.value = 'in_halaxy';
-    }
-    var btn = document.getElementById('intake-btn-' + id);
-    if (btn) {
-      var sentLabel = 'Intake sent';
-      if (result && result.sentAt) {
-        var d = new Date(result.sentAt);
-        var fmtd = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
-        sentLabel = 'Intake sent · ' + fmtd;
-      }
-      btn.textContent = sentLabel;
-      btn.classList.add('sent');
-    }
-  } catch (err) {
-    msgEl.className = 'eq-intake-msg err';
-    msgEl.textContent = 'Error: ' + err.message;
-    sendBtn.disabled = false;
-    sendBtn.textContent = 'Send';
-  }
-}
-
 /* ── Setup checklist (localStorage-backed) ── */
 function initSetup() {
   document.querySelectorAll('.setup-item').forEach(function (label) {
@@ -564,11 +485,69 @@ document.addEventListener('click', function(e) {
 var FUNDER_LABELS = {
   private:   'Private',
   medicare:  'Medicare',
-  dva:       'DVA / ADFHSC',
+  dva:       'DVA / Bupa / ADFHCS',   // "Bupa" = DVA here, NOT health insurance
   ndis_plan: 'NDIS Plan Managed',
   qfes:      'QFES EAP',
   workcover: 'WorkCover',
 };
+
+/* ── Bookable session menu (the "Set up in Halaxy" v1, shaped with Julian 2026-06) ──
+ * The fixed STRUCTURE of what Cheree can book per funder. Each item is matched to a live
+ * Halaxy fee (by name+amount) in Settings → "Booking fees"; that fee-id mapping is what gets
+ * persisted (`session_fee_map`). Metadata (modality / mbsItem / durationMin) travels to the
+ * booking flow. NDIS is plan-managed: one standard fee, plan-manager picked at booking (routes
+ * via Coverage). Full rationale in docs/halaxy-onboarding-spec.md. */
+var BOOKABLE_MENU = [
+  { key: 'private', label: 'Private', billingKey: 'private', items: [
+    { id: 'private_inperson', label: 'Individual · In person', modality: 'clinic',  match: { name: 'Face to Face', amount: 180 } },
+    { id: 'private_online',   label: 'Individual · Online',    modality: 'online',  match: { name: 'Online', amount: 180 } },
+    { id: 'private_child',    label: 'Child / Parent intake',  modality: 'clinic',  match: { name: 'Parent Intake / Child', amount: 180 } },
+  ] },
+  { key: 'medicare', label: 'Medicare', billingKey: 'medicare', note: 'Requires a valid GP referral / MHCP on file.', items: [
+    { id: 'medicare_inperson', label: 'In person', modality: 'clinic', mbsItem: '80160', match: { name: 'In Person Consultation', amount: 180 } },
+    { id: 'medicare_video',    label: 'Video',     modality: 'online', mbsItem: '91176', match: { name: 'Video Telehealth Consultation', amount: 180 } },
+    { id: 'medicare_phone',    label: 'Phone',     modality: 'phone',  mbsItem: '91188', match: { name: 'Phone Telehealth Consultation', amount: 180 } },
+  ] },
+  { key: 'ndis', label: 'NDIS (plan-managed)', billingKey: 'ndis_plan', planManaged: true,
+    note: 'All $193.99. Cheree picks the plan manager + modality at booking — the plan manager routes via the patient’s Coverage, not the fee.', items: [
+    { id: 'ndis_standard', label: 'Standard therapy fee', match: { name: 'Assessment Recommendation Therapy or Training - Social Worker', amount: 193.99 } },
+  ] },
+  { key: 'qfes', label: 'QFES (EAP)', billingKey: 'qfes', note: 'The Halaxy appointment length MUST equal the chosen band (for invoicing).', items: [
+    { id: 'qfes_60',  label: '60 min',  durationMin: 60,  match: { name: 'QFES Consultation', amount: 250 } },
+    { id: 'qfes_90',  label: '90 min',  durationMin: 90,  match: { name: 'QFES Consultation', amount: 375 } },
+    { id: 'qfes_120', label: '120 min', durationMin: 120, match: { name: 'QFES Consultation', amount: 500 } },
+    { id: 'qfes_150', label: '150 min', durationMin: 150, match: { name: 'QFES Consultation', amount: 625 } },
+  ] },
+  { key: 'dva', label: 'DVA / Bupa / ADFHCS', billingKey: 'dva', note: '"Bupa" = DVA here, not health insurance.', items: [
+    { id: 'dva_us24', label: 'US24', match: { name: 'Consultation 50+ mins', amount: 246.44 } },
+  ] },
+  { key: 'workcover', label: 'WorkCover QLD', billingKey: 'workcover', items: [
+    { id: 'wc_initial',    label: 'Initial Consultation',    match: { name: 'Initial Consultation', amount: 243 } },
+    { id: 'wc_subsequent', label: 'Subsequent Consultation', match: { name: 'Subsequent Consultation', amount: 243 } },
+  ] },
+];
+
+// Resolve a menu item's Halaxy fee (saved config wins, else auto-match) → { feeId, name, amount } or null.
+function _bookableResolveFee(item) {
+  var saved = (_pipelineData && _pipelineData.session_fee_map) || {};
+  var feeId = saved[item.id] || _bookableFeeMatch(item) || '';
+  if (!feeId) return null;
+  var fee = (_halaxyFees || []).find(function(f) { return String(f.id) === String(feeId); });
+  return { feeId: feeId, name: fee ? fee.name : (item.match ? item.match.name : ''), amount: fee ? Number(fee.amount) : (item.match ? item.match.amount : 0) };
+}
+function _bookableFunder(key) { return BOOKABLE_MENU.find(function(f) { return f.key === key; }) || null; }
+
+// Best-guess Halaxy fee id for a menu item — exact name+amount match, then case-insensitive name.
+function _bookableFeeMatch(item) {
+  var fees = _halaxyFees || [];
+  if (!item || !item.match) return '';
+  var m = fees.find(function(f) {
+    return f.name === item.match.name && Math.abs(Number(f.amount) - item.match.amount) < 0.005;
+  });
+  if (m) return m.id;
+  var byName = fees.find(function(f) { return (f.name || '').toLowerCase() === item.match.name.toLowerCase(); });
+  return byName ? byName.id : '';
+}
 
 /* Default session rates (AUD) — editable in the fee field */
 var FUNDER_RATES = {
@@ -600,7 +579,8 @@ var STATUS_DISPLAY = {
 
 var ENQ_ADVANCE = {
   new:       { label: 'Mark contacted →', next: 'contacted' },
-  contacted: { label: 'Add to Halaxy →',  next: 'in_halaxy' },
+  // contacted → in_halaxy is no longer a manual step: the Halaxy Patient·Create
+  // webhook auto-advances a card to in_halaxy when the client completes /register.
   // in_halaxy: no auto-advance — use Convert or Close (modal) from the card menu
 };
 
@@ -3107,168 +3087,6 @@ function fmtDate(iso) {
   return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function _intakeEnquiryCard(e) {
-  var status  = e.status || 'new';
-  var isNew   = status === 'new';
-  var name    = [e.first_name, e.last_name].filter(Boolean).join(' ') || e.display_name || '—';
-  var uid     = 'eq-' + e.id;
-
-  var primaryLabel, primaryFn;
-  if (status === 'new') {
-    primaryLabel = 'Mark contacted →';
-    primaryFn    = 'advanceEnquiryStatus(\'' + e.id + '\',\'contacted\')';
-  } else if (status === 'contacted') {
-    primaryLabel = 'Send registration →';
-    primaryFn    = 'togglePipelineIntake(\'' + e.id + '\')';
-  }
-  // in_halaxy: handled separately with two buttons below
-
-  var badgesHtml = '';
-  if (isNew) badgesHtml += '<span class="dp-badge dp-badge--new">New</span>';
-  if (e.source) badgesHtml += '<span class="dp-badge dp-badge--source">' + escHtml(e.source || 'Website') + '</span>';
-
-  var menuItems = [
-    { label: '✕ Close without converting', fn: '_openCloseEnquiryModal("' + e.id + '")', warn: true },
-  ];
-
-  // Intake email panel only shows on 'contacted' stage (toggled by togglePipelineIntake)
-  var intakePanel = '';
-  if (status === 'contacted') {
-    intakePanel = '<div class="pl-intake-panel" id="pl-intake-' + e.id + '">'
-      + '<div class="pl-intake-row">'
-      + _intakeTypeSelectorHtml(e.id)
-      + '<input class="pl-intake-url" id="pl-iurl-' + e.id + '" type="url" placeholder="Paste Halaxy registration URL…" onclick="event.stopPropagation()">'
-      + '<button class="pl-intake-send" onclick="event.stopPropagation();sendIntakePl(\'' + e.id + '\')">Send →</button>'
-      + '</div>'
-      + '<div id="pl-imsg-' + e.id + '" style="font-size:10px;margin-top:4px"></div>'
-      + '</div>';
-  }
-
-  var primaryBtn = (status === 'in_halaxy'
-    ? '<button class="dp-btn dp-btn--primary" onclick="event.stopPropagation();openCreateSessionModal(\'' + e.id + '\')">Create appointment →</button>'
-    : primaryFn
-      ? '<button class="dp-btn dp-btn--primary" onclick="event.stopPropagation();' + primaryFn + '">' + primaryLabel + '</button>'
-      : '');
-
-  // "Already a client?" merge button — on all active enquiries
-  var linkBtn = status !== 'closed' && status !== 'converted'
-    ? '<button class="enq-link-btn" onclick="event.stopPropagation();openLinkEnquiryModal(\'' + e.id + '\',\'' + escHtml(name) + '\')">Already a client →</button>'
-    : '';
-
-  return '<div class="dp-card' + (isNew ? ' dp-card--new' : '') + '" id="pl-' + uid + '">'
-    + '<div class="dp-card-body">'
-    // Left: name, date/badges, email
-    + '<div class="dp-card-left">'
-    + '<div class="dp-card-name">' + escHtml(name) + '</div>'
-    + '<div class="dp-card-sub">'
-    + '<span>' + _relativeDate(e.created_at) + '</span>'
-    + badgesHtml
-    + '</div>'
-    + (e.email ? '<a class="dp-card-email" href="mailto:' + escHtml(e.email) + '">' + escHtml(e.email) + '</a>' : '')
-    + linkBtn
-    + intakePanel
-    + '<div id="pl-link-' + uid + '"></div>'
-    + '</div>'
-    // Right: primary action + close
-    + '<div class="dp-card-right">'
-    + primaryBtn
-    + '<button class="dp-btn dp-btn--ghost" style="font-size:9px;margin-top:2px" onclick="event.stopPropagation();_openCloseEnquiryModal(\'' + e.id + '\')">Close</button>'
-    + '</div>'
-    + '</div>'
-    + '</div>';
-}
-
-function renderIntakePanel() {
-  var body = document.getElementById('intake-panel-body');
-  if (!body || !_pipelineData) return;
-
-  var enquiries = _pipelineData.enquiries || [];
-  var newEnqs       = enquiries.filter(function(e) { return (e.status || 'new') === 'new'; });
-  var contactedEnqs = enquiries.filter(function(e) { return e.status === 'contacted'; });
-  var intakeEnqs    = enquiries.filter(function(e) { return e.status === 'in_halaxy'; });
-  var closedEnqs    = enquiries.filter(function(e) { return e.status === 'closed'; });
-  var convertedEnqs = enquiries.filter(function(e) { return e.status === 'converted'; });
-
-  var activeCount = newEnqs.length + contactedEnqs.length + intakeEnqs.length;
-  var countEl = document.getElementById('intake-count');
-  if (countEl) countEl.textContent = activeCount || '';
-
-  var html = '';
-
-  // New stage
-  html += '<div class="intake-stage">';
-  html += '<div class="intake-stage-label">New</div>';
-  if (newEnqs.length) {
-    html += newEnqs.map(_intakeEnquiryCard).join('');
-  } else {
-    html += '<div class="dp-empty">None</div>';
-  }
-  html += '</div>';
-
-  // Contacted stage
-  html += '<div class="intake-stage">';
-  html += '<div class="intake-stage-label">Contacted</div>';
-  if (contactedEnqs.length) {
-    html += contactedEnqs.map(_intakeEnquiryCard).join('');
-  } else {
-    html += '<div class="dp-empty">None</div>';
-  }
-  html += '</div>';
-
-  // Intake sent stage
-  html += '<div class="intake-stage">';
-  html += '<div class="intake-stage-label">Intake sent — awaiting first appointment</div>';
-  if (intakeEnqs.length) {
-    html += intakeEnqs.map(_intakeEnquiryCard).join('');
-  } else {
-    html += '<div class="dp-empty">None</div>';
-  }
-  html += '</div>';
-
-  // Closed collapsible
-  html += '<div class="dp-collapsible">';
-  html += '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'closed-enqs\')">';
-  html += '<span id="closed-enqs-arrow">▸</span> Closed (' + closedEnqs.length + ')';
-  html += '</button>';
-  html += '<div class="dp-collapsible-body" id="closed-enqs">';
-  if (closedEnqs.length) {
-    html += closedEnqs.map(function(e) {
-      var name = [e.first_name, e.last_name].filter(Boolean).join(' ') || '—';
-      return '<div class="dp-card" style="opacity:0.65">'
-        + '<div class="dp-card-name">' + escHtml(name) + '</div>'
-        + '<div class="dp-card-sub">'
-        + _relativeDate(e.created_at)
-        + (e.notes ? ' · <span style="color:var(--mid)">' + escHtml(e.notes.slice(0, 60)) + '</span>' : '')
-        + '</div>'
-        + '</div>';
-    }).join('');
-  } else {
-    html += '<div class="dp-empty">No closed enquiries</div>';
-  }
-  html += '</div></div>';
-
-  // Converted collapsible
-  html += '<div class="dp-collapsible">';
-  html += '<button class="dp-collapsible-toggle" onclick="toggleDpCollapsible(\'converted-enqs\')">';
-  html += '<span id="converted-enqs-arrow">▸</span> Converted (' + convertedEnqs.length + ')';
-  html += '</button>';
-  html += '<div class="dp-collapsible-body" id="converted-enqs">';
-  if (convertedEnqs.length) {
-    html += convertedEnqs.map(function(e) {
-      var name = [e.first_name, e.last_name].filter(Boolean).join(' ') || '—';
-      return '<div class="dp-card" style="opacity:0.6">'
-        + '<div class="dp-card-name">' + escHtml(name) + '</div>'
-        + '<div class="dp-card-sub">Converted · ' + _relativeDate(e.created_at) + '</div>'
-        + '</div>';
-    }).join('');
-  } else {
-    html += '<div class="dp-empty">None yet</div>';
-  }
-  html += '</div></div>';
-
-  body.innerHTML = html;
-}
-
 function toggleDpCollapsible(id) {
   var body  = document.getElementById(id);
   var arrow = document.getElementById(id + '-arrow');
@@ -3701,6 +3519,10 @@ function renderAppointmentsPanel() {
         return '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px" onclick="openCalSessionPanel(\'' + uid + '\',\'' + escHtml(sess.eventId) + '\')">Link &amp; Record →</button>';
       }
     }
+    // Upcoming Google Calendar event not yet in Halaxy → one-click set up (create patient + book).
+    if (status === 'upcoming' && sess.source === 'cal' && sess.eventId) {
+      return '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px" onclick="_sihFromCalEvent(\'' + escHtml(sess.eventId) + '\')">⚕ Set up in Halaxy →</button>';
+    }
     if (status === 'pending-invoice') {
       var calUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
       return '<a class="dp-btn dp-btn--ghost" style="font-size:10px;padding:4px 9px" href="' + escHtml(calUrl) + '" target="_blank" rel="noopener">Open in Halaxy →</a>';
@@ -3726,6 +3548,9 @@ function renderAppointmentsPanel() {
       + '<div class="session-row-badges">'
       + _sourceBadge(sess.source)
       + _statusBadge(sess.status)
+      + (sess.source === 'cal' && sess.status === 'upcoming'
+          ? '<span class="dp-badge" style="background:rgba(224,123,57,0.16);color:#e07b39">Not in Halaxy</span>'
+          : '')
       + '</div>'
       + (actionHtml ? '<div class="session-row-action">' + actionHtml + '</div>' : '')
       + '</div>'
@@ -3823,9 +3648,12 @@ function renderAppointmentsPanel() {
 
   var html = '';
 
-  /* ── Header row: + New Session + view toggle ── */
+  /* ── Header row: + New Session + Set up in Halaxy + view toggle ── */
   html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:2px">'
-    + '<button class="dp-btn dp-btn--soft" style="font-size:12px;padding:4px 10px" onclick="openNewSessionModal()">+ New Appointment</button>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+    +   '<button class="dp-btn dp-btn--soft" style="font-size:12px;padding:4px 10px" onclick="openNewSessionModal()">+ New Appointment</button>'
+    +   '<button class="dp-btn dp-btn--primary" style="font-size:12px;padding:4px 10px" onclick="openSetupInHalaxy()">⚕ Set up in Halaxy</button>'
+    + '</div>'
     + viewToggleHtml
     + '</div>';
 
@@ -4251,26 +4079,11 @@ function renderEnquiryCardPl(e) {
   if (advance) {
     actionsHtml += '<button class="pl-action-btn pl-action-btn--primary" onclick="event.stopPropagation();advanceEnquiryStatus(\'' + e.id + '\',\'' + advance.next + '\')">' + advance.label + '</button>';
   }
-  if (status === 'in_halaxy') {
-    actionsHtml += '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();togglePipelineIntake(\'' + e.id + '\')">Send intake</button>';
-  }
   // Convert to client — available on any non-closed enquiry
   if (status !== 'closed') {
     actionsHtml += '<button class="pl-action-btn pl-action-btn--convert" onclick="event.stopPropagation();convertEnquiryPl(\'' + e.id + '\')">Convert to client →</button>';
   }
   if (actionsHtml) actionsHtml = '<div class="pl-card-actions" style="margin-top:8px">' + actionsHtml + '</div>';
-
-  var intakeHtml = '';
-  if (status === 'in_halaxy') {
-    intakeHtml = '<div class="pl-intake-panel" id="pl-intake-' + e.id + '">'
-      + '<div class="pl-intake-row">'
-      + _intakeTypeSelectorHtml(e.id)
-      + '<input class="pl-intake-url" id="pl-iurl-' + e.id + '" type="url" placeholder="Paste Halaxy registration URL…" onclick="event.stopPropagation()">'
-      + '<button class="pl-intake-send" onclick="event.stopPropagation();sendIntakePl(\'' + e.id + '\')">Send →</button>'
-      + '</div>'
-      + '<div id="pl-imsg-' + e.id + '" style="font-size:10px;margin-top:4px"></div>'
-      + '</div>';
-  }
 
   var menuItems = [];
   if (status !== 'closed') menuItems.push({ label: '🔗 Link to existing client', fn: 'openLinkPanel("' + uid + '","enq","' + e.id + '")' });
@@ -4286,7 +4099,6 @@ function renderEnquiryCardPl(e) {
     + contactHtml
     + notesHtml
     + actionsHtml
-    + intakeHtml
     + '<div id="pl-link-' + uid + '"></div>'
     + '</div>'
     + '</div>';
@@ -7560,6 +7372,73 @@ function renderBillingView() {
    SETTINGS VIEW
    ═══════════════════════════════════════════════════ */
 
+/* Settings → "Booking fees": map each BOOKABLE_MENU item to a live Halaxy fee.
+ * Auto-matches by name+amount; Julian confirms/overrides; Save persists `session_fee_map`. */
+function _renderBookingFeesSection() {
+  var fees  = (_halaxyFees || []).slice().sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+  var saved = (_pipelineData && _pipelineData.session_fee_map) || {};
+
+  var html = '<div class="settings-section"><div class="settings-section-title">Booking fees</div>';
+  if (!fees.length) {
+    html += '<div class="settings-row"><span class="settings-row-label">No Halaxy fees loaded yet — use “Sync funders &amp; fees” above first.</span></div></div>';
+    return html;
+  }
+  html += '<div class="settings-danger-desc" style="border:none;background:none;padding:0 0 6px">'
+    + 'For each session type Cheree can book, pick the Halaxy fee it should use. Auto-matched by name where possible — confirm or adjust, then Save. The “Set up in Halaxy” flow uses these.</div>';
+
+  function feeOptions(selectedId) {
+    var opts = '<option value="">— choose fee —</option>';
+    fees.forEach(function(f) {
+      var lbl = (f.name || ('Fee #' + f.id)) + ' — $' + Number(f.amount).toFixed(2);
+      opts += '<option value="' + escHtml(String(f.id)) + '"' + (String(f.id) === String(selectedId) ? ' selected' : '') + '>' + escHtml(lbl) + '</option>';
+    });
+    return opts;
+  }
+  var selStyle = 'background:rgba(255,255,255,0.06);color:var(--t1);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 10px;font-size:12px;font-family:var(--sans);color-scheme:dark;cursor:pointer;max-width:60%';
+
+  BOOKABLE_MENU.forEach(function(fn) {
+    html += '<div class="settings-row" style="border-top:1px solid rgba(255,255,255,0.06);margin-top:6px">'
+      + '<span class="settings-row-label" style="font-weight:600;color:var(--t1)">' + escHtml(fn.label) + '</span></div>';
+    if (fn.note) html += '<div style="font-size:11px;color:var(--t3);margin:-4px 0 4px;line-height:1.5">' + escHtml(fn.note) + '</div>';
+    fn.items.forEach(function(it) {
+      var sel  = saved[it.id] || _bookableFeeMatch(it) || '';
+      var meta = (it.mbsItem ? ' · MBS ' + it.mbsItem : '') + (it.durationMin ? ' · ' + it.durationMin + ' min' : '');
+      html += '<div class="settings-row">'
+        + '<span class="settings-row-label">' + escHtml(it.label) + meta + (it.note ? ' <span style="color:var(--amber)">' + escHtml(it.note) + '</span>' : '') + '</span>'
+        + '<select class="bf-select" data-item="' + escHtml(it.id) + '" style="' + selStyle + '">' + feeOptions(sel) + '</select>'
+        + '</div>';
+    });
+    if (fn.planManaged) {
+      var pms = (_halaxyFunders || []).filter(function(f) { return f.billingKey === 'ndis_plan'; });
+      html += '<div style="font-size:11px;color:var(--t3);margin:2px 0 4px;line-height:1.5">Plan managers Cheree can pick at booking (' + pms.length + '): '
+        + (pms.length ? pms.map(function(p) { return escHtml(p.name); }).join(', ') : '— none synced —') + '</div>';
+    }
+  });
+
+  html += '<div class="settings-row"><span class="settings-row-label"></span>'
+    + '<div class="settings-row-action"><button id="bf-save-btn" onclick="saveBookingFees()">Save booking fees</button></div></div>';
+  html += '</div>';
+  return html;
+}
+
+async function saveBookingFees() {
+  var map = {};
+  document.querySelectorAll('.bf-select').forEach(function(sel) {
+    if (sel.value) map[sel.dataset.item] = sel.value;
+  });
+  var btn = document.getElementById('bf-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    await apiFetch('/api/admin-enquiries?settings_set=1', { method: 'POST', body: { key: 'session_fee_map', value: map } });
+    if (_pipelineData) _pipelineData.session_fee_map = map;
+    toast('Booking fees saved', 'ok');
+  } catch (e) {
+    toast('Could not save booking fees: ' + (e && e.message ? e.message : 'error'), 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save booking fees'; }
+  }
+}
+
 function renderSettingsView() {
   var content = document.getElementById('view-content');
   if (!content) return;
@@ -7574,6 +7453,9 @@ function renderSettingsView() {
   html += '<div class="settings-row"><span class="settings-row-label">Google Calendar</span><span class="settings-row-val">' + (calOk ? '✓ Connected' : 'Not connected') + '</span>'
     + '<div class="settings-row-action"><a href="/api/google-auth">Reconnect</a></div></div>';
   html += '</div>';
+
+  // Booking fees — map each bookable session type to its Halaxy fee (drives "Set up in Halaxy")
+  html += _renderBookingFeesSection();
 
   // Account
   html += '<div class="settings-section"><div class="settings-section-title">Account</div>';
@@ -7593,11 +7475,19 @@ function renderSettingsView() {
   html += '<div class="settings-row">'
     + '<span class="settings-row-label">Send a test to admin@chereemcgarry.com</span>'
     + '<select id="email-test-type" style="background:rgba(255,255,255,0.06);color:var(--t1);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 10px;font-size:12px;font-family:var(--sans);color-scheme:dark;cursor:pointer">'
-    + '<option value="registration">Registration (new — funding picker)</option>'
+    + '<optgroup label="Live client emails">'
+    + '<option value="enquiry">Reach Out — thanks for enquiring (auto-reply)</option>'
+    + '<option value="session">Session request — confirmation (auto-reply)</option>'
+    + '<option value="registration">Registration — funding picker</option>'
+    + '<option value="complete">Registration complete — thank-you</option>'
+    + '<option value="reminder">Appointment reminder — 48h</option>'
+    + '</optgroup>'
+    + '<optgroup label="Registration variants (legacy / per-funder)">'
     + '<option value="personal">Personal / Private (single link)</option>'
     + '<option value="new">New (generic)</option>'
     + '<option value="medicare">Medicare</option>'
     + '<option value="ndis">NDIS</option>'
+    + '</optgroup>'
     + '</select>'
     + '<div class="settings-row-action"><button id="email-test-btn" onclick="sendTestEmail()">Send test →</button></div>'
     + '</div>';
@@ -7776,7 +7666,9 @@ function _calUnlinkedActionHtml(eventId, calName) {
 
   var html = '';
 
-  html += '<div class="m-question">Who is this appointment for?</div>';
+  // Primary path: set up the client in Halaxy (create patient + book + invoice) in one go.
+  html += '<button class="m-btn-primary" style="margin-bottom:10px" onclick="_sihFromCalEvent(\'' + safeId + '\')">⚕ Set up in Halaxy &amp; book →</button>';
+  html += '<div class="m-question">…or link to an existing Halaxy appointment</div>';
   html += '<div class="m-option-list">';
 
   html += '<button class="m-option-item" onclick="_calToggleMergeList(\'' + safeId + '\')">'
@@ -7929,35 +7821,15 @@ function _renderEnquiryDetailPanel(enq) {
       html += '<button class="m-btn-primary" onclick="convertEnquiryPl(\'' + enq.id + '\')">Convert to client</button>';
     }
 
-    // Send onboarding section (primary for contacted, secondary otherwise)
-    var funderOpts = Object.entries(FUNDER_LABELS).map(function(kv) {
-      return '<option value="' + kv[0] + '">' + kv[1] + '</option>';
-    }).join('');
-
-    html += '<div class="m-section">';
-    html += '<div class="m-section-hd"><span class="m-section-label">Send onboarding</span></div>';
-    html += '<select class="m-select" id="rdp-ctype-' + enq.id + '">'
-      + '<option value="">Client type…</option>'
-      + '<option value="individual">Individual</option>'
-      + '<option value="couples">Couples / relationship</option>'
-      + '<option value="child">Child / family</option>'
-      + '</select>';
-    html += '<select class="m-select" id="rdp-intake-funder-' + enq.id + '" onchange="_rdpUpdateIntakeUrl(\'' + enq.id + '\')">'
-      + '<option value="">Funding type…</option>' + funderOpts
-      + '</select>';
-    html += '<input class="m-input m-input-sm" id="rdp-intake-url-' + enq.id + '" type="url" placeholder="Registration form URL (auto-fills for known funders)…">';
-    html += '<button class="m-btn-teal m-btn-sm" onclick="_rdpSendIntake(\'' + enq.id + '\')">Send onboarding email</button>';
-    html += '</div>';
-
-    // Secondary stage + close links
+    // Registration now happens entirely on /register (the embedded Halaxy widget), and
+    // the Halaxy Patient·Create webhook auto-advances the card to in_halaxy on completion.
+    // The old "pick funding + paste Halaxy URL" send and manual "Add to Halaxy" search/
+    // create flow have been retired. A single "Send registration email" button (linking to
+    // /register) is the planned replacement — see TODO.md.
     html += '<div class="m-links">';
-    if (isContacted) html += '<button class="m-link" onclick="_openAddToHalaxyPanel(\'' + enq.id + '\')">Add to Halaxy →</button>';
     html += '<button class="m-link m-link-dim" onclick="_openCloseEnquiryModal(\'' + enq.id + '\')">Close enquiry…</button>';
     html += '</div>';
   }
-
-  // Dynamic Halaxy panel placeholder
-  html += '<div id="rdp-halaxy-link-' + enq.id + '"></div>';
 
   // Details section
   html += '<div class="m-section">';
@@ -8108,95 +7980,6 @@ async function _submitLogInteraction(enqId) {
     closeDetailPanel();
   } catch (e) {
     toast('Could not save: ' + e.message, 'err');
-  }
-}
-
-function _openAddToHalaxyPanel(enqId) {
-  var panel = document.getElementById('rdp-halaxy-link-' + enqId);
-  if (!panel) return;
-  var enq = (_pipelineData && _pipelineData.enquiries || []).find(function(e) { return e.id === enqId; }) || {};
-  panel.innerHTML = '<div class="enq-halaxy-link-panel">'
-    + '<div class="enq-halaxy-link-title">Add to Halaxy</div>'
-    + '<div style="font-size:11.5px;color:var(--mid);margin-bottom:10px">Search for an existing Halaxy patient, or create a new one pre-filled from this enquiry.</div>'
-    + '<div class="enq-halaxy-search-row">'
-    + '<input id="rdp-hx-search-' + enqId + '" type="text" placeholder="Search by name…" value="' + escHtml([enq.first_name, enq.last_name].filter(Boolean).join(' ')) + '"'
-    + ' oninput="_debounceHxEnqSearch(\'' + enqId + '\')">'
-    + '<button style="font-size:11px;padding:6px 12px;border:none;border-radius:6px;background:var(--teal);color:#fff;cursor:pointer;white-space:nowrap" onclick="_searchHxEnqPatients(\'' + enqId + '\')">Search</button>'
-    + '</div>'
-    + '<div id="rdp-hx-results-' + enqId + '" class="enq-halaxy-results"></div>'
-    + '<div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid rgba(0,0,0,0.08);padding-top:10px">'
-    + '<button style="flex:1;font-size:11px;padding:7px 10px;border:1px solid rgba(42,88,80,0.25);border-radius:6px;background:transparent;color:var(--teal);cursor:pointer" onclick="_createHalaxyFromEnquiry(\'' + enqId + '\')">+ Create new patient →</button>'
-    + '<button style="font-size:11px;padding:7px 12px;border:1px solid rgba(0,0,0,0.12);border-radius:6px;background:transparent;color:var(--soft);cursor:pointer" onclick="_markInHalaxyDirectly(\'' + enqId + '\')">Already added ✓</button>'
-    + '</div>'
-    + '</div>';
-}
-
-var _hxEnqSearchTimer = null;
-function _debounceHxEnqSearch(enqId) {
-  clearTimeout(_hxEnqSearchTimer);
-  _hxEnqSearchTimer = setTimeout(function() { _searchHxEnqPatients(enqId); }, 350);
-}
-
-async function _searchHxEnqPatients(enqId) {
-  var q = (document.getElementById('rdp-hx-search-' + enqId) || {}).value || '';
-  q = q.trim();
-  var resEl = document.getElementById('rdp-hx-results-' + enqId);
-  if (!resEl || !q) return;
-  resEl.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:4px 0">Searching…</div>';
-  try {
-    var data = await apiFetch('/api/admin-enquiries?halaxy_patient_name=' + encodeURIComponent(q));
-    var pts = (data && data.patients) || [];
-    if (!pts.length) { resEl.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:4px 0">No matches found</div>'; return; }
-    resEl.innerHTML = pts.map(function(p) {
-      return '<div class="enq-halaxy-result-item" onclick="_selectHxEnqPatient(\'' + enqId + '\',\'' + escHtml(p.id) + '\',\'' + escHtml(p.name) + '\')">'
-        + escHtml(p.name) + ' <span style="color:var(--soft);font-size:10px">#' + escHtml(p.id) + '</span>'
-        + '</div>';
-    }).join('');
-  } catch (e) {
-    resEl.innerHTML = '<div style="font-size:11px;color:var(--terra)">Search failed</div>';
-  }
-}
-
-async function _selectHxEnqPatient(enqId, patientId, patientName) {
-  try {
-    // Two separate calls: log_action early-returns in the PATCH handler, so status must be its own request
-    await apiFetch('/api/admin-enquiries?id=' + enqId, { method: 'PATCH', body: { status: 'in_halaxy' } });
-    await apiFetch('/api/admin-enquiries?id=' + enqId, { method: 'PATCH', body: { log_action: 'halaxy', log_detail: 'Linked Halaxy patient: ' + patientName + ' (' + patientId + ')' } });
-    toast('Linked to Halaxy patient ' + patientName + ' ✓');
-    refreshPipeline();
-    closeDetailPanel();
-  } catch (e) {
-    toast('Could not link: ' + e.message, 'err');
-  }
-}
-
-function _createHalaxyFromEnquiry(enqId) {
-  var enq = (_pipelineData && _pipelineData.enquiries || []).find(function(e) { return e.id === enqId; }) || {};
-  closeDetailPanel();
-  // Pre-fill add-client modal with enquiry data
-  openAddClient();
-  setTimeout(function() {
-    var fn = document.getElementById('ac-first-name');
-    var ln = document.getElementById('ac-last-name');
-    var em = document.getElementById('ac-email');
-    var ph = document.getElementById('ac-phone');
-    if (fn && enq.first_name) fn.value = enq.first_name;
-    if (ln && enq.last_name)  ln.value = enq.last_name;
-    if (em && enq.email)      em.value = enq.email;
-    if (ph && enq.phone)      ph.value = enq.phone;
-    // Store enquiry id to advance status after creation
-    window._pendingEnqId = enqId;
-  }, 80);
-}
-
-async function _markInHalaxyDirectly(enqId) {
-  try {
-    await apiFetch('/api/admin-enquiries?id=' + enqId, { method: 'PATCH', body: { status: 'in_halaxy' } });
-    toast('Marked as in Halaxy ✓');
-    refreshPipeline();
-    closeDetailPanel();
-  } catch (e) {
-    toast('Could not update: ' + e.message, 'err');
   }
 }
 
@@ -8379,62 +8162,239 @@ async function _saveClientType(clientId) {
   }
 }
 
-// Helper: auto-fill intake URL when funder is selected in detail panel
-function _rdpUpdateIntakeUrl(enquiryId) {
-  var sel   = document.getElementById('rdp-intake-funder-' + enquiryId);
-  var urlEl = document.getElementById('rdp-intake-url-'   + enquiryId);
-  if (!sel || !urlEl) return;
-  var known = HALAXY_URLS[sel.value] || '';
-  urlEl.value         = known;
-  urlEl.style.opacity = known ? '0.7' : '1';
-  urlEl.placeholder   = known ? '' : 'Paste Halaxy form URL for this funder…';
-  if (!known) urlEl.focus();
-}
-
-// Guards against double-submit (double-click → duplicate email/PATCH)
-var _rdpIntakeInFlight = {};
-var _advanceInFlight   = {};
-
-// Helper: send onboarding (intake) email from detail panel
-async function _rdpSendIntake(enquiryId) {
-  var funderSel = document.getElementById('rdp-intake-funder-' + enquiryId);
-  var ctypeSel  = document.getElementById('rdp-ctype-'         + enquiryId);
-  var clientType = funderSel ? funderSel.value : '';
-  if (!clientType) { toast('Select a funding type first', 'err'); return; }
-
-  var urlEl = document.getElementById('rdp-intake-url-' + enquiryId);
-  var intakeUrl = (urlEl ? urlEl.value : '') || HALAXY_URLS[clientType] || '';
-  intakeUrl = intakeUrl.trim();
-
-  if (!intakeUrl || !intakeUrl.startsWith('http')) {
-    toast('No intake URL available for that funding type — paste one in the URL field', 'err');
-    return;
-  }
-
-  var personType = ctypeSel ? ctypeSel.value : '';
-
-  if (_rdpIntakeInFlight[enquiryId]) return;              // block double-submit
-  _rdpIntakeInFlight[enquiryId] = true;
-  var sendBtn = document.querySelector('#rdp-body .m-btn-teal');
-  if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.6'; }
-  try {
-    await apiFetch('/api/admin-intake', { method: 'POST', body: { enquiryId: enquiryId, clientType: clientType, personType: personType, intakeUrl: intakeUrl } });
-    // Also record the funder selection on the enquiry
-    await apiFetch('/api/admin-enquiries?id=' + enquiryId, { method: 'PATCH', body: { intake_funder: clientType } }).catch(function() {});
-    closeDetailPanel();
-    _showSuccess('send', 'Email sent');
-    refreshPipeline();
-  } catch (e) {
-    toast('Could not send onboarding email: ' + e.message, 'err');
-  } finally {
-    delete _rdpIntakeInFlight[enquiryId];
-    if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = ''; }
-  }
-}
+// Guards against double-submit (double-click → duplicate status PATCH) on advanceEnquiryStatus
+var _advanceInFlight = {};
 
 /* ── Hello / greeting section (stubbed — replaced by sidebar badge) ── */
 function renderHelloSection() {
   updateSidebarBadge(); // update queue badge instead
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   "SET UP IN HALAXY" — Cheree self-serve onboarding wizard (step 2)
+   Match-or-create patient → (coverage) → $book (Halaxy auto-creates the
+   invoice). Reuses the proven endpoints ?halaxy_create_patient /
+   ?halaxy_coverage / ?halaxy_appt_action, and the funder×session-type→fee
+   config from session_fee_map (Settings → Booking fees). No Halaxy UI.
+   Full design: docs/halaxy-onboarding-spec.md.
+   ════════════════════════════════════════════════════════════════════ */
+var _sihState = { patientId: null, eventId: null };
+
+function openSetupInHalaxy(prefill) {
+  prefill = prefill || {};
+  _sihState = { patientId: null, eventId: prefill.eventId || null };
+
+  var funderOpts = '<option value="">Select funding…</option>'
+    + BOOKABLE_MENU.map(function(f) { return '<option value="' + f.key + '">' + escHtml(f.label) + '</option>'; }).join('');
+
+  var existing = document.getElementById('sih-overlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'sih-overlay';
+  overlay.className = 'db-modal-overlay open';
+  overlay.innerHTML =
+      '<div class="db-modal" style="width:480px;max-width:94vw">'
+    + '<div class="db-modal-hdr"><div>'
+    +   '<div class="db-modal-title">Set up in Halaxy</div>'
+    +   '<div class="db-modal-sub">Create the client &amp; book — the invoice is made automatically. No need to open Halaxy.</div>'
+    + '</div><button class="db-modal-close" onclick="this.closest(\'.db-modal-overlay\').remove()">×</button></div>'
+    + '<div class="db-modal-body" style="display:flex;flex-direction:column;gap:10px;padding:16px 24px;max-height:70vh;overflow:auto">'
+    +   '<div style="display:flex;gap:8px">'
+    +     '<input id="sih-first" class="db-form-input" placeholder="First name" value="' + escHtml(prefill.firstName || '') + '" style="flex:1">'
+    +     '<input id="sih-last"  class="db-form-input" placeholder="Last name"  value="' + escHtml(prefill.lastName  || '') + '" style="flex:1">'
+    +   '</div>'
+    +   '<input id="sih-email" class="db-form-input" type="email" placeholder="Email" value="' + escHtml(prefill.email || '') + '" oninput="_sihState.patientId=null" onblur="_sihSearchPatient()">'
+    +   '<input id="sih-phone" class="db-form-input" placeholder="Phone (optional)" value="' + escHtml(prefill.phone || '') + '">'
+    +   '<div id="sih-match" style="font-size:11.5px;color:var(--t3);min-height:16px"></div>'
+    +   '<select id="sih-funder" class="db-form-input" onchange="_sihOnFunderChange()">' + funderOpts + '</select>'
+    +   '<select id="sih-pm" class="db-form-input" style="display:none"></select>'
+    +   '<select id="sih-type" class="db-form-input" style="display:none" onchange="_sihOnTypeChange()"></select>'
+    +   '<div id="sih-fee" style="font-size:12px;color:var(--teal);min-height:16px"></div>'
+    +   '<select id="sih-modality" class="db-form-input" style="display:none">'
+    +     '<option value="clinic">In person</option><option value="online">Video</option><option value="phone">Phone</option>'
+    +   '</select>'
+    +   '<div style="display:flex;gap:8px">'
+    +     '<input id="sih-date" class="db-form-input" type="date" value="' + escHtml(prefill.dateISO || '') + '" style="flex:1">'
+    +     '<input id="sih-time" class="db-form-input" type="time" value="' + escHtml(prefill.time || '10:00') + '" style="width:118px">'
+    +     '<input id="sih-dur"  class="db-form-input" type="number" min="1" value="' + (prefill.durationMin || 60) + '" style="width:80px" title="Minutes">'
+    +   '</div>'
+    +   '<div id="sih-msg" style="font-size:12px;min-height:16px"></div>'
+    + '</div>'
+    + '<div class="db-modal-ftr" style="padding:14px 20px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;justify-content:flex-end">'
+    +   '<button class="db-btn" onclick="this.closest(\'.db-modal-overlay\').remove()">Cancel</button>'
+    +   '<button class="db-btn-primary" id="sih-book-btn" onclick="_sihSubmit()">Book in Halaxy →</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(overlay);
+  if (prefill.email) _sihSearchPatient();
+}
+
+// Open the "Set up in Halaxy" wizard prefilled from a Google Calendar event.
+function _sihFromCalEvent(eventId) {
+  var ev = _calEventMap[String(eventId)];
+  if (!ev) { openSetupInHalaxy(); return; }
+  var title = (ev.title || ev.summary || '').trim();
+  var parts = title ? title.split(/\s+/) : [];
+  var firstName = parts.shift() || '';
+  var lastName  = parts.join(' ');
+  var start = ev.start || '';
+  var dateISO = start.slice(0, 10);
+  // Pull wall-clock time straight from the ISO string's offset (avoids browser-TZ skew).
+  var time = (!ev.allDay && start.indexOf('T') === 10) ? start.slice(11, 16) : '';
+  var durationMin = 60;
+  if (start && ev.end) {
+    var mins = Math.round((new Date(ev.end) - new Date(start)) / 60000);
+    if (mins > 0 && mins < 24 * 60) durationMin = mins;
+  }
+  openSetupInHalaxy({
+    firstName: firstName, lastName: lastName, email: ev.email || '',
+    dateISO: dateISO, time: time || '10:00', durationMin: durationMin, eventId: String(eventId),
+  });
+}
+
+function _sihOnFunderChange() {
+  var fkey   = (document.getElementById('sih-funder') || {}).value || '';
+  var funder = _bookableFunder(fkey);
+  var typeSel = document.getElementById('sih-type');
+  var pmSel   = document.getElementById('sih-pm');
+  var feeDiv  = document.getElementById('sih-fee');
+  if (feeDiv) feeDiv.textContent = '';
+
+  if (funder && funder.planManaged) {
+    var pms = (_halaxyFunders || []).filter(function(f) { return f.billingKey === 'ndis_plan'; });
+    pmSel.innerHTML = '<option value="">Select plan manager…</option>'
+      + pms.map(function(p) { return '<option value="' + escHtml(p.name) + '">' + escHtml(p.name) + '</option>'; }).join('');
+    pmSel.style.display = '';
+  } else { pmSel.style.display = 'none'; pmSel.innerHTML = ''; }
+
+  if (funder) {
+    var opts = '<option value="">Select session type…</option>';
+    funder.items.forEach(function(it) {
+      var fee = _bookableResolveFee(it);
+      var lbl = it.label + (fee ? ' — $' + fee.amount.toFixed(2) : ' — (no fee set)');
+      opts += '<option value="' + it.id + '"' + (fee ? '' : ' disabled') + '>' + escHtml(lbl) + '</option>';
+    });
+    typeSel.innerHTML = opts;
+    typeSel.style.display = '';
+  } else { typeSel.style.display = 'none'; typeSel.innerHTML = ''; }
+  _sihOnTypeChange();
+}
+
+function _sihOnTypeChange() {
+  var funder = _bookableFunder((document.getElementById('sih-funder') || {}).value || '');
+  var tid    = (document.getElementById('sih-type') || {}).value || '';
+  var item   = funder && funder.items.find(function(i) { return i.id === tid; });
+  var feeDiv = document.getElementById('sih-fee');
+  var modSel = document.getElementById('sih-modality');
+  var durEl  = document.getElementById('sih-dur');
+  if (!item) { if (feeDiv) feeDiv.textContent = ''; if (modSel) modSel.style.display = 'none'; return; }
+  var fee = _bookableResolveFee(item);
+  if (feeDiv) {
+    feeDiv.textContent = fee ? ('Fee: ' + fee.name + ' — $' + fee.amount.toFixed(2)) : '⚠ No fee configured — set it in Settings → Booking fees.';
+    feeDiv.style.color = fee ? 'var(--teal)' : 'var(--amber)';
+  }
+  if (item.modality) { modSel.value = item.modality; modSel.style.display = 'none'; }
+  else { modSel.style.display = ''; }
+  if (item.durationMin && durEl) { durEl.value = item.durationMin; durEl.readOnly = true; }
+  else if (durEl) { durEl.readOnly = false; }
+}
+
+async function _sihSearchPatient() {
+  var email = ((document.getElementById('sih-email') || {}).value || '').trim();
+  var matchDiv = document.getElementById('sih-match');
+  if (!email) { if (matchDiv) matchDiv.textContent = ''; return; }
+  if (matchDiv) { matchDiv.textContent = '🔍 Checking Halaxy…'; matchDiv.style.color = 'var(--t3)'; }
+  try {
+    var d = await apiFetch('/api/admin-enquiries?halaxy_search=' + encodeURIComponent(email));
+    var pts = (d && d.patients) || [];
+    if (pts.length) {
+      _sihState.patientId = String(pts[0].id);
+      if (matchDiv) { matchDiv.innerHTML = '✓ Found <strong>' + escHtml(pts[0].name) + '</strong> in Halaxy — will book the existing patient.'; matchDiv.style.color = 'var(--teal)'; }
+    } else {
+      _sihState.patientId = null;
+      if (matchDiv) { matchDiv.textContent = 'No Halaxy match — a new patient will be created.'; matchDiv.style.color = 'var(--t3)'; }
+    }
+  } catch (e) {
+    _sihState.patientId = null;
+    if (matchDiv) { matchDiv.textContent = 'Could not check Halaxy (will create new on book).'; matchDiv.style.color = 'var(--amber)'; }
+  }
+}
+
+async function _sihSubmit() {
+  function val(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+  var msg = document.getElementById('sih-msg');
+  function err(t) { if (msg) { msg.textContent = t; msg.style.color = 'var(--terra)'; } }
+
+  var first = val('sih-first'), last = val('sih-last'), email = val('sih-email'), phone = val('sih-phone');
+  var fkey = val('sih-funder'), tid = val('sih-type'), date = val('sih-date'), time = val('sih-time');
+  var dur = parseInt(val('sih-dur') || '60', 10) || 60;
+  var funder = _bookableFunder(fkey);
+  if (!first || !last) return err('Enter the client’s first and last name.');
+  if (!funder)         return err('Choose a funding type.');
+  var item = funder.items.find(function(i) { return i.id === tid; });
+  if (!item)           return err('Choose a session type.');
+  if (!date)           return err('Choose a date.');
+  var fee = _bookableResolveFee(item);
+  if (!fee)            return err('This session type has no fee configured — set it in Settings → Booking fees.');
+  var pmName = funder.planManaged ? val('sih-pm') : '';
+  if (funder.planManaged && !pmName) return err('Choose the NDIS plan manager.');
+  var modEl = document.getElementById('sih-modality');
+  var locationType = item.modality || (modEl ? modEl.value : 'clinic') || 'clinic';
+
+  // Brisbane = UTC+10, no DST. Build start, derive end from duration.
+  var TZ = '+10:00';
+  var apptStart = date + 'T' + (time.length === 5 ? time : '10:00') + ':00' + TZ;
+  var endMs = new Date(apptStart).getTime() + dur * 60 * 1000;
+  var _e = new Date(endMs + 10 * 3600 * 1000), _p = function(n) { return ('0' + n).slice(-2); };
+  var apptEnd = _e.getUTCFullYear() + '-' + _p(_e.getUTCMonth() + 1) + '-' + _p(_e.getUTCDate())
+    + 'T' + _p(_e.getUTCHours()) + ':' + _p(_e.getUTCMinutes()) + ':00' + TZ;
+
+  var confirmMsg = first + ' ' + last + ' · ' + funder.label + (pmName ? ' (' + pmName + ')' : '') + ' · ' + item.label + ' · $' + fee.amount.toFixed(2)
+    + '\n' + date + ' ' + time + ' (' + dur + ' min)\n\n'
+    + 'This will ' + (_sihState.patientId ? 'use the existing Halaxy patient' : 'create a NEW Halaxy patient')
+    + (funder.billingKey !== 'private' ? ', add funder coverage' : '') + ', and book the appointment + create the invoice in Halaxy.\n\nContinue?';
+  if (!window.confirm(confirmMsg)) return;
+
+  var btn = document.getElementById('sih-book-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
+  if (msg) { msg.style.color = 'var(--t3)'; msg.textContent = 'Setting up…'; }
+  try {
+    var patientId = _sihState.patientId;
+    if (!patientId) {
+      if (msg) msg.textContent = 'Creating patient in Halaxy…';
+      var cr = await apiFetch('/api/admin-enquiries?halaxy_create_patient=1', { method: 'POST', body: {
+        firstName: first, lastName: last, email: email || undefined, phone: phone || undefined,
+        funder: funder.billingKey, planManager: pmName || undefined,
+      } });
+      patientId = cr && cr.halaxyId;
+      if (!patientId) throw new Error('Halaxy did not return a patient id');
+    }
+    if (funder.billingKey !== 'private') {
+      var payorId = null, payorName = funder.label;
+      if (funder.planManaged) {
+        var pm = (_halaxyFunders || []).find(function(f) { return f.name === pmName; });
+        payorId = pm ? pm.id : null; payorName = pmName;
+      } else {
+        var hxF = (_halaxyFunders || []).find(function(f) { return f.billingKey === funder.billingKey; });
+        payorId = hxF ? hxF.id : null; payorName = hxF ? hxF.name : funder.label;
+      }
+      if (msg) msg.textContent = 'Linking funder coverage…';
+      try {
+        await apiFetch('/api/admin-enquiries?halaxy_coverage=1', { method: 'POST', body: { patientId: String(patientId), payorId: payorId, payorName: payorName } });
+      } catch (ce) { console.warn('[sih] coverage failed:', ce && ce.message); }
+    }
+    if (msg) msg.textContent = 'Booking appointment + creating invoice…';
+    await apiFetch('/api/admin-enquiries?halaxy_appt_action=1', { method: 'POST', body: {
+      action: 'book', patientId: String(patientId), apptStart: apptStart, apptEnd: apptEnd,
+      feeId: fee.feeId, feeName: fee.name, feeAmount: fee.amount, locationType: locationType,
+    } });
+    toast('Set up in Halaxy ✓ — patient booked, invoice created', 'ok');
+    var ov = document.getElementById('sih-overlay'); if (ov) ov.remove();
+    refreshPipeline();
+  } catch (e) {
+    err('Failed: ' + (e && e.message ? e.message : 'error'));
+    if (btn) { btn.disabled = false; btn.textContent = 'Book in Halaxy →'; }
+  }
 }
 
 /* ── Add appointment (opens Google Calendar pre-filled) ── */
@@ -8539,51 +8499,6 @@ async function saveEnquiryNotesPl(id, notes) {
     await apiFetch('/api/admin-enquiries?id=' + id, { method: 'PATCH', body: { notes: notes } });
   } catch (e) {
     toast('Notes not saved: ' + e.message, 'err');
-  }
-}
-
-/* ── Intake panel (pipeline) ── */
-function togglePipelineIntake(id) {
-  var panel = document.getElementById('pl-intake-' + id);
-  if (!panel) return;
-  panel.classList.toggle('open');
-  if (panel.classList.contains('open')) updatePipelineIntakeUrl(id);
-}
-
-function updatePipelineIntakeUrl(id) {
-  var typeEl = document.getElementById('pl-itype-' + id);
-  var urlEl  = document.getElementById('pl-iurl-' + id);
-  if (!typeEl || !urlEl) return;
-  var known = HALAXY_URLS[typeEl.value] || '';
-  urlEl.value         = known;
-  urlEl.style.opacity = known ? '0.7' : '1';
-  urlEl.placeholder   = known ? '' : 'Paste Halaxy form URL…';
-  if (!known) urlEl.focus();
-}
-
-async function sendIntakePl(id) {
-  var typeEl  = document.getElementById('pl-itype-' + id);
-  var urlEl   = document.getElementById('pl-iurl-' + id);
-  var msgEl   = document.getElementById('pl-imsg-' + id);
-  var sendBtn = document.querySelector('#pl-intake-' + id + ' .pl-intake-send');
-
-  var intakeUrl  = (urlEl ? urlEl.value : '').trim();
-  var clientType = typeEl ? typeEl.value : 'new';
-
-  if (msgEl) { msgEl.textContent = ''; msgEl.style.color = 'var(--teal)'; }
-  if (!intakeUrl || !intakeUrl.startsWith('http')) {
-    if (msgEl) { msgEl.textContent = 'Paste a valid Halaxy URL first.'; msgEl.style.color = 'var(--terra)'; }
-    return;
-  }
-  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
-  try {
-    await apiFetch('/api/admin-intake', { method: 'POST', body: { enquiryId: id, clientType: clientType, intakeUrl: intakeUrl } });
-    if (msgEl) msgEl.textContent = 'Intake sent ✓';
-    toast('Intake email sent');
-    setTimeout(function() { refreshPipeline(); }, 1200);
-  } catch (err) {
-    if (msgEl) { msgEl.textContent = 'Error: ' + err.message; msgEl.style.color = 'var(--terra)'; }
-    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send →'; }
   }
 }
 
@@ -9128,36 +9043,6 @@ function closeAddClient() {
   if (modal) modal.classList.remove('open');
 }
 
-/**
- * Build the intake-type <select> used on intake cards (in_halaxy stage).
- * Options are deduplicated billingKey groups derived from _halaxyFunders so
- * no hardcoded list ever appears.  Value is the billingKey so HALAXY_URLS
- * lookup in updatePipelineIntakeUrl() still works.
- */
-function _intakeTypeSelectorHtml(id) {
-  // Private and Medicare are always available (no Halaxy org); other funders
-  // are shown if they have at least one Halaxy Organisation record.
-  var alwaysOn   = ['private', 'medicare'];
-  var orgBacked  = ['dva', 'ndis_plan', 'qfes', 'workcover'];
-  var seen       = {};
-  var funders    = _halaxyFunders || [];
-  funders.forEach(function(f) { if (f.billingKey) seen[f.billingKey] = true; });
-
-  var opts = alwaysOn.map(function(k) {
-    return '<option value="' + k + '">' + escHtml(FUNDER_LABELS[k] || k) + '</option>';
-  }).join('');
-
-  orgBacked.forEach(function(k) {
-    // Show if Halaxy has an org for it, OR if funders haven't loaded yet (show all as fallback)
-    if (seen[k] || !funders.length) {
-      opts += '<option value="' + k + '">' + escHtml(FUNDER_LABELS[k] || k) + '</option>';
-    }
-  });
-
-  return '<select class="pl-intake-sel" id="pl-itype-' + id + '" onclick="event.stopPropagation()" onchange="updatePipelineIntakeUrl(\'' + id + '\')">'
-    + opts + '</select>';
-}
-
 function _buildFunderDropdownHtml(funders) {
   // Private and Medicare have no Halaxy Organisation record — always add them as
   // static options so they never go missing from the dropdown.
@@ -9467,13 +9352,6 @@ async function saveNewClient() {
           method: 'POST',
           body: { patientId: String(resp.halaxyId), payorId: hxF ? hxF.id : null, payorName: hxF ? hxF.name : (FUNDER_LABELS[funder] || funder) }
         }).catch(function() {}); // non-blocking, best-effort
-      }
-
-      // If this creation was triggered from an enquiry's "Add to Halaxy" flow, advance that enquiry
-      if (window._pendingEnqId) {
-        var pendingId = window._pendingEnqId;
-        window._pendingEnqId = null;
-        await apiFetch('/api/admin-enquiries?id=' + pendingId, { method: 'PATCH', body: { status: 'in_halaxy' } }).catch(function() {});
       }
 
     } else if (mode === 'dashboard') {

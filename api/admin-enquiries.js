@@ -11,6 +11,7 @@ import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
 import { halaxyGet, halaxyPost, halaxyPatch } from './_halaxy.js';
 import { createCalendarEvent } from './calendar-pending.js';
+import { registrationCompleteEmailHtml } from './_emails.js';
 
 /* ─────────────────────────────────────────────
    Halaxy config cache helpers (non-PII data)
@@ -400,7 +401,8 @@ function _reminderLocationLabel(type) {
   return { clinic: 'In-clinic (Mitchelton)', telehealth: 'Telehealth — video call', phone: 'Phone call', online: 'Online' }[type] || 'In-clinic';
 }
 
-function _reminderHtml({ clientName, dateLabel, timeLabel, locationLabel }) {
+// Exported so the admin Settings "Email tests" picker can render it.
+export function _reminderHtml({ clientName, dateLabel, timeLabel, locationLabel }) {
   const name = clientName || 'there';
   const e = _reminderEscapeHtml;
   return `<!DOCTYPE html>
@@ -583,6 +585,99 @@ export default async function handler(req, res) {
     } catch (err) {
       console.error('Reminder cron error:', err.message);
       return res.status(500).json({ ok: false, error: err.message });
+    }
+  }
+
+  /* ── Halaxy Patient·Create webhook: a client completed the /register form ──────
+   * POST /api/admin-enquiries?halaxy_webhook=1
+   * Auth: shared secret in a header (Halaxy "Authentication Header" config) — we accept
+   *   `x-halaxy-secret: <SECRET>` or `Authorization: Bearer <SECRET>`. Set HALAXY_WEBHOOK_SECRET.
+   * Payload: a FHIR SubscriptionStatus bundle whose notificationEvent focus references the new
+   *   Patient (`.../Patient/<id>`) — no patient detail, so we fetch the Patient to get name/email.
+   * Behaviour: match the enquiry by email → advance to `in_halaxy` (+ store Halaxy ref); no
+   *   match → create a `self-registered` enquiry at `in_halaxy`; then send the thank-you email.
+   *   Idempotent via a patient-id ledger. Always replies 200 so Halaxy doesn't retry-storm.
+   * ─────────────────────────────────────────────────────────────────────────────── */
+  if (req.method === 'POST' && (req.query?.halaxy_webhook || new URL(req.url, 'http://x').searchParams.get('halaxy_webhook'))) {
+    // Accept the secret in ANY request header — robust to however Halaxy formats the
+    // "Authentication Header" field (its own header name, or wrapped in Authorization).
+    // The secret is high-entropy, so a contains-check is safe from false positives.
+    const secret  = process.env.HALAXY_WEBHOOK_SECRET;
+    const present = secret && Object.values(req.headers || {}).some(v => String(v).includes(secret));
+    if (!present) {
+      return res.status(401).json({ ok: false, error: 'Unauthorised' });
+    }
+    try {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+      // The SubscriptionStatus notification only carries a Patient reference — grab the id.
+      const m   = JSON.stringify(body).match(/Patient\/(\d+)/);
+      const pid = m ? m[1] : '';
+      if (!pid) return res.status(200).json({ ok: true, skipped: 'no patient reference in payload' });
+
+      const db = supabase();
+      const LEDGER_KEY = 'halaxy_registered_patients';
+      const ledger = (await readCache(db, LEDGER_KEY)) || {};
+      if (ledger[pid]) return res.status(200).json({ ok: true, skipped: 'already processed', pid });
+
+      // Fetch the patient → name + email
+      const patient   = await halaxyGet('/Patient/' + pid);
+      const nameObj   = (patient.name || []).find(n => n.use === 'official') || patient.name?.[0] || {};
+      const firstName = ((nameObj.given || [])[0] || '').trim();
+      const lastName  = (nameObj.family || '').trim();
+      const emailTel  = (patient.telecom || []).find(t => t.system === 'email' && t.value);
+      const email     = emailTel ? String(emailTel.value).trim() : '';
+      const halaxyRef = 'https://au-api.halaxy.com/main/Patient/' + pid;
+
+      // Real /register patients always have an email — bail (no ledger mark, retry-safe)
+      // rather than create a blank enquiry from a malformed/failed fetch.
+      if (!email) {
+        return res.status(200).json({ ok: true, skipped: 'patient has no email', pid });
+      }
+
+      // Match an existing enquiry by email (prefer a still-open one), else create one.
+      let matched = null;
+      if (email) {
+        try {
+          const { data: rows } = await db.from('enquiries').select('*')
+            .ilike('email', email).order('created_at', { ascending: false }).limit(5);
+          matched = (rows || []).find(r => r.status !== 'closed' && r.status !== 'converted') || (rows || [])[0] || null;
+        } catch (_) {}
+      }
+
+      if (matched) {
+        const upd = { status: 'in_halaxy' };
+        if (!matched.halaxy_client_url) upd.halaxy_client_url = halaxyRef;
+        try { await db.from('enquiries').update(upd).eq('id', matched.id); } catch (e) { console.error('[halaxy_webhook] update failed:', e.message); }
+        try { await db.from('activity_log').insert({ enquiry_id: matched.id, actor: 'Halaxy', action: 'status', detail: 'in_halaxy (completed /register)' }); } catch (_) {}
+      } else {
+        // No enquiry yet → create one so they surface in the pipeline (flagged self-registered).
+        try {
+          const { data: created } = await db.from('enquiries')
+            .insert({ first_name: firstName, last_name: lastName, email, status: 'in_halaxy', halaxy_client_url: halaxyRef, reason: 'Self-registered via /register' })
+            .select('id').single();
+          if (created) { try { await db.from('activity_log').insert({ enquiry_id: created.id, actor: 'Halaxy', action: 'created', detail: 'self-registered via /register' }); } catch (_) {} }
+        } catch (e) { console.error('[halaxy_webhook] create enquiry failed:', e.message); }
+      }
+
+      // Thank-you email (best-effort)
+      if (email && _resend) {
+        try {
+          await _resend.emails.send({
+            from:    'Cheree McGarry <reachout@chereemcgarry.com>',
+            to:      email,
+            subject: `You're all set, ${firstName || 'there'} — registration complete`,
+            html:    registrationCompleteEmailHtml({ firstName: firstName || 'there' }),
+          });
+        } catch (e) { console.error('[halaxy_webhook] thank-you send failed:', e.message); }
+      }
+
+      ledger[pid] = new Date().toISOString();
+      try { await writeCache(db, LEDGER_KEY, ledger); } catch (_) {}
+
+      return res.status(200).json({ ok: true, pid, matched: !!matched, emailed: !!email });
+    } catch (err) {
+      console.error('[halaxy_webhook] error:', err.message);
+      return res.status(200).json({ ok: false, error: err.message }); // 200 to avoid retry storms
     }
   }
 
@@ -1287,6 +1382,23 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── POST ?settings_set=1 — write a whitelisted settings-cache key ──────────────
+   * Used by Settings → "Booking fees" to persist `session_fee_map` (the funder×session-type
+   * → Halaxy fee config the "Set up in Halaxy" flow reads). Authed (isAuthed, above). The
+   * key is whitelisted so this can't write arbitrary settings (e.g. Halaxy/Google tokens).
+   * ─────────────────────────────────────────────────────────────────────────────── */
+  if (req.method === 'POST' && params.get('settings_set')) {
+    const { key, value } = req.body || {};
+    const ALLOWED = ['session_fee_map'];
+    if (!ALLOWED.includes(key)) return res.status(400).json({ error: 'Unknown or non-writable settings key' });
+    try {
+      await writeCache(supabase(), key, value);
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   /* ── GET /api/admin-enquiries?halaxy_search=<email> — find Halaxy patient by email ── */
   if (req.method === 'GET' && halaxySearch) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ patients: [] });
@@ -1306,7 +1418,7 @@ export default async function handler(req, res) {
     const [
       { data: enquiries }, clientsResult, { data: activityRaw },
       fundersCached, feesCached, feeMapCached,
-      { data: tasksRaw },
+      { data: tasksRaw }, sessionFeeMapCached,
     ] = await Promise.all([
       db.from('enquiries').select('*').order('created_at', { ascending: false }),
       db.from('clients').select(`
@@ -1319,6 +1431,7 @@ export default async function handler(req, res) {
       readCache(db, 'halaxy_fees_cache'),
       readCache(db, 'halaxy_fee_funder_map'),
       db.from('tasks').select('*').order('created_at', { ascending: true }),
+      readCache(db, 'session_fee_map'),   // funder×session-type → Halaxy fee config (Settings → Booking fees)
     ]);
 
     // If the full clients query failed (e.g. enquiry_id column not yet migrated),
@@ -1619,6 +1732,7 @@ export default async function handler(req, res) {
       clients:   clients || [],
       tasks:     tasksRaw || [],
       halaxy,
+      session_fee_map: sessionFeeMapCached || null,
     });
   }
 

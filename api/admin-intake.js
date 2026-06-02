@@ -15,6 +15,11 @@
 import { Resend } from 'resend';
 import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
+// shared template + other live client emails, so the Settings "Email tests" picker can render every one
+import { registrationCompleteEmailHtml } from './_emails.js';
+import { clientReplyHtml }        from './contact.js';
+import { clientConfirmationHtml } from './session.js';
+import { _reminderHtml }          from './admin-enquiries.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -120,6 +125,7 @@ function fundingNote(clientType) {
 
 function subjectLine(clientType, firstName) {
   if (clientType === 'registration') return `Let's get you registered, ${firstName}`;
+  if (clientType === 'complete')     return `You're all set, ${firstName} — registration complete`;
   if (clientType === 'personal') return `A few details before we begin, ${firstName}`;
   if (clientType === 'medicare') return `Let's get you registered — Medicare sessions with Cheree McGarry`;
   if (clientType === 'ndis')     return `Let's get you registered — NDIS sessions with Cheree McGarry`;
@@ -356,11 +362,35 @@ function registrationEmailHtml({ firstName }) {
   `, `A few quick details and we'll get you booked in.`);
 }
 
-// Choose the right template for a funding type
+// Choose the right template for a funding type (real registration sends)
 function buildIntakeHtml(clientType, firstName, intakeUrl) {
   if (clientType === 'registration') return registrationEmailHtml({ firstName });
+  if (clientType === 'complete')     return registrationCompleteEmailHtml({ firstName });
   if (clientType === 'personal')     return personalEmailHtml({ firstName, intakeUrl });
   return intakeEmailHtml({ firstName, clientType, intakeUrl });
+}
+
+// ── Test renderer: ANY live client email → { subject, html } with sample data ──
+// Single source for the Settings "Email tests" picker. Add new client emails here
+// (and an <option> in admin-ui.js renderSettingsView) so everything stays testable.
+function renderTestEmail(type) {
+  const fn = 'Cheree';
+  const sampleUrl = 'https://au.halaxy.com/profile/cheree-mcgarry/intake-form/example';
+  switch (type) {
+    case 'enquiry':  return { subject: 'Thanks for reaching out — Cheree McGarry Counselling',
+                              html: clientReplyHtml({ firstName: fn, reason: 'Anxiety & stress' }) };
+    case 'session':  return { subject: 'Your session request — Cheree McGarry Counselling',
+                              html: clientConfirmationHtml({ firstName: fn, service: 'Individual counselling', coverage: 'Private' }) };
+    case 'reminder': return { subject: 'Appointment reminder — Cheree McGarry',
+                              html: _reminderHtml({ clientName: fn, dateLabel: 'Tuesday, 18 June', timeLabel: '10:00 AM', locationLabel: 'In person · Karalee, QLD' }) };
+    case 'registration':
+    case 'complete':
+    case 'personal':
+    case 'new':
+    case 'medicare':
+    case 'ndis':     return { subject: subjectLine(type, fn), html: buildIntakeHtml(type, fn, sampleUrl) };
+    default:         return null;
+  }
 }
 
 // ── Handler ──────────────────────────────────────────────────────
@@ -371,27 +401,29 @@ export default async function handler(req, res) {
 
   const { enquiryId, clientType = 'new', intakeUrl = '', test = false } = req.body || {};
 
-  const VALID_TYPES = ['registration', 'new', 'personal', 'medicare', 'ndis'];
-  if (!VALID_TYPES.includes(clientType)) {
-    return res.status(400).json({ error: 'clientType must be one of: ' + VALID_TYPES.join(', ') });
-  }
-
-  // ── Test mode: render the chosen template with sample data, send ONLY to admin@ ──
-  // No enquiry lookup, no DB writes, no client email. Used by the Settings "Email test" picker.
+  // ── Test mode: render ANY live client email with sample data, send ONLY to admin@ ──
+  // No enquiry lookup, no DB writes, no client email. Used by the Settings "Email tests" picker.
   if (test) {
-    const sampleUrl = (intakeUrl && intakeUrl.trim()) || 'https://au.halaxy.com/profile/cheree-mcgarry/intake-form/example';
+    const sample = renderTestEmail(clientType);
+    if (!sample) return res.status(400).json({ error: 'Unknown email type: ' + clientType });
     try {
       await resend.emails.send({
         from:    'Cheree McGarry <reachout@chereemcgarry.com>',
         to:      ['admin@chereemcgarry.com'],
-        subject: '[TEST] ' + subjectLine(clientType, 'Cheree'),
-        html:    buildIntakeHtml(clientType, 'Cheree', sampleUrl),
+        subject: '[TEST] ' + sample.subject,
+        html:    sample.html,
       });
       return res.status(200).json({ ok: true, test: true });
     } catch (err) {
       console.error('[api/admin-intake] test send error:', err);
       return res.status(500).json({ error: 'Failed to send test email.' });
     }
+  }
+
+  // ── Real send: registration-family templates only ──
+  const VALID_TYPES = ['registration', 'complete', 'new', 'personal', 'medicare', 'ndis'];
+  if (!VALID_TYPES.includes(clientType)) {
+    return res.status(400).json({ error: 'clientType must be one of: ' + VALID_TYPES.join(', ') });
   }
 
   if (!enquiryId) return res.status(400).json({ error: 'enquiryId is required.' });

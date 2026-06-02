@@ -86,7 +86,8 @@ function wrap(innerHtml) {
 }
 
 // ── Client auto-reply ────────────────────────────────────────────
-function clientReplyHtml({ firstName, reason }) {
+// Exported so the admin Settings "Email tests" picker can render it.
+export function clientReplyHtml({ firstName, reason }) {
   const reasonLine = reason && reason !== ''
     ? `<p style="font-size:14px;color:${C.mid};line-height:1.7;margin:0 0 16px;">I received your message about <strong style="color:${C.tealDeep};font-weight:500;">${reason.toLowerCase()}</strong> and I'll be in touch within 1–2 business days.</p>`
     : `<p style="font-size:14px;color:${C.mid};line-height:1.7;margin:0 0 16px;">I received your message and I'll be in touch within 1–2 business days.</p>`;
