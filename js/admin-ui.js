@@ -3349,13 +3349,15 @@ function _buildUnifiedSessions(opts) {
     } else if (key && sessionedSet.has(key)) {
       status = 'invoiced';
     } else if (startMs < now.getTime()) {
-      // Past appointment — check dateInvoiceMap as a final fallback before assuming no billing.
-      // This catches invoices that Halaxy returned without a resolvable patientId (so they
-      // never made it into invoicedSet, but we know billing happened on this date).
-      if (dateInvoiceMap[dateStr] && dateInvoiceMap[dateStr].length) {
+      // Past appointment with no invoice matched to it. ONLY borrow a same-date
+      // invoice when the patient is UNRESOLVED (!key) — a last-resort guess for
+      // appointments Halaxy returned without a participant. When the patient IS
+      // known (key set) but their own invoice wasn't found, do NOT borrow a
+      // stranger's same-date invoice (that produced the false "Paid" on Kaegan,
+      // whose unpaid funder invoice is on a different date) — it needs an invoice.
+      if (!key && dateInvoiceMap[dateStr] && dateInvoiceMap[dateStr].length === 1) {
         var fallbackInv = dateInvoiceMap[dateStr][0];
-        // Same guard: only claim "Paid" when a single unambiguous invoice exists that day.
-        status = (dateInvoiceMap[dateStr].length === 1 && _invIsPaid(fallbackInv)) ? 'paid' : 'invoiced';
+        status = _invIsPaid(fallbackInv) ? 'paid' : 'invoiced';
       } else {
         status = 'pending-invoice';
       }
