@@ -438,6 +438,7 @@ window.addEventListener('resize', (function() {
 var _pipelineData    = null;
 var _halaxyData      = { connected: false, appointments: [], patients: [], patientMap: {}, funders: [] };
 var _calEventMap     = {};    // eventId → event object
+var _calEventLinks   = {};    // eventId → enquiryId (Google Cal ↔ contact card merge ledger)
 var _calDismissed    = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
 var _calReminders    = new Set(JSON.parse(localStorage.getItem('cal_reminders')  || '[]'));
 window._completedExpanded = false; // toggle for completed section in queue view
@@ -2599,6 +2600,7 @@ async function loadPipeline() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     var d = await r.json();
     _pipelineData  = d;
+    _calEventLinks = d.calendar_event_links || {};  // Google Cal ↔ contact card merges
     _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [], feeMap: {} };
     // Always set _halaxyFunders to an array after pipeline loads — never leave it null
     _halaxyFunders = _halaxyData.funders || [];
@@ -2671,6 +2673,7 @@ function refreshPipeline() {
     return r.json();
   }).then(function(d) {
     _pipelineData  = d;
+    _calEventLinks = d.calendar_event_links || {};  // Google Cal ↔ contact card merges
     _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [], feeMap: {} };
     // Always set _halaxyFunders to an array after pipeline loads — never leave it null
     _halaxyFunders = _halaxyData.funders || [];
@@ -2865,6 +2868,7 @@ function _mobInitPullToRefresh() {
           .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(function(d) {
             _pipelineData  = d;
+            _calEventLinks = d.calendar_event_links || {};
             _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [], feeMap: {} };
             _halaxyFunders = _halaxyData.funders || [];
             _halaxyFeeMap  = _halaxyData.feeMap  || {};
@@ -4321,10 +4325,34 @@ function _dhTypeBadge(kind) {
     + m.bg + ';color:' + m.c + ';white-space:nowrap">' + m.t + '</span>';
 }
 
+// The Google Cal event merged onto a contact card (if any) → {dateLabel,timeStr,eventId}.
+// Prefers the soonest upcoming linked event, else the most recent past one.
+function _dhEnqLinkedCalAppt(enquiryId) {
+  if (!enquiryId || !_calEventLinks) return null;
+  var now = Date.now(), best = null;
+  Object.keys(_calEventLinks).forEach(function(eid) {
+    if (String(_calEventLinks[eid]) !== String(enquiryId)) return;
+    var ev = _calEventMap[eid];
+    if (!ev || !ev.start) return;
+    var ms = new Date(ev.start).getTime();
+    if (!best) { best = { eid: eid, ev: ev, ms: ms }; return; }
+    var bUp = best.ms >= now, tUp = ms >= now;
+    if (tUp && !bUp) best = { eid: eid, ev: ev, ms: ms };
+    else if (tUp === bUp && (tUp ? ms < best.ms : ms > best.ms)) best = { eid: eid, ev: ev, ms: ms };
+  });
+  if (!best) return null;
+  var d = new Date(best.ev.start);
+  return {
+    eventId:   best.eid,
+    dateLabel: d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }),
+    timeStr:   best.ev.allDay ? '' : d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }),
+  };
+}
+
 function _dhEnqMeta(e) {
   var client    = _dhEnqClientMap[e.id];
   var hxId      = client && client.halaxy_id ? String(client.halaxy_id) : null;
-  var nextAppt  = hxId && _dhPatientApptMap[hxId] && _dhPatientApptMap[hxId][0];
+  var nextAppt  = (hxId && _dhPatientApptMap[hxId] && _dhPatientApptMap[hxId][0]) || _dhEnqLinkedCalAppt(e.id);
   var actCount  = (e.activity || []).length;
   var taskCount = (_dhTasks || []).filter(function(t) { return t.enquiry_id === e.id && !t.completed; }).length;
   var sourceLbl = _dhSourceLabels[e.source || ''] || (e.source ? e.source.replace(/-/g,' ') : 'Direct');
@@ -4572,7 +4600,8 @@ function _recomputeInboxBuckets() {
     return !_isPersonalAppt(s) && s.source === 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
   });
   _dhNonHalaxyActions = _uni.past.filter(function(s) {
-    return !_isPersonalAppt(s) && s.source !== 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
+    return !_isPersonalAppt(s) && s.source !== 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording')
+      && !(s.eventId && _calEventLinks[s.eventId]); // merged onto a contact card → fold out
   });
   _dhEnqClientMap = {};
   clients.forEach(function(c) { if (c.enquiry_id) _dhEnqClientMap[c.enquiry_id] = c; });
@@ -4588,7 +4617,8 @@ function _recomputeInboxBuckets() {
   });
   // Every upcoming cal event without a Halaxy patient must surface in Unlinked
   _dhUnlinkedCalAppts = _uni.upcoming.filter(function(s) {
-    return s.source === 'cal' && !s.patientId && !s.isReminder;
+    return s.source === 'cal' && !s.patientId && !s.isReminder
+      && !_calEventLinks[s.eventId]; // merged onto a contact card → fold out
   });
 
   // Refresh whichever surface is currently showing inbox/home data
@@ -4912,7 +4942,8 @@ function renderHomeView() {
   });
   // Non-Halaxy appointment needing merge or dismiss (calendar / dashboard)
   _dhNonHalaxyActions = _uni.past.filter(function(s) {
-    return !_isPersonalAppt(s) && s.source !== 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
+    return !_isPersonalAppt(s) && s.source !== 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording')
+      && !(s.eventId && _calEventLinks[s.eventId]); // merged onto a contact card → fold out
   });
 
   _dhEnqClientMap = {};
@@ -4928,7 +4959,8 @@ function renderHomeView() {
     _dhPatientApptMap[k].sort(function(a, b) { return a.startMs - b.startMs; });
   });
   _dhUnlinkedCalAppts = _uni.upcoming.filter(function(s) {
-    return s.source === 'cal' && !s.patientId && !s.isReminder;
+    return s.source === 'cal' && !s.patientId && !s.isReminder
+      && !_calEventLinks[s.eventId]; // merged onto a contact card → fold out
   });
 
   var allEnqs       = enquiries;
@@ -7753,6 +7785,19 @@ function _renderSessionDetailPanel(sess) {
     return html;
   }
 
+  // Already merged onto a contact card → show the link + offer unlink (the
+  // Halaxy set-up happens from that contact card, not here).
+  var _linkedEnqId = (sess.source === 'cal') ? _calEventLinks[sess.eventId || sess.id] : null;
+  if (_linkedEnqId) {
+    var _le   = ((_pipelineData && _pipelineData.enquiries) || []).find(function(x) { return String(x.id) === String(_linkedEnqId); });
+    var _leNm = _le ? ([_le.first_name, _le.last_name].filter(Boolean).join(' ') || 'contact card') : 'contact card';
+    html += '<div class="m-info-box" style="margin:8px 0 12px">' + _dhTypeBadge('gcal') + ' Merged onto <strong>' + escHtml(_leNm) + '</strong> — set it up in Halaxy from that contact card.</div>';
+    if (_le) html += '<button class="m-btn-ghost" onclick="openDetailPanel(\'enquiry\',\'' + escHtml(String(_linkedEnqId)) + '\')">Open contact card →</button>';
+    html += '<button class="m-btn-ghost" onclick="unlinkCalEvent(\'' + escHtml(String(sess.eventId || sess.id)) + '\')">Unlink</button>';
+    html += '<div class="m-foot"><button class="m-btn-danger" onclick="deleteScheduleAppt(\'' + escHtml(String(sess.eventId || sess.id)) + '\')">Delete from calendar</button></div>';
+    return html;
+  }
+
   // Unlinked GCal events — delegate to _calUnlinkedActionHtml
   var isUnlinkedCal = sess.source === 'cal' && !sess.patientId;
   if (isUnlinkedCal && (sess.status === 'needs-recording' || sess.status === 'upcoming')) {
@@ -7798,6 +7843,11 @@ function _calUnlinkedActionHtml(eventId, calName) {
   html += '<div class="m-question">Or…</div>';
   html += '<div class="m-option-list">';
 
+  html += '<button class="m-option-item" onclick="openMergePicker(\'event\',\'' + safeId + '\')">'
+    + '<span class="m-option-label">🔗 Link to a contact card</span>'
+    + '<span class="m-option-hint">Merge onto an existing enquiry — it becomes that contact\'s appointment</span>'
+    + '</button>';
+
   html += '<button class="m-option-item" onclick="_calDismissAlreadyBooked(\'' + safeId + '\',\'' + safeName + '\')">'
     + '<span class="m-option-label">Already booked in Halaxy</span>'
     + '<span class="m-option-hint">Just hide this calendar duplicate — no fee or invoice</span>'
@@ -7821,6 +7871,129 @@ function _calDismissAlreadyBooked(eventId, name) {
   dismissCalEvent(eventId);
   closeDetailPanel();
   _showSuccess('merge', 'Hidden — already in Halaxy');
+}
+
+/* ═══════════════════════════════════════════════════
+   MERGE: Google Cal event ↔ contact card (enquiry)
+   Link so the card becomes a booked appointment. Both directions open the same
+   picker; selecting writes the cal_link ledger and refreshes. Reversible.
+   ═══════════════════════════════════════════════════ */
+var _mergeMode = null;     // 'event' → pick a card | 'card' → pick an event
+var _mergeAnchorId = null; // eventId (mode 'event') or enquiryId (mode 'card')
+
+// Crude name-overlap score to surface the likely match (cal events carry only a title).
+function _mergeFuzzy(a, b) {
+  a = (a || '').toLowerCase().trim(); b = (b || '').toLowerCase().trim();
+  if (!a || !b) return 0;
+  if (a === b) return 100;
+  if (a.indexOf(b) !== -1 || b.indexOf(a) !== -1) return 70;
+  var bw = b.split(/\s+/), hit = 0;
+  a.split(/\s+/).forEach(function(w) { if (w.length > 1 && bw.indexOf(w) !== -1) hit++; });
+  return hit * 30;
+}
+
+function openMergePicker(mode, anchorId) {
+  _mergeMode = mode; _mergeAnchorId = anchorId;
+  // Remove any prior instance, then build fresh. Visibility is driven by an
+  // inline display:flex (the inline <style> sets .modal-overlay{display:none}
+  // and there is no .modal-overlay.open rule — same pattern as Add Reminder).
+  var prev = document.getElementById('merge-picker-overlay');
+  if (prev) prev.remove();
+  var ov = document.createElement('div');
+  ov.id = 'merge-picker-overlay';
+  ov.className = 'modal-overlay modal-centered';
+  ov.style.cssText = 'display:flex;z-index:500'; // above the detail-panel drawer (z400)
+  ov.onclick = function(e) { if (e.target === ov) closeMergePicker(); };
+  document.body.appendChild(ov);
+  var title = mode === 'event' ? 'Link to a contact card' : 'Attach a calendar appointment';
+  var hint  = mode === 'event' ? 'Pick the person this Google Cal appointment is for.' : 'Pick the Google Cal appointment for this contact.';
+  ov.innerHTML = '<div class="modal-card" style="max-width:440px;width:92%;padding:0" onclick="event.stopPropagation()">'
+    + '<div style="padding:18px 20px 12px;border-bottom:1px solid rgba(255,255,255,0.07)">'
+    +   '<div style="font-size:15px;font-weight:700;color:var(--t1)">' + title + '</div>'
+    +   '<div style="font-size:12px;color:var(--t3);margin-top:3px">' + hint + '</div>'
+    +   '<input id="merge-search" placeholder="Search…" autocomplete="off" oninput="_renderMergeList(this.value)" style="margin-top:10px;width:100%;box-sizing:border-box;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--t1);font-size:13px;font-family:inherit">'
+    + '</div>'
+    + '<div id="merge-list" style="max-height:50vh;overflow-y:auto;padding:8px"></div>'
+    + '<div style="padding:10px 20px 16px;text-align:right"><button onclick="closeMergePicker()" style="font-size:12px;padding:7px 14px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--t2);cursor:pointer;font-family:inherit">Cancel</button></div>'
+    + '</div>';
+  _renderMergeList('');
+  setTimeout(function() { var i = document.getElementById('merge-search'); if (i) i.focus(); }, 60);
+}
+
+function closeMergePicker() {
+  var ov = document.getElementById('merge-picker-overlay');
+  if (ov) ov.remove();
+  _mergeMode = null; _mergeAnchorId = null;
+}
+
+function _renderMergeList(query) {
+  var listEl = document.getElementById('merge-list');
+  if (!listEl) return;
+  var q = (query || '').toLowerCase().trim();
+  var rows;
+  if (_mergeMode === 'event') {
+    // Pick a contact card — suggest by the event title
+    var ev = _calEventMap[_mergeAnchorId] || {};
+    var enqs = ((_pipelineData && _pipelineData.enquiries) || []).filter(function(e) { return e.status !== 'dismissed' && e.status !== 'closed'; });
+    enqs.forEach(function(e) { e._mScore = _mergeFuzzy([e.first_name, e.last_name].filter(Boolean).join(' '), ev.title); });
+    enqs = enqs.filter(function(e) { var nm = ([e.first_name, e.last_name].filter(Boolean).join(' ')).toLowerCase(); return !q || nm.indexOf(q) !== -1 || (e.email || '').toLowerCase().indexOf(q) !== -1; });
+    enqs.sort(function(a, b) { return b._mScore - a._mScore; });
+    rows = enqs.slice(0, 12).map(function(e) {
+      var nm = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
+      var sug = e._mScore >= 70 ? '<span style="font-size:9.5px;color:var(--teal);margin-left:6px">suggested</span>' : '';
+      return '<div onclick="selectMerge(\'' + escHtml(String(e.id)) + '\')" style="padding:10px 12px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px" onmouseover="this.style.background=\'rgba(255,255,255,0.05)\'" onmouseout="this.style.background=\'transparent\'">'
+        + '<div class="dh-attn-av ' + _dhAvCol(nm) + '" style="width:30px;height:30px;font-size:10px">' + _dhIni(nm) + '</div>'
+        + '<div style="flex:1;min-width:0"><div style="font-size:13px;color:var(--t1);font-weight:600">' + escHtml(nm) + sug + '</div>'
+        + '<div style="font-size:11px;color:var(--t3)">' + escHtml(e.email || 'no email') + '</div></div></div>';
+    });
+  } else {
+    // Pick an unlinked cal event — suggest by the enquiry name
+    var enq = ((_pipelineData && _pipelineData.enquiries) || []).find(function(x) { return String(x.id) === String(_mergeAnchorId); }) || {};
+    var enqName = [enq.first_name, enq.last_name].filter(Boolean).join(' ');
+    var events = Object.keys(_calEventMap).map(function(k) { return _calEventMap[k]; })
+      .filter(function(ev2) { return ev2 && ev2.start && !_calEventLinks[ev2.id]; });
+    events.forEach(function(ev2) { ev2._mScore = _mergeFuzzy(ev2.title, enqName); });
+    events = events.filter(function(ev2) { return !q || (ev2.title || '').toLowerCase().indexOf(q) !== -1; });
+    events.sort(function(a, b) { return (b._mScore - a._mScore) || (new Date(a.start) - new Date(b.start)); });
+    rows = events.slice(0, 15).map(function(ev2) {
+      var d = new Date(ev2.start);
+      var when = d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) + (ev2.allDay ? '' : ' · ' + d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }));
+      var sug = ev2._mScore >= 70 ? '<span style="font-size:9.5px;color:var(--teal);margin-left:6px">suggested</span>' : '';
+      return '<div onclick="selectMerge(\'' + escHtml(String(ev2.id)) + '\')" style="padding:10px 12px;border-radius:8px;cursor:pointer" onmouseover="this.style.background=\'rgba(255,255,255,0.05)\'" onmouseout="this.style.background=\'transparent\'">'
+        + '<div style="font-size:13px;color:var(--t1);font-weight:600">' + escHtml(ev2.title || '(no title)') + sug + '</div>'
+        + '<div style="font-size:11px;margin-top:2px">' + _dhTypeBadge('gcal') + ' <span style="color:#E07B39">' + escHtml(when) + '</span></div></div>';
+    });
+  }
+  listEl.innerHTML = rows.length ? rows.join('') : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">Nothing to show</div>';
+}
+
+function selectMerge(pickedId) {
+  var eventId   = _mergeMode === 'event' ? _mergeAnchorId : pickedId;
+  var enquiryId = _mergeMode === 'event' ? pickedId       : _mergeAnchorId;
+  closeMergePicker();
+  _doCalLink(eventId, enquiryId);
+}
+
+async function _doCalLink(eventId, enquiryId) {
+  try {
+    await apiFetch('/api/admin-enquiries?cal_link=1', { method: 'POST', body: { eventId: eventId, enquiryId: enquiryId } });
+    closeDetailPanel();
+    _showSuccess('merge', 'Linked ✓');
+    refreshPipeline();
+  } catch (err) {
+    toast('Could not link: ' + err.message, 'err');
+  }
+}
+
+async function unlinkCalEvent(eventId) {
+  try {
+    await apiFetch('/api/admin-enquiries?cal_link=1', { method: 'POST', body: { eventId: eventId, enquiryId: null } });
+    closeDetailPanel();
+    _showSuccess('delete', 'Unlinked');
+    refreshPipeline();
+  } catch (err) {
+    toast('Could not unlink: ' + err.message, 'err');
+  }
 }
 
 
@@ -7914,6 +8087,17 @@ function _renderEnquiryDetailPanel(enq) {
     if (enq.phone) html += '<a class="m-contact-link" href="tel:' + escHtml(enq.phone) + '">' + escHtml(enq.phone) + '</a>';
     if (enq.email) html += '<a class="m-contact-link" href="mailto:' + escHtml(enq.email) + '">' + escHtml(enq.email) + '</a>';
     html += '</div>';
+  }
+
+  // Merged Google Cal appointment, or a control to attach one
+  var _calLink = _dhEnqLinkedCalAppt(enq.id);
+  if (_calLink) {
+    html += '<div class="m-info-box" style="margin:6px 0 12px;display:flex;align-items:center;justify-content:space-between;gap:8px">'
+      + '<span>' + _dhTypeBadge('appointment') + ' ' + escHtml(_calLink.dateLabel + (_calLink.timeStr ? ' · ' + _calLink.timeStr : '')) + '</span>'
+      + '<button class="m-btn-ghost" style="margin:0;padding:4px 10px;font-size:11px" onclick="unlinkCalEvent(\'' + escHtml(_calLink.eventId) + '\')">Unlink</button>'
+      + '</div>';
+  } else if (!isClosed) {
+    html += '<button class="m-btn-ghost" onclick="openMergePicker(\'card\',\'' + escHtml(String(enq.id)) + '\')">📅 Attach a calendar appointment</button>';
   }
 
   if (!isClosed) {

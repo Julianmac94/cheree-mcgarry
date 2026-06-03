@@ -1416,6 +1416,34 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── POST ?cal_link=1 — merge ledger between a Google Cal event and a contact
+     card (enquiry). Body { eventId, enquiryId }. A null/empty enquiryId unlinks
+     the event. Stored in the `calendar_event_links` settings cache as
+     { eventId → enquiryId }; nothing destructive, fully reversible. ── */
+  if (req.method === 'POST' && params.get('cal_link')) {
+    const { eventId, enquiryId } = req.body || {};
+    if (!eventId) return res.status(400).json({ error: 'eventId is required' });
+    try {
+      const dbl    = supabase();
+      const ledger = (await readCache(dbl, 'calendar_event_links')) || {};
+      if (enquiryId) ledger[eventId] = String(enquiryId);
+      else           delete ledger[eventId];
+      await writeCache(dbl, 'calendar_event_links', ledger);
+      // Best-effort activity log on the enquiry (no-op if the table rejects it).
+      if (enquiryId) {
+        try {
+          await dbl.from('activity_log').insert({
+            enquiry_id: enquiryId, actor, action: 'cal_link',
+            detail: 'linked calendar event ' + eventId,
+          });
+        } catch (_) {}
+      }
+      return res.status(200).json({ ok: true, links: ledger });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   /* ── GET /api/admin-enquiries?halaxy_search=<email> — find Halaxy patient by email ── */
   if (req.method === 'GET' && halaxySearch) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ patients: [] });
@@ -1435,7 +1463,7 @@ export default async function handler(req, res) {
     const [
       { data: enquiries }, clientsResult, { data: activityRaw },
       fundersCached, feesCached, feeMapCached,
-      { data: tasksRaw }, sessionFeeMapCached,
+      { data: tasksRaw }, sessionFeeMapCached, calEventLinksCached,
     ] = await Promise.all([
       db.from('enquiries').select('*').order('created_at', { ascending: false }),
       db.from('clients').select(`
@@ -1449,6 +1477,7 @@ export default async function handler(req, res) {
       readCache(db, 'halaxy_fee_funder_map'),
       db.from('tasks').select('*').order('created_at', { ascending: true }),
       readCache(db, 'session_fee_map'),   // funder×session-type → Halaxy fee config (Settings → Booking fees)
+      readCache(db, 'calendar_event_links'), // { eventId → enquiryId } merge ledger (Google Cal ↔ contact card)
     ]);
 
     // If the full clients query failed (e.g. enquiry_id column not yet migrated),
@@ -1755,6 +1784,7 @@ export default async function handler(req, res) {
       tasks:     tasksRaw || [],
       halaxy,
       session_fee_map: sessionFeeMapCached || null,
+      calendar_event_links: calEventLinksCached || {},
     });
   }
 
