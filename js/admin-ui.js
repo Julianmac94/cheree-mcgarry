@@ -4512,6 +4512,17 @@ function _isPersonalAppt(s) {
 }
 
 /**
+ * A Halaxy appointment with NO linked client — i.e. Cheree's own personal /
+ * blocked time in Halaxy. The schedule shows only Google Cal events and
+ * client-linked Halaxy appointments, so these are filtered out. Catches them
+ * by the absence of a patientId (the data-truth for "client linked"), not just
+ * the legacy "Personal appointment" name. Google Cal entries are never touched.
+ */
+function _isHalaxyPersonalAppt(s) {
+  return !!s && s.source === 'halaxy' && !s.patientId;
+}
+
+/**
  * Recompute all inbox buckets from current data and refresh whichever
  * view is visible. Call this whenever Halaxy or Calendar data arrives
  * asynchronously so the inbox is never stale.
@@ -4635,7 +4646,7 @@ function _dhRenderSchedCard() {
     var d   = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
     var ds  = d.toDateString();
     var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-    var cnt = appts.filter(function(a){ return a.dateStr && a.status !== 'cancelled' && a.dateStr === iso; }).length;
+    var cnt = appts.filter(function(a){ return a.dateStr && a.status !== 'cancelled' && a.dateStr === iso && !_isHalaxyPersonalAppt(a); }).length;
     strip.push({ name: WD[d.getDay()], num: d.getDate(), cnt: cnt, today: ds===todayStr, iso: iso });
   }
 
@@ -4649,7 +4660,7 @@ function _dhRenderSchedCard() {
   var selDateStr = selDate.toDateString();
 
   var selAppts = appts.filter(function(a) {
-    return a.dateStr && a.status !== 'cancelled' && a.dateStr === selIso;
+    return a.dateStr && a.status !== 'cancelled' && a.dateStr === selIso && !_isHalaxyPersonalAppt(a);
   }).sort(function(a,b){ return (a.startMs || 0) - (b.startMs || 0); });
 
   var isToday  = selDateStr === todayStr;
