@@ -1162,11 +1162,11 @@ function _mobRenderInbox() {
 }
 
 /* ── Collect locally-added dashboard sessions from all clients ── */
-function _getLocalSessions() {
+function _getLocalSessions(opts) {
   var result = [];
   var now = new Date();
-  var past30  = new Date(now); past30.setDate(past30.getDate() - 30);
-  var future14 = new Date(now); future14.setDate(future14.getDate() + 14);
+  var past30  = new Date(now); past30.setDate(past30.getDate() - ((opts && opts.pastDays)   || 30));
+  var future14 = new Date(now); future14.setDate(future14.getDate() + ((opts && opts.futureDays) || 14));
   (_pipelineData && _pipelineData.clients || []).forEach(function(client) {
     (client.sessions || []).forEach(function(sess) {
       var dateStr = sess.session_date;
@@ -1206,10 +1206,10 @@ function _mobRenderSchedule() {
   if (!content) return;
   content.innerHTML = '<div class="mob-app-sched"><div class="dh-sched-card" id="dh-sched-inner"></div></div>';
   var uni = (_halaxyData && _halaxyData.connected)
-    ? _buildUnifiedSessions()
+    ? _buildUnifiedSessions(_DH_SCHED_WIN)
     : { upcoming: [], past: [] };
   // Always merge in locally-added dashboard sessions
-  var localSess = _getLocalSessions();
+  var localSess = _getLocalSessions(_DH_SCHED_WIN);
   var uniIsoSet = new Set(uni.upcoming.concat(uni.past).map(function(s) { return s.startIso; }));
   var extraLocal = localSess.filter(function(s) { return !uniIsoSet.has(s.startIso); });
   var allSess = uni.upcoming.concat(uni.past).concat(extraLocal);
@@ -3232,11 +3232,13 @@ function _buildInvoicedSets() {
  * Returns an array of session objects sorted: upcoming ascending, past descending.
  * Each entry: { id, source, status, dateMs, startMs, dateStr, timeStr, name, uid, appt, ev, patientId, halaxyApptId, recordedEntry }
  */
-function _buildUnifiedSessions() {
+function _buildUnifiedSessions(opts) {
   var now     = new Date();
   var today   = new Date(now); today.setHours(0, 0, 0, 0);
-  var past30  = new Date(today); past30.setDate(past30.getDate() - 30);
-  var future14 = new Date(today); future14.setDate(future14.getDate() + 14);
+  // Default window = inbox/KPI view (30d back, 14d ahead). The schedule passes a
+  // wider window so it can page ±12 weeks; callers that omit opts are unaffected.
+  var past30  = new Date(today); past30.setDate(past30.getDate() - ((opts && opts.pastDays)   || 30));
+  var future14 = new Date(today); future14.setDate(future14.getDate() + ((opts && opts.futureDays) || 14));
 
   var sets = _buildInvoicedSets();
   var invoices    = sets.invoices;
@@ -4482,7 +4484,13 @@ var _dhEnqClientMap     = {};  // enquiry.id → client object (for inbox sub-in
 var _dhPatientApptMap   = {};  // halaxy_id string → sorted upcoming sessions[]
 var _dhUnlinkedCalAppts = [];  // upcoming GCal events with no Halaxy patient (for Unlinked folder)
 var _dhSchedDateStr     = '';  // selected day ISO string ('' = auto-select today/first)
-var _dhSchedWeekOff     = 0;   // week offset: 0=this week, 1=next week
+var _dhSchedWeekOff     = 0;   // week offset: 0=this week, ± up to _DH_SCHED_MAX_WK
+var _DH_SCHED_MAX_WK    = 12;  // how many weeks the schedule can page forward/back
+// Window the schedule builds its appointment list over. Wider than the default
+// 30/14 (inbox/KPI) window so paging ±12 weeks actually has data — the server
+// already returns the full FY of appointments, this just stops the client
+// clamping it. 13 weeks each way (91d) covers the furthest selectable day.
+var _DH_SCHED_WIN       = { pastDays: 91, futureDays: 91 };
 
 /* ── Module-level patient/client name resolver (used by billing bento + panel) ── */
 function _resolvePatientName(patientId) {
@@ -4621,9 +4629,24 @@ function dhSchedSelectDay(iso) {
 }
 
 function dhSchedNavWeek(dir) {
-  _dhSchedWeekOff = Math.max(-1, Math.min(1, _dhSchedWeekOff + dir));
+  _dhSchedWeekOff = Math.max(-_DH_SCHED_MAX_WK, Math.min(_DH_SCHED_MAX_WK, _dhSchedWeekOff + dir));
   _dhSchedDateStr = '';
   _dhRenderSchedCard();
+}
+
+/* Jump the schedule back to the current week + today. */
+function dhSchedToday() {
+  _dhSchedWeekOff = 0;
+  _dhSchedDateStr = '';
+  _dhRenderSchedCard();
+}
+
+/* Human label for the current week offset (handles the full ±12 range). */
+function _dhSchedWeekLabel(off) {
+  if (off === 0)  return 'This Week';
+  if (off === 1)  return 'Next Week';
+  if (off === -1) return 'Last Week';
+  return off > 0 ? 'In ' + off + ' weeks' : Math.abs(off) + ' weeks ago';
 }
 
 function _dhRenderSchedCard() {
@@ -4689,17 +4712,20 @@ function _dhRenderSchedCard() {
   h += '</div>';
 
   // Card header + week nav
-  var weekLbl = _dhSchedWeekOff === -1 ? 'Last Week' : _dhSchedWeekOff === 1 ? 'Next Week' : 'This Week';
+  var weekLbl = _dhSchedWeekLabel(_dhSchedWeekOff);
   h += '<div class="dh-card-hd">'
     + '<span class="dh-card-title">' + escHtml(dateLabel) + '</span>'
     + '<div class="dh-sched-nav">'
+    + (_dhSchedWeekOff !== 0
+        ? '<button class="dh-sched-today-btn" onclick="dhSchedToday()" type="button" title="Back to today">Today</button>'
+        : '')
     + '<button class="dh-sched-nav-btn" onclick="dhSchedNavWeek(-1)" type="button" title="Previous week"'
-    + (_dhSchedWeekOff <= -1 ? ' disabled' : '') + '>'
+    + (_dhSchedWeekOff <= -_DH_SCHED_MAX_WK ? ' disabled' : '') + '>'
     + '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2L4 7l5 5"/></svg>'
     + '</button>'
     + '<span class="dh-sched-nav-lbl">' + escHtml(weekLbl) + '</span>'
     + '<button class="dh-sched-nav-btn" onclick="dhSchedNavWeek(1)" type="button" title="Next week"'
-    + (_dhSchedWeekOff >= 1 ? ' disabled' : '') + '>'
+    + (_dhSchedWeekOff >= _DH_SCHED_MAX_WK ? ' disabled' : '') + '>'
     + '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2l5 5-5 5"/></svg>'
     + '</button>'
     + '</div>'
@@ -5025,8 +5051,16 @@ function renderHomeView() {
   // ── 4-quadrant bento grid ─────────────────────────────────────
   html += '<div class="dh-bento">';
 
-  // TL: Schedule
-  _dhAppts = appts;
+  // TL: Schedule — build over the WIDE window so the card can page ±12 weeks.
+  // (The default-window `appts`/`_uni` above still drive KPIs + inbox unchanged.)
+  if (_halaxyData && _halaxyData.connected) {
+    var _uniWide   = _buildUnifiedSessions(_DH_SCHED_WIN);
+    var _wideSet   = new Set(_uniWide.upcoming.concat(_uniWide.past).map(function(s){ return s.startIso; }));
+    var _wideLocal = _getLocalSessions(_DH_SCHED_WIN).filter(function(s){ return !_wideSet.has(s.startIso); });
+    _dhAppts = _uniWide.upcoming.concat(_uniWide.past).concat(_wideLocal);
+  } else {
+    _dhAppts = appts;
+  }
   html += '<div class="dh-b-6 dh-fold" id="dh-q-sched">'
     + '<div class="dh-fold-tab">' + IC.cal + 'Schedule</div>'
     + '<div class="dh-sched-card" id="dh-sched-inner"></div>'

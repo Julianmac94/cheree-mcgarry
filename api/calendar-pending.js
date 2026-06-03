@@ -69,16 +69,18 @@ export default async function handler(req, res) {
     const calendar = google.calendar({ version: 'v3', auth: oauth2 });
 
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const sixWeeksOut   = new Date(now.getTime() + 42 * 24 * 60 * 60 * 1000);
+    // ±13 weeks (91d) so the schedule can page a full ±12 weeks of Google Cal
+    // events. The dashboard still only treats the recent past as "needs logging".
+    const rangeStart = new Date(now.getTime() - 91 * 24 * 60 * 60 * 1000);
+    const rangeEnd   = new Date(now.getTime() + 91 * 24 * 60 * 60 * 1000);
 
     const response = await calendar.events.list({
       calendarId: CALENDAR_ID,
-      timeMin: thirtyDaysAgo.toISOString(), // include past 30 days for "needs logging"
-      timeMax: sixWeeksOut.toISOString(),
+      timeMin: rangeStart.toISOString(),
+      timeMax: rangeEnd.toISOString(),
       singleEvents: true,
       orderBy: 'startTime',
-      maxResults: 100,
+      maxResults: 250,
     });
 
     const events = (response.data.items || []).map(e => ({
