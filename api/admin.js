@@ -1364,12 +1364,16 @@ body {
   .mob-bill-name { font-size: 13.5px; font-weight: 600; color: var(--t1); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mob-bill-ref  { font-size: 10px; font-weight: 400; color: var(--t3); margin-left: 4px; }
   .mob-bill-amt  { font-size: 13px; font-weight: 700; color: var(--amber); flex-shrink: 0; }
-  .mob-bill-row-bot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .mob-bill-org  { font-size: 10.5px; color: var(--t3); flex: 1; }
-  .mob-bill-date { font-size: 10.5px; color: var(--t3); margin-left: auto; }
-  .mob-bill-sub { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 5px; }
+  .mob-bill-row-bot { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+  .mob-bill-org  { font-size: 10.5px; color: var(--t3); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mob-bill-date { font-size: 10.5px; color: var(--t3); margin-left: auto; flex-shrink: 0; }
+  .mob-bill-sub { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 5px; white-space: nowrap; flex-shrink: 0; }
   .mob-bill-sub.ok    { background: rgba(52,211,153,0.1); color: var(--teal); }
   .mob-bill-sub.chase { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .mob-bill-sub.ar    { background: rgba(245,158,11,0.13); color: var(--amber); }
+  .mob-bill-halaxy { flex-shrink: 0; text-decoration: none; font-size: 14px; line-height: 1; color: var(--t3);
+    padding: 4px 5px; border-radius: 6px; -webkit-tap-highlight-color: transparent; }
+  .mob-bill-halaxy:active { color: var(--teal); background: rgba(52,211,153,0.14); }
   .mob-bill-mark {
     font-size: 10px; background: rgba(52,211,153,0.07);
     border: 1px solid rgba(52,211,153,0.2); color: var(--teal);

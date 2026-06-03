@@ -777,11 +777,14 @@ function _mobRenderBilling() {
       var sub  = _getSubStatus(inv.id);
       var _isAR = _invIsAwaitingRemittance(inv);
       var subBadge = _isAR
-        ? '<span class="mob-bill-sub" style="color:#FBBF24">Submitted · awaiting remittance</span>'
+        ? '<span class="mob-bill-sub ar" title="Submitted to funder · awaiting remittance">Awaiting remittance</span>'
         : sub
           ? '<span class="mob-bill-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
           : '<button class="mob-bill-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\');_mobRenderBilling()">Mark submitted</button>';
       var refLabel = _fmtInvRef(inv);
+      // Direct Halaxy invoice URL (strip the FHIR id's alpha prefix, same as desktop)
+      var _inum = (inv.ref && /^\d+$/.test(String(inv.ref))) ? String(inv.ref) : String(inv.id || '').replace(/^[A-Za-z]+-/, '');
+      var hxUrl = (_halaxyWebUrl && _inum) ? (_halaxyWebUrl + '/invoice/' + _inum) : (_halaxyWebUrl || 'https://www.halaxy.com/practitioner');
       html += '<div class="mob-bill-row">'
         + '<div class="mob-bill-row-top">'
         + '<span class="mob-bill-name">' + escHtml(name) + (refLabel ? '<span class="mob-bill-ref"> · ' + escHtml(refLabel) + '</span>' : '') + '</span>'
@@ -791,6 +794,7 @@ function _mobRenderBilling() {
         + (inv.payorOrg ? '<span class="mob-bill-org">' + escHtml(inv.payorOrg) + '</span>' : '<span></span>')
         + subBadge
         + '<span class="mob-bill-date">' + escHtml(dt) + '</span>'
+        + '<a class="mob-bill-halaxy" href="' + escHtml(hxUrl) + '" target="_blank" rel="noopener" title="Open invoice in Halaxy" onclick="event.stopPropagation()">↗</a>'
         + '</div>'
         + '</div>';
     });
