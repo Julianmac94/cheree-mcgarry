@@ -7220,6 +7220,18 @@ function _remitMsg(tone, msg) {
   var c = tone === 'amber' ? '#FBBF24' : tone === 'dim' ? 'rgba(255,255,255,0.5)' : '#34D399';
   return '<div style="font-size:12px;color:' + c + ';padding:6px 2px">' + msg + '</div>';
 }
+// Deep-link to the message in the correct mailbox. Gmail accepts an email
+// address (not just a numeric index) in the /u/<acct>/ segment, so the link
+// opens reachout@ / admin@ directly. #all/<id> jumps to the message.
+function _remitGmailUrl(mailbox, id) {
+  var acct = (mailbox && mailbox.indexOf('@') > -1) ? encodeURIComponent(mailbox) : '0';
+  return 'https://mail.google.com/mail/u/' + acct + '/#all/' + encodeURIComponent(id);
+}
+// "Funder Name <accounts@x.com>" → "Funder Name"; bare address → the address.
+function _remitFromName(from) {
+  var m = /^\s*"?([^"<]+?)"?\s*<[^>]+>\s*$/.exec(from || '');
+  return ((m ? m[1] : (from || '')).trim()) || '';
+}
 function _checkRemittance(invNum, btn) {
   var resultEl = document.getElementById('inv-remit-result');
   btn.disabled = true; btn.style.opacity = '0.7';
@@ -7232,18 +7244,26 @@ function _checkRemittance(invNum, btn) {
       btn.textContent = '🔍 Re-check inbox for remittance';
       if (!resultEl) return;
       if (d.found && d.hits && d.hits.length) {
-        var rows = d.hits.slice(0, 5).map(function(h) {
+        var rows = d.hits.slice(0, 3).map(function(h) {
           var when = h.internalDate
             ? new Date(h.internalDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
             : escHtml(h.date || '');
-          var mbox = (h.mailbox || '').split('@')[0];
-          return '<div style="padding:8px 10px;border-radius:8px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.22);margin-top:6px">'
-            + '<div style="font-size:12.5px;color:#34D399;font-weight:600">✓ ' + escHtml(h.subject) + '</div>'
-            + '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:3px">' + escHtml(h.from) + ' · ' + when + ' · ' + escHtml(mbox) + '</div>'
-            + (h.snippet ? '<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px">' + escHtml(h.snippet) + '</div>' : '')
-            + '</div>';
+          var mbox = (h.mailbox || '').split('@')[0] || 'inbox';
+          var who  = escHtml(_remitFromName(h.from)) || escHtml(mbox);
+          var url  = _remitGmailUrl(h.mailbox, h.id);
+          return '<a href="' + url + '" target="_blank" rel="noopener"'
+            + ' style="display:flex;align-items:center;gap:11px;text-decoration:none;margin-top:6px'
+            + ';padding:10px 12px;border-radius:9px;background:rgba(52,211,153,0.07);border:1px solid rgba(52,211,153,0.20);transition:background 0.12s"'
+            + ' onmouseover="this.style.background=\'rgba(52,211,153,0.13)\'" onmouseout="this.style.background=\'rgba(52,211,153,0.07)\'">'
+            + '<span style="font-size:14px;color:#34D399;flex:none">✓</span>'
+            + '<span style="flex:1;min-width:0">'
+            +   '<span style="display:block;font-size:12.5px;color:#E7F6EF;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + who + '</span>'
+            +   '<span style="display:block;font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(h.subject) + ' · ' + when + '</span>'
+            + '</span>'
+            + '<span style="font-size:11.5px;color:rgba(52,211,153,0.85);flex:none;white-space:nowrap">Open in ' + escHtml(mbox) + ' ↗</span>'
+            + '</a>';
         }).join('');
-        resultEl.innerHTML = '<div style="font-size:11.5px;color:#34D399;font-weight:600;margin-bottom:2px">Remittance found — the money has arrived; reconcile this invoice in Halaxy.</div>' + rows;
+        resultEl.innerHTML = '<div style="font-size:11.5px;color:#34D399;font-weight:600;margin-bottom:2px">Remittance found — reconcile this invoice in Halaxy.</div>' + rows;
       } else if (d.errors && d.errors.length) {
         var e0 = d.errors[0];
         var notConnected = /no mailbox connected|insufficient|scope|invalid_grant|unauthor/i.test(e0.error || '');
