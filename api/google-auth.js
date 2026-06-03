@@ -7,7 +7,11 @@
 import { isAuthed } from './_auth.js';
 import { google } from 'googleapis';
 
-const SCOPES = ['https://www.googleapis.com/auth/calendar.events'];
+const SCOPES = [
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/gmail.readonly',     // read inbox for funder remittances
+  'https://www.googleapis.com/auth/userinfo.email',     // know which mailbox just consented
+];
 
 export default function handler(req, res) {
   if (!isAuthed(req)) {

@@ -44,13 +44,33 @@ export default async function handler(req, res) {
       return res.end();
     }
 
-    await db.from('settings').upsert({
-      key: 'google_refresh_token',
-      value: tokens.refresh_token,
-      updated_at: new Date().toISOString(),
-    });
+    // Which Google account just consented? Decode the id_token (came straight
+    // from Google over TLS — no verification needed) to key the mailbox map.
+    let email = null;
+    try {
+      if (tokens.id_token) {
+        const payload = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64').toString('utf8'));
+        email = (payload.email || '').toLowerCase() || null;
+      }
+    } catch (_) {}
 
-    res.writeHead(302, { Location: '/admin?tab=clients&gcal=connected' });
+    const now = new Date().toISOString();
+
+    // Calendar reads google_refresh_token — keep it pointed at the latest consent
+    // (back-compat; this token now also carries gmail.readonly).
+    await db.from('settings').upsert({ key: 'google_refresh_token', value: tokens.refresh_token, updated_at: now });
+
+    // Per-mailbox token map for Gmail remittance search — merge, don't clobber,
+    // so admin@ and reachout@ can each be connected by consenting in turn.
+    try {
+      const { data } = await db.from('settings').select('value').eq('key', 'gmail_tokens').single();
+      let map = {};
+      if (data?.value) { try { map = JSON.parse(data.value) || {}; } catch (_) {} }
+      map[email || 'connected mailbox'] = tokens.refresh_token;
+      await db.from('settings').upsert({ key: 'gmail_tokens', value: JSON.stringify(map), updated_at: now });
+    } catch (_) {}
+
+    res.writeHead(302, { Location: '/admin?tab=clients&gcal=connected' + (email ? '&mb=' + encodeURIComponent(email) : '') });
     res.end();
   } catch (err) {
     console.error('google-callback error', err);

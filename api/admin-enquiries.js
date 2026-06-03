@@ -12,6 +12,7 @@ import { supabase } from './_supabase.js';
 import { halaxyGet, halaxyPost, halaxyPatch } from './_halaxy.js';
 import { createCalendarEvent } from './calendar-pending.js';
 import { registrationCompleteEmailHtml } from './_emails.js';
+import { searchRemittance } from './_gmail.js';
 
 /* ─────────────────────────────────────────────
    Halaxy config cache helpers (non-PII data)
@@ -1212,6 +1213,22 @@ export default async function handler(req, res) {
       });
     } catch (err) {
       return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /* ── GET ?check_remittance=<invoiceNumber> — search practice mailboxes for a
+     funder remittance email matching this invoice number. Used for the
+     "awaiting remittance" invoices: a hit means the money has arrived in the
+     inbox but the payment may not be recorded in Halaxy yet. Read-only. ── */
+  if (req.method === 'GET' && params.get('check_remittance')) {
+    const invNum = (params.get('check_remittance') || '').trim();
+    if (!invNum) return res.status(400).json({ error: 'invoice number required' });
+    try {
+      const result = await searchRemittance(invNum);
+      return res.status(200).json(result);
+    } catch (err) {
+      console.error('check_remittance error:', err.message);
+      return res.status(200).json({ found: false, hits: [], errors: [{ mailbox: '*', error: err.message }] });
     }
   }
 

@@ -7169,6 +7169,17 @@ function openInvoiceModal(invId) {
             + '</span>'
             + '</div>';
         })()
+    // ── Remittance check (awaiting-remittance funder invoices only) ──
+    +   (awaitingRemit
+        ? '<div style="padding:14px 0 4px;border-bottom:1px solid rgba(255,255,255,0.06)">'
+          +   '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:rgba(255,255,255,0.38);margin-bottom:8px">Remittance</div>'
+          +   '<button id="inv-remit-btn" onclick="_checkRemittance(\'' + escHtml(String(inv.ref || invNumericId)) + '\',this)"'
+          +     ' style="width:100%;padding:9px 12px;border-radius:8px;font-size:12.5px;cursor:pointer;font-family:inherit'
+          +       ';background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.28);color:#FBBF24;transition:all 0.12s">'
+          +     '🔍 Check inbox for remittance</button>'
+          +   '<div id="inv-remit-result" style="margin-top:9px"></div>'
+          + '</div>'
+        : '')
     // ── Tasks section (hidden on paid invoices unless linked reminders exist)
     +   (_showReminders
         ? '<div style="padding:14px 0 4px">'
@@ -7199,6 +7210,55 @@ function openInvoiceModal(invId) {
   document.body.appendChild(overlay);
   // Render existing linked tasks now that the DOM is live
   _invRenderTasks(invId, overlay);
+}
+
+/* ── Remittance inbox check (awaiting-remittance invoices) ───────────
+   Searches admin@ + reachout@ for the invoice number. A hit means the funder's
+   money has arrived in the inbox even though Halaxy still shows it unpaid →
+   go record/reconcile the payment in Halaxy. */
+function _remitMsg(tone, msg) {
+  var c = tone === 'amber' ? '#FBBF24' : tone === 'dim' ? 'rgba(255,255,255,0.5)' : '#34D399';
+  return '<div style="font-size:12px;color:' + c + ';padding:6px 2px">' + msg + '</div>';
+}
+function _checkRemittance(invNum, btn) {
+  var resultEl = document.getElementById('inv-remit-result');
+  btn.disabled = true; btn.style.opacity = '0.7';
+  btn.textContent = 'Searching admin@ + reachout@…';
+  if (resultEl) resultEl.innerHTML = '';
+  fetch('/api/admin-enquiries?check_remittance=' + encodeURIComponent(invNum))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      btn.disabled = false; btn.style.opacity = '1';
+      btn.textContent = '🔍 Re-check inbox for remittance';
+      if (!resultEl) return;
+      if (d.found && d.hits && d.hits.length) {
+        var rows = d.hits.slice(0, 5).map(function(h) {
+          var when = h.internalDate
+            ? new Date(h.internalDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+            : escHtml(h.date || '');
+          var mbox = (h.mailbox || '').split('@')[0];
+          return '<div style="padding:8px 10px;border-radius:8px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.22);margin-top:6px">'
+            + '<div style="font-size:12.5px;color:#34D399;font-weight:600">✓ ' + escHtml(h.subject) + '</div>'
+            + '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:3px">' + escHtml(h.from) + ' · ' + when + ' · ' + escHtml(mbox) + '</div>'
+            + (h.snippet ? '<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px">' + escHtml(h.snippet) + '</div>' : '')
+            + '</div>';
+        }).join('');
+        resultEl.innerHTML = '<div style="font-size:11.5px;color:#34D399;font-weight:600;margin-bottom:2px">Remittance found — the money has arrived; reconcile this invoice in Halaxy.</div>' + rows;
+      } else if (d.errors && d.errors.length) {
+        var e0 = d.errors[0];
+        var notConnected = /no mailbox connected|insufficient|scope|invalid_grant|unauthor/i.test(e0.error || '');
+        resultEl.innerHTML = _remitMsg('amber', notConnected
+          ? 'Inbox search isn’t connected yet — re-authorise Google (Settings) to grant mailbox read access.'
+          : 'Couldn’t search the inbox: ' + escHtml(e0.error || 'unknown error'));
+      } else {
+        resultEl.innerHTML = _remitMsg('dim', 'No remittance email found for #' + escHtml(invNum) + '. Do an advanced check manually.');
+      }
+    })
+    .catch(function(e) {
+      btn.disabled = false; btn.style.opacity = '1';
+      btn.textContent = '🔍 Check inbox for remittance';
+      if (resultEl) resultEl.innerHTML = _remitMsg('amber', 'Search failed: ' + escHtml(e.message));
+    });
 }
 
 /* ── Full reminder creation modal (invoked from invoice modal) ─────── */
@@ -7444,8 +7504,8 @@ function renderSettingsView() {
   html += '<div class="settings-section"><div class="settings-section-title">Connections</div>';
   html += '<div class="settings-row"><span class="settings-row-label">Halaxy</span><span class="settings-row-val">' + (halaxyOk ? '✓ Connected' : '✗ Not connected') + '</span>'
     + '<div class="settings-row-action"><button id="halaxy-sync-btn" onclick="syncHalaxyConfigData()">⟳ Sync funders & fees</button></div></div>';
-  html += '<div class="settings-row"><span class="settings-row-label">Google Calendar</span><span class="settings-row-val">' + (calOk ? '✓ Connected' : 'Not connected') + '</span>'
-    + '<div class="settings-row-action"><a href="/api/google-auth">Reconnect</a></div></div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Google <span style="color:rgba(255,255,255,0.4);font-weight:400;font-size:11px">· Calendar + inbox (remittance search)</span></span><span class="settings-row-val">' + (calOk ? '✓ Connected' : 'Not connected') + '</span>'
+    + '<div class="settings-row-action"><a href="/api/google-auth" title="Reconnect to grant calendar + read-only inbox access. Authorise each mailbox (admin@, reachout@) in turn.">Reconnect</a></div></div>';
   html += '</div>';
 
   // Booking fees — map each bookable session type to its Halaxy fee (drives "Set up in Halaxy")
