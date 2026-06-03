@@ -54,13 +54,16 @@ async function _searchOne(label, refreshToken, q, max) {
   for (const m of msgs) {
     const msg = await gmail.users.messages.get({
       userId: 'me', id: m.id, format: 'metadata',
-      metadataHeaders: ['Subject', 'From', 'Date'],
+      metadataHeaders: ['Subject', 'From', 'Date', 'Message-ID'],
     });
     const h = {};
     (msg.data.payload?.headers || []).forEach(x => { h[x.name.toLowerCase()] = x.value; });
     out.push({
       mailbox:      label,
       id:           m.id,
+      // RFC822 Message-ID (angle brackets stripped) — drives a robust
+      // `rfc822msgid:` deep link that survives multi-account browsers.
+      rfc822msgid:  (h['message-id'] || '').replace(/[<>]/g, '').trim(),
       subject:      h['subject'] || '(no subject)',
       from:         h['from']    || '',
       date:         h['date']    || '',
