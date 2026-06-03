@@ -1196,6 +1196,56 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── GET ?match_debug=1 — read-only diagnostic for designing patient-level
+     invoice matching. Surfaces (a) whether bulk appointments carry a patient
+     reference, and (b) the invoice line-item structure (service dates) so we can
+     attribute a cross-date funder bulk invoice to a session. Returns a compact
+     summary, no writes. ── */
+  if (req.method === 'GET' && params.get('match_debug')) {
+    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ error: 'Halaxy not configured' });
+    try {
+      const now = new Date();
+      const fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+      const fyStartStr  = `${fyStartYear}-07-01`;
+      const apptBundle = await halaxyGet('/Appointment', { date: `ge${fyStartStr}`, _sort: 'date', _count: '25', _include: 'Appointment:patient' });
+      const appts = (apptBundle.entry || []).map(e => e.resource).filter(r => r?.resourceType === 'Appointment');
+      const pidOf = (a) => {
+        for (const p of (a.participant || [])) {
+          const ref = p?.actor?.reference || '';
+          const i = ref.indexOf('/Patient/');
+          if (i !== -1) return ref.slice(i + 9);
+          if (ref.indexOf('Patient/') === 0) return ref.slice(8);
+        }
+        return null;
+      };
+      const apptSummary = appts.slice(0, 10).map(a => ({
+        id: a.id, participants: (a.participant || []).length, patientId: pidOf(a),
+        actorRefs: (a.participant || []).map(p => p?.actor?.reference || p?.actor?.display || '').filter(Boolean),
+        start: a.start || a.period?.start, status: a.status,
+      }));
+      const uniquePids = [...new Set(apptSummary.map(a => a.patientId).filter(Boolean))].slice(0, 4);
+      const patientInvoices = {};
+      for (const pid of uniquePids) {
+        try {
+          const ib = await halaxyGet('/Invoice', { patient: pid, _count: '20' });
+          patientInvoices[pid] = (ib.entry || []).map(e => e.resource).filter(r => r?.resourceType === 'Invoice').map(inv => ({
+            id: inv.id, status: inv.status, date: (inv.created || inv.date || '').slice(0, 10),
+            totalBalance: inv.totalBalance?.value, totalPaid: inv.totalPaid?.value,
+            lineItemCount: (inv.lineItem || []).length,
+            lineItems: (inv.lineItem || []).slice(0, 8).map(li => ({
+              servicedDate: li.servicedDate || li.servicedPeriod?.start || null,
+              desc: li.chargeItemReference?.display || li.chargeItemCodeableConcept?.text || null,
+              keys: Object.keys(li),
+            })),
+          }));
+        } catch (e) { patientInvoices[pid] = { error: e.message }; }
+      }
+      return res.status(200).json({ apptCount: appts.length, apptSummary, patientInvoices });
+    } catch (err) {
+      return res.status(200).json({ error: err.message });
+    }
+  }
+
   /* ── GET ?halaxy_invoices_raw=1 — diagnostic: dump raw Invoice resources ── */
   if (req.method === 'GET' && params.get('halaxy_invoices_raw')) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ invoices: [] });
