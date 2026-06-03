@@ -770,6 +770,13 @@ body::before {
 .dh-attn-name { font-size: 14px; font-weight: 600; color: var(--t1); }
 .dh-attn-meta { font-size: 12px; color: var(--t3); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dh-attn-arrow { font-size: 18px; color: var(--t3); flex-shrink: 0; }
+.dh-attn-dismiss {
+  font-size: 11px; font-weight: 600; font-family: inherit; flex-shrink: 0;
+  padding: 5px 10px; border-radius: 7px; cursor: pointer;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--t2); transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.dh-attn-dismiss:hover { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3); color: #f87171; }
 
 .dh-attn-empty {
   padding: 44px 28px; text-align: center;

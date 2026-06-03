@@ -2439,9 +2439,10 @@ function renderCmdResults() {
     }
   });
 
-  // Search enquiries
+  // Search enquiries (dismissed ones are hidden everywhere, incl. here)
   var enquiries = (_pipelineData && _pipelineData.enquiries) || [];
   enquiries.forEach(function(e) {
+    if (e.status === 'dismissed') return;
     var name = ([e.first_name, e.last_name].filter(Boolean).join(' ')).toLowerCase();
     if (name.includes(q)) {
       matches.push({ icon: '→', label: [e.first_name, e.last_name].filter(Boolean).join(' ') || '—', sub: 'Lead · ' + (e.status || 'new'), action: "openDetailPanel('enquiry','" + e.id + "');closeCmdBar()" });
@@ -4364,13 +4365,19 @@ function _dhRenderInboxItems(listEl, items, status) {
     listEl.innerHTML = '<div class="dh-attn-empty" style="padding:28px 20px;text-align:center;color:var(--t3);font-size:12.5px;line-height:1.55">' + _emptyMsg + '</div>';
     return;
   }
+  var isClosed = (status === 'closed');
   listEl.innerHTML = items.slice(0, 12).map(function(e) {
     var nm = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
+    // On the Closed folder, offer a Dismiss to hide the record from view (kept in
+    // the DB — sets status:'dismissed', which drops out of every folder).
+    var tail = isClosed
+      ? '<button class="dh-attn-dismiss" onclick="event.stopPropagation();dismissClosedEnquiry(\'' + escHtml(String(e.id)) + '\')" title="Hide from Closed (the record is kept)">Dismiss</button>'
+      : '<span class="dh-attn-arrow">›</span>';
     return '<div class="dh-attn-item" onclick="openDetailPanel(\'enquiry\',\'' + escHtml(String(e.id)) + '\')">'
       + '<div class="dh-attn-av ' + _dhAvCol(nm) + '">' + _dhIni(nm) + '</div>'
       + '<div class="dh-attn-body"><div class="dh-attn-name">' + escHtml(nm) + '</div>'
       + '<div class="dh-attn-meta" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px">' + _dhEnqMeta(e) + '</div></div>'
-      + '<span class="dh-attn-arrow">›</span></div>';
+      + tail + '</div>';
   }).join('');
 }
 
@@ -4464,7 +4471,7 @@ function dhInboxFilter(status, el) {
   var all = _pipelineData.enquiries || [];
   var filtered;
   if (status === 'all') {
-    filtered = all;
+    filtered = all.filter(function(e) { return e.status !== 'dismissed'; }); // dismissed = hidden everywhere
   } else if (status === 'upcoming_appt') {
     // Enquiries whose linked client has an upcoming Halaxy appointment
     filtered = all.filter(function(e) {
@@ -8679,6 +8686,23 @@ async function advanceEnquiryStatus(id, newStatus) {
     toast('Could not update — change reverted: ' + err.message, 'err');
   } finally {
     delete _advanceInFlight[key];
+  }
+}
+
+/* ── Dismiss a closed enquiry — hides it from the Closed folder (and everywhere)
+   without deleting: sets status:'dismissed', which no folder filters for. The
+   row stays in Supabase, so nothing is lost and it's recoverable if ever needed. */
+async function dismissClosedEnquiry(id) {
+  var act = { action: 'status', detail: 'dismissed', created_at: new Date().toISOString(), actor: (window.ADMIN_USER || 'You') };
+  var revert = _optimisticEnquiry(id, { status: 'dismissed' }, act);
+  dhInboxFilter(_dhInboxFilter);   // re-render current folder → item drops out
+  _showSuccess('delete', 'Dismissed');
+  try {
+    await apiFetch('/api/admin-enquiries?id=' + id, { method: 'PATCH', body: { status: 'dismissed' } });
+  } catch (err) {
+    revert();
+    dhInboxFilter(_dhInboxFilter);
+    toast('Could not dismiss — restored: ' + err.message, 'err');
   }
 }
 
