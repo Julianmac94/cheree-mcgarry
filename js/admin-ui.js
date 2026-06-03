@@ -3322,9 +3322,12 @@ function _buildUnifiedSessions(opts) {
     } else if (apptStatus === 'fulfilled') {
       status = key && invoicedSet.has(key) ? 'invoiced' : 'pending-invoice';
     } else if (!key && dateInvoiceMap[dateStr]) {
-      // No patientId resolvable but an invoice exists for this date — session was actioned
+      // No patientId resolvable but an invoice exists for this date — session was actioned.
+      // Only trust the paid flag when there's EXACTLY ONE invoice that day; with
+      // several (e.g. two clients seen the same day) we can't tell which is this
+      // appointment's, so don't risk a false "Paid" — show neutral "invoiced".
       var anyInv = dateInvoiceMap[dateStr][0];
-      status = _invIsPaid(anyInv) ? 'paid' : 'invoiced';
+      status = (dateInvoiceMap[dateStr].length === 1 && _invIsPaid(anyInv)) ? 'paid' : 'invoiced';
     } else if (key && sessionedSet.has(key)) {
       status = 'invoiced';
     } else if (startMs < now.getTime()) {
@@ -3333,7 +3336,8 @@ function _buildUnifiedSessions(opts) {
       // never made it into invoicedSet, but we know billing happened on this date).
       if (dateInvoiceMap[dateStr] && dateInvoiceMap[dateStr].length) {
         var fallbackInv = dateInvoiceMap[dateStr][0];
-        status = _invIsPaid(fallbackInv) ? 'paid' : 'invoiced';
+        // Same guard: only claim "Paid" when a single unambiguous invoice exists that day.
+        status = (dateInvoiceMap[dateStr].length === 1 && _invIsPaid(fallbackInv)) ? 'paid' : 'invoiced';
       } else {
         status = 'pending-invoice';
       }
@@ -3343,7 +3347,9 @@ function _buildUnifiedSessions(opts) {
 
     var timeStr = new Date(startStr).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
     var dateLabel = new Date(startStr).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-    var uid = 'hx-log-' + (effectivePatientId || appt.id || 'unk') + '-' + dateStr.replace(/-/g, '');
+    // Unique per appointment (the FHIR id), so two sessions on the same day for
+    // the same patient open the RIGHT one. Falls back to patient+date+time.
+    var uid = 'hx-' + (appt.id || ((effectivePatientId || 'unk') + '-' + dateStr.replace(/-/g, '') + '-' + String(startMs)));
 
     sessions.push({
       id:           uid,
@@ -3361,6 +3367,19 @@ function _buildUnifiedSessions(opts) {
       appt:         appt,
     });
   });
+
+  /* ── 1a. Collapse the SAME appointment returned more than once ──
+   * Halaxy occasionally returns one appointment twice, sometimes with a
+   * mis-parsed start time (the "11am + phantom 2pm, same invoice" case). Key by
+   * the FHIR appointment id and keep the earliest start. Distinct appointments
+   * (different ids) are untouched, so genuine same-day sessions both survive. */
+  var byApptId = {};
+  sessions.forEach(function(s) {
+    if (!s.halaxyApptId) return;
+    var ex = byApptId[s.halaxyApptId];
+    if (!ex || s.startMs < ex.startMs) byApptId[s.halaxyApptId] = s;
+  });
+  sessions = sessions.filter(function(s) { return !s.halaxyApptId || byApptId[s.halaxyApptId] === s; });
 
   /* ── 1b. Deduplicate same-time Halaxy entries ──
    * Halaxy can return multiple records for the same slot (practitioner + room resource).
