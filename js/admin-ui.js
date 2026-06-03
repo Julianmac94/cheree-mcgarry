@@ -5481,11 +5481,14 @@ function _dhRenderBillingBento() {
       var sub  = _getSubStatus(inv.id);
       var _isAR2 = _invIsAwaitingRemittance(inv);
       var subBadge = _isAR2
-        ? '<span class="dh-inv-sub" style="color:#FBBF24">Submitted · awaiting remittance</span>'
+        ? '<span class="dh-inv-sub ar" title="Submitted to funder · awaiting remittance">Awaiting remittance</span>'
         : sub
           ? '<span class="dh-inv-sub ' + (sub.chase ? 'chase' : 'ok') + '">' + (sub.chase ? '⚠ Chase up' : '✓ Submitted') + '</span>'
           : '<button class="dh-inv-mark" onclick="event.stopPropagation();_markBillingSubmitted(\'' + escHtml(String(inv.id)) + '\')">Mark submitted</button>';
       var bentoRef = _fmtInvRef(inv);
+      // Direct Halaxy invoice URL (strip the FHIR id's alpha prefix, same as the modal)
+      var _inum = (inv.ref && /^\d+$/.test(String(inv.ref))) ? String(inv.ref) : String(inv.id || '').replace(/^[A-Za-z]+-/, '');
+      var hxUrl = (_halaxyWebUrl && _inum) ? (_halaxyWebUrl + '/invoice/' + _inum) : (_halaxyWebUrl || 'https://www.halaxy.com/practitioner');
       html += '<div class="dh-bill-inv-row" onclick="openInvoiceModal(\'' + escHtml(String(inv.id)) + '\')">'
         + '<div class="dh-bir-name">' + escHtml(name) + (bentoRef ? '<span class="dh-bir-ref">' + escHtml(bentoRef) + '</span>' : '') + '</div>'
         + '<span class="dh-bir-org' + (!inv.payorOrg ? ' dh-bir-org--dim' : '') + '">' + escHtml(inv.payorOrg || 'Private') + '</span>'
@@ -5494,6 +5497,7 @@ function _dhRenderBillingBento() {
         + '<span class="dh-bir-amt">' + (bal ? _fmtAUD(bal) : '—') + '</span>'
         + '<span class="dh-bir-date">' + escHtml(dt) + '</span>'
         + '</div>'
+        + '<a class="dh-bir-halaxy" href="' + escHtml(hxUrl) + '" target="_blank" rel="noopener" title="Open invoice in Halaxy" onclick="event.stopPropagation()">↗</a>'
         + '</div>';
     });
     if (outstanding.length > 10) {

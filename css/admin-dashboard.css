@@ -1335,10 +1335,10 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .dh-bill-inv-rows { flex: 1; overflow-y: auto; min-height: 0; }
 .dh-bill-inv-row {
   display: grid;
-  /* Name/ref | Org | Action | Amount+date */
-  grid-template-columns: 1fr 144px 104px 60px;
+  /* Name/ref | Org | Action | Amount+date | Halaxy ↗ */
+  grid-template-columns: 1fr 132px 124px 58px 22px;
   align-items: center; column-gap: 8px;
-  padding: 9px 18px 9px 16px;
+  padding: 9px 16px 9px 16px;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   cursor: pointer; transition: background 0.12s;
 }
@@ -1356,15 +1356,22 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   display: block; min-width: 0; }
 .dh-bir-org--dim { opacity: 0.45; }
 /* Col 3 — submit action (always same width) */
-.dh-bir-action { display: flex; align-items: center; }
+.dh-bir-action { display: flex; align-items: center; min-width: 0; }
 /* Col 4 — amount + date stacked, right-aligned */
 .dh-bir-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
 .dh-bir-amt  { font-size: 12px; font-weight: 700; color: var(--amber); font-variant-numeric: tabular-nums; }
 .dh-bir-date { font-size: 10px; color: var(--t3); }
+/* Col 5 — open-in-Halaxy quick link (stops row click) */
+.dh-bir-halaxy { display: flex; align-items: center; justify-content: center; text-decoration: none;
+  font-size: 13px; line-height: 1; color: var(--t3); border-radius: 5px; padding: 3px;
+  transition: color 0.12s, background 0.12s; }
+.dh-bir-halaxy:hover { color: var(--teal); background: rgba(52,211,153,0.12); }
 .dh-inv-sub  { font-size: 10px; padding: 3px 7px; border-radius: 5px; white-space: nowrap;
-  width: 100%; box-sizing: border-box; text-align: center; display: block; }
+  width: 100%; box-sizing: border-box; text-align: center; display: block;
+  overflow: hidden; text-overflow: ellipsis; }
 .dh-inv-sub.ok    { background: rgba(52,211,153,0.1);  color: var(--teal); }
 .dh-inv-sub.chase { background: rgba(245,158,11,0.15); color: var(--amber); }
+.dh-inv-sub.ar    { background: rgba(245,158,11,0.13); color: var(--amber); }
 .dh-inv-mark {
   font-size: 9.5px; padding: 3px 7px; border-radius: 5px; cursor: pointer; font-family: inherit;
   background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.2);
