@@ -4506,20 +4506,19 @@ var _dhNonHalaxyActions = []; // non-Halaxy appts needing merge/dismiss → acti
  * placeholder name used before proper patient records were linked.
  * These should be silently excluded from all inbox action buckets.
  */
+/**
+ * Personal / blocked Halaxy time — i.e. NOT a client session. Detected by the
+ * resolved name being "Personal appointment": Halaxy's appointment API omits
+ * participant[], so patientId is almost always null and can't be used here;
+ * instead _halaxyApptLabel + the inferred-name pass upgrade real client appts
+ * to the client's name, leaving only genuine personal (or unidentifiable)
+ * entries labelled "Personal appointment". The schedule hides these, keeping
+ * Google Cal events and named client appointments. Used app-wide (home, next
+ * appointment, inbox) so the schedule now matches.
+ */
 function _isPersonalAppt(s) {
   var n = (s.name || '').trim().toLowerCase();
   return n === 'personal appointment' || n === 'personal';
-}
-
-/**
- * A Halaxy appointment with NO linked client — i.e. Cheree's own personal /
- * blocked time in Halaxy. The schedule shows only Google Cal events and
- * client-linked Halaxy appointments, so these are filtered out. Catches them
- * by the absence of a patientId (the data-truth for "client linked"), not just
- * the legacy "Personal appointment" name. Google Cal entries are never touched.
- */
-function _isHalaxyPersonalAppt(s) {
-  return !!s && s.source === 'halaxy' && !s.patientId;
 }
 
 /**
@@ -4646,7 +4645,7 @@ function _dhRenderSchedCard() {
     var d   = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
     var ds  = d.toDateString();
     var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-    var cnt = appts.filter(function(a){ return a.dateStr && a.status !== 'cancelled' && a.dateStr === iso && !_isHalaxyPersonalAppt(a); }).length;
+    var cnt = appts.filter(function(a){ return a.dateStr && a.status !== 'cancelled' && a.dateStr === iso && !_isPersonalAppt(a); }).length;
     strip.push({ name: WD[d.getDay()], num: d.getDate(), cnt: cnt, today: ds===todayStr, iso: iso });
   }
 
@@ -4660,7 +4659,7 @@ function _dhRenderSchedCard() {
   var selDateStr = selDate.toDateString();
 
   var selAppts = appts.filter(function(a) {
-    return a.dateStr && a.status !== 'cancelled' && a.dateStr === selIso && !_isHalaxyPersonalAppt(a);
+    return a.dateStr && a.status !== 'cancelled' && a.dateStr === selIso && !_isPersonalAppt(a);
   }).sort(function(a,b){ return (a.startMs || 0) - (b.startMs || 0); });
 
   var isToday  = selDateStr === todayStr;
