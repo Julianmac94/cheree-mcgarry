@@ -61,7 +61,18 @@ reminder, cancellation policy**.
 With registration handled on `/register`, the enquiry detail panel's "pick funding + paste Halaxy URL"
 UI is obsolete → collapse to a single **"Send registration email"** button.
 
-## Schedule: funder-billed tagging (RESOLVED — patient-level matching impossible)
+## Schedule: funder review queue (RESOLVED — manual, API can't attribute)
+Per-session invoice attribution is impossible (Halaxy exposes no line items by any
+route — lineItem null, Invoice:item 422, /ChargeItem 404; patient filter ignored).
+Final model: every past funder session → `pending-invoice` (inbox, wide window)
+unless manually reconciled via `session_billing_state` ledger (Invoiced→billing /
+Paid→done), set from the "Funder billing" section on the session detail panel.
+Funder per patient comes from a bulk `/Coverage` fetch (`patientFunderMap`).
+Shipped 1131616. Possible cleanup: remove the `?match_debug` / `?inv_probe`
+diagnostics; group the review queue by client; fix `?halaxy_patient_invoices`
+(uses the broken `patient=` filter). Earlier-history below for context.
+
+## (history) Schedule: funder-billed tagging — patient-level matching impossible
 The schedule tagged each appointment Paid / Invoiced / Needs-invoice by matching
 appointment→invoice **by date**, which breaks for **funder bulk invoices**: QFES
 / NDIS bill many sessions across dates onto ONE invoice (e.g. 1090256291 dated
