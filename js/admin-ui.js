@@ -785,7 +785,7 @@ function _mobRenderBilling() {
       // Direct Halaxy invoice URL (strip the FHIR id's alpha prefix, same as desktop)
       var _inum = (inv.ref && /^\d+$/.test(String(inv.ref))) ? String(inv.ref) : String(inv.id || '').replace(/^[A-Za-z]+-/, '');
       var hxUrl = (_halaxyWebUrl && _inum) ? (_halaxyWebUrl + '/invoice/' + _inum) : (_halaxyWebUrl || 'https://www.halaxy.com/practitioner');
-      html += '<div class="mob-bill-row">'
+      html += '<div class="mob-bill-row" onclick="openInvoiceModal(\'' + escHtml(String(inv.id)) + '\')">'
         + '<div class="mob-bill-row-top">'
         + '<span class="mob-bill-name">' + escHtml(name) + (refLabel ? '<span class="mob-bill-ref"> · ' + escHtml(refLabel) + '</span>' : '') + '</span>'
         + '<span class="mob-bill-amt">' + (bal ? _fmtAUD(bal) : '—') + '</span>'

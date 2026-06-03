@@ -1359,7 +1359,9 @@ body {
   .mob-bill-row {
     background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
     border-radius: 10px; padding: 12px 14px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.12s;
   }
+  .mob-bill-row:active { background: rgba(255,255,255,0.07); }
   .mob-bill-row-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; gap: 8px; }
   .mob-bill-name { font-size: 13.5px; font-weight: 600; color: var(--t1); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mob-bill-ref  { font-size: 10px; font-weight: 400; color: var(--t3); margin-left: 4px; }
