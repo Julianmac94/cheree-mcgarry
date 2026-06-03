@@ -7220,17 +7220,15 @@ function _remitMsg(tone, msg) {
   var c = tone === 'amber' ? '#FBBF24' : tone === 'dim' ? 'rgba(255,255,255,0.5)' : '#34D399';
   return '<div style="font-size:12px;color:' + c + ';padding:6px 2px">' + msg + '</div>';
 }
-// Deep-link to the message in the correct mailbox. The email-in-path form
-// (/u/<email>/) throws Gmail's "Temporary Error (404)", so target the account
-// with the ?authuser= query instead, and locate the message with an
-// `rfc822msgid:` search (robust across labels + multi-account browsers).
-// Falls back to the message-id view if no Message-ID header was captured.
-function _remitGmailUrl(mailbox, h) {
+// Deep-link into the correct mailbox, landing on a Gmail search for the invoice
+// number. Why a search and not a message permalink: the /u/<email>/ path 404s,
+// and the rfc822msgid: fragment is finicky to encode — but the server found
+// this email by searching the invoice number, so the same search in Gmail's UI
+// (same index) reliably surfaces it. ?authuser=<email> targets the account;
+// the invoice number is digits, so no fragment-encoding pitfalls.
+function _remitGmailUrl(mailbox, query) {
   var qs = (mailbox && mailbox.indexOf('@') > -1) ? '?authuser=' + encodeURIComponent(mailbox) : '';
-  var frag = (h && h.rfc822msgid)
-    ? '#search/' + encodeURIComponent('rfc822msgid:' + h.rfc822msgid)
-    : '#all/' + encodeURIComponent((h && h.id) || '');
-  return 'https://mail.google.com/mail/' + qs + frag;
+  return 'https://mail.google.com/mail/' + qs + '#search/' + encodeURIComponent(query || '');
 }
 // "Funder Name <accounts@x.com>" → "Funder Name"; bare address → the address.
 function _remitFromName(from) {
@@ -7255,7 +7253,7 @@ function _checkRemittance(invNum, btn) {
             : escHtml(h.date || '');
           var mbox = (h.mailbox || '').split('@')[0] || 'inbox';
           var who  = escHtml(_remitFromName(h.from)) || escHtml(mbox);
-          var url  = _remitGmailUrl(h.mailbox, h);
+          var url  = _remitGmailUrl(h.mailbox, invNum);
           return '<a href="' + url + '" target="_blank" rel="noopener"'
             + ' style="display:flex;align-items:center;gap:11px;text-decoration:none;margin-top:6px'
             + ';padding:10px 12px;border-radius:9px;background:rgba(52,211,153,0.07);border:1px solid rgba(52,211,153,0.20);transition:background 0.12s"'
