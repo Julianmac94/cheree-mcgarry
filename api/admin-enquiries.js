@@ -1223,24 +1223,39 @@ export default async function handler(req, res) {
         actorRefs: (a.participant || []).map(p => p?.actor?.reference || p?.actor?.display || '').filter(Boolean),
         start: a.start || a.period?.start, status: a.status,
       }));
-      const uniquePids = [...new Set(apptSummary.map(a => a.patientId).filter(Boolean))].slice(0, 4);
+      const uniquePids = [...new Set(apptSummary.map(a => a.patientId).filter(Boolean))].slice(0, 3);
       const patientInvoices = {};
+      let singleInvoiceProbe = null;
       for (const pid of uniquePids) {
         try {
-          const ib = await halaxyGet('/Invoice', { patient: pid, _count: '20' });
+          // Correct filter: the patient param needs the "Patient/" prefix (matches the
+          // working halaxy_patient_invoices handler); newest first.
+          const ib = await halaxyGet('/Invoice', { patient: `Patient/${pid}`, _sort: '-created', _count: '12' });
           patientInvoices[pid] = (ib.entry || []).map(e => e.resource).filter(r => r?.resourceType === 'Invoice').map(inv => ({
             id: inv.id, status: inv.status, date: (inv.created || inv.date || '').slice(0, 10),
             totalBalance: inv.totalBalance?.value, totalPaid: inv.totalPaid?.value,
+            payorRefs: (Array.isArray(inv.recipient) ? inv.recipient : [inv.recipient]).filter(Boolean).map(r => r?.reference || r?.display || ''),
             lineItemCount: (inv.lineItem || []).length,
-            lineItems: (inv.lineItem || []).slice(0, 8).map(li => ({
-              servicedDate: li.servicedDate || li.servicedPeriod?.start || null,
-              desc: li.chargeItemReference?.display || li.chargeItemCodeableConcept?.text || null,
-              keys: Object.keys(li),
-            })),
           }));
+          // Probe ONE invoice individually — bundle fetches often omit line items;
+          // the single-resource fetch usually includes them (with service dates).
+          if (!singleInvoiceProbe && patientInvoices[pid][0]) {
+            try {
+              const one = await halaxyGet(`/Invoice/${patientInvoices[pid][0].id}`);
+              singleInvoiceProbe = {
+                id: one.id, topKeys: Object.keys(one),
+                lineItemCount: (one.lineItem || []).length,
+                lineItems: (one.lineItem || []).slice(0, 8).map(li => ({
+                  keys: Object.keys(li),
+                  servicedDate: li.servicedDate || li.servicedPeriod?.start || null,
+                  desc: li.chargeItemReference?.display || li.chargeItemCodeableConcept?.text || null,
+                })),
+              };
+            } catch (e) { singleInvoiceProbe = { error: e.message }; }
+          }
         } catch (e) { patientInvoices[pid] = { error: e.message }; }
       }
-      return res.status(200).json({ apptCount: appts.length, apptSummary, patientInvoices });
+      return res.status(200).json({ apptCount: appts.length, apptSummary, patientInvoices, singleInvoiceProbe });
     } catch (err) {
       return res.status(200).json({ error: err.message });
     }
