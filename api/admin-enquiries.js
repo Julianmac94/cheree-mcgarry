@@ -1223,39 +1223,27 @@ export default async function handler(req, res) {
         actorRefs: (a.participant || []).map(p => p?.actor?.reference || p?.actor?.display || '').filter(Boolean),
         start: a.start || a.period?.start, status: a.status,
       }));
-      const uniquePids = [...new Set(apptSummary.map(a => a.patientId).filter(Boolean))].slice(0, 3);
-      const patientInvoices = {};
-      let singleInvoiceProbe = null;
-      for (const pid of uniquePids) {
-        try {
-          // Correct filter: the patient param needs the "Patient/" prefix (matches the
-          // working halaxy_patient_invoices handler); newest first.
-          const ib = await halaxyGet('/Invoice', { patient: `Patient/${pid}`, _sort: '-created', _count: '12' });
-          patientInvoices[pid] = (ib.entry || []).map(e => e.resource).filter(r => r?.resourceType === 'Invoice').map(inv => ({
-            id: inv.id, status: inv.status, date: (inv.created || inv.date || '').slice(0, 10),
-            totalBalance: inv.totalBalance?.value, totalPaid: inv.totalPaid?.value,
-            payorRefs: (Array.isArray(inv.recipient) ? inv.recipient : [inv.recipient]).filter(Boolean).map(r => r?.reference || r?.display || ''),
-            lineItemCount: (inv.lineItem || []).length,
-          }));
-          // Probe ONE invoice individually — bundle fetches often omit line items;
-          // the single-resource fetch usually includes them (with service dates).
-          if (!singleInvoiceProbe && patientInvoices[pid][0]) {
-            try {
-              const one = await halaxyGet(`/Invoice/${patientInvoices[pid][0].id}`);
-              singleInvoiceProbe = {
-                id: one.id, topKeys: Object.keys(one),
-                lineItemCount: (one.lineItem || []).length,
-                lineItems: (one.lineItem || []).slice(0, 8).map(li => ({
-                  keys: Object.keys(li),
-                  servicedDate: li.servicedDate || li.servicedPeriod?.start || null,
-                  desc: li.chargeItemReference?.display || li.chargeItemCodeableConcept?.text || null,
-                })),
-              };
-            } catch (e) { singleInvoiceProbe = { error: e.message }; }
-          }
-        } catch (e) { patientInvoices[pid] = { error: e.message }; }
-      }
-      return res.status(200).json({ apptCount: appts.length, apptSummary, patientInvoices, singleInvoiceProbe });
+      // ── Funder-resolution chain (why the watermark may not fire) ──
+      // 1. Each patient's Coverage payor (the funder source).
+      const patBundle = await halaxyGet('/Patient', { _count: '80', _revinclude: 'Coverage:beneficiary' });
+      const covRes = (patBundle.entry || []).map(e => e.resource).filter(r => r?.resourceType === 'Coverage');
+      const coverageSample = covRes.slice(0, 25).map(c => {
+        const benRef = c.beneficiary?.reference || '';
+        return { patientId: benRef.split('/').pop() || null, payorDisplay: c.payor?.[0]?.display || null, payorRef: c.payor?.[0]?.reference || null };
+      });
+      // 2. The funders cache — does QFES exist with a billingKey (so an org id resolves)?
+      const fCache = await readCache(supabase(), 'halaxy_funders_cache').catch(() => null);
+      const fundersSample = (fCache?.funders || []).map(f => ({ id: f.id, name: f.name, billingKey: f.billingKey }));
+      // 3. Invoice org-payors + latest date (the watermark inputs).
+      const invB = await halaxyGet('/Invoice', { created: `ge${fyStartStr}`, _sort: '-created', _count: '100', _include: 'Invoice:recipient' });
+      const orgPayors = {};
+      (invB.entry || []).map(e => e.resource).filter(r => r?.resourceType === 'Invoice').forEach(inv => {
+        const recs = Array.isArray(inv.recipient) ? inv.recipient : (inv.recipient ? [inv.recipient] : []);
+        let org = null;
+        for (const r of recs) { const ref = (r?.reference || '').toLowerCase(); if (ref.includes('organi')) { org = r?.display || (r.reference || '').split('/').pop(); break; } }
+        if (org) { const d = (inv.created || inv.date || '').slice(0, 10); if (!orgPayors[org] || d > orgPayors[org]) orgPayors[org] = d; }
+      });
+      return res.status(200).json({ apptCount: appts.length, apptSummary, coverageSample, fundersSample, invoiceOrgPayors: orgPayors });
     } catch (err) {
       return res.status(200).json({ error: err.message });
     }
