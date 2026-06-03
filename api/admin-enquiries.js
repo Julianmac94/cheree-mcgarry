@@ -1196,6 +1196,45 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── GET ?inv_probe=<invoiceId> — read-only: dump a specific invoice's full
+     structure + line items, and probe the /ChargeItem endpoint, to find where
+     the per-session detail (date + patient) lives in the API. ── */
+  if (req.method === 'GET' && params.get('inv_probe')) {
+    if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ error: 'Halaxy not configured' });
+    const invId = params.get('inv_probe').trim();
+    const out = {};
+    try {
+      const inv = await halaxyGet(`/Invoice/${invId}`);
+      out.invoiceTopKeys = Object.keys(inv);
+      out.lineItem       = inv.lineItem || null;
+      out.lineItemJson   = JSON.stringify(inv.lineItem || []).slice(0, 2500);
+      out.account        = inv.account || null;
+      out.totals         = { gross: inv.totalGross, balance: inv.totalBalance, paid: inv.totalPaid };
+    } catch (e) { out.invoiceError = e.message; }
+    // Invoice with _include of the charge items
+    try {
+      const incl = await halaxyGet('/Invoice', { _id: invId, _include: 'Invoice:item' });
+      const res2 = (incl.entry || []).map(e => e.resource);
+      out.includeTypes = res2.map(r => r?.resourceType);
+      out.chargeItemsFromInclude = res2.filter(r => r?.resourceType === 'ChargeItem').slice(0, 4);
+    } catch (e) { out.includeError = e.message; }
+    // The /ChargeItem endpoint generally
+    try {
+      const ci = await halaxyGet('/ChargeItem', { _count: '5' });
+      const cis = (ci.entry || []).map(e => e.resource).filter(r => r?.resourceType === 'ChargeItem');
+      out.chargeItemEndpoint = {
+        count: cis.length,
+        sample: cis.slice(0, 3).map(c => ({
+          keys: Object.keys(c),
+          occurrence: c.occurrenceDateTime || c.occurrencePeriod?.start || null,
+          subject: c.subject?.reference || null,
+          status: c.status, code: c.code?.text || c.code?.coding?.[0]?.display || null,
+        })),
+      };
+    } catch (e) { out.chargeItemEndpoint = { error: e.message }; }
+    return res.status(200).json(out);
+  }
+
   /* ── GET ?match_debug=1 — read-only diagnostic for designing patient-level
      invoice matching. Surfaces (a) whether bulk appointments carry a patient
      reference, and (b) the invoice line-item structure (service dates) so we can
