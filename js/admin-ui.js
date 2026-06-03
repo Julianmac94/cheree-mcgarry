@@ -4308,6 +4308,19 @@ var _dhSourceLabels = {
 };
 var _dhCalIcon = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
 
+// Small inbox type tag so each row's kind is obvious at a glance:
+// Contact card (lead, no time) vs Appointment (has a date/time) vs Google Cal event.
+function _dhTypeBadge(kind) {
+  var m = {
+    contact:     { t: 'Contact',     bg: 'rgba(255,255,255,0.07)', c: 'var(--t2)'   },
+    appointment: { t: 'Appointment', bg: 'rgba(52,211,153,0.13)',  c: 'var(--teal)' },
+    gcal:        { t: 'Google Cal',  bg: 'rgba(224,123,57,0.15)',  c: '#E07B39'     }
+  }[kind];
+  if (!m) return '';
+  return '<span style="font-size:9.5px;font-weight:600;letter-spacing:0.02em;padding:1px 6px;border-radius:10px;background:'
+    + m.bg + ';color:' + m.c + ';white-space:nowrap">' + m.t + '</span>';
+}
+
 function _dhEnqMeta(e) {
   var client    = _dhEnqClientMap[e.id];
   var hxId      = client && client.halaxy_id ? String(client.halaxy_id) : null;
@@ -4324,6 +4337,9 @@ function _dhEnqMeta(e) {
   }
 
   var parts = [];
+
+  // Type tag — Appointment (has a linked date/time) vs plain Contact card
+  parts.push(_dhTypeBadge(nextAppt ? 'appointment' : 'contact'));
 
   // Source pill
   var srcIsDebug = (e.source === 'debug');
@@ -4442,10 +4458,11 @@ function _dhRenderUnlinkedCalItems(listEl, appts) {
     var dateStr = (s.dateLabel || s.dateStr || '') + (s.timeStr ? ' · ' + s.timeStr : '');
     var sid     = escHtml(String(s.id || ''));
     var note    = s.patientId ? 'Needs recording' : 'Not in Halaxy';
+    var typeTag = _dhTypeBadge(s.source === 'cal' ? 'gcal' : 'appointment');
     return '<div class="dh-attn-item" onclick="openDetailPanel(\'session\',\'' + sid + '\')" style="border-left:3px solid #E07B39">'
       + '<div class="dh-attn-av" style="background:rgba(224,123,57,0.14);color:#b85a1e;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">'
       + escHtml((nm[0] || '?').toUpperCase()) + '</div>'
-      + '<div class="dh-attn-body"><div class="dh-attn-name">' + escHtml(nm) + '</div>'
+      + '<div class="dh-attn-body"><div class="dh-attn-name" style="display:flex;align-items:center;gap:6px">' + escHtml(nm) + typeTag + '</div>'
       + '<div class="dh-attn-meta" style="color:#b85a1e">⚕ ' + note + ' · ' + escHtml(dateStr) + '</div></div>'
       + '<span class="dh-attn-arrow">›</span></div>';
   }).join('');
