@@ -439,6 +439,7 @@ var _pipelineData    = null;
 var _halaxyData      = { connected: false, appointments: [], patients: [], patientMap: {}, funders: [] };
 var _calEventMap     = {};    // eventId → event object
 var _calEventLinks   = {};    // eventId → enquiryId (Google Cal ↔ contact card merge ledger)
+var _sessionBillState = {};   // halaxyApptId → 'invoiced'|'paid' (manual funder reconciliation)
 var _calDismissed    = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
 var _calReminders    = new Set(JSON.parse(localStorage.getItem('cal_reminders')  || '[]'));
 window._completedExpanded = false; // toggle for completed section in queue view
@@ -2601,6 +2602,7 @@ async function loadPipeline() {
     var d = await r.json();
     _pipelineData  = d;
     _calEventLinks = d.calendar_event_links || {};  // Google Cal ↔ contact card merges
+    _sessionBillState = d.session_billing_state || {};
     _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [], feeMap: {} };
     // Always set _halaxyFunders to an array after pipeline loads — never leave it null
     _halaxyFunders = _halaxyData.funders || [];
@@ -2674,6 +2676,7 @@ function refreshPipeline() {
   }).then(function(d) {
     _pipelineData  = d;
     _calEventLinks = d.calendar_event_links || {};  // Google Cal ↔ contact card merges
+    _sessionBillState = d.session_billing_state || {};
     _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [], feeMap: {} };
     // Always set _halaxyFunders to an array after pipeline loads — never leave it null
     _halaxyFunders = _halaxyData.funders || [];
@@ -2869,6 +2872,7 @@ function _mobInitPullToRefresh() {
           .then(function(d) {
             _pipelineData  = d;
             _calEventLinks = d.calendar_event_links || {};
+            _sessionBillState = d.session_billing_state || {};
             _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [], feeMap: {} };
             _halaxyFunders = _halaxyData.funders || [];
             _halaxyFeeMap  = _halaxyData.feeMap  || {};
@@ -3261,13 +3265,12 @@ function _buildUnifiedSessions(opts) {
   });
 
   // Funder per Halaxy patient. Funder clients (NDIS plan-managed / QFES /
-  // WorkCover / DVA) are bulk-invoiced across dates, and the API can't attribute
-  // an invoice to a session (no patient filter, no line items). We approximate
-  // billing state with a per-funder "watermark": Cheree batches funder billing,
-  // so a session on/before that funder's LATEST invoice date is assumed billed;
-  // a session AFTER it isn't billed yet → needs invoicing.
-  // Funder source: Halaxy Coverage (patientFunderMap — covers every patient incl.
-  // those not in the dashboard clients), falling back to the dashboard client.
+  // WorkCover / DVA) are bulk-invoiced across dates, and Halaxy's API exposes no
+  // invoice line items, so a session can't be matched to its invoice at all.
+  // Every funder session is therefore flagged for manual review (see the status
+  // logic) until Julian reconciles it. Funder source: Halaxy Coverage
+  // (patientFunderMap — covers every patient incl. those not in the dashboard
+  // clients, like Kaegan), falling back to the dashboard client record.
   var ORG_BILLED = { ndis_plan: 1, qfes: 1, workcover: 1, dva: 1 };
   var funderByHx = {};
   var hxCoverage = (_halaxyData && _halaxyData.patientFunderMap) || {};
@@ -3280,14 +3283,6 @@ function _buildUnifiedSessions(opts) {
       var fk = _guessFunderKey(c.funder);
       if (fk) funderByHx[String(c.halaxy_id)] = fk;
     }
-  });
-  // Latest invoice date per org funder (the watermark).
-  var funderWatermark = {};
-  invoices.forEach(function(inv) {
-    if (!inv.payorOrg || !inv.date) return;
-    var k = _guessFunderKey(inv.payorOrg);
-    if (!k || !ORG_BILLED[k]) return;
-    if (!funderWatermark[k] || inv.date > funderWatermark[k]) funderWatermark[k] = inv.date;
   });
 
   var halaxyAppts = (_halaxyData && _halaxyData.appointments) || [];
@@ -3345,11 +3340,12 @@ function _buildUnifiedSessions(opts) {
     } else if (startMs > now.getTime()) {
       status = 'upcoming';
     } else if (effectivePatientId && ORG_BILLED[funderByHx[String(effectivePatientId)]]) {
-      // Funder session: watermark = funder's latest invoice date. On/before it →
-      // assumed billed (batched); after it → not billed yet, needs invoicing.
-      var _fk = funderByHx[String(effectivePatientId)];
-      var _wm = funderWatermark[_fk];
-      status = (_wm && dateStr <= _wm) ? 'funder-billed' : 'pending-invoice';
+      // Funder session. Halaxy's API exposes no invoice line items, so we CAN'T
+      // tell whether this session is on a (bulk, cross-date) invoice. Every one is
+      // flagged for review until Julian reconciles it: 'invoiced' → billing
+      // (awaiting payment), 'paid' → done, otherwise 'pending-invoice' → inbox.
+      var _ms = _sessionBillState[appt.id];
+      status = _ms === 'paid' ? 'paid' : _ms === 'invoiced' ? 'funder-billed' : 'pending-invoice';
     } else if (key && (_halaxyActioned.has(key) || _recordedSessions.some(function(s) { return String(s.patientId) === String(effectivePatientId) && s.date === dateStr; }))) {
       status = 'pending-invoice';
     } else if (key && invoicedSet.has(key)) {
@@ -4649,11 +4645,15 @@ function _recomputeInboxBuckets() {
   var _uni = (_halaxyData && _halaxyData.connected)
     ? _buildUnifiedSessions()
     : { upcoming: [], past: [] };
+  // The "No Invoice" review queue uses a WIDE window so funder sessions of any
+  // age surface (a March funder session must still flag in June). Other buckets
+  // keep the default 30d window.
+  var _uniWide = (_halaxyData && _halaxyData.connected) ? _buildUnifiedSessions(_DH_SCHED_WIN) : { upcoming: [], past: [] };
 
   _dhBillingSessions = _uni.past.filter(function(s) {
     return !_isPersonalAppt(s) && (s.status === 'pending-invoice' || s.status === 'invoiced' || s.status === 'needs-recording');
   });
-  _dhHalaxyNoInvoice = _uni.past.filter(function(s) {
+  _dhHalaxyNoInvoice = _uniWide.past.filter(function(s) {
     return !_isPersonalAppt(s) && s.source === 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
   });
   _dhNonHalaxyActions = _uni.past.filter(function(s) {
@@ -4990,7 +4990,9 @@ function renderHomeView() {
   // ── Issue buckets ─────────────────────────────────────────────
   // Halaxy appointment with no invoice = critical data integrity problem
   // "Personal appointment" entries are legacy Halaxy placeholders — exclude silently
-  _dhHalaxyNoInvoice  = _uni.past.filter(function(s) {
+  // WIDE window so funder sessions of any age surface in the review queue.
+  var _uniWideHome = (_halaxyData && _halaxyData.connected) ? _buildUnifiedSessions(_DH_SCHED_WIN) : { upcoming: [], past: [] };
+  _dhHalaxyNoInvoice  = _uniWideHome.past.filter(function(s) {
     return !_isPersonalAppt(s) && s.source === 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
   });
   // Non-Halaxy appointment needing merge or dismiss (calendar / dashboard)
@@ -7860,9 +7862,21 @@ function _renderSessionDetailPanel(sess) {
     return html;
   }
 
-  // Funder-billed: bulk/cross-date invoice the API can't attribute per session.
-  if (sess.status === 'funder-billed') {
-    html += '<div class="m-info-box" style="margin:8px 0 12px">Billed via the funder (NDIS / QFES / WorkCover / DVA) on a bulk invoice — per-session paid status can\'t be matched here. Check the Billing block for what\'s actually outstanding.</div>';
+  // Funder reconciliation — Halaxy hides invoice line items, so this session's
+  // billing can't be auto-confirmed; Julian decides after checking Halaxy.
+  if (sess.source === 'halaxy' && sess.halaxyApptId && (sess.status === 'pending-invoice' || sess.status === 'funder-billed')) {
+    var _cur = _sessionBillState[sess.halaxyApptId];
+    var _aid = escHtml(String(sess.halaxyApptId));
+    html += '<div class="m-section"><div class="m-section-hd"><span class="m-section-label">Funder billing</span></div>';
+    html += '<div class="m-info-box" style="margin:4px 0 10px">'
+      + (sess.status === 'funder-billed'
+          ? 'Marked <strong>invoiced</strong> — sitting in billing, awaiting the funder’s payment.'
+          : 'Can’t be auto-confirmed (Halaxy hides invoice line items). Check Halaxy, then mark it.') + '</div>';
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+    html += '<button class="m-btn-ghost" style="flex:1;min-width:90px" onclick="markSessionBill(\'' + _aid + '\',\'invoiced\')"' + (_cur === 'invoiced' ? ' disabled' : '') + '>✓ Invoiced</button>';
+    html += '<button class="m-btn-ghost" style="flex:1;min-width:80px" onclick="markSessionBill(\'' + _aid + '\',\'paid\')"' + (_cur === 'paid' ? ' disabled' : '') + '>Paid</button>';
+    if (_cur) html += '<button class="m-btn-ghost" style="flex:1;min-width:110px" onclick="markSessionBill(\'' + _aid + '\',\'\')">↩ Needs invoice</button>';
+    html += '</div></div>';
   }
 
   // Primary CTA per status
@@ -8053,6 +8067,19 @@ async function unlinkCalEvent(eventId) {
     refreshPipeline();
   } catch (err) {
     toast('Could not unlink: ' + err.message, 'err');
+  }
+}
+
+/* ── Manual funder-session reconciliation (Halaxy hides invoice line items, so
+   the dashboard can't auto-confirm) — mark invoiced / paid / back to needs-invoice. */
+async function markSessionBill(apptId, state) {
+  try {
+    await apiFetch('/api/admin-enquiries?session_bill=1', { method: 'POST', body: { apptId: apptId, state: state || null } });
+    closeDetailPanel();
+    _showSuccess('mark', state === 'paid' ? 'Marked paid' : state === 'invoiced' ? 'Marked invoiced' : 'Back to needs invoice');
+    refreshPipeline();
+  } catch (err) {
+    toast('Could not update: ' + err.message, 'err');
   }
 }
 

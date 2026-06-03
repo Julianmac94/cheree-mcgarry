@@ -1539,6 +1539,29 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ── POST ?session_bill=1 — manual funder-session reconciliation. Body
+     { apptId, state } where state ∈ {'invoiced','paid'} or null/'' to clear
+     (back to "needs invoice"). Stored in `session_billing_state` settings cache
+     as { halaxyApptId → state }. Lets Julian decide per session what the API
+     can't tell us (Halaxy exposes no invoice line items). Reversible. ── */
+  if (req.method === 'POST' && params.get('session_bill')) {
+    const { apptId, state } = req.body || {};
+    if (!apptId) return res.status(400).json({ error: 'apptId is required' });
+    if (state && state !== 'invoiced' && state !== 'paid') {
+      return res.status(400).json({ error: "state must be 'invoiced', 'paid', or empty to clear" });
+    }
+    try {
+      const dbl    = supabase();
+      const ledger = (await readCache(dbl, 'session_billing_state')) || {};
+      if (state) ledger[apptId] = state;
+      else       delete ledger[apptId];
+      await writeCache(dbl, 'session_billing_state', ledger);
+      return res.status(200).json({ ok: true, state: ledger[apptId] || null });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   /* ── GET /api/admin-enquiries?halaxy_search=<email> — find Halaxy patient by email ── */
   if (req.method === 'GET' && halaxySearch) {
     if (!process.env.HALAXY_CLIENT_ID) return res.status(200).json({ patients: [] });
@@ -1558,7 +1581,7 @@ export default async function handler(req, res) {
     const [
       { data: enquiries }, clientsResult, { data: activityRaw },
       fundersCached, feesCached, feeMapCached,
-      { data: tasksRaw }, sessionFeeMapCached, calEventLinksCached,
+      { data: tasksRaw }, sessionFeeMapCached, calEventLinksCached, sessionBillStateCached,
     ] = await Promise.all([
       db.from('enquiries').select('*').order('created_at', { ascending: false }),
       db.from('clients').select(`
@@ -1573,6 +1596,7 @@ export default async function handler(req, res) {
       db.from('tasks').select('*').order('created_at', { ascending: true }),
       readCache(db, 'session_fee_map'),   // funder×session-type → Halaxy fee config (Settings → Booking fees)
       readCache(db, 'calendar_event_links'), // { eventId → enquiryId } merge ledger (Google Cal ↔ contact card)
+      readCache(db, 'session_billing_state'), // { halaxyApptId → 'invoiced'|'paid' } manual funder reconciliation
     ]);
 
     // If the full clients query failed (e.g. enquiry_id column not yet migrated),
@@ -1883,6 +1907,7 @@ export default async function handler(req, res) {
       halaxy,
       session_fee_map: sessionFeeMapCached || null,
       calendar_event_links: calEventLinksCached || {},
+      session_billing_state: sessionBillStateCached || {},
     });
   }
 
