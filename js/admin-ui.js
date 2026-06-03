@@ -3260,19 +3260,34 @@ function _buildUnifiedSessions(opts) {
     }
   });
 
-  // Map each Halaxy patient → funder key (from the dashboard client record).
-  // Funder clients (NDIS plan-managed / QFES / WorkCover / DVA) are bulk-invoiced
-  // across dates, and Halaxy's API won't let us attribute an invoice to a session
-  // (no patient filter, no line items — see the patient-level-matching dead-end).
-  // So their past sessions are tagged neutrally ("funder-billed") instead of
-  // guessed paid/needs-invoice by date; the billing block is the source of truth.
+  // Funder per Halaxy patient. Funder clients (NDIS plan-managed / QFES /
+  // WorkCover / DVA) are bulk-invoiced across dates, and the API can't attribute
+  // an invoice to a session (no patient filter, no line items). We approximate
+  // billing state with a per-funder "watermark": Cheree batches funder billing,
+  // so a session on/before that funder's LATEST invoice date is assumed billed;
+  // a session AFTER it isn't billed yet → needs invoicing.
+  // Funder source: Halaxy Coverage (patientFunderMap — covers every patient incl.
+  // those not in the dashboard clients), falling back to the dashboard client.
   var ORG_BILLED = { ndis_plan: 1, qfes: 1, workcover: 1, dva: 1 };
-  var clientFunderByHx = {};
+  var funderByHx = {};
+  var hxCoverage = (_halaxyData && _halaxyData.patientFunderMap) || {};
+  Object.keys(hxCoverage).forEach(function(pid) {
+    var k = _guessFunderKey(hxCoverage[pid]);
+    if (k) funderByHx[String(pid)] = k;
+  });
   ((_pipelineData && _pipelineData.clients) || []).forEach(function(c) {
-    if (c.halaxy_id && c.funder) {
+    if (c.halaxy_id && c.funder && !funderByHx[String(c.halaxy_id)]) {
       var fk = _guessFunderKey(c.funder);
-      if (fk) clientFunderByHx[String(c.halaxy_id)] = fk;
+      if (fk) funderByHx[String(c.halaxy_id)] = fk;
     }
+  });
+  // Latest invoice date per org funder (the watermark).
+  var funderWatermark = {};
+  invoices.forEach(function(inv) {
+    if (!inv.payorOrg || !inv.date) return;
+    var k = _guessFunderKey(inv.payorOrg);
+    if (!k || !ORG_BILLED[k]) return;
+    if (!funderWatermark[k] || inv.date > funderWatermark[k]) funderWatermark[k] = inv.date;
   });
 
   var halaxyAppts = (_halaxyData && _halaxyData.appointments) || [];
@@ -3329,9 +3344,12 @@ function _buildUnifiedSessions(opts) {
       status = 'cancelled';
     } else if (startMs > now.getTime()) {
       status = 'upcoming';
-    } else if (effectivePatientId && ORG_BILLED[clientFunderByHx[String(effectivePatientId)]]) {
-      // Funder client → bulk/cross-date invoice we can't match by date. Neutral.
-      status = 'funder-billed';
+    } else if (effectivePatientId && ORG_BILLED[funderByHx[String(effectivePatientId)]]) {
+      // Funder session: watermark = funder's latest invoice date. On/before it →
+      // assumed billed (batched); after it → not billed yet, needs invoicing.
+      var _fk = funderByHx[String(effectivePatientId)];
+      var _wm = funderWatermark[_fk];
+      status = (_wm && dateStr <= _wm) ? 'funder-billed' : 'pending-invoice';
     } else if (key && (_halaxyActioned.has(key) || _recordedSessions.some(function(s) { return String(s.patientId) === String(effectivePatientId) && s.date === dateStr; }))) {
       status = 'pending-invoice';
     } else if (key && invoicedSet.has(key)) {
