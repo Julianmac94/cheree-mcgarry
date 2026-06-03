@@ -1224,9 +1224,12 @@ export default async function handler(req, res) {
         start: a.start || a.period?.start, status: a.status,
       }));
       // ── Funder-resolution chain (why the watermark may not fire) ──
-      // 1. Each patient's Coverage payor (the funder source).
+      // 1. Each patient's Coverage payor (the funder source). The _revinclude on
+      //    /Patient returned nothing, so fetch /Coverage directly (bulk).
       const patBundle = await halaxyGet('/Patient', { _count: '80', _revinclude: 'Coverage:beneficiary' });
-      const covRes = (patBundle.entry || []).map(e => e.resource).filter(r => r?.resourceType === 'Coverage');
+      const covViaRevinclude = (patBundle.entry || []).map(e => e.resource).filter(r => r?.resourceType === 'Coverage').length;
+      const covBundle = await halaxyGet('/Coverage', { _count: '200' });
+      const covRes = (covBundle.entry || []).map(e => e.resource).filter(r => r?.resourceType === 'Coverage');
       const coverageSample = covRes.slice(0, 25).map(c => {
         const benRef = c.beneficiary?.reference || '';
         return { patientId: benRef.split('/').pop() || null, payorDisplay: c.payor?.[0]?.display || null, payorRef: c.payor?.[0]?.reference || null };
@@ -1243,7 +1246,7 @@ export default async function handler(req, res) {
         for (const r of recs) { const ref = (r?.reference || '').toLowerCase(); if (ref.includes('organi')) { org = r?.display || (r.reference || '').split('/').pop(); break; } }
         if (org) { const d = (inv.created || inv.date || '').slice(0, 10); if (!orgPayors[org] || d > orgPayors[org]) orgPayors[org] = d; }
       });
-      return res.status(200).json({ apptCount: appts.length, apptSummary, coverageSample, fundersSample, invoiceOrgPayors: orgPayors });
+      return res.status(200).json({ apptCount: appts.length, apptSummary, covViaRevinclude, covViaBulk: covRes.length, coverageSample, fundersSample, invoiceOrgPayors: orgPayors });
     } catch (err) {
       return res.status(200).json({ error: err.message });
     }
@@ -1594,14 +1597,17 @@ export default async function handler(req, res) {
         const fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
         const fyStartStr  = `${fyStartYear}-07-01`;
 
-        const [apptBundle, patientBundle, fyInvoiceBundle, preFyInvoiceBundle] = await Promise.all([
+        const [apptBundle, patientBundle, coverageBundle, fyInvoiceBundle, preFyInvoiceBundle] = await Promise.all([
           halaxyGet('/Appointment', {
             date:     `ge${fyStartStr}`, // full FY — matches invoice window so client detail is consistent
             _sort:    'date',
             _count:   '500',
             _include: 'Appointment:patient',
           }),
-          halaxyGet('/Patient', { _count: '500', _revinclude: 'Coverage:beneficiary' }),
+          halaxyGet('/Patient', { _count: '500' }),
+          // Bulk Coverage → patient→funder map (the _revinclude on /Patient returns
+          // nothing, so fetch Coverage directly — one call covers every patient).
+          halaxyGet('/Coverage', { _count: '500' }).catch(() => ({ entry: [] })),
           // FY invoices: paid + unpaid since July 1 (full financial year)
           halaxyGet('/Invoice', {
             created:  `ge${fyStartStr}`,
@@ -1635,10 +1641,10 @@ export default async function handler(req, res) {
         const appointments       = allBundleResources.filter(r => r.resourceType === 'Appointment');
         const includedPatients   = allBundleResources.filter(r => r.resourceType === 'Patient');
 
-        // _revinclude=Coverage:beneficiary returns Coverage resources alongside Patient records.
-        // Split them out of the patient bundle — this gives us every patient's funder in one call.
+        // Patient → funder comes from a dedicated bulk /Coverage fetch (the
+        // _revinclude on /Patient returned no Coverage resources).
         const patientBundleResources = (patientBundle.entry || []).map(e => e.resource).filter(Boolean);
-        const coverageResources      = patientBundleResources.filter(r => r.resourceType === 'Coverage');
+        const coverageResources      = (coverageBundle.entry || []).map(e => e.resource).filter(r => r?.resourceType === 'Coverage');
 
         // Build a fast id→name map from the included Patient resources
         const patientMap = {};
