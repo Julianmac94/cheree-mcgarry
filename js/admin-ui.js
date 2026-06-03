@@ -3260,6 +3260,21 @@ function _buildUnifiedSessions(opts) {
     }
   });
 
+  // Map each Halaxy patient → funder key (from the dashboard client record).
+  // Funder clients (NDIS plan-managed / QFES / WorkCover / DVA) are bulk-invoiced
+  // across dates, and Halaxy's API won't let us attribute an invoice to a session
+  // (no patient filter, no line items — see the patient-level-matching dead-end).
+  // So their past sessions are tagged neutrally ("funder-billed") instead of
+  // guessed paid/needs-invoice by date; the billing block is the source of truth.
+  var ORG_BILLED = { ndis_plan: 1, qfes: 1, workcover: 1, dva: 1 };
+  var clientFunderByHx = {};
+  ((_pipelineData && _pipelineData.clients) || []).forEach(function(c) {
+    if (c.halaxy_id && c.funder) {
+      var fk = _guessFunderKey(c.funder);
+      if (fk) clientFunderByHx[String(c.halaxy_id)] = fk;
+    }
+  });
+
   var halaxyAppts = (_halaxyData && _halaxyData.appointments) || [];
   var sessions = [];
 
@@ -3314,6 +3329,9 @@ function _buildUnifiedSessions(opts) {
       status = 'cancelled';
     } else if (startMs > now.getTime()) {
       status = 'upcoming';
+    } else if (effectivePatientId && ORG_BILLED[clientFunderByHx[String(effectivePatientId)]]) {
+      // Funder client → bulk/cross-date invoice we can't match by date. Neutral.
+      status = 'funder-billed';
     } else if (key && (_halaxyActioned.has(key) || _recordedSessions.some(function(s) { return String(s.patientId) === String(effectivePatientId) && s.date === dateStr; }))) {
       status = 'pending-invoice';
     } else if (key && invoicedSet.has(key)) {
@@ -4841,19 +4859,15 @@ function _dhRenderSchedCard() {
       // Status tag
       var statusTag = '';
       var statusMap = {
-        'needs-recording': ['Needs further action', '#a78bfa'],
-        'pending-invoice': ['Needs invoice',        '#a78bfa'],
-        'invoiced':        ['Invoice unpaid',        '#E07B39'],
-        'paid':            ['Paid',                  '#34d399'],
+        'needs-recording': ['Needs further action', '#a78bfa', 'rgba(167,139,250,0.1)'],
+        'pending-invoice': ['Needs invoice',         '#a78bfa', 'rgba(167,139,250,0.1)'],
+        'invoiced':        ['Invoice unpaid',         '#E07B39', 'rgba(224,123,57,0.12)'],
+        'paid':            ['Paid',                   '#34d399', 'rgba(52,211,153,0.1)'],
+        'funder-billed':   ['Funder billed',          '#60a5fa', 'rgba(59,130,246,0.12)'],
       };
       if (statusMap[a.status]) {
         var sc = statusMap[a.status];
-        var bg = a.status === 'paid'
-          ? 'rgba(52,211,153,0.1)'
-          : a.status === 'invoiced'
-            ? 'rgba(224,123,57,0.12)'
-            : 'rgba(167,139,250,0.1)';
-        statusTag = '<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;background:' + bg + ';color:' + sc[1] + ';white-space:nowrap">' + sc[0] + '</span>';
+        statusTag = '<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;background:' + sc[2] + ';color:' + sc[1] + ';white-space:nowrap">' + sc[0] + '</span>';
       }
 
       h += '<div class="dh-sched-row' + srcCls + '" onclick="openDetailPanel(\'session\',\'' + sid + '\')" style="cursor:pointer">'
@@ -7784,6 +7798,8 @@ function _renderSessionDetailPanel(sess) {
     html += ' · <span class="m-chip m-chip-purple">No invoice</span>';
   } else if (sess.status === 'needs-recording') {
     html += ' · <span class="m-chip m-chip-purple">Needs recording</span>';
+  } else if (sess.status === 'funder-billed') {
+    html += ' · <span class="m-chip m-chip-blue">Funder billed</span>';
   } else if (sess.status === 'upcoming') {
     html += ' · <span class="m-chip m-chip-blue">Upcoming</span>';
   }
@@ -7822,6 +7838,11 @@ function _renderSessionDetailPanel(sess) {
   if (isUnlinkedCal && (sess.status === 'needs-recording' || sess.status === 'upcoming')) {
     html += _calUnlinkedActionHtml(sess.eventId || sess.id, sess.name);
     return html;
+  }
+
+  // Funder-billed: bulk/cross-date invoice the API can't attribute per session.
+  if (sess.status === 'funder-billed') {
+    html += '<div class="m-info-box" style="margin:8px 0 12px">Billed via the funder (NDIS / QFES / WorkCover / DVA) on a bulk invoice — per-session paid status can\'t be matched here. Check the Billing block for what\'s actually outstanding.</div>';
   }
 
   // Primary CTA per status
