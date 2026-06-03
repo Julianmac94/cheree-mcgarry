@@ -61,21 +61,24 @@ reminder, cancellation policy**.
 With registration handled on `/register`, the enquiry detail panel's "pick funding + paste Halaxy URL"
 UI is obsolete → collapse to a single **"Send registration email"** button.
 
-## Schedule: patient-level invoice matching (IN PROGRESS — needs data first)
-The schedule tags each appointment Paid / Invoiced / Needs-invoice by matching
-appointment→invoice **by date**. This breaks for **funder bulk invoices**: QFES
-(and NDIS plan managers) bill multiple sessions across different dates onto ONE
-invoice (e.g. invoice 1090256291 dated 05-May covers Kaegan Summers + Blair
-Westbrook for March sessions). Date-matching can't see this → false "Needs
-invoice" (it IS invoiced, cross-date) and previously false "Paid".
-- **Shipped already:** duplicate-appt collapse (by FHIR id) + never claim "Paid"
-  from an ambiguous multi-invoice day (commit d8ee76f).
-- **Decided:** do real **patient-level matching** — attribute invoices to the
-  appointment's patientId (any date), ideally via invoice line-item service dates.
-- **Next:** run `GET /api/admin-enquiries?match_debug=1` (logged in) to confirm
-  (a) appts carry a patient ref and (b) invoice lineItems expose service dates,
-  then build the matching server-side (likely a cached patientId→invoices index;
-  mind the per-patient fetch volume). Billing-critical — see CLAUDE.md warnings.
+## Schedule: funder-billed tagging (RESOLVED — patient-level matching impossible)
+The schedule tagged each appointment Paid / Invoiced / Needs-invoice by matching
+appointment→invoice **by date**, which breaks for **funder bulk invoices**: QFES
+/ NDIS bill many sessions across dates onto ONE invoice (e.g. 1090256291 dated
+05-May covered Kaegan + Blair for March sessions) → false "Needs invoice" / "Paid".
+- **Investigated** patient-level matching via `?match_debug=1`: **impossible** —
+  Halaxy's `/Invoice` ignores the `patient` filter AND exposes no line items
+  (no per-session dates). See memory `halaxy-invoice-api-limits`. Appts DO carry
+  patientId, though.
+- **Shipped:** (a) duplicate-appt collapse + no false "Paid" from ambiguous days
+  (d8ee76f); (b) neutral **"funder-billed"** status for org-billed clients
+  (NDIS/QFES/WorkCover/DVA), mapped via appt.patientId → client.funder, deferring
+  to the billing block (ae2619d).
+- **Residual:** relies on the client existing in the dashboard with a funder set
+  (matched by halaxy_id); a funder client missing from the client list falls back
+  to date-guessing. Possible follow-up: fix `?halaxy_patient_invoices` (uses the
+  broken `patient=` filter — try `subject=`) for the client-detail invoice list.
+- The `?match_debug=1` diagnostic endpoint is still live (read-only) — can be removed.
 
 ## CSS consolidation (separate branch)
 `refactor/css-consolidation` — foundation + 3 slices done & verified; app-shell slice + mobile
