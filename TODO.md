@@ -61,6 +61,22 @@ reminder, cancellation policy**.
 With registration handled on `/register`, the enquiry detail panel's "pick funding + paste Halaxy URL"
 UI is obsolete → collapse to a single **"Send registration email"** button.
 
+## Schedule: patient-level invoice matching (IN PROGRESS — needs data first)
+The schedule tags each appointment Paid / Invoiced / Needs-invoice by matching
+appointment→invoice **by date**. This breaks for **funder bulk invoices**: QFES
+(and NDIS plan managers) bill multiple sessions across different dates onto ONE
+invoice (e.g. invoice 1090256291 dated 05-May covers Kaegan Summers + Blair
+Westbrook for March sessions). Date-matching can't see this → false "Needs
+invoice" (it IS invoiced, cross-date) and previously false "Paid".
+- **Shipped already:** duplicate-appt collapse (by FHIR id) + never claim "Paid"
+  from an ambiguous multi-invoice day (commit d8ee76f).
+- **Decided:** do real **patient-level matching** — attribute invoices to the
+  appointment's patientId (any date), ideally via invoice line-item service dates.
+- **Next:** run `GET /api/admin-enquiries?match_debug=1` (logged in) to confirm
+  (a) appts carry a patient ref and (b) invoice lineItems expose service dates,
+  then build the matching server-side (likely a cached patientId→invoices index;
+  mind the per-patient fetch volume). Billing-critical — see CLAUDE.md warnings.
+
 ## CSS consolidation (separate branch)
 `refactor/css-consolidation` — foundation + 3 slices done & verified; app-shell slice + mobile
 stragglers remain. See CLAUDE.md.
