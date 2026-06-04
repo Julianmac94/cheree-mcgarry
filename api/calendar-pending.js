@@ -13,7 +13,7 @@ const db = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const CALENDAR_ID = 'c_af1c120054ecb4479786f98965dc27dbf1b52ab7ae3a58db89a11f1f9da16ede@group.calendar.google.com';
+export const CALENDAR_ID = 'c_af1c120054ecb4479786f98965dc27dbf1b52ab7ae3a58db89a11f1f9da16ede@group.calendar.google.com';
 
 export default async function handler(req, res) {
   if (!isAuthed(req)) {

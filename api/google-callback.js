@@ -6,6 +6,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { google } from 'googleapis';
+import { CALENDAR_ID } from './calendar-pending.js';
 
 const db = createClient(
   process.env.SUPABASE_URL,
@@ -56,9 +57,31 @@ export default async function handler(req, res) {
 
     const now = new Date().toISOString();
 
-    // Calendar reads google_refresh_token — keep it pointed at the latest consent
-    // (back-compat; this token now also carries gmail.readonly).
-    await db.from('settings').upsert({ key: 'google_refresh_token', value: tokens.refresh_token, updated_at: now });
+    // Calendar reads google_refresh_token to fetch the SHARED "Pending Clients"
+    // calendar. A Gmail-only reconnect (admin@ / reachout@) must NOT clobber that
+    // token unless the consenting account can actually read the calendar —
+    // otherwise the schedule goes blank. Verify access before repointing; this is
+    // self-healing (reconnect as the calendar-owning account to restore it).
+    let canReadCalendar = false;
+    try {
+      const calOauth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
+      calOauth.setCredentials({ refresh_token: tokens.refresh_token });
+      const calendar = google.calendar({ version: 'v3', auth: calOauth });
+      await calendar.events.list({ calendarId: CALENDAR_ID, maxResults: 1 });
+      canReadCalendar = true;
+    } catch (_) { canReadCalendar = false; }
+
+    // First-time bootstrap: if there's no calendar token yet, set it regardless so
+    // we don't end up with none. Otherwise only update when this account can read.
+    let hasCalToken = false;
+    try {
+      const { data } = await db.from('settings').select('value').eq('key', 'google_refresh_token').single();
+      hasCalToken = !!data?.value;
+    } catch (_) {}
+
+    if (canReadCalendar || !hasCalToken) {
+      await db.from('settings').upsert({ key: 'google_refresh_token', value: tokens.refresh_token, updated_at: now });
+    }
 
     // Per-mailbox token map for Gmail remittance search — merge, don't clobber,
     // so admin@ and reachout@ can each be connected by consenting in turn.
@@ -70,7 +93,7 @@ export default async function handler(req, res) {
       await db.from('settings').upsert({ key: 'gmail_tokens', value: JSON.stringify(map), updated_at: now });
     } catch (_) {}
 
-    res.writeHead(302, { Location: '/admin?tab=clients&gcal=connected' + (email ? '&mb=' + encodeURIComponent(email) : '') });
+    res.writeHead(302, { Location: '/admin?tab=clients&gcal=connected' + (email ? '&mb=' + encodeURIComponent(email) : '') + '&cal=' + (canReadCalendar ? 'ok' : 'no') });
     res.end();
   } catch (err) {
     console.error('google-callback error', err);
