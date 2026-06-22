@@ -7629,42 +7629,49 @@ function renderBillingView() {
    ═══════════════════════════════════════════════════ */
 
 function _renderBookingFeesSection() {
-  var html = '<div class=”settings-section”><div class=”settings-section-title”>Booking fees</div>';
+  var S = 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:20px;margin-bottom:14px';
+  var html = '<div style=”' + S + '”>'
+    + '<div style=”color:rgba(255,255,255,0.55);font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:14px”>Booking fees</div>';
+
   if (!(_halaxyFees || []).length) {
-    html += '<div class=”settings-row”><span class=”settings-row-label”>No Halaxy fees loaded yet — use “Sync funders &amp; fees” above first.</span></div></div>';
+    html += '<div style=”color:rgba(255,255,255,0.4);font-size:13px”>No Halaxy fees loaded yet — use “Sync funders &amp; fees” above.</div></div>';
     return html;
   }
 
-  var tblStyle = 'width:100%;border-collapse:collapse;font-size:13px';
-  var thStyle = 'text-align:left;padding:8px 0 6px;font-size:12px;font-weight:600;color:var(--t1);border-bottom:1px solid rgba(255,255,255,0.08)';
-  var tdStyle = 'padding:5px 0;color:rgba(255,255,255,0.55);font-size:12px';
-  var amtStyle = 'padding:5px 0;text-align:right;font-weight:600;color:var(--t1);font-size:12px;font-variant-numeric:tabular-nums';
-  var noteStyle = 'font-size:11px;color:rgba(255,255,255,0.3);padding:0 0 6px';
-  var metaStyle = 'font-size:10px;color:rgba(255,255,255,0.25);margin-left:6px';
+  BOOKABLE_MENU.forEach(function(fn, fi) {
+    // Funder header row
+    var hdr = escHtml(fn.label);
+    if (fn.note) {
+      var shortNote = fn.note.length > 50 ? fn.note.slice(0, 50) + '…' : fn.note;
+      hdr += '<span style=”font-weight:400;font-size:11px;color:rgba(255,255,255,0.3);margin-left:8px”>' + escHtml(shortNote) + '</span>';
+    }
+    if (fn.planManaged) {
+      var pmCount = (_halaxyFunders || []).filter(function(f) { return f.billingKey === 'ndis_plan'; }).length;
+      hdr += '<span style=”font-weight:400;font-size:11px;color:rgba(255,255,255,0.3);margin-left:8px”>' + pmCount + ' plan managers</span>';
+    }
+    html += '<div style=”font-size:13px;font-weight:600;color:var(--t1);padding:10px 0 6px'
+      + (fi > 0 ? ';border-top:1px solid rgba(255,255,255,0.06);margin-top:4px' : '') + '”>' + hdr + '</div>';
 
-  html += '<table style=”' + tblStyle + '”>';
-
-  BOOKABLE_MENU.forEach(function(fn) {
-    html += '<tr><td colspan=”2” style=”' + thStyle + '”>' + escHtml(fn.label) + '</td></tr>';
-    if (fn.note) html += '<tr><td colspan=”2” style=”' + noteStyle + '”>' + escHtml(fn.note) + '</td></tr>';
+    // Fee rows
     fn.items.forEach(function(it) {
       var resolved = _bookableResolveFee(it);
-      var meta = (it.mbsItem ? 'MBS ' + it.mbsItem : '') + (it.durationMin ? (it.mbsItem ? ' · ' : '') + it.durationMin + ' min' : '');
-      html += '<tr><td style=”' + tdStyle + '”>' + escHtml(it.label)
-        + (meta ? '<span style=”' + metaStyle + '”>' + escHtml(meta) + '</span>' : '')
-        + '</td><td style=”' + amtStyle + '”>'
-        + (resolved ? '$' + Number(resolved.amount).toFixed(2) : '<span style=”color:var(--amber);opacity:0.7;font-weight:400”>Not mapped</span>')
-        + '</td></tr>';
+      var label = it.label;
+      // Inline meta only when it adds info the label doesn't already contain
+      var meta = '';
+      if (it.mbsItem) meta = 'MBS ' + it.mbsItem;
+      if (it.durationMin && label.indexOf(it.durationMin + '') < 0) meta += (meta ? ' · ' : '') + it.durationMin + ' min';
+
+      html += '<div style=”display:flex;align-items:baseline;justify-content:space-between;padding:4px 0 4px 12px;font-size:13px”>'
+        + '<span style=”color:rgba(255,255,255,0.55)”>' + escHtml(label)
+        + (meta ? ' <span style=”font-size:11px;color:rgba(255,255,255,0.25)”>(' + escHtml(meta) + ')</span>' : '')
+        + '</span>'
+        + '<span style=”font-weight:600;color:var(--t1);font-variant-numeric:tabular-nums;white-space:nowrap;margin-left:16px”>'
+        + (resolved ? '$' + Number(resolved.amount).toFixed(2) : '<span style=”color:var(--amber);font-weight:400;font-size:12px”>unmapped</span>')
+        + '</span></div>';
     });
-    if (fn.planManaged) {
-      var pms = (_halaxyFunders || []).filter(function(f) { return f.billingKey === 'ndis_plan'; });
-      html += '<tr><td colspan=”2” style=”' + noteStyle + ';padding-top:4px”>Plan managers: '
-        + (pms.length ? pms.map(function(p) { return escHtml(p.name); }).join(', ') : '— none synced —')
-        + '</td></tr>';
-    }
   });
 
-  html += '</table></div>';
+  html += '</div>';
   return html;
 }
 
