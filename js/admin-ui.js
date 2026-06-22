@@ -7629,45 +7629,38 @@ function renderBillingView() {
    ═══════════════════════════════════════════════════ */
 
 function _renderBookingFeesSection() {
-  var S = 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:20px;margin-bottom:14px';
-  var html = '<div style=”' + S + '”>'
-    + '<div style=”color:rgba(255,255,255,0.55);font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:14px”>Booking fees</div>';
+  var html = '<div class=”settings-section”><div class=”settings-section-title”>Booking fees</div>';
 
   if (!(_halaxyFees || []).length) {
-    html += '<div style=”color:rgba(255,255,255,0.4);font-size:13px”>No Halaxy fees loaded yet — use “Sync funders &amp; fees” above.</div></div>';
+    html += '<div class=”settings-row”><span class=”settings-row-label” style=”color:rgba(255,255,255,0.4)”>No Halaxy fees loaded — sync above.</span></div></div>';
     return html;
   }
 
   BOOKABLE_MENU.forEach(function(fn, fi) {
-    // Funder header row
-    var hdr = escHtml(fn.label);
-    if (fn.note) {
-      var shortNote = fn.note.length > 50 ? fn.note.slice(0, 50) + '…' : fn.note;
-      hdr += '<span style=”font-weight:400;font-size:11px;color:rgba(255,255,255,0.3);margin-left:8px”>' + escHtml(shortNote) + '</span>';
-    }
+    // Funder header
+    var note = '';
     if (fn.planManaged) {
       var pmCount = (_halaxyFunders || []).filter(function(f) { return f.billingKey === 'ndis_plan'; }).length;
-      hdr += '<span style=”font-weight:400;font-size:11px;color:rgba(255,255,255,0.3);margin-left:8px”>' + pmCount + ' plan managers</span>';
+      note = pmCount + ' plan managers';
+    } else if (fn.note) {
+      note = fn.note.length > 45 ? fn.note.slice(0, 45) + '…' : fn.note;
     }
-    html += '<div style=”font-size:13px;font-weight:600;color:var(--t1);padding:10px 0 6px'
-      + (fi > 0 ? ';border-top:1px solid rgba(255,255,255,0.06);margin-top:4px' : '') + '”>' + hdr + '</div>';
+    html += '<div class=”settings-row” style=”border-bottom:none;padding-bottom:0' + (fi > 0 ? ';margin-top:6px' : '') + '”>'
+      + '<span class=”settings-row-label” style=”font-weight:700”>' + escHtml(fn.label) + '</span>'
+      + (note ? '<span class=”settings-row-val” style=”font-size:11px;opacity:0.5”>' + escHtml(note) + '</span>' : '')
+      + '</div>';
 
     // Fee rows
     fn.items.forEach(function(it) {
       var resolved = _bookableResolveFee(it);
       var label = it.label;
-      // Inline meta only when it adds info the label doesn't already contain
-      var meta = '';
-      if (it.mbsItem) meta = 'MBS ' + it.mbsItem;
-      if (it.durationMin && label.indexOf(it.durationMin + '') < 0) meta += (meta ? ' · ' : '') + it.durationMin + ' min';
-
-      html += '<div style=”display:flex;align-items:baseline;justify-content:space-between;padding:4px 0 4px 12px;font-size:13px”>'
-        + '<span style=”color:rgba(255,255,255,0.55)”>' + escHtml(label)
-        + (meta ? ' <span style=”font-size:11px;color:rgba(255,255,255,0.25)”>(' + escHtml(meta) + ')</span>' : '')
-        + '</span>'
-        + '<span style=”font-weight:600;color:var(--t1);font-variant-numeric:tabular-nums;white-space:nowrap;margin-left:16px”>'
-        + (resolved ? '$' + Number(resolved.amount).toFixed(2) : '<span style=”color:var(--amber);font-weight:400;font-size:12px”>unmapped</span>')
-        + '</span></div>';
+      if (it.mbsItem) label += ' (MBS ' + it.mbsItem + ')';
+      if (it.durationMin && it.label.indexOf(it.durationMin + '') < 0) label += ' (' + it.durationMin + ' min)';
+      var amt = resolved ? '$' + Number(resolved.amount).toFixed(2) : 'unmapped';
+      html += '<div class=”settings-row” style=”padding-left:12px”>'
+        + '<span class=”settings-row-label” style=”font-weight:400;opacity:0.6”>' + escHtml(label) + '</span>'
+        + '<span class=”settings-row-val” style=”font-weight:600;font-variant-numeric:tabular-nums;color:var(--t1)”>' + escHtml(amt) + '</span>'
+        + '</div>';
     });
   });
 
