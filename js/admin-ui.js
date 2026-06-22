@@ -3432,8 +3432,15 @@ function _buildUnifiedSessions(opts) {
   });
   sessions = sessions.filter(function(s) { return apptByStartIso[s.startIso] === s; });
 
-  // Build ISO-time set from surviving Halaxy entries for cross-source dedup
-  var halaxyStartIsoSet = new Set(sessions.map(function(s) { return s.startIso; }));
+  // Build map of Halaxy sessions by start time for cross-source dedup.
+  // Only dedup when BOTH start time AND client name match — two different
+  // clients at the same time must both survive.
+  var halaxyByStart = {};
+  sessions.forEach(function(s) {
+    if (!s.startIso) return;
+    if (!halaxyByStart[s.startIso]) halaxyByStart[s.startIso] = [];
+    halaxyByStart[s.startIso].push((s.name || '').toLowerCase().replace(/[^a-z]/g, ''));
+  });
 
   /* ── 2. Google Calendar events ── */
   Object.keys(_calEventMap).forEach(function(eid) {
@@ -3441,8 +3448,14 @@ function _buildUnifiedSessions(opts) {
     var ev = _calEventMap[eid];
     if (!ev || !ev.start) return;
 
-    // Skip if a Halaxy appointment already occupies the same start time
-    if (halaxyStartIsoSet.has(ev.start)) return;
+    // Skip only if a Halaxy appointment at the same time has a matching name
+    var hxNames = halaxyByStart[ev.start] || [];
+    if (hxNames.length) {
+      var calName = (ev.title || '').toLowerCase().replace(/[^a-z]/g, '');
+      if (calName && hxNames.some(function(hx) {
+        return hx && (hx === calName || hx.indexOf(calName) >= 0 || calName.indexOf(hx) >= 0);
+      })) return;
+    }
 
     var startMs = new Date(ev.start).getTime();
     var dateStr = ev.start.slice(0, 10);
