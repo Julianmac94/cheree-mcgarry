@@ -2579,6 +2579,22 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .arm-prio-btn.active[data-prio="medium"] { background: rgba(251,191,36,0.12);  color: var(--amber);  border-color: rgba(251,191,36,0.3); }
 .arm-prio-btn.active[data-prio="high"]   { background: rgba(248,113,113,0.12); color: var(--red);    border-color: rgba(248,113,113,0.3); }
 
+/* ── Booking fees reference ────────────────────────── */
+.bf-funder { margin-bottom: 14px; }
+.bf-funder-header {
+  font-size: 13px; font-weight: 600; color: var(--t1);
+  padding: 6px 0 4px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.bf-funder-note { font-size: 11px; color: rgba(255,255,255,0.35); line-height: 1.5; margin: 2px 0 4px; }
+.bf-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0; font-size: 12px;
+}
+.bf-label { color: var(--t2); display: flex; align-items: baseline; gap: 6px; }
+.bf-meta { font-size: 10px; color: rgba(255,255,255,0.3); }
+.bf-amount { font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; }
+.bf-unmapped { font-size: 11px; color: var(--amber); opacity: 0.7; }
+
 /* ── Dev companion ─────────────────────────────────── */
 .dc-section { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 18px; }
 .dc-pulse {

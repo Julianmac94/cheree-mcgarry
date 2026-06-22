@@ -7628,71 +7628,39 @@ function renderBillingView() {
    SETTINGS VIEW
    ═══════════════════════════════════════════════════ */
 
-/* Settings → "Booking fees": map each BOOKABLE_MENU item to a live Halaxy fee.
- * Auto-matches by name+amount; Julian confirms/overrides; Save persists `session_fee_map`. */
 function _renderBookingFeesSection() {
-  var fees  = (_halaxyFees || []).slice().sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
-  var saved = (_pipelineData && _pipelineData.session_fee_map) || {};
-
-  var html = '<div class="settings-section"><div class="settings-section-title">Booking fees</div>';
-  if (!fees.length) {
-    html += '<div class="settings-row"><span class="settings-row-label">No Halaxy fees loaded yet — use “Sync funders &amp; fees” above first.</span></div></div>';
+  var html = '<div class=”settings-section”><div class=”settings-section-title”>Booking fees</div>';
+  if (!(_halaxyFees || []).length) {
+    html += '<div class=”settings-row”><span class=”settings-row-label”>No Halaxy fees loaded yet — use “Sync funders &amp; fees” above first.</span></div></div>';
     return html;
   }
-  html += '<div class="settings-danger-desc" style="border:none;background:none;padding:0 0 6px">'
-    + 'For each session type Cheree can book, pick the Halaxy fee it should use. Auto-matched by name where possible — confirm or adjust, then Save. The “Set up in Halaxy” flow uses these.</div>';
-
-  function feeOptions(selectedId) {
-    var opts = '<option value="">— choose fee —</option>';
-    fees.forEach(function(f) {
-      var lbl = (f.name || ('Fee #' + f.id)) + ' — $' + Number(f.amount).toFixed(2);
-      opts += '<option value="' + escHtml(String(f.id)) + '"' + (String(f.id) === String(selectedId) ? ' selected' : '') + '>' + escHtml(lbl) + '</option>';
-    });
-    return opts;
-  }
-  var selStyle = 'background:rgba(255,255,255,0.06);color:var(--t1);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 10px;font-size:12px;font-family:var(--sans);color-scheme:dark;cursor:pointer;max-width:60%';
 
   BOOKABLE_MENU.forEach(function(fn) {
-    html += '<div class="settings-row" style="border-top:1px solid rgba(255,255,255,0.06);margin-top:6px">'
-      + '<span class="settings-row-label" style="font-weight:600;color:var(--t1)">' + escHtml(fn.label) + '</span></div>';
-    if (fn.note) html += '<div style="font-size:11px;color:var(--t3);margin:-4px 0 4px;line-height:1.5">' + escHtml(fn.note) + '</div>';
+    html += '<div class=”bf-funder”>'
+      + '<div class=”bf-funder-header”>' + escHtml(fn.label) + '</div>';
+    if (fn.note) html += '<div class=”bf-funder-note”>' + escHtml(fn.note) + '</div>';
     fn.items.forEach(function(it) {
-      var sel  = saved[it.id] || _bookableFeeMatch(it) || '';
-      var meta = (it.mbsItem ? ' · MBS ' + it.mbsItem : '') + (it.durationMin ? ' · ' + it.durationMin + ' min' : '');
-      html += '<div class="settings-row">'
-        + '<span class="settings-row-label">' + escHtml(it.label) + meta + (it.note ? ' <span style="color:var(--amber)">' + escHtml(it.note) + '</span>' : '') + '</span>'
-        + '<select class="bf-select" data-item="' + escHtml(it.id) + '" style="' + selStyle + '">' + feeOptions(sel) + '</select>'
-        + '</div>';
+      var resolved = _bookableResolveFee(it);
+      var meta = (it.mbsItem ? 'MBS ' + it.mbsItem : '') + (it.durationMin ? (it.mbsItem ? ' · ' : '') + it.durationMin + ' min' : '');
+      html += '<div class=”bf-row”>'
+        + '<span class=”bf-label”>' + escHtml(it.label) + (meta ? '<span class=”bf-meta”>' + escHtml(meta) + '</span>' : '') + '</span>';
+      if (resolved) {
+        html += '<span class=”bf-amount”>$' + Number(resolved.amount).toFixed(2) + '</span>';
+      } else {
+        html += '<span class=”bf-unmapped”>Not mapped</span>';
+      }
+      html += '</div>';
     });
     if (fn.planManaged) {
       var pms = (_halaxyFunders || []).filter(function(f) { return f.billingKey === 'ndis_plan'; });
-      html += '<div style="font-size:11px;color:var(--t3);margin:2px 0 4px;line-height:1.5">Plan managers Cheree can pick at booking (' + pms.length + '): '
-        + (pms.length ? pms.map(function(p) { return escHtml(p.name); }).join(', ') : '— none synced —') + '</div>';
+      html += '<div class=”bf-funder-note” style=”margin-top:4px”>Plan managers: '
+        + (pms.length ? pms.map(function(p) { return escHtml(p.name); }).join(', ') : '— none synced —')
+        + '</div>';
     }
+    html += '</div>';
   });
-
-  html += '<div class="settings-row"><span class="settings-row-label"></span>'
-    + '<div class="settings-row-action"><button id="bf-save-btn" onclick="saveBookingFees()">Save booking fees</button></div></div>';
   html += '</div>';
   return html;
-}
-
-async function saveBookingFees() {
-  var map = {};
-  document.querySelectorAll('.bf-select').forEach(function(sel) {
-    if (sel.value) map[sel.dataset.item] = sel.value;
-  });
-  var btn = document.getElementById('bf-save-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-  try {
-    await apiFetch('/api/admin-enquiries?settings_set=1', { method: 'POST', body: { key: 'session_fee_map', value: map } });
-    if (_pipelineData) _pipelineData.session_fee_map = map;
-    toast('Booking fees saved', 'ok');
-  } catch (e) {
-    toast('Could not save booking fees: ' + (e && e.message ? e.message : 'error'), 'err');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Save booking fees'; }
-  }
 }
 
 /* ═══════════════════════════════════════════════════
