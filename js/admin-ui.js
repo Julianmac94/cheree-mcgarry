@@ -7635,31 +7635,36 @@ function _renderBookingFeesSection() {
     return html;
   }
 
+  var tblStyle = 'width:100%;border-collapse:collapse;font-size:13px';
+  var thStyle = 'text-align:left;padding:8px 0 6px;font-size:12px;font-weight:600;color:var(--t1);border-bottom:1px solid rgba(255,255,255,0.08)';
+  var tdStyle = 'padding:5px 0;color:rgba(255,255,255,0.55);font-size:12px';
+  var amtStyle = 'padding:5px 0;text-align:right;font-weight:600;color:var(--t1);font-size:12px;font-variant-numeric:tabular-nums';
+  var noteStyle = 'font-size:11px;color:rgba(255,255,255,0.3);padding:0 0 6px';
+  var metaStyle = 'font-size:10px;color:rgba(255,255,255,0.25);margin-left:6px';
+
+  html += '<table style=”' + tblStyle + '”>';
+
   BOOKABLE_MENU.forEach(function(fn) {
-    html += '<div class=”bf-funder”>'
-      + '<div class=”bf-funder-header”>' + escHtml(fn.label) + '</div>';
-    if (fn.note) html += '<div class=”bf-funder-note”>' + escHtml(fn.note) + '</div>';
+    html += '<tr><td colspan=”2” style=”' + thStyle + '”>' + escHtml(fn.label) + '</td></tr>';
+    if (fn.note) html += '<tr><td colspan=”2” style=”' + noteStyle + '”>' + escHtml(fn.note) + '</td></tr>';
     fn.items.forEach(function(it) {
       var resolved = _bookableResolveFee(it);
       var meta = (it.mbsItem ? 'MBS ' + it.mbsItem : '') + (it.durationMin ? (it.mbsItem ? ' · ' : '') + it.durationMin + ' min' : '');
-      html += '<div class=”bf-row”>'
-        + '<span class=”bf-label”>' + escHtml(it.label) + (meta ? '<span class=”bf-meta”>' + escHtml(meta) + '</span>' : '') + '</span>';
-      if (resolved) {
-        html += '<span class=”bf-amount”>$' + Number(resolved.amount).toFixed(2) + '</span>';
-      } else {
-        html += '<span class=”bf-unmapped”>Not mapped</span>';
-      }
-      html += '</div>';
+      html += '<tr><td style=”' + tdStyle + '”>' + escHtml(it.label)
+        + (meta ? '<span style=”' + metaStyle + '”>' + escHtml(meta) + '</span>' : '')
+        + '</td><td style=”' + amtStyle + '”>'
+        + (resolved ? '$' + Number(resolved.amount).toFixed(2) : '<span style=”color:var(--amber);opacity:0.7;font-weight:400”>Not mapped</span>')
+        + '</td></tr>';
     });
     if (fn.planManaged) {
       var pms = (_halaxyFunders || []).filter(function(f) { return f.billingKey === 'ndis_plan'; });
-      html += '<div class=”bf-funder-note” style=”margin-top:4px”>Plan managers: '
+      html += '<tr><td colspan=”2” style=”' + noteStyle + ';padding-top:4px”>Plan managers: '
         + (pms.length ? pms.map(function(p) { return escHtml(p.name); }).join(', ') : '— none synced —')
-        + '</div>';
+        + '</td></tr>';
     }
-    html += '</div>';
   });
-  html += '</div>';
+
+  html += '</table></div>';
   return html;
 }
 
