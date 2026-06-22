@@ -1501,7 +1501,7 @@ export default async function handler(req, res) {
    * ─────────────────────────────────────────────────────────────────────────────── */
   if (req.method === 'POST' && params.get('settings_set')) {
     const { key, value } = req.body || {};
-    const ALLOWED = ['session_fee_map'];
+    const ALLOWED = ['session_fee_map', 'dev_companion'];
     if (!ALLOWED.includes(key)) return res.status(400).json({ error: 'Unknown or non-writable settings key' });
     try {
       await writeCache(supabase(), key, value);
@@ -1581,7 +1581,7 @@ export default async function handler(req, res) {
     const [
       { data: enquiries }, clientsResult, { data: activityRaw },
       fundersCached, feesCached, feeMapCached,
-      { data: tasksRaw }, sessionFeeMapCached, calEventLinksCached, sessionBillStateCached,
+      { data: tasksRaw }, sessionFeeMapCached, calEventLinksCached, sessionBillStateCached, devCompanionCached,
     ] = await Promise.all([
       db.from('enquiries').select('*').order('created_at', { ascending: false }),
       db.from('clients').select(`
@@ -1597,6 +1597,7 @@ export default async function handler(req, res) {
       readCache(db, 'session_fee_map'),   // funder×session-type → Halaxy fee config (Settings → Booking fees)
       readCache(db, 'calendar_event_links'), // { eventId → enquiryId } merge ledger (Google Cal ↔ contact card)
       readCache(db, 'session_billing_state'), // { halaxyApptId → 'invoiced'|'paid' } manual funder reconciliation
+      readCache(db, 'dev_companion'),
     ]);
 
     // If the full clients query failed (e.g. enquiry_id column not yet migrated),
@@ -1908,6 +1909,7 @@ export default async function handler(req, res) {
       session_fee_map: sessionFeeMapCached || null,
       calendar_event_links: calEventLinksCached || {},
       session_billing_state: sessionBillStateCached || {},
+      dev_companion: devCompanionCached || null,
     });
   }
 

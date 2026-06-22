@@ -440,6 +440,7 @@ var _halaxyData      = { connected: false, appointments: [], patients: [], patie
 var _calEventMap     = {};    // eventId → event object
 var _calEventLinks   = {};    // eventId → enquiryId (Google Cal ↔ contact card merge ledger)
 var _sessionBillState = {};   // halaxyApptId → 'invoiced'|'paid' (manual funder reconciliation)
+var _devCompanion    = null;  // dev companion dashboard state (audit, backlog, brain)
 var _calDismissed    = new Set(JSON.parse(localStorage.getItem('cal_dismissed') || '[]'));
 var _calReminders    = new Set(JSON.parse(localStorage.getItem('cal_reminders')  || '[]'));
 window._completedExpanded = false; // toggle for completed section in queue view
@@ -2603,6 +2604,7 @@ async function loadPipeline() {
     _pipelineData  = d;
     _calEventLinks = d.calendar_event_links || {};  // Google Cal ↔ contact card merges
     _sessionBillState = d.session_billing_state || {};
+    _devCompanion = d.dev_companion || null;
     _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [], feeMap: {} };
     // Always set _halaxyFunders to an array after pipeline loads — never leave it null
     _halaxyFunders = _halaxyData.funders || [];
@@ -2677,6 +2679,7 @@ function refreshPipeline() {
     _pipelineData  = d;
     _calEventLinks = d.calendar_event_links || {};  // Google Cal ↔ contact card merges
     _sessionBillState = d.session_billing_state || {};
+    _devCompanion = d.dev_companion || _devCompanion;
     _halaxyData    = d.halaxy || { connected: false, appointments: [], patients: [], funders: [], fees: [], feeMap: {} };
     // Always set _halaxyFunders to an array after pipeline loads — never leave it null
     _halaxyFunders = _halaxyData.funders || [];
@@ -7692,6 +7695,259 @@ async function saveBookingFees() {
   }
 }
 
+/* ═══════════════════════════════════════════════════
+   DEV COMPANION — audit tracker, backlog, system, brain
+   ═══════════════════════════════════════════════════ */
+
+var _DC_SEED = {
+  audit: [
+    { id: 'a1', title: 'Webhook secret uses .includes() substring match', severity: 'high', category: 'security', file: 'api/admin-enquiries.js:607', status: 'open' },
+    { id: 'a2', title: 'Cookie auth uses === instead of timing-safe compare', severity: 'high', category: 'security', file: 'api/_auth.js:48', status: 'open' },
+    { id: 'a3', title: 'Halaxy URL inserted into href unescaped', severity: 'medium', category: 'xss', file: 'js/admin-ui.js:349', status: 'open' },
+    { id: 'a4', title: 'Verify CRON_SECRET is set in Vercel', severity: 'medium', category: 'infra', file: '', status: 'open' },
+    { id: 'a5', title: '12/12 serverless functions — zero headroom', severity: 'medium', category: 'capacity', file: '', status: 'open' },
+    { id: 'a6', title: 'Activity log inserts silently swallowed', severity: 'low', category: 'resilience', file: 'api/admin-enquiries.js:1957', status: 'open' },
+    { id: 'a7', title: 'O(n²) client lookups in schedule renderer', severity: 'low', category: 'perf', file: 'js/admin-ui.js', status: 'open' },
+    { id: 'a8', title: 'Pull-to-refresh listeners not cleaned up', severity: 'low', category: 'resilience', file: 'js/admin-ui.js', status: 'open' },
+  ],
+  backlog: [
+    { id: 'b1', title: 'Appointment confirmation email', priority: 'high', status: 'open' },
+    { id: 'b2', title: '4 funder registration forms (Cheree)', priority: 'high', status: 'open' },
+    { id: 'b3', title: 'Simplify admin send flow', priority: 'medium', status: 'open' },
+    { id: 'b4', title: 'CSS consolidation — merge branch', priority: 'medium', status: 'open' },
+    { id: 'b5', title: 'Stale-tab auto-update check', priority: 'low', status: 'open' },
+    { id: 'b6', title: 'RESEND_DOMAIN_VERIFIED → CLAUDE.md', priority: 'low', status: 'open' },
+  ],
+  brain: {
+    memories: [
+      'onboarding-workflow-reality',
+      'funder-terminology',
+      'halaxy-invoice-paid-logic',
+      'parity-mobile-desktop',
+      'auto-push-and-deploy',
+      'halaxy-invoice-api-limits',
+    ],
+    docs: ['audit-2026-06-22.md', 'halaxy-onboarding-spec.md', 'registration-form-spec.md'],
+  },
+  lastAudit: '2026-06-22',
+};
+
+function _dcData() {
+  if (!_devCompanion) { _devCompanion = JSON.parse(JSON.stringify(_DC_SEED)); }
+  return _devCompanion;
+}
+
+async function _dcSave() {
+  try {
+    await apiFetch('/api/admin-enquiries?settings_set=1', {
+      method: 'POST',
+      body: { key: 'dev_companion', value: _devCompanion },
+    });
+  } catch (e) { console.warn('dev_companion save failed:', e.message); }
+}
+
+function _dcStatusCycle(current) {
+  var order = ['open', 'wip', 'done', 'dismissed'];
+  var idx = order.indexOf(current);
+  return order[(idx + 1) % order.length];
+}
+
+function _dcStatusLabel(s) {
+  if (s === 'open') return 'Open';
+  if (s === 'wip')  return 'In progress';
+  if (s === 'done') return 'Done';
+  if (s === 'dismissed') return 'Dismissed';
+  return s;
+}
+
+function _dcStatusClass(s) {
+  if (s === 'open') return 'dc-status--open';
+  if (s === 'wip')  return 'dc-status--wip';
+  if (s === 'done') return 'dc-status--done';
+  if (s === 'dismissed') return 'dc-status--dismissed';
+  return '';
+}
+
+function _dcSeverityClass(s) {
+  if (s === 'high')   return 'dc-sev--high';
+  if (s === 'medium') return 'dc-sev--medium';
+  return 'dc-sev--low';
+}
+
+function dcCycleAudit(id) {
+  var dc = _dcData();
+  var item = dc.audit.find(function(a) { return a.id === id; });
+  if (!item) return;
+  item.status = _dcStatusCycle(item.status);
+  _dcRenderItems();
+  _dcSave();
+}
+
+function dcCycleBacklog(id) {
+  var dc = _dcData();
+  var item = dc.backlog.find(function(b) { return b.id === id; });
+  if (!item) return;
+  item.status = _dcStatusCycle(item.status);
+  _dcRenderItems();
+  _dcSave();
+}
+
+function dcAddAudit() {
+  var inp = document.getElementById('dc-new-audit');
+  if (!inp || !inp.value.trim()) return;
+  var dc = _dcData();
+  dc.audit.push({
+    id: 'a' + Date.now(),
+    title: inp.value.trim(),
+    severity: 'medium',
+    category: 'review',
+    file: '',
+    status: 'open',
+  });
+  inp.value = '';
+  _dcRenderItems();
+  _dcSave();
+}
+
+function dcAddBacklog() {
+  var inp = document.getElementById('dc-new-backlog');
+  if (!inp || !inp.value.trim()) return;
+  var dc = _dcData();
+  dc.backlog.push({
+    id: 'b' + Date.now(),
+    title: inp.value.trim(),
+    priority: 'medium',
+    status: 'open',
+  });
+  inp.value = '';
+  _dcRenderItems();
+  _dcSave();
+}
+
+function _dcRenderItems() {
+  var dc = _dcData();
+  var auditEl = document.getElementById('dc-audit-items');
+  var backlogEl = document.getElementById('dc-backlog-items');
+  if (auditEl) {
+    var openA = dc.audit.filter(function(a) { return a.status === 'open' || a.status === 'wip'; });
+    var doneA = dc.audit.filter(function(a) { return a.status === 'done' || a.status === 'dismissed'; });
+    var ah = '';
+    openA.forEach(function(a) { ah += _dcAuditCard(a); });
+    if (doneA.length) {
+      ah += '<div class="dc-done-divider">' + doneA.length + ' resolved</div>';
+      doneA.forEach(function(a) { ah += _dcAuditCard(a); });
+    }
+    auditEl.innerHTML = ah;
+    var countEl = document.getElementById('dc-audit-count');
+    if (countEl) countEl.textContent = openA.length + ' open';
+  }
+  if (backlogEl) {
+    var openB = dc.backlog.filter(function(b) { return b.status === 'open' || b.status === 'wip'; });
+    var doneB = dc.backlog.filter(function(b) { return b.status === 'done' || b.status === 'dismissed'; });
+    var bh = '';
+    openB.forEach(function(b) { bh += _dcBacklogCard(b); });
+    if (doneB.length) {
+      bh += '<div class="dc-done-divider">' + doneB.length + ' completed</div>';
+      doneB.forEach(function(b) { bh += _dcBacklogCard(b); });
+    }
+    backlogEl.innerHTML = bh;
+    var bCountEl = document.getElementById('dc-backlog-count');
+    if (bCountEl) bCountEl.textContent = openB.length + ' open';
+  }
+}
+
+function _dcAuditCard(a) {
+  var isDone = a.status === 'done' || a.status === 'dismissed';
+  return '<div class="dc-item' + (isDone ? ' dc-item--done' : '') + '">'
+    + '<span class="dc-sev ' + _dcSeverityClass(a.severity) + '">' + escHtml(a.severity) + '</span>'
+    + '<span class="dc-item-title">' + escHtml(a.title) + '</span>'
+    + '<span class="dc-cat">' + escHtml(a.category) + '</span>'
+    + '<button class="dc-status ' + _dcStatusClass(a.status) + '" onclick="dcCycleAudit(\'' + escHtml(a.id) + '\')">' + _dcStatusLabel(a.status) + '</button>'
+    + '</div>';
+}
+
+function _dcBacklogCard(b) {
+  var isDone = b.status === 'done' || b.status === 'dismissed';
+  return '<div class="dc-item' + (isDone ? ' dc-item--done' : '') + '">'
+    + '<span class="dc-sev ' + _dcSeverityClass(b.priority) + '">' + escHtml(b.priority) + '</span>'
+    + '<span class="dc-item-title">' + escHtml(b.title) + '</span>'
+    + '<button class="dc-status ' + _dcStatusClass(b.status) + '" onclick="dcCycleBacklog(\'' + escHtml(b.id) + '\')">' + _dcStatusLabel(b.status) + '</button>'
+    + '</div>';
+}
+
+function _renderDevCompanion() {
+  var dc = _dcData();
+  var openAudit = dc.audit.filter(function(a) { return a.status === 'open' || a.status === 'wip'; }).length;
+  var openBacklog = dc.backlog.filter(function(b) { return b.status === 'open' || b.status === 'wip'; }).length;
+  var memCount = dc.brain ? dc.brain.memories.length : 0;
+  var docCount = dc.brain ? dc.brain.docs.length : 0;
+
+  var html = '<div class="settings-section dc-section">';
+  html += '<div class="settings-section-title">Dev companion</div>';
+
+  // System pulse
+  html += '<div class="dc-pulse">'
+    + '<div class="dc-pulse-item"><span class="dc-pulse-label">Functions</span><span class="dc-pulse-val">12 / 12</span></div>'
+    + '<div class="dc-pulse-item"><span class="dc-pulse-label">Last audit</span><span class="dc-pulse-val">' + escHtml(dc.lastAudit || '—') + '</span></div>'
+    + '<div class="dc-pulse-item"><span class="dc-pulse-label">Memories</span><span class="dc-pulse-val">' + memCount + '</span></div>'
+    + '<div class="dc-pulse-item"><span class="dc-pulse-label">Docs</span><span class="dc-pulse-val">' + docCount + '</span></div>'
+    + '</div>';
+
+  // Audit tracker
+  html += '<div class="dc-panel">'
+    + '<div class="dc-panel-header">'
+    + '<span class="dc-panel-title">Audit findings</span>'
+    + '<span class="dc-panel-count" id="dc-audit-count">' + openAudit + ' open</span>'
+    + '</div>'
+    + '<div id="dc-audit-items"></div>'
+    + '<div class="dc-add-row">'
+    + '<input id="dc-new-audit" class="dc-add-input" type="text" placeholder="Add finding…" onkeydown="if(event.key===\'Enter\')dcAddAudit()">'
+    + '<button class="dc-add-btn" onclick="dcAddAudit()">+</button>'
+    + '</div>'
+    + '</div>';
+
+  // Backlog
+  html += '<div class="dc-panel">'
+    + '<div class="dc-panel-header">'
+    + '<span class="dc-panel-title">Backlog</span>'
+    + '<span class="dc-panel-count" id="dc-backlog-count">' + openBacklog + ' open</span>'
+    + '</div>'
+    + '<div id="dc-backlog-items"></div>'
+    + '<div class="dc-add-row">'
+    + '<input id="dc-new-backlog" class="dc-add-input" type="text" placeholder="Add item…" onkeydown="if(event.key===\'Enter\')dcAddBacklog()">'
+    + '<button class="dc-add-btn" onclick="dcAddBacklog()">+</button>'
+    + '</div>'
+    + '</div>';
+
+  // Claude brain
+  html += '<div class="dc-panel">'
+    + '<div class="dc-panel-header"><span class="dc-panel-title">Claude brain</span></div>'
+    + '<div class="dc-brain">';
+  if (dc.brain && dc.brain.memories.length) {
+    html += '<div class="dc-brain-group"><span class="dc-brain-label">Memories</span>';
+    dc.brain.memories.forEach(function(m) {
+      html += '<span class="dc-brain-tag">' + escHtml(m) + '</span>';
+    });
+    html += '</div>';
+  }
+  if (dc.brain && dc.brain.docs.length) {
+    html += '<div class="dc-brain-group"><span class="dc-brain-label">Docs</span>';
+    dc.brain.docs.forEach(function(d) {
+      html += '<span class="dc-brain-tag dc-brain-tag--doc">' + escHtml(d) + '</span>';
+    });
+    html += '</div>';
+  }
+  html += '<div class="dc-brain-group"><span class="dc-brain-label">Key files</span>'
+    + '<span class="dc-brain-tag dc-brain-tag--file">CLAUDE.md</span>'
+    + '<span class="dc-brain-tag dc-brain-tag--file">TODO.md</span>'
+    + '<span class="dc-brain-tag dc-brain-tag--file">docs/audit-2026-06-22.md</span>'
+    + '</div>';
+  html += '</div></div>';
+
+  html += '</div>';
+  return html;
+}
+
 function renderSettingsView() {
   var content = document.getElementById('view-content');
   if (!content) return;
@@ -7746,6 +8002,9 @@ function renderSettingsView() {
     + '</div>';
   html += '</div>';
 
+  // Dev companion
+  html += _renderDevCompanion();
+
   // Danger zone
   html += '<div class="settings-section settings-danger-section">';
   html += '<div class="settings-section-title settings-danger-title">Danger zone</div>';
@@ -7760,6 +8019,7 @@ function renderSettingsView() {
 
   html += '</div>';
   content.innerHTML = html;
+  _dcRenderItems();
 }
 
 // Send a test onboarding email (chosen template) to admin@chereemcgarry.com
