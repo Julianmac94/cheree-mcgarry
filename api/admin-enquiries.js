@@ -809,6 +809,7 @@ export default async function handler(req, res) {
    *   gender        string   male|female|other|unknown (optional)
    *   funder        string   billing key e.g. 'private', 'medicare', 'ndis_plan' (optional)
    *   planManager   string   plan manager name for ndis_plan (optional)
+   *   funderRef     string   funder-issued reference, e.g. QFES Employee ID (optional)
    *   notes         string   dashboard notes (optional)
    * ──────────────────────────────────────────────────────────────────────────────────── */
   if (req.method === 'POST' && (req.query?.halaxy_create_patient || new URL(req.url, 'http://x').searchParams.get('halaxy_create_patient'))) {
@@ -816,7 +817,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Halaxy not configured' });
     }
 
-    const { firstName, lastName, phone, email, dob, gender, funder, planManager, notes,
+    const { firstName, lastName, phone, email, dob, gender, funder, planManager, funderRef, notes,
             client_type, is_contact, parent_client_id } = req.body || {};
     if (!firstName || !lastName) {
       return res.status(400).json({ error: 'firstName and lastName are required' });
@@ -853,6 +854,7 @@ export default async function handler(req, res) {
           halaxy_id:        halaxyId,
           funder:           funder            || null,
           plan_manager:     planManager       || null,
+          funder_ref:       funderRef         || null,
           notes:            notes             || null,
           client_type:      client_type       || null,
           is_contact:       is_contact        || false,
@@ -1474,7 +1476,7 @@ export default async function handler(req, res) {
 
   /* ── POST ?halaxy_coverage=1 — write Coverage (funder) to Halaxy ── */
   if (req.method === 'POST' && params.get('halaxy_coverage')) {
-    const { patientId, payorId, payorName } = req.body || {};
+    const { patientId, payorId, payorName, funderRef } = req.body || {};
     if (!patientId || (!payorId && !payorName))
       return res.status(400).json({ error: 'patientId and payor required' });
     const coverageResource = {
@@ -1486,6 +1488,10 @@ export default async function handler(req, res) {
         : { display: payorName }
       ],
     };
+    // Funder-issued reference (e.g. a QFES Employee ID) — FHIR's standard field for
+    // a payer-assigned member/employee number, so it travels with the Coverage
+    // record itself and is visible in Halaxy, not just in the dashboard.
+    if (funderRef) coverageResource.subscriberId = funderRef;
     try {
       const result = await halaxyPost('/Coverage', coverageResource);
       return res.status(201).json({ ok: true, coverageId: result.id });

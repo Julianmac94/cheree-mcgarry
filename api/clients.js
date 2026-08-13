@@ -27,7 +27,7 @@ export default async function handler(req, res) {
       .from('clients')
       .select(`
         id, display_name, funder, plan_manager, halaxy_id, enquiry_id, active, notes,
-        client_type, parent_client_id, is_contact,
+        client_type, parent_client_id, is_contact, funder_ref,
         created_at,
         sessions (id, session_date, status, invoice_ref, amount, notes)
       `)
@@ -44,7 +44,7 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const body = req.body || {};
     const { display_name, funder, plan_manager, halaxy_id, notes, enquiry_id,
-            client_type, parent_client_id, is_contact,
+            client_type, parent_client_id, is_contact, funder_ref,
             email, source } = body;
 
     if (!display_name) {
@@ -67,6 +67,7 @@ export default async function handler(req, res) {
         client_type:       client_type       || null,
         parent_client_id:  parent_client_id  || null,
         is_contact:        is_contact        || false,
+        funder_ref:        funder_ref        || null,
       })
       .select()
       .single();
@@ -120,7 +121,7 @@ export default async function handler(req, res) {
     }
 
     const allowed = ['display_name', 'funder', 'plan_manager', 'halaxy_id', 'active', 'notes', 'enquiry_id',
-                     'client_type', 'parent_client_id', 'is_contact'];
+                     'client_type', 'parent_client_id', 'is_contact', 'funder_ref'];
     const update = Object.fromEntries(
       Object.entries(fields).filter(([k]) => allowed.includes(k))
     );

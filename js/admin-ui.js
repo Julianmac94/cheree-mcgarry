@@ -500,31 +500,54 @@ var FUNDER_LABELS = {
  * persisted (`session_fee_map`). Metadata (modality / mbsItem / durationMin) travels to the
  * booking flow. NDIS is plan-managed: one standard fee, plan-manager picked at booking (routes
  * via Coverage). Full rationale in docs/halaxy-onboarding-spec.md. */
+/* `refLabel` (when present) names a funder-issued reference number the wizard should
+ * collect — e.g. a QFES Employee ID — stored as clients.funder_ref and, once a
+ * Coverage exists, as Coverage.subscriberId in Halaxy. `guide` is a short plain-
+ * language checklist shown in the wizard and in Settings → "Funder guide" so this
+ * isn't tribal knowledge Cheree has to ask Julian for each time. */
 var BOOKABLE_MENU = [
-  { key: 'private', label: 'Private', billingKey: 'private', items: [
+  { key: 'private', label: 'Private', billingKey: 'private',
+    guide: ['No funder paperwork — just book the session.'], items: [
     { id: 'private_inperson', label: 'Individual · In person', modality: 'clinic',  match: { name: 'Face to Face', amount: 180 } },
     { id: 'private_online',   label: 'Individual · Online',    modality: 'online',  match: { name: 'Online', amount: 180 } },
     { id: 'private_child',    label: 'Child / Parent intake',  modality: 'clinic',  match: { name: 'Parent Intake / Child', amount: 180 } },
   ] },
-  { key: 'medicare', label: 'Medicare', billingKey: 'medicare', note: 'Requires a valid GP referral / MHCP on file.', items: [
+  { key: 'medicare', label: 'Medicare', billingKey: 'medicare', note: 'Requires a valid GP referral / MHCP on file.',
+    guide: ['Requires a valid GP referral / Mental Health Care Plan on file before booking.',
+            'Pick In person / Video / Phone — each has its own MBS item number, already wired to the fee.'], items: [
     { id: 'medicare_inperson', label: 'In person', modality: 'clinic', mbsItem: '80160', match: { name: 'In Person Consultation', amount: 180 } },
     { id: 'medicare_video',    label: 'Video',     modality: 'online', mbsItem: '91176', match: { name: 'Video Telehealth Consultation', amount: 180 } },
     { id: 'medicare_phone',    label: 'Phone',     modality: 'phone',  mbsItem: '91188', match: { name: 'Phone Telehealth Consultation', amount: 180 } },
   ] },
   { key: 'ndis', label: 'NDIS (plan-managed)', billingKey: 'ndis_plan', planManaged: true,
-    note: 'All $193.99. Cheree picks the plan manager + modality at booking — the plan manager routes via the patient’s Coverage, not the fee.', items: [
+    note: 'All $193.99. Cheree picks the plan manager + modality at booking — the plan manager routes via the patient’s Coverage, not the fee.',
+    refLabel: 'NDIS plan / reference number',
+    guide: ['One flat fee ($193.99) regardless of plan manager or modality.',
+            'Pick the client’s plan manager — that’s what routes the invoice, not the fee.',
+            'Add the NDIS plan/reference number if the client has one, for your own records.'], items: [
     { id: 'ndis_standard', label: 'Standard therapy fee', match: { name: 'Assessment Recommendation Therapy or Training - Social Worker', amount: 193.99 } },
   ] },
-  { key: 'qfes', label: 'QFES (EAP)', billingKey: 'qfes', note: 'The Halaxy appointment length MUST equal the chosen band (for invoicing).', items: [
+  { key: 'qfes', label: 'QFES (EAP)', billingKey: 'qfes', note: 'The Halaxy appointment length MUST equal the chosen band (for invoicing).',
+    refLabel: 'QFES Employee ID',
+    guide: ['Pick the session duration — 60/90/120/150 min bands set the fee.',
+            'The Halaxy appointment length must exactly match the chosen band.',
+            'Get the client’s QFES Employee ID before booking — needed to lodge the claim.',
+            'No plan manager needed — Coverage links QFES directly as the payor.'], items: [
     { id: 'qfes_60',  label: '60 min',  durationMin: 60,  match: { name: 'QFES Consultation', amount: 250 } },
     { id: 'qfes_90',  label: '90 min',  durationMin: 90,  match: { name: 'QFES Consultation', amount: 375 } },
     { id: 'qfes_120', label: '120 min', durationMin: 120, match: { name: 'QFES Consultation', amount: 500 } },
     { id: 'qfes_150', label: '150 min', durationMin: 150, match: { name: 'QFES Consultation', amount: 625 } },
   ] },
-  { key: 'dva', label: 'DVA / Bupa / ADFHCS', billingKey: 'dva', note: '"Bupa" = DVA here, not health insurance.', items: [
+  { key: 'dva', label: 'DVA / Bupa / ADFHCS', billingKey: 'dva', note: '"Bupa" = DVA here, not health insurance.',
+    refLabel: 'DVA file number',
+    guide: ['"Bupa" in this practice means DVA/ADFHCS — not health insurance.',
+            'Single rate (US24, $246.44) regardless of modality.'], items: [
     { id: 'dva_us24', label: 'US24', match: { name: 'Consultation 50+ mins', amount: 246.44 } },
   ] },
-  { key: 'workcover', label: 'WorkCover QLD', billingKey: 'workcover', items: [
+  { key: 'workcover', label: 'WorkCover QLD', billingKey: 'workcover',
+    refLabel: 'WorkCover claim number',
+    guide: ['Pick Initial vs Subsequent consultation — same fee, different Halaxy fee item.',
+            'Add the WorkCover claim number if you have it, for your own records.'], items: [
     { id: 'wc_initial',    label: 'Initial Consultation',    match: { name: 'Initial Consultation', amount: 243 } },
     { id: 'wc_subsequent', label: 'Subsequent Consultation', match: { name: 'Subsequent Consultation', amount: 243 } },
   ] },
@@ -1115,9 +1138,12 @@ function _mobRenderInbox() {
     return c && c.halaxy_id && (_dhPatientApptMap[String(c.halaxy_id)] || []).length > 0;
   }).length;
   var mobCritCount    = _dhHalaxyNoInvoice  ? _dhHalaxyNoInvoice.length  : 0;
+  var byClientCount   = Object.keys(_dhClientActionMap || {}).length;
 
-  // Default active: No-invoice issues first, else "Not in Halaxy", else New enquiries.
-  var mobDefault = mobCritCount > 0 ? 'critical' : (unlinkedCount > 0 ? 'unlinked' : 'new');
+  // Default active: the consolidated "Needs action" (per-person) view when there's
+  // anything in it, else New enquiries. The old flat critical/unlinked tabs stay
+  // available for anyone who wants the raw session-level list.
+  var mobDefault = byClientCount > 0 ? 'byclient' : 'new';
 
   function _tab(status, label, cnt, extraCntStyle, extraBtnStyle) {
     var cntHtml = cnt
@@ -1133,6 +1159,9 @@ function _mobRenderInbox() {
     + '<div class="mob-inbox-tabs">';
 
   // Issue tabs first (only shown when there are problems)
+  if (byClientCount > 0) {
+    html += _tab('byclient', '👤 Needs action', byClientCount, 'color:#b85a1e', 'mob-inbox-tab-crit');
+  }
   if (mobCritCount > 0) {
     html += _tab('critical', '⚠ No Invoice', mobCritCount, 'color:#ef4444', 'mob-inbox-tab-crit');
   }
@@ -1152,12 +1181,9 @@ function _mobRenderInbox() {
 
   content.innerHTML = html;
   var mobListEl = document.getElementById('dh-inbox-list');
-  if (mobCritCount > 0) {
-    _dhInboxFilter = 'critical';
-    _dhRenderSessionItems(mobListEl, _dhHalaxyNoInvoice, 'critical');
-  } else if (unlinkedCount > 0) {
-    _dhInboxFilter = 'unlinked';
-    _dhRenderUnlinkedCalItems(mobListEl, _dhNotInHalaxy());
+  if (byClientCount > 0) {
+    _dhInboxFilter = 'byclient';
+    _dhRenderClientActionItems(mobListEl, _dhClientActionMap);
   } else {
     _dhRenderInboxItems(mobListEl, newEnqs, 'new');
   }
@@ -4565,6 +4591,78 @@ function _dhRenderUnlinkedCalItems(listEl, appts) {
   }).join('');
 }
 
+// Group the three flat issue buckets into one row per person, so a client with
+// several outstanding sessions shows as a single card with a "here's what to do
+// about them" summary instead of N separate rows. Also flags a client whose funder
+// needs a reference number (e.g. QFES Employee ID) that hasn't been captured yet —
+// without this, that gap stays silent until someone tries to lodge the claim.
+function _dhBuildClientActionMap(clients) {
+  var map = {};
+  function keyFor(s) { return s.patientId ? ('p:' + s.patientId) : ('n:' + (s.name || 'unknown').toLowerCase()); }
+  function entryFor(s) {
+    var key = keyFor(s);
+    if (!map[key]) map[key] = { name: s.name || 'Client', patientId: s.patientId || null, issues: [], missingFunderRef: false };
+    return map[key];
+  }
+  (_dhHalaxyNoInvoice || []).forEach(function(s) { entryFor(s).issues.push({ kind: 'no-invoice', sessionId: s.id }); });
+  (_dhNonHalaxyActions || []).forEach(function(s) { entryFor(s).issues.push({ kind: 'needs-recording', sessionId: s.id }); });
+  (_dhUnlinkedCalAppts || []).forEach(function(s) { entryFor(s).issues.push({ kind: 'not-in-halaxy', sessionId: s.id, eventId: s.eventId }); });
+
+  Object.keys(map).forEach(function(k) {
+    var entry = map[k];
+    if (!entry.patientId) return;
+    var cl = (clients || []).find(function(c) { return String(c.halaxy_id) === String(entry.patientId); });
+    if (!cl) return;
+    entry.clientId = cl.id;
+    var fg = BOOKABLE_MENU.find(function(f) { return f.billingKey === cl.funder; });
+    if (fg && fg.refLabel && !cl.funder_ref) {
+      entry.missingFunderRef = true;
+      entry.refLabel = fg.refLabel;
+    }
+  });
+  return map;
+}
+
+var _DH_ISSUE_LABELS = { 'no-invoice': 'no invoice', 'needs-recording': 'needs recording', 'not-in-halaxy': 'not in Halaxy' };
+
+function _dhRenderClientActionItems(listEl, map) {
+  var entries = Object.keys(map || {}).map(function(k) { return map[k]; })
+    .sort(function(a, b) { return b.issues.length - a.issues.length; });
+  if (!entries.length) {
+    listEl.innerHTML = '<div class="dh-attn-empty" style="padding:32px 20px;text-align:center;color:var(--t3);font-size:13px">Nothing needs action</div>';
+    return;
+  }
+  listEl.innerHTML = entries.slice(0, 30).map(function(e) {
+    var kinds = {};
+    e.issues.forEach(function(i) { kinds[i.kind] = (kinds[i.kind] || 0) + 1; });
+    var chips = Object.keys(kinds).map(function(k) {
+      return '<span style="color:#b85a1e;font-size:11px;margin-right:6px">' + kinds[k] + ' ' + escHtml(_DH_ISSUE_LABELS[k] || k) + '</span>';
+    }).join('');
+    if (e.missingFunderRef) chips += '<span style="color:var(--amber);font-size:11px;margin-right:6px">Missing ' + escHtml(e.refLabel) + '</span>';
+
+    var ctaLabel, ctaOnclick;
+    var notInHalaxy = e.issues.find(function(i) { return i.kind === 'not-in-halaxy'; });
+    if (notInHalaxy) {
+      ctaLabel = 'Set up in Halaxy';
+      ctaOnclick = "event.stopPropagation();_sihFromCalEvent('" + escHtml(String(notInHalaxy.eventId || '')) + "')";
+    } else if (e.missingFunderRef) {
+      ctaLabel = 'Add ' + e.refLabel;
+      ctaOnclick = "event.stopPropagation();editFunderRefPl('" + escHtml(String(e.clientId)) + "','" + escHtml(e.refLabel) + "')";
+    } else {
+      ctaLabel = 'Review';
+      ctaOnclick = '';
+    }
+    var firstSessionId = e.issues[0].sessionId;
+    return '<div class="dh-attn-item" onclick="openDetailPanel(\'session\',\'' + escHtml(String(firstSessionId)) + '\')" style="border-left:3px solid #E07B39">'
+      + '<div class="dh-attn-av" style="background:rgba(224,123,57,0.14);color:#b85a1e;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">'
+      + escHtml((e.name[0] || '?').toUpperCase()) + '</div>'
+      + '<div class="dh-attn-body"><div class="dh-attn-name">' + escHtml(e.name) + '</div>'
+      + '<div class="dh-attn-meta">' + chips + '</div></div>'
+      + '<button class="pl-action-btn pl-action-btn--soft" onclick="' + ctaOnclick + '" style="flex-shrink:0;white-space:nowrap">' + escHtml(ctaLabel) + '</button>'
+      + '</div>';
+  }).join('');
+}
+
 var _dhInboxFilter = 'new';
 function dhInboxFilter(status, el) {
   _dhInboxFilter = status;
@@ -4573,6 +4671,10 @@ function dhInboxFilter(status, el) {
   });
   var listEl = document.getElementById('dh-inbox-list');
   if (!listEl) return;
+  if (status === 'byclient') {
+    _dhRenderClientActionItems(listEl, _dhClientActionMap);
+    return;
+  }
   if (status === 'critical') {
     _dhRenderSessionItems(listEl, _dhHalaxyNoInvoice, 'critical');
     return;
@@ -4604,14 +4706,17 @@ var _dhBillingSessions  = [];  // sessions needing billing action (for Unpaid fo
 var _dhEnqClientMap     = {};  // enquiry.id → client object (for inbox sub-info)
 var _dhPatientApptMap   = {};  // halaxy_id string → sorted upcoming sessions[]
 var _dhUnlinkedCalAppts = [];  // upcoming GCal events with no Halaxy patient (for Unlinked folder)
+var _dhClientActionMap  = {};  // person key → { name, patientId, issues[], missingFunderRef, refLabel, clientId } — see _dhBuildClientActionMap()
 var _dhSchedDateStr     = '';  // selected day ISO string ('' = auto-select today/first)
 var _dhSchedWeekOff     = 0;   // week offset: 0=this week, ± up to _DH_SCHED_MAX_WK
 var _DH_SCHED_MAX_WK    = 12;  // how many weeks the schedule can page forward/back
 // Window the schedule builds its appointment list over. Wider than the default
 // 30/14 (inbox/KPI) window so paging ±12 weeks actually has data — the server
 // already returns the full FY of appointments, this just stops the client
-// clamping it. 13 weeks each way (91d) covers the furthest selectable day.
-var _DH_SCHED_WIN       = { pastDays: 91, futureDays: 91 };
+// clamping it. 91d forward covers the furthest selectable day; 180d back matches
+// the Calendar fetch window (api/calendar-pending.js) so the "Not in Halaxy"
+// bucket can still catch a session from several months ago.
+var _DH_SCHED_WIN       = { pastDays: 180, futureDays: 91 };
 
 /* ── Module-level patient/client name resolver (used by billing bento + panel) ── */
 function _resolvePatientName(patientId) {
@@ -4661,9 +4766,10 @@ function _recomputeInboxBuckets() {
   var _uni = (_halaxyData && _halaxyData.connected)
     ? _buildUnifiedSessions()
     : { upcoming: [], past: [] };
-  // The "No Invoice" review queue uses a WIDE window so funder sessions of any
-  // age surface (a March funder session must still flag in June). Other buckets
-  // keep the default 30d window.
+  // The "No Invoice" and "Not in Halaxy" review queues both use a WIDE window so a
+  // session from several months back still surfaces — a March funder session must
+  // still flag in June, and a March calendar session that was never set up in
+  // Halaxy at all must still flag in June too (not just while it's under 30d old).
   var _uniWide = (_halaxyData && _halaxyData.connected) ? _buildUnifiedSessions(_DH_SCHED_WIN) : { upcoming: [], past: [] };
 
   _dhBillingSessions = _uni.past.filter(function(s) {
@@ -4672,8 +4778,11 @@ function _recomputeInboxBuckets() {
   _dhHalaxyNoInvoice = _uniWide.past.filter(function(s) {
     return !_isPersonalAppt(s) && s.source === 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
   });
-  _dhNonHalaxyActions = _uni.past.filter(function(s) {
-    return !_isPersonalAppt(s) && s.source !== 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording')
+  // Sessions already linked to a Halaxy patient but still needing recording/invoicing.
+  // Requiring patientId partitions this from _dhUnlinkedCalAppts below, so a bare
+  // (unlinked) cal event is never counted in both buckets at once.
+  _dhNonHalaxyActions = _uniWide.past.filter(function(s) {
+    return !_isPersonalAppt(s) && s.source !== 'halaxy' && s.patientId && (s.status === 'pending-invoice' || s.status === 'needs-recording')
       && !(s.eventId && _calEventLinks[s.eventId]); // merged onto a contact card → fold out
   });
   _dhEnqClientMap = {};
@@ -4688,11 +4797,13 @@ function _recomputeInboxBuckets() {
   Object.keys(_dhPatientApptMap).forEach(function(k) {
     _dhPatientApptMap[k].sort(function(a, b) { return a.startMs - b.startMs; });
   });
-  // Every upcoming cal event without a Halaxy patient must surface in Unlinked
-  _dhUnlinkedCalAppts = _uni.upcoming.filter(function(s) {
+  // Any cal event without a Halaxy patient must surface in Unlinked — past or
+  // upcoming — so a session from months ago that was never set up doesn't vanish.
+  _dhUnlinkedCalAppts = _uniWide.upcoming.concat(_uniWide.past).filter(function(s) {
     return s.source === 'cal' && !s.patientId && !s.isReminder
       && !_calEventLinks[s.eventId]; // merged onto a contact card → fold out
   });
+  _dhClientActionMap = _dhBuildClientActionMap(clients);
 
   // Refresh whichever surface is currently showing inbox/home data
   // Desktop: inbox lives inside the home bento — re-render home
@@ -5006,14 +5117,17 @@ function renderHomeView() {
   // ── Issue buckets ─────────────────────────────────────────────
   // Halaxy appointment with no invoice = critical data integrity problem
   // "Personal appointment" entries are legacy Halaxy placeholders — exclude silently
-  // WIDE window so funder sessions of any age surface in the review queue.
+  // WIDE window so funder sessions of any age surface in the review queue, and so a
+  // calendar session that was never set up in Halaxy at all still surfaces months later.
   var _uniWideHome = (_halaxyData && _halaxyData.connected) ? _buildUnifiedSessions(_DH_SCHED_WIN) : { upcoming: [], past: [] };
   _dhHalaxyNoInvoice  = _uniWideHome.past.filter(function(s) {
     return !_isPersonalAppt(s) && s.source === 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording');
   });
-  // Non-Halaxy appointment needing merge or dismiss (calendar / dashboard)
-  _dhNonHalaxyActions = _uni.past.filter(function(s) {
-    return !_isPersonalAppt(s) && s.source !== 'halaxy' && (s.status === 'pending-invoice' || s.status === 'needs-recording')
+  // Non-Halaxy appointment needing merge or dismiss (calendar / dashboard), already
+  // linked to a patient. Requiring patientId partitions this from _dhUnlinkedCalAppts
+  // below, so a bare (unlinked) cal event is never counted in both buckets at once.
+  _dhNonHalaxyActions = _uniWideHome.past.filter(function(s) {
+    return !_isPersonalAppt(s) && s.source !== 'halaxy' && s.patientId && (s.status === 'pending-invoice' || s.status === 'needs-recording')
       && !(s.eventId && _calEventLinks[s.eventId]); // merged onto a contact card → fold out
   });
 
@@ -5029,10 +5143,13 @@ function renderHomeView() {
   Object.keys(_dhPatientApptMap).forEach(function(k) {
     _dhPatientApptMap[k].sort(function(a, b) { return a.startMs - b.startMs; });
   });
-  _dhUnlinkedCalAppts = _uni.upcoming.filter(function(s) {
+  // Any cal event without a Halaxy patient must surface in Unlinked — past or
+  // upcoming — so a session from months ago that was never set up doesn't vanish.
+  _dhUnlinkedCalAppts = _uniWideHome.upcoming.concat(_uniWideHome.past).filter(function(s) {
     return s.source === 'cal' && !s.patientId && !s.isReminder
       && !_calEventLinks[s.eventId]; // merged onto a contact card → fold out
   });
+  _dhClientActionMap = _dhBuildClientActionMap(clients);
 
   var allEnqs       = enquiries;
   var contactedEnqs = enquiries.filter(function(e){ return e.status === 'contacted'; });
@@ -5078,6 +5195,7 @@ function renderHomeView() {
 
   // ── Issue counts (needed by snapshot + inbox sidebar) ─────────
   var critCount    = _dhHalaxyNoInvoice.length;
+  var byClientCount = Object.keys(_dhClientActionMap || {}).length;
   var hasIssues    = critCount > 0 || unlinkedCount > 0;
 
   // ── Receptionist-style paragraph snapshot ─────────────────────
@@ -5207,6 +5325,11 @@ function renderHomeView() {
   // ── Issues section (only rendered when there are problems) ──
   if (hasIssues) {
     html += '<div class="dh-if-section-label">Issues</div>';
+    if (byClientCount > 0) {
+      html += '<div class="dh-inbox-folder dh-if-unlinked" data-status="byclient" onclick="dhInboxFilter(\'byclient\',this)">'
+        + '<span class="dh-if-label">👤 Needs action</span>'
+        + '<span class="dh-if-count" style="color:#b85a1e">' + byClientCount + '</span></div>';
+    }
     if (critCount > 0) {
       html += '<div class="dh-inbox-folder dh-if-critical" data-status="critical" onclick="dhInboxFilter(\'critical\',this)">'
         + '<span class="dh-if-label">⚠ No Invoice</span>'
@@ -5276,20 +5399,14 @@ function renderHomeView() {
   _dhRenderBillingBento();
   var _inboxListEl = document.getElementById('dh-inbox-list');
   if (_inboxListEl) {
-    if (critCount > 0) {
-      // Auto-open critical folder if there are Halaxy no-invoice issues
-      _dhInboxFilter = 'critical';
+    if (byClientCount > 0) {
+      // Auto-open the consolidated per-person "Needs action" view when there's
+      // anything in it — one card per client instead of a flat session list.
+      _dhInboxFilter = 'byclient';
       document.querySelectorAll('.dh-inbox-folder').forEach(function(f) {
-        f.classList.toggle('active', f.dataset.status === 'critical');
+        f.classList.toggle('active', f.dataset.status === 'byclient');
       });
-      _dhRenderSessionItems(_inboxListEl, _dhHalaxyNoInvoice, 'critical');
-    } else if (unlinkedCount > 0) {
-      // Auto-open unlinked if that's the only issue
-      _dhInboxFilter = 'unlinked';
-      document.querySelectorAll('.dh-inbox-folder').forEach(function(f) {
-        f.classList.toggle('active', f.dataset.status === 'unlinked');
-      });
-      _dhRenderUnlinkedCalItems(_inboxListEl, _dhNotInHalaxy());
+      _dhRenderClientActionItems(_inboxListEl, _dhClientActionMap);
     } else {
       _dhRenderInboxItems(_inboxListEl, newEnquiries, 'new');
     }
@@ -6686,6 +6803,12 @@ function renderClientDetailView(clientId) {
   if (c.plan_manager) {
     html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Plan manager</span><span class="cl-detail-row-val">' + escHtml(c.plan_manager) + '</span></div>';
   }
+  var _funderGroup = BOOKABLE_MENU.find(function(f) { return f.billingKey === c.funder; });
+  if (_funderGroup && _funderGroup.refLabel) {
+    html += '<div class="cl-detail-row"><span class="cl-detail-row-label">' + escHtml(_funderGroup.refLabel) + '</span>'
+      + '<span class="cl-detail-row-val">' + (c.funder_ref ? escHtml(c.funder_ref) : '<span style="color:var(--amber)">Missing</span>')
+      + ' <a href="#" onclick="event.preventDefault();editFunderRefPl(\'' + escHtml(String(c.id)) + '\',\'' + escHtml(_funderGroup.refLabel) + '\');return false" style="font-size:11px;color:var(--teal);margin-left:6px">Edit</a></span></div>';
+  }
   if (c.created_at) {
     html += '<div class="cl-detail-row"><span class="cl-detail-row-label">Client since</span><span class="cl-detail-row-val">' + fmtDate(c.created_at) + '</span></div>';
   }
@@ -7921,6 +8044,27 @@ function _renderDevCompanion() {
   return html;
 }
 
+// "What do I need for X" reference — one <details> per funder, expanded by clicking.
+// Content lives on BOOKABLE_MENU (guide[]/refLabel) so this and the "Set up in
+// Halaxy" wizard never say different things about the same funder.
+function _renderFunderGuideSection() {
+  var html = '<div class="settings-section"><div class="settings-section-title">Funder guide</div>'
+    + '<div class="settings-row" style="border-bottom:none;padding-bottom:4px">'
+    + '<span class="settings-row-label" style="color:rgba(255,255,255,0.4);font-size:11.5px">What to have ready per funder — tap to expand.</span></div>';
+
+  BOOKABLE_MENU.forEach(function(fn) {
+    var lines = (fn.guide || []).slice();
+    if (fn.refLabel) lines.push('Reference number: ' + fn.refLabel + '.');
+    html += '<details style="margin:6px 0"><summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--t1);padding:6px 0">' + escHtml(fn.label) + '</summary>'
+      + '<div style="padding:2px 0 8px 4px;font-size:12px;line-height:1.6;color:var(--t2)">'
+      + (lines.length ? lines.map(function(g) { return '<div>· ' + escHtml(g) + '</div>'; }).join('') : '<div style="color:rgba(255,255,255,0.4)">No special steps.</div>')
+      + '</div></details>';
+  });
+
+  html += '</div>';
+  return html;
+}
+
 function renderSettingsView() {
   var content = document.getElementById('view-content');
   if (!content) return;
@@ -7938,6 +8082,10 @@ function renderSettingsView() {
 
   // Booking fees — map each bookable session type to its Halaxy fee (drives "Set up in Halaxy")
   html += _renderBookingFeesSection();
+
+  // Funder guide — plain-language "what do I need for X" reference, sourced straight
+  // from BOOKABLE_MENU so it can't drift from what the "Set up in Halaxy" wizard shows.
+  html += _renderFunderGuideSection();
 
   // Account
   html += '<div class="settings-section"><div class="settings-section-title">Account</div>';
@@ -8830,7 +8978,9 @@ function openSetupInHalaxy(prefill) {
     +   '</div>'
     +   '<div id="sih-client-hero" style="display:none"></div>'
     +   '<select id="sih-funder" class="db-form-input" onchange="_sihOnFunderChange()">' + funderOpts + '</select>'
+    +   '<div id="sih-guide" style="display:none;font-size:11.5px;line-height:1.5;color:var(--teal);background:rgba(45,212,191,0.08);border-radius:8px;padding:8px 10px"></div>'
     +   '<select id="sih-pm" class="db-form-input" style="display:none"></select>'
+    +   '<input id="sih-funderref" class="db-form-input" style="display:none" placeholder="">'
     +   '<select id="sih-type" class="db-form-input" style="display:none" onchange="_sihOnTypeChange()"></select>'
     +   '<div id="sih-fee" style="font-size:12px;color:var(--teal);min-height:16px"></div>'
     +   '<div style="display:flex;gap:8px">'
@@ -8878,7 +9028,23 @@ function _sihOnFunderChange() {
   var typeSel = document.getElementById('sih-type');
   var pmSel   = document.getElementById('sih-pm');
   var feeDiv  = document.getElementById('sih-fee');
+  var guideDiv = document.getElementById('sih-guide');
+  var refInput = document.getElementById('sih-funderref');
   if (feeDiv) feeDiv.textContent = '';
+
+  if (guideDiv) {
+    if (funder && funder.guide && funder.guide.length) {
+      guideDiv.innerHTML = funder.guide.map(function(g) { return '<div>· ' + escHtml(g) + '</div>'; }).join('');
+      guideDiv.style.display = '';
+    } else { guideDiv.style.display = 'none'; guideDiv.innerHTML = ''; }
+  }
+
+  if (refInput) {
+    if (funder && funder.refLabel) {
+      refInput.placeholder = funder.refLabel + ' (optional)';
+      refInput.style.display = '';
+    } else { refInput.style.display = 'none'; refInput.value = ''; }
+  }
 
   if (funder && funder.planManaged) {
     var pms = (_halaxyFunders || []).filter(function(f) { return f.billingKey === 'ndis_plan'; });
@@ -9017,6 +9183,7 @@ async function _sihSubmit(confirmed) {
 
   var first = val('sih-first'), last = val('sih-last'), email = val('sih-email'), phone = val('sih-phone');
   var fkey = val('sih-funder'), tid = val('sih-type'), date = val('sih-date'), time = val('sih-time');
+  var funderRef = val('sih-funderref');
   var dur = parseInt(val('sih-dur') || '60', 10) || 60;
   var funder = _bookableFunder(fkey);
   if (!first || !last) return err('Enter the client’s first and last name.');
@@ -9065,7 +9232,7 @@ async function _sihSubmit(confirmed) {
       if (msg) msg.textContent = 'Creating patient in Halaxy…';
       var cr = await apiFetch('/api/admin-enquiries?halaxy_create_patient=1', { method: 'POST', body: {
         firstName: first, lastName: last, email: email || undefined, phone: phone || undefined,
-        funder: funder.billingKey, planManager: pmName || undefined,
+        funder: funder.billingKey, planManager: pmName || undefined, funderRef: funderRef || undefined,
       } });
       patientId = cr && cr.halaxyId;
       if (!patientId) throw new Error('Halaxy did not return a patient id');
@@ -9081,7 +9248,7 @@ async function _sihSubmit(confirmed) {
       }
       if (msg) msg.textContent = 'Linking funder coverage…';
       try {
-        await apiFetch('/api/admin-enquiries?halaxy_coverage=1', { method: 'POST', body: { patientId: String(patientId), payorId: payorId, payorName: payorName } });
+        await apiFetch('/api/admin-enquiries?halaxy_coverage=1', { method: 'POST', body: { patientId: String(patientId), payorId: payorId, payorName: payorName, funderRef: funderRef || undefined } });
       } catch (ce) { console.warn('[sih] coverage failed:', ce && ce.message); }
     }
     if (msg) msg.textContent = 'Booking appointment + creating invoice…';
@@ -10303,6 +10470,21 @@ async function editClientPl(clientId) {
   try {
     await apiFetch('/api/clients', { method: 'PATCH', body: { id: clientId, display_name: newName.trim() } });
     toast('Client updated');
+    refreshPipeline();
+  } catch (err) {
+    toast('Could not update: ' + err.message, 'err');
+  }
+}
+
+async function editFunderRefPl(clientId, refLabel) {
+  if (!_pipelineData) return;
+  var client = (_pipelineData.clients || []).find(function(c) { return String(c.id) === String(clientId); });
+  if (!client) return;
+  var val = prompt('Edit ' + refLabel + ':', client.funder_ref || '');
+  if (val === null || val.trim() === (client.funder_ref || '')) return;
+  try {
+    await apiFetch('/api/clients', { method: 'PATCH', body: { id: clientId, funder_ref: val.trim() || null } });
+    toast(refLabel + ' updated');
     refreshPipeline();
   } catch (err) {
     toast('Could not update: ' + err.message, 'err');
