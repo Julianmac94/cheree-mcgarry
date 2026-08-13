@@ -20,16 +20,23 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorised' });
   }
 
-  // ── PATCH — rename a calendar event ──────────────────────────────
+  // ── PATCH — rename and/or reschedule a calendar event ─────────────
+  // Body: { title? }  and/or  { start?, end? } (ISO datetimes with offset).
+  // At least one of title/end must be given.
   if (req.method === 'PATCH') {
     const eventId = req.query?.eventId;
-    const { title } = req.body || {};
+    const { title, start, end } = req.body || {};
     if (!eventId) return res.status(400).json({ error: 'eventId is required' });
-    if (!title?.trim()) return res.status(400).json({ error: 'title is required' });
+    if (!title?.trim() && !end) return res.status(400).json({ error: 'title or end is required' });
     try {
       const oauth2   = await getOAuth2Client();
       const calendar = google.calendar({ version: 'v3', auth: oauth2 });
-      await calendar.events.patch({ calendarId: CALENDAR_ID, eventId, resource: { summary: title.trim() } });
+      const TZ       = 'Australia/Brisbane';
+      const resource = {};
+      if (title?.trim()) resource.summary = title.trim();
+      if (start) resource.start = { dateTime: start, timeZone: TZ };
+      if (end)   resource.end   = { dateTime: end,   timeZone: TZ };
+      await calendar.events.patch({ calendarId: CALENDAR_ID, eventId, resource });
       return res.status(200).json({ ok: true });
     } catch (err) {
       return res.status(500).json({ error: err.message });

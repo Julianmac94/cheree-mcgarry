@@ -8219,6 +8219,16 @@ function _renderSessionDetailPanel(sess) {
   } else if (sess.status === 'upcoming') {
     html += ' · <span class="m-chip m-chip-blue">Upcoming</span>';
   }
+
+  // Duration — computed from the raw Halaxy appointment / calendar event, so it's
+  // only offered where we actually have a start+end to base an edit on.
+  var _durStartIso = sess.startIso || (sess.ev && sess.ev.start) || null;
+  var _durEndIso   = sess.appt ? sess.appt.end : (sess.ev ? sess.ev.end : null);
+  if (!sess.isReminder && sess.status !== 'cancelled' && _durStartIso) {
+    var _durMin = _durEndIso ? Math.round((new Date(_durEndIso).getTime() - new Date(_durStartIso).getTime()) / 60000) : null;
+    html += ' · ' + (_durMin > 0 ? _durMin + ' min' : 'Duration not set')
+      + ' <a href="#" onclick="event.preventDefault();editSessionDuration(\'' + escHtml(String(sess.id)) + '\');return false" style="color:var(--teal);font-size:11px">Edit</a>';
+  }
   html += '</div>';
 
   // Amount
@@ -8511,6 +8521,58 @@ async function _calRenameEvent(eventId, currentTitle) {
     renderHomeView();
     toast('Renamed to "' + newTitle.trim() + '"');
   } catch(e) { toast('Could not rename: ' + e.message, 'err'); }
+}
+
+// Change how long a session actually ran for — the appointment's start stays fixed,
+// only the end (and therefore duration) changes. Updates whichever record we can
+// reach: the Halaxy appointment (if this session is already booked in Halaxy) and/or
+// the Google Calendar event (if this session still has one — cal-sourced sessions
+// not yet set up in Halaxy always do). There's no stored link from a Halaxy
+// appointment back to the calendar event it came from, so a session that's already
+// in Halaxy only updates Halaxy here — that's a known limitation, not a bug.
+async function editSessionDuration(uid) {
+  var sess = (_dhAppts || []).find(function(s) { return s.id === uid; });
+  if (!sess) {
+    var unified = _buildUnifiedSessions();
+    sess = unified.upcoming.concat(unified.past).find(function(s) { return s.id === uid; });
+  }
+  if (!sess) return;
+
+  var startIso = sess.startIso || (sess.ev && sess.ev.start);
+  if (!startIso) { toast('No start time to base duration on', 'err'); return; }
+  var endIso = sess.appt ? sess.appt.end : (sess.ev ? sess.ev.end : null);
+  var curDur = endIso ? Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000) : 60;
+
+  var input = prompt('How long was this session, in minutes?', String(curDur > 0 ? curDur : 60));
+  if (input === null) return;
+  var mins = parseInt(input, 10);
+  if (!mins || mins <= 0) { toast('Enter a duration in minutes', 'err'); return; }
+
+  // Brisbane = UTC+10, no DST. Keep the existing start, derive a new end from duration.
+  var TZ = '+10:00';
+  var endMs = new Date(startIso).getTime() + mins * 60 * 1000;
+  var _e = new Date(endMs + 10 * 3600 * 1000), _p = function(n) { return ('0' + n).slice(-2); };
+  var newEnd = _e.getUTCFullYear() + '-' + _p(_e.getUTCMonth() + 1) + '-' + _p(_e.getUTCDate())
+    + 'T' + _p(_e.getUTCHours()) + ':' + _p(_e.getUTCMinutes()) + ':00' + TZ;
+
+  try {
+    if (sess.source === 'halaxy' && sess.halaxyApptId) {
+      await apiFetch('/api/admin-enquiries?halaxy_appt_action=1', { method: 'POST', body: {
+        action: 'reschedule', patientId: sess.patientId, halaxyApptId: sess.halaxyApptId,
+        apptStart: startIso, apptEnd: newEnd,
+      } });
+    }
+    if (sess.eventId) {
+      await apiFetch('/api/calendar-pending?eventId=' + encodeURIComponent(sess.eventId), {
+        method: 'PATCH', body: { end: newEnd },
+      });
+    }
+    toast('Duration updated ✓ — ' + mins + ' min', 'ok');
+    closeDetailPanel();
+    refreshPipeline();
+  } catch (err) {
+    toast('Could not update duration: ' + (err && err.message ? err.message : 'error'), 'err');
+  }
 }
 
 async function _dhRenameClient(clientId, currentName) {

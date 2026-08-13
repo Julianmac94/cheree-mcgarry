@@ -366,6 +366,17 @@ function buildCancelledAppt(apptId, patientId, start, end, notes) {
   return appt;
 }
 
+/**
+ * Build a FHIR Appointment resource for PATCH /Appointment/{id} — change the
+ * appointment's start/end only (e.g. the session ran longer/shorter than booked).
+ * Leaves status, fee and everything else untouched.
+ */
+function buildRescheduledAppt(apptId, patientId, start, end) {
+  const appt = { resourceType: 'Appointment', start, end };
+  if (apptId) appt.id = apptId;
+  return appt;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    48-hour appointment reminder helpers
    (merged from api/admin-reminder.js to stay under Vercel Hobby 12-fn limit)
@@ -733,8 +744,11 @@ export default async function handler(req, res) {
     if (action === 'record' && halaxyApptId && feeAmount == null) {
       return res.status(400).json({ error: 'feeAmount is required to record a session' });
     }
-    if (!['record', 'cancel', 'book'].includes(action)) {
-      return res.status(400).json({ error: 'action must be "record", "cancel", or "book"' });
+    if (action === 'reschedule' && (!halaxyApptId || !apptStart || !apptEnd)) {
+      return res.status(400).json({ error: 'halaxyApptId, apptStart and apptEnd are required to reschedule' });
+    }
+    if (!['record', 'cancel', 'book', 'reschedule'].includes(action)) {
+      return res.status(400).json({ error: 'action must be "record", "cancel", "book", or "reschedule"' });
     }
 
     try {
@@ -781,6 +795,14 @@ export default async function handler(req, res) {
           buildRecordedAppt(apptId, patientId, apptStart || null, apptEnd || null, feeId || null, feeName || '', feeAmount, notes || null)
         );
         console.log('PATCH result:', JSON.stringify(patchResult).slice(0, 300));
+      } else if (action === 'reschedule') {
+        // PATCH appointment start/end only — used when the actual session length
+        // differs from how it was originally booked.
+        console.log(`Halaxy PATCH: rescheduling appointment ${apptId} to ${apptStart} - ${apptEnd}`);
+        patchResult = await halaxyPatch(
+          `/Appointment/${apptId}`,
+          buildRescheduledAppt(apptId, patientId, apptStart, apptEnd)
+        );
       } else {
         // Cancel: PATCH appointment status to cancelled
         console.log(`Halaxy PATCH: cancelling appointment ${apptId}`);
