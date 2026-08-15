@@ -234,6 +234,19 @@ function _cbEventKind(e) {
   return (e.start && new Date(e.start) < new Date()) ? 'attention' : 'upcoming';
 }
 
+/* A schedule entry that's moved into the action pipeline (an outcome's
+ * been logged, or it's sitting past-and-unresolved) gets a small tappable
+ * badge showing exactly which Board stage it's at — the "this has moved
+ * to the Board" mark, right on the schedule card itself, tap through to
+ * its full history instead of just a static note. */
+function _cbStageBadge(e) {
+  var stage = _cbEventStage(e);
+  if (!stage) return '';
+  var col = BOARD_COLUMNS.find(function(c) { return c.key === stage; });
+  if (!col) return '';
+  return '<span class="stage-badge" onclick="event.stopPropagation();cbOpenHistory(\'' + _cbEsc(e.id) + '\')">→ ' + _cbEsc(col.label) + '</span>';
+}
+
 function _cbListHtml(items) {
   return items.map(function(e) {
     var d = new Date(e.start);
@@ -244,18 +257,19 @@ function _cbListHtml(items) {
     var modIcon = fields.Type === 'Online' ? '💻 ' : fields.Type === 'In person' ? '📍 ' : '';
     return '<div class="card card-' + _cbEventKind(e) + '" onclick="_cbOpenOutcome(\'' + _cbEsc(e.id) + '\')" style="cursor:pointer">'
       + '<div class="card-top"><div class="nm">' + _cbEsc(name) + '</div>' + _cbFunderChip(fields.Funder) + '</div>'
-      + '<div class="mt">' + modIcon + _cbEsc(when) + (legacy ? '<span class="legacy-tag">Not logged</span>' : '') + '</div>'
+      + '<div class="mt">' + modIcon + _cbEsc(when) + (legacy ? '<span class="legacy-tag">Not logged</span>' : '') + _cbStageBadge(e) + '</div>'
       + '</div>';
   }).join('');
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   HOME VIEW MODES — All (the original flat needs-outcome/upcoming
-   list, unfiltered by date) vs Month/Week/Day, a real calendar for
-   tracking what's on a given day instead of scrolling a long list.
+   HOME VIEW MODES — Home is the schedule now, so it lands on Day
+   (today) by default. Week/Month give more context; All is the
+   original flat needs-outcome/upcoming list, kept as a quick-scan
+   option but no longer the landing view.
    ═══════════════════════════════════════════════════════════════ */
 
-var _cbHomeMode = 'all'; // 'all' | 'month' | 'week' | 'day'
+var _cbHomeMode = 'day'; // 'day' | 'week' | 'month' | 'all'
 var _cbCalDate  = new Date(); // focused date for month/week/day navigation
 
 function _cbDateKey(d) {
@@ -291,7 +305,7 @@ function cbCalOpenDay(key) {
 }
 
 function _cbModesHtml() {
-  var modes = [['all', 'All'], ['month', 'Month'], ['week', 'Week'], ['day', 'Day']];
+  var modes = [['day', 'Day'], ['week', 'Week'], ['month', 'Month'], ['all', 'All']];
   return '<div class="cal-modes">' + modes.map(function(m) {
     return '<button class="cal-mode-btn' + (_cbHomeMode === m[0] ? ' active' : '') + '" onclick="cbSetHomeMode(\'' + m[0] + '\')">' + m[1] + '</button>';
   }).join('') + '</div>';
@@ -392,11 +406,15 @@ function _cbRenderHome() {
   var root = document.getElementById('root');
   _cbUpdateHomeBadge(_cbNeedsAttentionItems().length);
 
+  // Brief card on the All view, and on Day specifically when it's actually
+  // today — Week/Month/a navigated-to Day are browsing tools, not the daily
+  // landing screen, so the briefing would just be stale context sitting
+  // above a grid she's using to look at some other day.
+  var isTodayView = _cbHomeMode === 'day' && _cbDateKey(_cbCalDate) === _cbDateKey(new Date());
+  var showBrief = _cbHomeMode === 'all' || isTodayView;
+
   var html = '';
-  // Brief card only on the All view — Month/Week/Day are navigation tools,
-  // not the daily landing screen, so the briefing would just be stale
-  // context sitting above a grid she's using to look at some other week.
-  if (_cbHomeMode === 'all') {
+  if (showBrief) {
     html += '<div class="brief-card" id="cb-brief-card">'
       + '<div class="brief-label">Today’s briefing</div>'
       + '<div class="brief-text ai-brief-streaming" id="cb-brief-text"><span class="ai-brief-loading">&#8203;</span></div>'
@@ -426,7 +444,7 @@ function _cbRenderHome() {
 
   root.innerHTML = html;
 
-  if (_cbHomeMode === 'all') _cbFireBrief();
+  if (showBrief) _cbFireBrief();
 }
 
 function _cbUpdateHomeBadge(n) {

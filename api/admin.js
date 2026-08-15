@@ -88,6 +88,8 @@ function cbBookPage({ currentUser = null }) {
   .fchip-Lead { background: rgba(224,163,57,0.12); color: var(--amber); }
   .fchip-Unknown { background: rgba(255,255,255,0.05); color: var(--t3); }
   .legacy-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--t3); border: 1px dashed var(--border); padding: 1px 6px; border-radius: 6px; flex-shrink: 0; }
+  .stage-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.02em; color: var(--teal); background: rgba(119,207,189,0.12); border: 1px solid rgba(119,207,189,0.3); padding: 2px 7px; border-radius: 6px; flex-shrink: 0; cursor: pointer; }
+  .stage-badge:hover { background: rgba(119,207,189,0.2); }
   .sdot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 7px; flex-shrink: 0; }
   .sdot-green { background: var(--green); }
   .sdot-red { background: var(--red); }
