@@ -1,6 +1,9 @@
 {
   "rewrites": [
     { "source": "/admin",       "destination": "/api/admin" },
+    { "source": "/admin-new",   "destination": "/api/admin?v2=1" },
+    { "source": "/book",        "destination": "/api/admin?cheree=1" },
+    { "source": "/book/qfes",   "destination": "/api/admin?cheree=1&qfes=1" },
     { "source": "/admin-login", "destination": "/api/admin-login" },
     { "source": "/register",    "destination": "/register.html" }
   ],

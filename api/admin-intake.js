@@ -371,8 +371,8 @@ function buildIntakeHtml(clientType, firstName, intakeUrl) {
 }
 
 // ── Test renderer: ANY live client email → { subject, html } with sample data ──
-// Single source for the Settings "Email tests" picker. Add new client emails here
-// (and an <option> in admin-ui.js renderSettingsView) so everything stays testable.
+// Was wired to the old /admin Settings "Email tests" picker, since retired —
+// no remaining caller, kept only as a manually-testable reference.
 function renderTestEmail(type) {
   const fn = 'Cheree';
   const sampleUrl = 'https://au.halaxy.com/profile/cheree-mcgarry/intake-form/example';

@@ -1,7 +1,7 @@
 /**
  * api/admin-login.js
  * GET  → serve the login page
- * POST → validate password, set session cookie, redirect to /admin
+ * POST → validate password, set session cookie, redirect to /book
  */
 
 import { setSessionCookie, isAuthed, validateUser } from './_auth.js';
@@ -183,9 +183,9 @@ function loginPage(error = '') {
 }
 
 export default async function handler(req, res) {
-  // Already authed — skip straight to admin
+  // Already authed — skip straight to /book
   if (isAuthed(req)) {
-    res.writeHead(302, { Location: '/admin' });
+    res.writeHead(302, { Location: '/book' });
     return res.end();
   }
 
@@ -212,7 +212,7 @@ export default async function handler(req, res) {
     }
 
     setSessionCookie(res, user.name, remember);
-    res.writeHead(302, { Location: '/admin' });
+    res.writeHead(302, { Location: '/book' });
     return res.end();
   }
 

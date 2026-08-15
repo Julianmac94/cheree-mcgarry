@@ -1,7 +1,7 @@
 /**
  * api/google-callback.js
  * Google OAuth callback — exchanges code for tokens, stores refresh token
- * in Supabase settings table, redirects back to admin.
+ * in Supabase settings table, redirects back to /book.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -19,12 +19,12 @@ export default async function handler(req, res) {
   const { code, error } = req.query || {};
 
   if (error) {
-    res.writeHead(302, { Location: '/admin?tab=clients&gcal=error' });
+    res.writeHead(302, { Location: '/book?gcal=error' });
     return res.end();
   }
 
   if (!code) {
-    res.writeHead(302, { Location: '/admin?tab=clients&gcal=missing' });
+    res.writeHead(302, { Location: '/book?gcal=missing' });
     return res.end();
   }
 
@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     if (!tokens.refresh_token) {
       // No refresh token returned — user already authorised previously.
       // Re-visit /api/google-auth with prompt=consent to force a new one.
-      res.writeHead(302, { Location: '/admin?tab=clients&gcal=no_refresh' });
+      res.writeHead(302, { Location: '/book?gcal=no_refresh' });
       return res.end();
     }
 
@@ -93,11 +93,11 @@ export default async function handler(req, res) {
       await db.from('settings').upsert({ key: 'gmail_tokens', value: JSON.stringify(map), updated_at: now });
     } catch (_) {}
 
-    res.writeHead(302, { Location: '/admin?tab=clients&gcal=connected' + (email ? '&mb=' + encodeURIComponent(email) : '') + '&cal=' + (canReadCalendar ? 'ok' : 'no') });
+    res.writeHead(302, { Location: '/book?gcal=connected' + (email ? '&mb=' + encodeURIComponent(email) : '') + '&cal=' + (canReadCalendar ? 'ok' : 'no') });
     res.end();
   } catch (err) {
     console.error('google-callback error', err);
-    res.writeHead(302, { Location: '/admin?tab=clients&gcal=error' });
+    res.writeHead(302, { Location: '/book?gcal=error' });
     res.end();
   }
 }

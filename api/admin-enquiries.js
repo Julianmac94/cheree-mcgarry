@@ -13,6 +13,7 @@ import { halaxyGet, halaxyPost, halaxyPatch } from './_halaxy.js';
 import { createCalendarEvent } from './calendar-pending.js';
 import { registrationCompleteEmailHtml } from './_emails.js';
 import { searchRemittance } from './_gmail.js';
+import { saveSubscription } from './_push.js';
 
 /* ─────────────────────────────────────────────
    Halaxy config cache helpers (non-PII data)
@@ -1288,6 +1289,122 @@ export default async function handler(req, res) {
       }
       return res.status(200).json({ ok: true, links: ledger });
     } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /* ── POST ?push_subscribe=1 — save a Web Push subscription for this device.
+     Body is the raw PushSubscription object from the browser (endpoint +
+     keys). Notifications fire when Cheree books or records an outcome in
+     /book — see calendar-pending.js. iOS Safari only allows this once the
+     page has been added to the Home Screen (Apple restriction). ── */
+  if (req.method === 'POST' && params.get('push_subscribe')) {
+    const subscription = req.body || {};
+    if (!subscription.endpoint) return res.status(400).json({ error: 'invalid subscription' });
+    try {
+      const count = await saveSubscription(subscription);
+      return res.status(200).json({ ok: true, count });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /* ── POST ?client_funders_set=1 — manual multi-funder tagging for a client
+     (e.g. NDIS for one service, Medicare for another). Deliberately NOT
+     written to clients.funder — that column has a DB check constraint
+     limiting it to one of a fixed set of single values, discovered when a
+     comma-joined write 500'd. Same settings-cache pattern as other ledgers:
+     { key → ['NDIS','Medicare',...] }, key is the client's halaxy_id if they
+     have one, else their local clients.id. Body { key, funders }. An empty
+     funders array clears the manual tag. ── */
+  if (req.method === 'POST' && params.get('client_funders_set')) {
+    const { key, funders } = req.body || {};
+    if (!key) return res.status(400).json({ error: 'key is required' });
+    try {
+      const dbf = supabase();
+      const ledger = (await readCache(dbf, 'client_funders')) || {};
+      if (Array.isArray(funders) && funders.length) ledger[key] = funders;
+      else delete ledger[key];
+      await writeCache(dbf, 'client_funders', ledger);
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /* ── GET ?qfes_profiles_all=1 — every saved QFES profile (full rows —
+     small table, and the client list needs the actual answers to compute
+     a real completeness status, not just "a row exists"). Used by
+     /book/qfes's client list without an N+1 fetch per row. ── */
+  if (req.method === 'GET' && params.get('qfes_profiles_all')) {
+    const db = supabase();
+    try {
+      const { data, error } = await db.from('qfes_client_profiles').select('*');
+      if (error) throw error;
+      return res.status(200).json({ profiles: data || [] });
+    } catch (err) {
+      console.error('qfes_profiles_all error:', err.message);
+      return res.status(200).json({ profiles: [], error: err.message });
+    }
+  }
+
+  /* ── GET ?qfes_profile=<halaxyId> — the saved profile for one client (or
+     null if never filled in). ── */
+  if (req.method === 'GET' && params.get('qfes_profile')) {
+    const clientHalaxyId = (params.get('qfes_profile') || '').trim();
+    if (!clientHalaxyId) return res.status(400).json({ error: 'client id required' });
+    const db = supabase();
+    try {
+      const { data, error } = await db
+        .from('qfes_client_profiles')
+        .select('*')
+        .eq('client_halaxy_id', clientHalaxyId)
+        .maybeSingle();
+      if (error) throw error;
+      return res.status(200).json({ profile: data || null });
+    } catch (err) {
+      console.error('qfes_profile error:', err.message);
+      return res.status(200).json({ profile: null, error: err.message });
+    }
+  }
+
+  /* ── POST ?qfes_profile_save=1 — upsert the profile for one client (one
+     row per client, not one per submission — this is context/role data
+     that stays mostly stable, not per-appointment data). Reference-only
+     staging, same principle as the rest of /book: no write to Halaxy, no
+     submission to the real Microsoft form — Julian/Cheree copies these
+     answers across manually when actually submitting, combined with the
+     appointment-specific fields (date/mode/duration/attended) he already
+     has from Halaxy/the Board and Gender/Age which come straight off the
+     Halaxy patient record. ── */
+  if (req.method === 'POST' && (req.query?.qfes_profile_save || new URL(req.url, 'http://x').searchParams.get('qfes_profile_save'))) {
+    const b = req.body || {};
+    if (!b.clientHalaxyId) return res.status(400).json({ error: 'clientHalaxyId required' });
+    const db = supabase();
+    try {
+      const row = {
+        client_halaxy_id:  String(b.clientHalaxyId),
+        client_name:       b.clientName || null,
+        area:              b.area || null,
+        corporate_support: b.corporateSupport || null,
+        urban_firefighters: b.urbanFirefighters || null,
+        rural_firefighters: b.ruralFirefighters || null,
+        qfd_staff:         b.qfdStaff || null,
+        concern_category:  b.concernCategory || null,
+        concern_primary:   b.concernPrimary || null,
+        concern_secondary: b.concernSecondary || null,
+        client_type:       b.clientType || null,
+        notes:             b.notes || null,
+        updated_at:        new Date().toISOString(),
+      };
+      const { data, error } = await db
+        .from('qfes_client_profiles')
+        .upsert(row, { onConflict: 'client_halaxy_id' })
+        .select().single();
+      if (error) throw error;
+      return res.status(200).json({ ok: true, profile: data });
+    } catch (err) {
+      console.error('qfes_profile_save error:', err.message);
       return res.status(500).json({ error: err.message });
     }
   }
