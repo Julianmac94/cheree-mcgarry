@@ -269,7 +269,7 @@ function _cbListHtml(items) {
    option but no longer the landing view.
    ═══════════════════════════════════════════════════════════════ */
 
-var _cbHomeMode = 'day'; // 'day' | 'week' | 'month' | 'all'
+var _cbHomeMode = 'day'; // 'day' | 'week' | 'month'
 var _cbCalDate  = new Date(); // focused date for month/week/day navigation
 
 function _cbDateKey(d) {
@@ -305,7 +305,7 @@ function cbCalOpenDay(key) {
 }
 
 function _cbModesHtml() {
-  var modes = [['day', 'Day'], ['week', 'Week'], ['month', 'Month'], ['all', 'All']];
+  var modes = [['day', 'Day'], ['week', 'Week'], ['month', 'Month']];
   return '<div class="cal-modes">' + modes.map(function(m) {
     return '<button class="cal-mode-btn' + (_cbHomeMode === m[0] ? ' active' : '') + '" onclick="cbSetHomeMode(\'' + m[0] + '\')">' + m[1] + '</button>';
   }).join('') + '</div>';
@@ -362,34 +362,17 @@ function _cbMonthGridHtml() {
   return html;
 }
 
-/* Same Needs-an-outcome/Upcoming split as the All view, just scoped to the
- * month currently shown in the grid above — so Month isn't only a
- * click-into-each-day tool, it's scrollable on its own like Week/Day are. */
-function _cbMonthListHtml() {
-  var year = _cbCalDate.getFullYear(), month = _cbCalDate.getMonth();
-  var inMonth = function(e) {
-    if (!e.start) return false;
-    var d = new Date(e.start);
-    return d.getFullYear() === year && d.getMonth() === month;
-  };
-  var attention = _cbNeedsAttentionItems().filter(inMonth);
-  var upcoming = _cbUpcomingItems().filter(inMonth);
-  var html = '';
-  if (attention.length) {
-    html += '<div class="sec-hd sec-hd--attention"><span class="dot"></span>Needs an outcome<span class="count-bubble">' + attention.length + '</span></div>' + _cbListHtml(attention);
-  }
-  html += '<div class="sec-hd sec-hd--upcoming"><span class="dot"></span>Upcoming<span class="count-bubble">' + upcoming.length + '</span></div>';
-  html += upcoming.length ? _cbListHtml(upcoming) : '<div class="empty">Nothing upcoming this month.</div>';
-  return html;
-}
-
-function _cbDayAgendaHtml(date) {
+function _cbDayAgendaHtml(date, containered) {
   var key = _cbDateKey(date);
   var items = _cbEvents.filter(function(e) { return e.start && _cbDateKey(new Date(e.start)) === key; })
     .sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
   var label = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' });
   var html = '<div class="sec-hd cal-day-hd">' + _cbEsc(label) + '<span class="count-bubble">' + items.length + '</span></div>';
   html += items.length ? _cbListHtml(items) : '<div class="empty">Nothing booked.</div>';
+  if (containered) {
+    var todayCls = key === _cbDateKey(new Date()) ? ' cal-week-day--today' : '';
+    html = '<div class="cal-week-day' + todayCls + '">' + html + '</div>';
+  }
   return html;
 }
 
@@ -397,7 +380,7 @@ function _cbWeekAgendaHtml() {
   var start = _cbWeekStart(_cbCalDate);
   var html = '';
   for (var i = 0; i < 7; i++) {
-    html += _cbDayAgendaHtml(new Date(start.getTime() + i * 86400000));
+    html += _cbDayAgendaHtml(new Date(start.getTime() + i * 86400000), true);
   }
   return html;
 }
@@ -406,15 +389,14 @@ function _cbRenderHome() {
   var root = document.getElementById('root');
   _cbUpdateHomeBadge(_cbNeedsAttentionItems().length);
 
-  // Brief card on the All view, and on Day specifically when it's actually
-  // today — Week/Month/a navigated-to Day are browsing tools, not the daily
-  // landing screen, so the briefing would just be stale context sitting
-  // above a grid she's using to look at some other day.
+  // Brief card only when Day is specifically showing today — Week/Month/a
+  // navigated-to Day are browsing tools, not the daily landing screen, so
+  // the briefing would just be stale context sitting above a grid she's
+  // using to look at some other day.
   var isTodayView = _cbHomeMode === 'day' && _cbDateKey(_cbCalDate) === _cbDateKey(new Date());
-  var showBrief = _cbHomeMode === 'all' || isTodayView;
 
   var html = '';
-  if (showBrief) {
+  if (isTodayView) {
     html += '<div class="brief-card" id="cb-brief-card">'
       + '<div class="brief-label">Today’s briefing</div>'
       + '<div class="brief-text ai-brief-streaming" id="cb-brief-text"><span class="ai-brief-loading">&#8203;</span></div>'
@@ -422,20 +404,11 @@ function _cbRenderHome() {
   }
   html += _cbModesHtml();
 
-  if (_cbHomeMode === 'all') {
-    var attention = _cbNeedsAttentionItems();
-    var upcoming = _cbUpcomingItems();
-    if (!attention.length && !upcoming.length) {
-      html += '<div class="empty">Nothing here yet — tap + to book a session.</div>';
-    } else {
-      if (attention.length) {
-        html += '<div class="sec-hd sec-hd--attention"><span class="dot"></span>Needs an outcome<span class="count-bubble">' + attention.length + '</span></div>' + _cbListHtml(attention);
-      }
-      html += '<div class="sec-hd sec-hd--upcoming"><span class="dot"></span>Upcoming<span class="count-bubble">' + upcoming.length + '</span></div>';
-      html += upcoming.length ? _cbListHtml(upcoming) : '<div class="empty">Nothing booked yet.</div>';
-    }
-  } else if (_cbHomeMode === 'month') {
-    html += _cbNavHtml() + _cbMonthGridHtml() + _cbMonthListHtml();
+  if (_cbHomeMode === 'month') {
+    // Grid only — clicking a day (cbCalOpenDay) is how you see what's on
+    // it, not a second list dumped underneath showing the whole month at
+    // once.
+    html += _cbNavHtml() + _cbMonthGridHtml();
   } else if (_cbHomeMode === 'week') {
     html += _cbNavHtml() + _cbWeekAgendaHtml();
   } else {
@@ -444,7 +417,7 @@ function _cbRenderHome() {
 
   root.innerHTML = html;
 
-  if (showBrief) _cbFireBrief();
+  if (isTodayView) _cbFireBrief();
 }
 
 function _cbUpdateHomeBadge(n) {

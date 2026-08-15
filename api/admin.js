@@ -172,6 +172,9 @@ function cbBookPage({ currentUser = null }) {
   .cal-dot-cancelled { background: var(--red); }
   .cal-day-hd { margin-top: 22px; }
   .cal-day-hd:first-of-type { margin-top: 0; }
+  .cal-week-day { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+  .cal-week-day .cal-day-hd:first-of-type { margin-top: 0; }
+  .cal-week-day--today { border-color: var(--teal); }
   .loading { text-align: center; padding: 50px 20px; color: var(--t3); font-size: 13px; }
   .toast { position: fixed; bottom: calc(100px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--teal); color: var(--t1); padding: 12px 20px; border-radius: 10px; font-size: 13px; z-index: 90; }
 
