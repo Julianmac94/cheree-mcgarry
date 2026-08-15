@@ -58,14 +58,42 @@ function _cbFunderChip(funder) {
 
 /* ── Description parsing / building — the "proper map" Cheree reads directly
    in Google Calendar, and that this tool re-parses to show the outcome form. */
+var _CB_HISTORY_MARKER = '— History —';
+
 function _cbParseDesc(desc) {
   var out = {};
-  (desc || '').split('\n').forEach(function(line) {
+  var lines = (desc || '').split('\n');
+  var historyIdx = lines.indexOf(_CB_HISTORY_MARKER);
+  var fieldLines = historyIdx === -1 ? lines : lines.slice(0, historyIdx);
+  fieldLines.forEach(function(line) {
     var idx = line.indexOf(': ');
     if (idx === -1) return;
     out[line.slice(0, idx).trim()] = line.slice(idx + 2).trim();
   });
+  if (historyIdx !== -1) {
+    out._history = lines.slice(historyIdx + 1).filter(function(l) { return l.trim(); });
+  }
   return out;
+}
+
+/* Appends a timestamped line to fields._history — every stage transition
+ * calls this so the calendar description ends up a full interaction
+ * history, readable directly in Google Calendar, not just in this tool. */
+function _cbLogHistory(fields, text) {
+  var now = new Date();
+  var when = now.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ', '
+    + now.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+  fields._history = (fields._history || []).concat(when + ': ' + text);
+  return fields;
+}
+
+/* The title only changes at specific, meaningful states — not on every
+ * history entry, which would make it unreadable. Attended/Cancelled is
+ * already a title suffix (_cbSubmitOutcome); this adds one more: a ✓ once
+ * a session is fully closed out (billed AND paid/reconciled, or no-charge),
+ * so "nothing left to do" is visible without opening the tool. */
+function _cbCloseTitle(title) {
+  return / ✓$/.test(title) ? title : title + ' ✓';
 }
 
 /* Memoized per-event — every render pass calls this on the same events
@@ -83,8 +111,10 @@ function _cbFields(e) {
 
 function _cbBuildDesc(fields) {
   var order = ['Funder', 'Type', 'Duration', 'Note', 'Status', 'Bill', 'Billing', 'Invoice'];
-  return order.filter(function(k) { return fields[k] !== undefined && fields[k] !== null; })
+  var head = order.filter(function(k) { return fields[k] !== undefined && fields[k] !== null; })
     .map(function(k) { return k + ': ' + fields[k]; }).join('\n');
+  var hist = fields._history || [];
+  return hist.length ? (head + '\n\n' + _CB_HISTORY_MARKER + '\n' + hist.join('\n')) : head;
 }
 
 function _cbBuildTitle(name, funder, modality, statusSuffix) {
@@ -591,11 +621,24 @@ function _cbSubmitOutcome(eventId, baseName) {
   var statusField = window._cbOutcome === 'attended' ? 'Attended'
     : window._cbOutcome === 'cancelled_cheree' ? 'Cancelled by Cheree' : 'Cancelled by client';
 
+  // No charge at all → nothing will ever move it through billing/remittance,
+  // so it's closed the moment the outcome is saved (matches _cbEventStage's
+  // own "Bill: No" ⇒ closed rule). Also preserve an already-closed state
+  // from a prior save — re-opening the outcome form to fix a typo shouldn't
+  // silently drop the ✓ from a session whose Billing already reached closed
+  // via the Board.
+  var noCharge = window._cbBill === false;
+  var alreadyClosed = _CB_CLOSED_BILLING.indexOf(fields.Billing) !== -1;
   var newTitle = _cbBuildTitle(baseName, funder, modality, statusSuffix);
-  var newDesc = _cbBuildDesc({
+  if (noCharge || alreadyClosed) newTitle = _cbCloseTitle(newTitle);
+
+  var newFields = {
     'Funder': funder, 'Type': modality, 'Duration': fields.Duration, 'Note': fields.Note,
     'Status': statusField, 'Bill': window._cbBill ? 'Yes' : 'No', 'Billing': fields.Billing,
-  });
+    'Invoice': fields.Invoice, '_history': fields._history,
+  };
+  _cbLogHistory(newFields, statusField + (noCharge ? ' — no charge, closed' : ''));
+  var newDesc = _cbBuildDesc(newFields);
 
   fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
     method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
@@ -716,10 +759,10 @@ function _cbSubmitBooking() {
 
   var durationLabel = (_CB_DURATIONS.find(function(o) { return o[0] === duration; }) || [duration, duration + ' min'])[1];
   var title = _cbBuildTitle(_cbPicked.name, funder, _cbModality, null);
-  var desc = _cbBuildDesc({
-    'Funder': funder, 'Type': _cbModality, 'Duration': durationLabel,
-    'Note': note || null, 'Status': 'Scheduled',
-  });
+  var fields = { 'Funder': funder, 'Type': _cbModality, 'Duration': durationLabel,
+    'Note': note || null, 'Status': 'Scheduled' };
+  _cbLogHistory(fields, 'Booked — ' + funder + ', ' + _cbModality);
+  var desc = _cbBuildDesc(fields);
 
   var btn = document.getElementById('cb-submit');
   btn.disabled = true; btn.textContent = 'Adding…';
@@ -1165,18 +1208,29 @@ function _cbBoardCards() {
   return cols;
 }
 
+// Billing choices that leave nothing further to do — matches _cbEventStage's
+// own "closed" rule (everything NOT awaiting a funder/invoice). Only these
+// get a title update; the two remittance-pending choices don't.
+var _CB_CLOSED_BILLING = ['Auto paid', 'Halaxy direct', 'Closed (paid)', 'Closed (remittance received)'];
+
 function cbSetBilling(eventId, choice) {
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev) return;
   var f = _cbFields(ev);
   f.Billing = choice;
+  _cbLogHistory(f, 'Billing: ' + choice);
   var newDesc = _cbBuildDesc(f);
+  var closed = _CB_CLOSED_BILLING.indexOf(choice) !== -1;
+  var newTitle = closed ? _cbCloseTitle(ev.title) : null;
+  var body = { description: newDesc };
+  if (newTitle) body.title = newTitle;
   fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
     method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ description: newDesc }),
+    body: JSON.stringify(body),
   }).then(function(r) { return r.json(); }).then(function(d) {
     if (d.error) { _cbToast('Could not update: ' + d.error); return; }
     ev.description = newDesc;
+    if (newTitle) ev.title = newTitle;
     _cbRenderBoard();
   }).catch(function(err) { _cbToast('Could not update: ' + err.message); });
 }
@@ -1195,6 +1249,7 @@ function cbSaveInvoice(eventId) {
   if (!ev) return;
   var f = _cbFields(ev);
   f.Invoice = num;
+  _cbLogHistory(f, 'Invoice #' + num + ' saved');
   var newDesc = _cbBuildDesc(f);
   fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
     method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
@@ -1209,9 +1264,9 @@ function cbSaveInvoice(eventId) {
 function _cbInvoiceHtml(c) {
   var id = _cbEsc(String(c.id));
   if (c.fields.Invoice) {
-    return '<a class="inv-link" href="' + _cbEsc(_cbInvoiceUrl(c.fields.Invoice)) + '" target="_blank" rel="noopener">Invoice #' + _cbEsc(c.fields.Invoice) + ' ↗</a>';
+    return '<a class="inv-link" onclick="event.stopPropagation()" href="' + _cbEsc(_cbInvoiceUrl(c.fields.Invoice)) + '" target="_blank" rel="noopener">Invoice #' + _cbEsc(c.fields.Invoice) + ' ↗</a>';
   }
-  return '<div class="act act-inv">'
+  return '<div class="act act-inv" onclick="event.stopPropagation()">'
     + '<input type="text" inputmode="numeric" class="inv-input" id="inv-' + id + '" placeholder="Invoice #…">'
     + '<button onclick="cbSaveInvoice(\'' + id + '\')">Save</button>'
     + '</div>';
@@ -1293,22 +1348,25 @@ function _cbRenderBoard() {
         var f = c.fields || {};
         var sdot = f.Status === 'Attended' ? '<span class="sdot sdot-green"></span>'
           : (f.Status && f.Status.indexOf('Cancelled') === 0) ? '<span class="sdot sdot-red"></span>' : '';
-        html += '<div class="card2"><div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>' + _cbFunderChip(f.Funder) + '</div><div class="mt">' + _cbEsc(c.meta) + '</div>';
+        // Whole card opens the full history sheet; every interactive element
+        // inside stops propagation so its own action fires instead of also
+        // opening history underneath it.
+        html += '<div class="card2" onclick="cbOpenHistory(\'' + id + '\')" style="cursor:pointer"><div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>' + _cbFunderChip(f.Funder) + '</div><div class="mt">' + _cbEsc(c.meta) + '</div>';
         if (col.key === 'billing') {
           if (_cbIsDirectFunder(c.fields.Funder)) {
             html += '<div class="act">'
-              + '<button onclick="cbSetBilling(\'' + id + '\',\'Auto paid\')">Auto paid</button>'
-              + '<button onclick="cbSetBilling(\'' + id + '\',\'Invoice sent\')">Invoice sent</button>'
+              + '<button onclick="event.stopPropagation();cbSetBilling(\'' + id + '\',\'Auto paid\')">Auto paid</button>'
+              + '<button onclick="event.stopPropagation();cbSetBilling(\'' + id + '\',\'Invoice sent\')">Invoice sent</button>'
               + '</div>';
           } else {
             html += '<div class="act">'
-              + '<button onclick="cbSetBilling(\'' + id + '\',\'Halaxy direct\')">Halaxy direct</button>'
-              + '<button onclick="cbSetBilling(\'' + id + '\',\'Funder — awaiting remittance\')">Via funder</button>'
+              + '<button onclick="event.stopPropagation();cbSetBilling(\'' + id + '\',\'Halaxy direct\')">Halaxy direct</button>'
+              + '<button onclick="event.stopPropagation();cbSetBilling(\'' + id + '\',\'Funder — awaiting remittance\')">Via funder</button>'
               + '</div>';
           }
         } else if (col.key === 'remittance') {
           var isInvoiced = c.fields.Billing === 'Invoice sent';
-          html += '<div class="act"><button onclick="cbSetBilling(\'' + id + '\',\'' + (isInvoiced ? 'Closed (paid)' : 'Closed (remittance received)') + '\')">' + (isInvoiced ? 'Payment received' : 'Remittance received') + '</button></div>';
+          html += '<div class="act"><button onclick="event.stopPropagation();cbSetBilling(\'' + id + '\',\'' + (isInvoiced ? 'Closed (paid)' : 'Closed (remittance received)') + '\')">' + (isInvoiced ? 'Payment received' : 'Remittance received') + '</button></div>';
         }
         if ((col.key === 'billing' || col.key === 'remittance' || col.key === 'closed') && c.fields.Bill === 'Yes') {
           html += _cbInvoiceHtml(c);
@@ -1318,8 +1376,8 @@ function _cbRenderBoard() {
         // /admin behaviour, ported here card-by-card since the Board shows
         // several remittance cards at once, not one modal at a time).
         if (col.key === 'remittance' && c.fields.Invoice) {
-          html += '<button class="remit-btn" id="remit-btn-' + id + '" onclick="_cbCheckRemittance(\'' + _cbEsc(c.fields.Invoice) + '\',\'' + id + '\',this)">🔍 Check inbox for remittance</button>'
-            + '<div class="remit-result" id="remit-result-' + id + '"></div>';
+          html += '<button class="remit-btn" id="remit-btn-' + id + '" onclick="event.stopPropagation();_cbCheckRemittance(\'' + _cbEsc(c.fields.Invoice) + '\',\'' + id + '\',this)">🔍 Check inbox for remittance</button>'
+            + '<div class="remit-result" id="remit-result-' + id + '" onclick="event.stopPropagation()"></div>';
         }
         html += '</div>';
       });
@@ -1360,6 +1418,45 @@ function cbOpenActivity() {
 function cbCloseActivity() {
   document.getElementById('cb-activity-backdrop').classList.remove('open');
   document.getElementById('cb-activity-sheet').classList.remove('open');
+}
+
+/* ── Board card → full history. The event's own description already
+ * carries every stage transition (see _cbLogHistory) — this just reads
+ * it back in a readable form instead of the raw "Key: value" text. ── */
+function cbOpenHistory(eventId) {
+  var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
+  if (!ev) return;
+  var f = _cbFields(ev);
+  var name = ev.title.split(' — ')[0] || ev.title;
+
+  document.getElementById('cb-history-title').textContent = name;
+
+  var head = '<div class="card"><div class="nm">' + _cbEsc(ev.title) + '</div>'
+    + '<div class="mt">' + _cbFunderChip(f.Funder) + (f.Type ? ' ' + _cbEsc(f.Type) : '')
+    + (f.Duration ? ' · ' + _cbEsc(f.Duration) : '') + '</div>'
+    + (f.Note ? '<div class="mt">' + _cbEsc(f.Note) + '</div>' : '')
+    + '</div>';
+
+  var hist = f._history || [];
+  var histHtml = hist.length
+    ? hist.map(function(line) {
+        var idx = line.indexOf(': ');
+        var when = idx === -1 ? '' : line.slice(0, idx);
+        var text = idx === -1 ? line : line.slice(idx + 2);
+        return '<div class="act-item"><div class="act-dot booking"></div>'
+          + '<div><div class="act-title">' + _cbEsc(text) + '</div>'
+          + '<div class="act-when">' + _cbEsc(when) + '</div></div></div>';
+      }).join('')
+    : '<div class="empty">No history yet — this fills in as the session moves through the Board.</div>';
+
+  document.getElementById('cb-history-body').innerHTML = head + histHtml;
+  document.getElementById('cb-history-backdrop').classList.add('open');
+  document.getElementById('cb-history-sheet').classList.add('open');
+}
+
+function cbCloseHistory() {
+  document.getElementById('cb-history-backdrop').classList.remove('open');
+  document.getElementById('cb-history-sheet').classList.remove('open');
 }
 
 /* ═══════════════════════════════════════════════════════════════
