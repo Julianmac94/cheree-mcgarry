@@ -45,6 +45,18 @@ function _cbToast(msg) {
   setTimeout(function() { t.innerHTML = ''; }, 3200);
 }
 
+/** Disables a button and swaps its label to a busy state while a save is
+ * in flight, so a tap never just sits there looking frozen; returns a
+ * restore() to undo both on failure (success paths usually re-render the
+ * whole view anyway, which replaces the button outright). */
+function _cbBusy(btn, label) {
+  if (!btn) return function() {};
+  var orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = label;
+  return function() { btn.disabled = false; btn.textContent = orig; };
+}
+
 // Same funder → colour language everywhere a funder appears (Home cards,
 // Board cards) so it reads at a glance instead of by name. Funder values
 // are always one of the fixed strings from the booking form's own select,
@@ -577,7 +589,7 @@ function _cbOpenOutcome(eventId) {
     + '<button id="cb-bill-no" class="' + (!initialBill ? 'sel' : '') + '" onclick="_cbSetBill(false)">No</button>'
     + '</div></div>';
 
-  html += '<button class="btn-primary" onclick="_cbSubmitOutcome(\'' + _cbEsc(eventId) + '\',\'' + _cbEsc(baseName) + '\')">Save</button>';
+  html += '<button class="btn-primary" onclick="_cbSubmitOutcome(\'' + _cbEsc(eventId) + '\',\'' + _cbEsc(baseName) + '\',this)">Save</button>';
   html += '<button class="btn-ghost" onclick="cbSetView(\'home\')">Back</button>';
   root.innerHTML = html;
 
@@ -613,7 +625,7 @@ function _cbSetBill(v) {
   document.getElementById('cb-bill-no').classList.toggle('sel', v === false);
 }
 
-function _cbSubmitOutcome(eventId, baseName) {
+function _cbSubmitOutcome(eventId, baseName, btn) {
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev) return;
   var fields = _cbFields(ev);
@@ -652,15 +664,16 @@ function _cbSubmitOutcome(eventId, baseName) {
   _cbLogHistory(newFields, statusField + (noCharge ? ' — no charge, closed' : ''));
   var newDesc = _cbBuildDesc(newFields);
 
+  var restore = _cbBusy(btn, 'Saving…');
   fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
     method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title: newTitle, description: newDesc }),
   }).then(function(r) { return r.json(); }).then(function(d) {
-    if (d.error) { _cbToast('Could not save: ' + d.error); return; }
+    if (d.error) { _cbToast('Could not save: ' + d.error); restore(); return; }
     ev.title = newTitle; ev.description = newDesc;
     _cbToast('Saved');
     cbSetView('home');
-  }).catch(function(err) { _cbToast('Could not save: ' + err.message); });
+  }).catch(function(err) { _cbToast('Could not save: ' + err.message); restore(); });
 }
 
 /* ── Book new appointment (existing client only — "add new" is parked) ── */
@@ -1229,7 +1242,7 @@ function _cbBoardCards() {
 // get a title update; the two remittance-pending choices don't.
 var _CB_CLOSED_BILLING = ['Auto paid', 'Halaxy direct', 'Closed (paid)', 'Closed (remittance received)'];
 
-function cbSetBilling(eventId, choice) {
+function cbSetBilling(eventId, choice, btn) {
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev) return;
   var f = _cbFields(ev);
@@ -1240,15 +1253,16 @@ function cbSetBilling(eventId, choice) {
   var newTitle = closed ? _cbCloseTitle(ev.title) : null;
   var body = { description: newDesc };
   if (newTitle) body.title = newTitle;
+  var restore = _cbBusy(btn, 'Saving…');
   fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
     method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   }).then(function(r) { return r.json(); }).then(function(d) {
-    if (d.error) { _cbToast('Could not update: ' + d.error); return; }
+    if (d.error) { _cbToast('Could not update: ' + d.error); restore(); return; }
     ev.description = newDesc;
     if (newTitle) ev.title = newTitle;
     _cbRenderBoard();
-  }).catch(function(err) { _cbToast('Could not update: ' + err.message); });
+  }).catch(function(err) { _cbToast('Could not update: ' + err.message); restore(); });
 }
 
 /* Invoice number — decoupled from the billing-decision buttons above,
@@ -1256,7 +1270,7 @@ function cbSetBilling(eventId, choice) {
  * actually created the invoice in Halaxy and has a number for it. Stays
  * editable on the card through billing/awaiting-payment/closed, and once
  * set, becomes a one-tap deep link straight into that invoice in Halaxy. */
-function cbSaveInvoice(eventId) {
+function cbSaveInvoice(eventId, btn) {
   var input = document.getElementById('inv-' + eventId);
   if (!input) return;
   var num = input.value.trim();
@@ -1267,14 +1281,16 @@ function cbSaveInvoice(eventId) {
   f.Invoice = num;
   _cbLogHistory(f, 'Invoice #' + num + ' saved');
   var newDesc = _cbBuildDesc(f);
+  input.disabled = true;
+  var restore = _cbBusy(btn, 'Saving…');
   fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
     method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ description: newDesc }),
   }).then(function(r) { return r.json(); }).then(function(d) {
-    if (d.error) { _cbToast('Could not save invoice #: ' + d.error); return; }
+    if (d.error) { _cbToast('Could not save invoice #: ' + d.error); input.disabled = false; restore(); return; }
     ev.description = newDesc;
     _cbRenderBoard();
-  }).catch(function(err) { _cbToast('Could not save invoice #: ' + err.message); });
+  }).catch(function(err) { _cbToast('Could not save invoice #: ' + err.message); input.disabled = false; restore(); });
 }
 
 function _cbInvoiceHtml(c) {
@@ -1284,7 +1300,7 @@ function _cbInvoiceHtml(c) {
   }
   return '<div class="act act-inv">'
     + '<input type="text" inputmode="numeric" class="inv-input" id="inv-' + id + '" placeholder="Invoice #…">'
-    + '<button onclick="cbSaveInvoice(\'' + id + '\')">Save</button>'
+    + '<button onclick="cbSaveInvoice(\'' + id + '\',this)">Save</button>'
     + '</div>';
 }
 
@@ -1375,18 +1391,18 @@ function _cbRenderBoard() {
         if (col.key === 'billing') {
           if (_cbIsDirectFunder(c.fields.Funder)) {
             html += '<div class="act">'
-              + '<button onclick="cbSetBilling(\'' + id + '\',\'Auto paid\')">Auto paid</button>'
-              + '<button onclick="cbSetBilling(\'' + id + '\',\'Invoice sent\')">Invoice sent</button>'
+              + '<button onclick="cbSetBilling(\'' + id + '\',\'Auto paid\',this)">Auto paid</button>'
+              + '<button onclick="cbSetBilling(\'' + id + '\',\'Invoice sent\',this)">Invoice sent</button>'
               + '</div>';
           } else {
             html += '<div class="act">'
-              + '<button onclick="cbSetBilling(\'' + id + '\',\'Halaxy direct\')">Halaxy direct</button>'
-              + '<button onclick="cbSetBilling(\'' + id + '\',\'Funder — awaiting remittance\')">Via funder</button>'
+              + '<button onclick="cbSetBilling(\'' + id + '\',\'Halaxy direct\',this)">Halaxy direct</button>'
+              + '<button onclick="cbSetBilling(\'' + id + '\',\'Funder — awaiting remittance\',this)">Via funder</button>'
               + '</div>';
           }
         } else if (col.key === 'remittance') {
           var isInvoiced = c.fields.Billing === 'Invoice sent';
-          html += '<div class="act"><button onclick="cbSetBilling(\'' + id + '\',\'' + (isInvoiced ? 'Closed (paid)' : 'Closed (remittance received)') + '\')">' + (isInvoiced ? 'Payment received' : 'Remittance received') + '</button></div>';
+          html += '<div class="act"><button onclick="cbSetBilling(\'' + id + '\',\'' + (isInvoiced ? 'Closed (paid)' : 'Closed (remittance received)') + '\',this)">' + (isInvoiced ? 'Payment received' : 'Remittance received') + '</button></div>';
         }
         if ((col.key === 'billing' || col.key === 'remittance' || col.key === 'closed') && c.fields.Bill === 'Yes') {
           html += _cbInvoiceHtml(c);

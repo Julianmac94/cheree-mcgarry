@@ -202,8 +202,10 @@ function cbBookPage({ currentUser = null }) {
   .card2 .mt { font-size: 11px; color: var(--t3); margin-top: 2px; }
   .card2 .act { display: flex; gap: 6px; margin-top: 8px; }
   .card2 .act button { flex: 1; font-size: 10.5px; padding: 6px; border-radius: 7px; background: rgba(119,207,189,0.1); border: 1px solid var(--border); color: var(--teal); cursor: pointer; }
+  .card2 .act button:disabled { opacity: 0.6; cursor: default; }
   .card2 .act.act-inv .inv-input { flex: 1; min-width: 0; font-size: 10.5px; padding: 6px 8px; border-radius: 7px; background: var(--bg); border: 1px solid var(--border); color: var(--t1); }
   .card2 .act.act-inv .inv-input:focus { outline: none; border-color: var(--teal); }
+  .card2 .act.act-inv .inv-input:disabled { opacity: 0.6; }
   .card2 .act.act-inv button { flex: 0 0 auto; padding: 6px 10px; }
   .inv-link { display: block; width: 100%; box-sizing: border-box; font-size: 10.5px; padding: 6px; border-radius: 7px; background: rgba(119,207,189,0.1); border: 1px solid var(--border); color: var(--teal); text-align: center; text-decoration: none; margin-top: 8px; }
 
