@@ -97,10 +97,16 @@ function cbBookPage({ currentUser = null }) {
   .field { margin-bottom: 16px; }
   .field label { display: block; font-size: 12px; font-weight: 600; color: var(--t2); margin-bottom: 6px; }
   .field input, .field select, .field textarea {
-    width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 10px;
-    background: var(--card); border: 1px solid var(--border); color: var(--t1); font-size: 15px;
+    width: 100%; box-sizing: border-box; padding: 13px 14px; border-radius: 10px;
+    background: var(--card); border: 1px solid var(--border); color: var(--t1); font-size: 16px;
   }
   .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--teal); }
+  .field select {
+    appearance: none; -webkit-appearance: none; cursor: pointer; min-height: 46px;
+    padding-right: 38px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%237A948F' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center;
+  }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .btn-primary { width: 100%; padding: 14px; border-radius: 12px; background: var(--teal); border: none; color: #08120F; font-size: 15px; font-weight: 700; cursor: pointer; }
   .btn-primary:disabled { opacity: 0.5; cursor: default; }

@@ -523,9 +523,19 @@ function _cbOpenOutcome(eventId) {
   var fields = _cbFields(ev);
   var baseName = ev.title.split(' — ')[0] || ev.title;
 
+  // Reflect whatever's actually saved, not a guess — re-opening an already
+  // logged session (e.g. from the Board) must show its real outcome, not
+  // silently reset the picker to Attended every time.
+  var initialOutcome = fields.Status === 'Attended' ? 'attended'
+    : fields.Status === 'Cancelled by Cheree' ? 'cancelled_cheree'
+    : fields.Status === 'Cancelled by client' ? 'cancelled_client'
+    : null;
+  var initialBill = fields.Bill === 'No' ? false : true;
+
   var root = document.getElementById('root');
   var html = '<div class="card"><div class="nm">' + _cbEsc(ev.title) + '</div>'
-    + (fields.Funder ? '<div class="mt">' + _cbEsc(fields.Funder) + (fields.Type ? ' · ' + _cbEsc(fields.Type) : '') + '</div>' : '<div class="mt">Not booked through this tool — fill in what\'s missing below.</div>')
+    + (fields.Funder ? '<div class="mt">' + _cbEsc(fields.Funder) + (fields.Type ? ' · ' + _cbEsc(fields.Type) : '') + (fields.Duration ? ' · ' + _cbEsc(fields.Duration) : '') + '</div>' : '<div class="mt">Not booked through this tool — fill in what\'s missing below.</div>')
+    + (fields.Note ? '<div class="mt">Note: ' + _cbEsc(fields.Note) + '</div>' : '')
     + '</div>';
 
   // Funder/modality are already known for anything booked through this tool
@@ -543,28 +553,36 @@ function _cbOpenOutcome(eventId) {
     + '<button id="cb-out-mod-online" class="' + (fields.Type === 'Online' ? 'sel' : '') + '" onclick="_cbSetOutcomeModality(\'Online\')">Online</button>'
     + '</div></div>';
 
+  var durationKnown = _CB_DURATIONS.some(function(o) { return o[1] === fields.Duration; });
+  html += '<div class="field"><label>How long did it run?</label><select id="cb-out-duration">'
+    + (!fields.Duration ? '<option value="" selected>Not set</option>' : '')
+    + (fields.Duration && !durationKnown ? '<option value="' + _cbEsc(fields.Duration) + '" selected>' + _cbEsc(fields.Duration) + '</option>' : '')
+    + _CB_DURATIONS.map(function(o) { return '<option value="' + o[1] + '"' + (o[1] === fields.Duration ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('')
+    + '</select></div>';
+
   html += '<div class="field"><label>What happened?</label>'
     + '<div class="modality">'
-    + '<button id="cb-out-attend" class="sel" onclick="_cbSetOutcome(\'attended\')">Attended</button>'
-    + '<button id="cb-out-cheree" onclick="_cbSetOutcome(\'cancelled_cheree\')">Cancelled by me</button>'
-    + '<button id="cb-out-client" onclick="_cbSetOutcome(\'cancelled_client\')">Cancelled by client</button>'
+    + '<button id="cb-out-attend" class="' + (initialOutcome === 'attended' ? 'sel' : '') + '" onclick="_cbSetOutcome(\'attended\')">Attended</button>'
+    + '<button id="cb-out-cheree" class="' + (initialOutcome === 'cancelled_cheree' ? 'sel' : '') + '" onclick="_cbSetOutcome(\'cancelled_cheree\')">Cancelled by me</button>'
+    + '<button id="cb-out-client" class="' + (initialOutcome === 'cancelled_client' ? 'sel' : '') + '" onclick="_cbSetOutcome(\'cancelled_client\')">Cancelled by client</button>'
     + '</div></div>';
 
   // Attended assumes billable — no separate question for the common case.
   // Only cancellations need an explicit yes/no (a cancellation fee is a
   // judgement call; attending never isn't billable).
-  html += '<div class="field" id="cb-bill-wrap" style="display:none"><label>Bill for this?</label>'
+  var showBillWrap = initialOutcome === 'cancelled_cheree' || initialOutcome === 'cancelled_client';
+  html += '<div class="field" id="cb-bill-wrap" style="display:' + (showBillWrap ? '' : 'none') + '"><label>Bill for this?</label>'
     + '<div class="modality">'
-    + '<button id="cb-bill-yes" class="sel" onclick="_cbSetBill(true)">Yes</button>'
-    + '<button id="cb-bill-no" onclick="_cbSetBill(false)">No</button>'
+    + '<button id="cb-bill-yes" class="' + (initialBill ? 'sel' : '') + '" onclick="_cbSetBill(true)">Yes</button>'
+    + '<button id="cb-bill-no" class="' + (!initialBill ? 'sel' : '') + '" onclick="_cbSetBill(false)">No</button>'
     + '</div></div>';
 
   html += '<button class="btn-primary" onclick="_cbSubmitOutcome(\'' + _cbEsc(eventId) + '\',\'' + _cbEsc(baseName) + '\')">Save</button>';
   html += '<button class="btn-ghost" onclick="cbSetView(\'home\')">Back</button>';
   root.innerHTML = html;
 
-  window._cbOutcome = 'attended';
-  window._cbBill = true;
+  window._cbOutcome = initialOutcome;
+  window._cbBill = initialBill;
   window._cbOutcomeModality = fields.Type === 'Online' ? 'Online' : 'In person';
 }
 
@@ -606,6 +624,9 @@ function _cbSubmitOutcome(eventId, baseName) {
   // an actual Medicare/Private client, which is exactly the kind of quiet
   // misrouting that matters once funder drives which billing buttons show.
   if (!funder) { _cbToast('Pick a funder before saving.'); return; }
+  if (!window._cbOutcome) { _cbToast('Pick what happened before saving.'); return; }
+  var durationSel = document.getElementById('cb-out-duration');
+  var duration = durationSel && durationSel.value ? durationSel.value : (fields.Duration || null);
   var modality = window._cbOutcomeModality || fields.Type || 'In person';
   var statusSuffix = window._cbOutcome === 'attended' ? 'Attended'
     : window._cbOutcome === 'cancelled_cheree' ? 'Cancelled (Cheree)' : 'Cancelled (client)';
@@ -624,7 +645,7 @@ function _cbSubmitOutcome(eventId, baseName) {
   if (noCharge || alreadyClosed) newTitle = _cbCloseTitle(newTitle);
 
   var newFields = {
-    'Funder': funder, 'Type': modality, 'Duration': fields.Duration, 'Note': fields.Note,
+    'Funder': funder, 'Type': modality, 'Duration': duration, 'Note': fields.Note,
     'Status': statusField, 'Bill': window._cbBill ? 'Yes' : 'No', 'Billing': fields.Billing,
     'Invoice': fields.Invoice, '_history': fields._history,
   };
