@@ -4687,9 +4687,8 @@ function dhInboxFilter(status, el) {
   var all = _pipelineData.enquiries || [];
   var filtered;
   if (status === 'all') {
-    filtered = all.filter(function(e) { return e.status !== 'dismissed'; }); // dismissed = hidden everywhere
+    filtered = all.filter(function(e) { return e.status !== 'dismissed'; });
   } else if (status === 'upcoming_appt') {
-    // Enquiries whose linked client has an upcoming Halaxy appointment
     filtered = all.filter(function(e) {
       var client = _dhEnqClientMap[e.id];
       return client && client.halaxy_id && (_dhPatientApptMap[String(client.halaxy_id)] || []).length > 0;
@@ -4900,59 +4899,30 @@ function _dhRenderSchedCard() {
   var dow  = base.getDay();
   base.setDate(base.getDate() + (dow === 0 ? -6 : 1 - dow) + _dhSchedWeekOff * 7);
 
-  var WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  var strip = [];
+  var WDAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  var days = [];
   for (var i = 0; i < 7; i++) {
     var d   = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
     var ds  = d.toDateString();
     var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-    var cnt = appts.filter(function(a){ return a.dateStr && a.status !== 'cancelled' && a.dateStr === iso && !_isPersonalAppt(a); }).length;
-    strip.push({ name: WD[d.getDay()], num: d.getDate(), cnt: cnt, today: ds===todayStr, iso: iso });
+    var dayAppts = appts.filter(function(a){ return a.dateStr && a.status !== 'cancelled' && a.dateStr === iso && !_isPersonalAppt(a); })
+      .sort(function(a,b){ return (a.startMs || 0) - (b.startMs || 0); });
+    days.push({ name: WDAYS[i], num: d.getDate(), month: d.toLocaleDateString('en-AU',{month:'short'}), today: ds===todayStr, iso: iso, appts: dayAppts, past: d < now && !ds.startsWith(todayStr.substring(0,3)) && d.toDateString() !== todayStr });
   }
-
-  // Determine the selected ISO date
-  var defaultIso = (_dhSchedWeekOff === 0)
-    ? ((strip.find(function(s){ return s.today; }) || strip[0]).iso)
-    : strip[0].iso;
-  var selIso   = _dhSchedDateStr || defaultIso;
-  var selParts = selIso.split('-');
-  var selDate  = new Date(parseInt(selParts[0]), parseInt(selParts[1])-1, parseInt(selParts[2]));
-  var selDateStr = selDate.toDateString();
-
-  var selAppts = appts.filter(function(a) {
-    return a.dateStr && a.status !== 'cancelled' && a.dateStr === selIso && !_isPersonalAppt(a);
-  }).sort(function(a,b){ return (a.startMs || 0) - (b.startMs || 0); });
-
-  var isToday  = selDateStr === todayStr;
-  var dateLabel = isToday ? "Today's Appointments"
-    : selDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+  // Mark past correctly
+  var todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  days.forEach(function(day) { day.past = new Date(day.iso + 'T23:59:59') < todayMidnight; });
 
   function _ft(iso) { var d=new Date(iso),h=d.getHours(),m=d.getMinutes(); return (h%12||12)+':'+(m<10?'0':'')+m+(h>=12?'pm':'am'); }
   function _ac(n)   { return ['av-teal','av-blue','av-purple','av-amber','av-red'][(n||'').charCodeAt(0)%5]; }
   function _in(n)   { if (!n) return '?'; var p=n.trim().split(/\s+/); return (p[0][0]+(p[1]?p[1][0]:'')).toUpperCase(); }
-  var arrowSVG = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h8M6 2l4 4-4 4"/></svg>';
 
   var h = '';
-
-  // Week strip
-  h += '<div class="dh-week-strip">';
-  strip.forEach(function(w) {
-    var pip = w.cnt > 0 ? (w.today ? 'dh-wd-pip--today' : 'dh-wd-pip--has') : '';
-    var cls = 'dh-week-day'
-      + (w.today        ? ' dh-week-day--today'  : '')
-      + (w.iso===selIso ? ' dh-week-day--active' : '');
-    h += '<button class="' + cls + '" onclick="dhSchedSelectDay(\'' + w.iso + '\')" type="button">'
-      + '<span class="dh-wd-name">' + w.name + '</span>'
-      + '<span class="dh-wd-num">'  + w.num  + '</span>'
-      + '<span class="dh-wd-pip '   + pip    + '"></span>'
-      + '</button>';
-  });
-  h += '</div>';
 
   // Card header + week nav
   var weekLbl = _dhSchedWeekLabel(_dhSchedWeekOff);
   h += '<div class="dh-card-hd">'
-    + '<span class="dh-card-title">' + escHtml(dateLabel) + '</span>'
+    + '<span class="dh-card-title">Week Agenda</span>'
     + '<div class="dh-sched-nav">'
     + (_dhSchedWeekOff !== 0
         ? '<button class="dh-sched-today-btn" onclick="dhSchedToday()" type="button" title="Back to today">Today</button>'
@@ -4969,65 +4939,53 @@ function _dhRenderSchedCard() {
     + '</div>'
     + '</div>';
 
-  // Sessions list
-  if (!selAppts.length) {
-    h += '<div class="dh-sched-empty">No appointments' + (isToday ? ' today' : '')
-      + '<br><span style="font-size:12px;opacity:0.5">Enjoy the breathing room.</span></div>';
-  } else {
-    selAppts.slice(0,6).forEach(function(a) {
-      var nm   = a.name || a.patientName || 'Client';
-      var time = a.timeStr || (a.startIso ? _ft(a.startIso) : a.start ? _ft(a.start) : '');
-      var sid  = escHtml(String(a.id || ''));
-      var isReminder = a.isReminder;
-      var srcCls = isReminder ? ' dh-sched-row--personal'
-                 : a.source === 'cal' ? ' dh-sched-row--cal'
-                 : (a.source === 'halaxy' && a.patientId) ? ' dh-sched-row--halaxy'
-                 : ' dh-sched-row--personal';
+  // Week agenda — each day stacked
+  h += '<div class="dh-week-agenda">';
+  days.forEach(function(day) {
+    var dayCls = 'dh-wa-day' + (day.today ? ' dh-wa-day--today' : '') + (day.past ? ' dh-wa-day--past' : '');
+    h += '<div class="' + dayCls + '">';
+    h += '<div class="dh-wa-day-hd">'
+      + '<span class="dh-wa-day-name">' + day.name + '</span>'
+      + '<span class="dh-wa-day-num">' + day.num + ' ' + day.month + '</span>'
+      + (day.today ? '<span class="dh-wa-today-pill">Today</span>' : '')
+      + (day.appts.length > 0 ? '<span class="dh-wa-day-cnt">' + day.appts.length + '</span>' : '')
+      + '</div>';
+    if (!day.appts.length) {
+      h += '<div class="dh-wa-empty">' + (day.past ? 'No sessions' : 'Free') + '</div>';
+    } else {
+      day.appts.forEach(function(a) {
+        var nm   = a.name || a.patientName || 'Client';
+        var time = a.timeStr || (a.startIso ? _ft(a.startIso) : a.start ? _ft(a.start) : '');
+        var sid  = escHtml(String(a.id || ''));
+        var srcCls = a.isReminder ? ' dh-sched-row--personal'
+                   : a.source === 'cal' ? ' dh-sched-row--cal'
+                   : (a.source === 'halaxy' && a.patientId) ? ' dh-sched-row--halaxy'
+                   : ' dh-sched-row--personal';
 
-      // Source pill
-      var pillLabel, pillStyle;
-      if (isReminder) {
-        pillLabel = 'Reminder';
-        pillStyle = 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.35)';
-      } else if (a.source === 'cal') {
-        pillLabel = 'Google Cal';
-        pillStyle = 'background:rgba(224,123,57,0.15);color:#E07B39';
-      } else if (a.source === 'halaxy') {
-        pillLabel = 'Halaxy';
-        pillStyle = 'background:rgba(59,130,246,0.14);color:#60a5fa';
-      } else if (a.source === 'dashboard') {
-        pillLabel = 'Added';
-        pillStyle = 'background:rgba(52,211,153,0.1);color:var(--teal)';
-      } else {
-        pillLabel = 'Personal';
-        pillStyle = 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.35)';
-      }
+        var statusTag = '';
+        var statusMap = {
+          'needs-recording': ['Action needed', '#a78bfa', 'rgba(167,139,250,0.1)'],
+          'pending-invoice': ['No invoice',    '#a78bfa', 'rgba(167,139,250,0.1)'],
+          'invoiced':        ['Unpaid',        '#E07B39', 'rgba(224,123,57,0.12)'],
+          'paid':            ['Paid',          '#34d399', 'rgba(52,211,153,0.1)'],
+          'funder-billed':   ['Funder billed', '#60a5fa', 'rgba(59,130,246,0.12)'],
+        };
+        if (statusMap[a.status]) {
+          var sc = statusMap[a.status];
+          statusTag = '<span class="dh-wa-status" style="background:' + sc[2] + ';color:' + sc[1] + '">' + sc[0] + '</span>';
+        }
 
-      // Status tag
-      var statusTag = '';
-      var statusMap = {
-        'needs-recording': ['Needs further action', '#a78bfa', 'rgba(167,139,250,0.1)'],
-        'pending-invoice': ['Needs invoice',         '#a78bfa', 'rgba(167,139,250,0.1)'],
-        'invoiced':        ['Invoice unpaid',         '#E07B39', 'rgba(224,123,57,0.12)'],
-        'paid':            ['Paid',                   '#34d399', 'rgba(52,211,153,0.1)'],
-        'funder-billed':   ['Funder billed',          '#60a5fa', 'rgba(59,130,246,0.12)'],
-      };
-      if (statusMap[a.status]) {
-        var sc = statusMap[a.status];
-        statusTag = '<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;background:' + sc[2] + ';color:' + sc[1] + ';white-space:nowrap">' + sc[0] + '</span>';
-      }
-
-      h += '<div class="dh-sched-row' + srcCls + '" onclick="openDetailPanel(\'session\',\'' + sid + '\')" style="cursor:pointer">'
-        + '<div class="dh-sched-time">' + escHtml(time) + '</div>'
-        + '<div class="dh-sched-av ' + _ac(nm) + '">' + _in(nm) + '</div>'
-        + '<span class="dh-sched-name">' + escHtml(nm) + '</span>'
-        + '<div style="display:flex;align-items:center;gap:5px;flex-shrink:0">'
-        + statusTag
-        + '<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;' + pillStyle + '">' + pillLabel + '</span>'
-        + '</div>'
-        + '</div>';
-    });
-  }
+        h += '<div class="dh-sched-row' + srcCls + '" onclick="openDetailPanel(\'session\',\'' + sid + '\')" style="cursor:pointer">'
+          + '<div class="dh-sched-time">' + escHtml(time) + '</div>'
+          + '<div class="dh-sched-av ' + _ac(nm) + '">' + _in(nm) + '</div>'
+          + '<span class="dh-sched-name">' + escHtml(nm) + '</span>'
+          + (statusTag || '')
+          + '</div>';
+      });
+    }
+    h += '</div>';
+  });
+  h += '</div>';
 
   inner.innerHTML = h;
 }
@@ -5311,12 +5269,12 @@ function renderHomeView() {
     + '<div class="dh-sched-card" id="dh-sched-inner"></div>'
     + '</div>';
 
-  // TR: Inbox
+  // TR: Inbox — horizontal tabs replacing sidebar
+  var _attentionCount = critCount + unlinkedCount + newEnquiries.length;
   html += '<div class="dh-b-6 dh-fold" id="dh-q-inbox">'
     + '<div class="dh-fold-tab">'
     + IC.inbox + 'Inbox'
-    + (hasIssues ? '<span class="dh-fold-badge" style="background:rgba(239,68,68,0.15);color:#ef4444">⚠ ' + (critCount + unlinkedCount) + ' issue' + (critCount + unlinkedCount !== 1 ? 's' : '') + '</span>' : '')
-    + (newEnquiries.length ? '<span class="dh-fold-badge">' + newEnquiries.length + ' new</span>' : '')
+    + (_attentionCount ? '<span class="dh-fold-badge" style="background:rgba(239,68,68,0.15);color:#ef4444">' + _attentionCount + '</span>' : '')
     + '</div>'
     + '<div class="dh-attn-card">';
 
@@ -5408,6 +5366,7 @@ function renderHomeView() {
       });
       _dhRenderClientActionItems(_inboxListEl, _dhClientActionMap);
     } else {
+      _dhInboxFilter = 'new';
       _dhRenderInboxItems(_inboxListEl, newEnquiries, 'new');
     }
   }
@@ -7751,16 +7710,12 @@ function renderBillingView() {
    SETTINGS VIEW
    ═══════════════════════════════════════════════════ */
 
-function _renderBookingFeesSection() {
-  var html = '<div class=”settings-section”><div class=”settings-section-title”>Booking fees</div>';
-
+function _renderFeeRows() {
   if (!(_halaxyFees || []).length) {
-    html += '<div class=”settings-row”><span class=”settings-row-label” style=”color:rgba(255,255,255,0.4)”>No Halaxy fees loaded — sync above.</span></div></div>';
-    return html;
+    return '<div class=”stg-fee-empty”>No fees loaded — sync Halaxy above.</div>';
   }
-
-  BOOKABLE_MENU.forEach(function(fn, fi) {
-    // Funder header
+  var html = '';
+  BOOKABLE_MENU.forEach(function(fn) {
     var note = '';
     if (fn.planManaged) {
       var pmCount = (_halaxyFunders || []).filter(function(f) { return f.billingKey === 'ndis_plan'; }).length;
@@ -7768,27 +7723,30 @@ function _renderBookingFeesSection() {
     } else if (fn.note) {
       note = fn.note.length > 45 ? fn.note.slice(0, 45) + '…' : fn.note;
     }
-    html += '<div class=”settings-row” style=”border-bottom:none;padding-bottom:0' + (fi > 0 ? ';margin-top:6px' : '') + '”>'
-      + '<span class=”settings-row-label” style=”font-weight:700”>' + escHtml(fn.label) + '</span>'
-      + (note ? '<span class=”settings-row-val” style=”font-size:11px;opacity:0.5”>' + escHtml(note) + '</span>' : '')
+    html += '<div class=”stg-fee-group”>'
+      + '<span class=”stg-fee-funder”>' + escHtml(fn.label) + '</span>'
+      + (note ? '<span class=”stg-fee-note”>' + escHtml(note) + '</span>' : '')
       + '</div>';
-
-    // Fee rows
     fn.items.forEach(function(it) {
       var resolved = _bookableResolveFee(it);
       var label = it.label;
       if (it.mbsItem) label += ' (MBS ' + it.mbsItem + ')';
       if (it.durationMin && it.label.indexOf(it.durationMin + '') < 0) label += ' (' + it.durationMin + ' min)';
       var amt = resolved ? '$' + Number(resolved.amount).toFixed(2) : 'unmapped';
-      html += '<div class=”settings-row” style=”padding-left:12px”>'
-        + '<span class=”settings-row-label” style=”font-weight:400;opacity:0.6”>' + escHtml(label) + '</span>'
-        + '<span class=”settings-row-val” style=”font-weight:600;font-variant-numeric:tabular-nums;color:var(--t1)”>' + escHtml(amt) + '</span>'
+      html += '<div class=”stg-fee-item”>'
+        + '<span class=”stg-fee-label”>' + escHtml(label) + '</span>'
+        + '<span class=”stg-fee-amt”>' + escHtml(amt) + '</span>'
         + '</div>';
     });
   });
-
-  html += '</div>';
   return html;
+}
+
+function _toggleFeeSchedule(btn) {
+  var panel = document.getElementById('stg-fee-panel');
+  if (!panel) return;
+  var open = panel.classList.toggle('open');
+  if (btn) btn.textContent = open ? 'Fee schedule ▴' : 'Fee schedule ▾';
 }
 
 /* ═══════════════════════════════════════════════════
@@ -8072,48 +8030,41 @@ function renderSettingsView() {
   var calOk = _calEventsLoaded;
   var html = '<div class="settings-view"><span class="view-title" style="display:block;margin-bottom:22px">Settings</span>';
 
-  // Connections
-  html += '<div class="settings-section"><div class="settings-section-title">Connections</div>';
-  html += '<div class="settings-row"><span class="settings-row-label">Halaxy</span><span class="settings-row-val">' + (halaxyOk ? '✓ Connected' : '✗ Not connected') + '</span>'
-    + '<div class="settings-row-action"><button id="halaxy-sync-btn" onclick="syncHalaxyConfigData()">⟳ Sync funders & fees</button></div></div>';
-  html += '<div class="settings-row"><span class="settings-row-label">Google <span style="color:rgba(255,255,255,0.4);font-weight:400;font-size:11px">· Calendar + inbox (remittance search)</span></span><span class="settings-row-val">' + (calOk ? '✓ Connected' : 'Not connected') + '</span>'
+  // ── Practice integrations ──
+  html += '<div class="settings-section"><div class="settings-section-title">Practice integrations</div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Halaxy</span>'
+    + '<span class="settings-row-val">' + (halaxyOk ? '✓ Connected' : '✗ Not connected') + '</span>'
+    + '<div class="settings-row-action">'
+    + '<button id="halaxy-sync-btn" onclick="syncHalaxyConfigData()">⟳ Sync</button>'
+    + '<button onclick="_toggleFeeSchedule(this)" class="stg-fees-toggle">Fee schedule ▾</button>'
+    + '</div></div>';
+  html += '<div id="stg-fee-panel" class="stg-fee-panel">' + _renderFeeRows() + '</div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Google <span style="color:rgba(255,255,255,0.4);font-weight:400;font-size:11px">· Calendar + inbox</span></span>'
+    + '<span class="settings-row-val">' + (calOk ? '✓ Connected' : 'Not connected') + '</span>'
     + '<div class="settings-row-action"><a href="/api/google-auth" title="Reconnect to grant calendar + read-only inbox access. Authorise each mailbox (admin@, reachout@) in turn.">Reconnect</a></div></div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Resend <span style="color:rgba(255,255,255,0.4);font-weight:400;font-size:11px">· Email delivery</span></span>'
+    + '<span class="settings-row-val">reachout@chereemcgarry.com</span>'
+    + '<div class="settings-row-action"><a href="https://resend.com/emails" target="_blank">Open ↗</a></div></div>';
   html += '</div>';
-
-  // Booking fees — map each bookable session type to its Halaxy fee (drives "Set up in Halaxy")
-  html += _renderBookingFeesSection();
 
   // Funder guide — plain-language "what do I need for X" reference, sourced straight
   // from BOOKABLE_MENU so it can't drift from what the "Set up in Halaxy" wizard shows.
   html += _renderFunderGuideSection();
 
-  // Account
-  html += '<div class="settings-section"><div class="settings-section-title">Account</div>';
-  html += '<div class="settings-row"><span class="settings-row-label">Signed in as</span><span class="settings-row-val">' + escHtml(window.ADMIN_USER || 'Julian') + '</span></div>';
-  html += '<div class="settings-row"><span class="settings-row-label">Session</span><span class="settings-row-val"></span><div class="settings-row-action"><a href="/admin?logout=1">Sign out</a></div></div>';
-  html += '</div>';
-
-  // Website links
-  html += '<div class="settings-section"><div class="settings-section-title">Website</div>';
-  html += '<div class="settings-row"><span class="settings-row-label">View site</span><span class="settings-row-val">chereemcgarry.com</span><div class="settings-row-action"><a href="/" target="_blank">Open ↗</a></div></div>';
-  html += '<div class="settings-row"><span class="settings-row-label">Email history</span><span class="settings-row-val">Resend</span><div class="settings-row-action"><a href="https://resend.com/emails" target="_blank">Open ↗</a></div></div>';
-  html += '<div class="settings-row"><span class="settings-row-label">Practice management</span><span class="settings-row-val">Halaxy</span><div class="settings-row-action"><a href="https://www.halaxy.com/practitioner" target="_blank">Open ↗</a></div></div>';
-  html += '</div>';
-
-  // Email tests — send any onboarding template to admin@ for review
-  html += '<div class="settings-section"><div class="settings-section-title">Email tests</div>';
+  // ── Email templates ──
+  html += '<div class="settings-section"><div class="settings-section-title">Email templates</div>';
   html += '<div class="settings-row">'
-    + '<span class="settings-row-label">Send a test to admin@chereemcgarry.com</span>'
+    + '<span class="settings-row-label">Send test to admin@</span>'
     + '<select id="email-test-type" style="background:rgba(255,255,255,0.06);color:var(--t1);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 10px;font-size:12px;font-family:var(--sans);color-scheme:dark;cursor:pointer">'
     + '<optgroup label="Live client emails">'
-    + '<option value="enquiry">Reach Out — thanks for enquiring (auto-reply)</option>'
-    + '<option value="session">Session request — confirmation (auto-reply)</option>'
+    + '<option value="enquiry">Reach Out — thanks (auto-reply)</option>'
+    + '<option value="session">Session request — confirmation</option>'
     + '<option value="registration">Registration — funding picker</option>'
     + '<option value="complete">Registration complete — thank-you</option>'
     + '<option value="reminder">Appointment reminder — 48h</option>'
     + '</optgroup>'
-    + '<optgroup label="Registration variants (legacy / per-funder)">'
-    + '<option value="personal">Personal / Private (single link)</option>'
+    + '<optgroup label="Per-funder variants (legacy)">'
+    + '<option value="personal">Private (single link)</option>'
     + '<option value="new">New (generic)</option>'
     + '<option value="medicare">Medicare</option>'
     + '<option value="ndis">NDIS</option>'
@@ -8123,10 +8074,19 @@ function renderSettingsView() {
     + '</div>';
   html += '</div>';
 
-  // Dev companion
-  html += _renderDevCompanion();
+  // ── Account ──
+  html += '<div class="settings-section"><div class="settings-section-title">Account</div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Signed in as</span><span class="settings-row-val">' + escHtml(window.ADMIN_USER || 'Julian') + '</span></div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Session</span><span class="settings-row-val"></span><div class="settings-row-action"><a href="/admin?logout=1">Sign out</a></div></div>';
+  html += '</div>';
 
-  // Danger zone
+  // ── Quick links ──
+  html += '<div class="settings-section"><div class="settings-section-title">Quick links</div>';
+  html += '<div class="settings-row"><span class="settings-row-label">chereemcgarry.com</span><div class="settings-row-action"><a href="/" target="_blank">Open ↗</a></div></div>';
+  html += '<div class="settings-row"><span class="settings-row-label">Halaxy practitioner</span><div class="settings-row-action"><a href="https://www.halaxy.com/practitioner" target="_blank">Open ↗</a></div></div>';
+  html += '</div>';
+
+  // ── Danger zone ──
   html += '<div class="settings-section settings-danger-section">';
   html += '<div class="settings-section-title settings-danger-title">Danger zone</div>';
   html += '<div class="settings-danger-desc">Reset clears all manually-entered dashboard data — enquiries, clients, sessions, tasks, and activity logs. '
@@ -8140,7 +8100,6 @@ function renderSettingsView() {
 
   html += '</div>';
   content.innerHTML = html;
-  _dcRenderItems();
 }
 
 // Send a test onboarding email (chosen template) to admin@chereemcgarry.com
@@ -11291,9 +11250,10 @@ async function _saveHalaxySession(cardUid, eventId, patientId, patientName, fund
       localStorage.setItem('halaxy_recorded_sessions', JSON.stringify(_recordedSessions));
     }
 
-    // Dismiss the card from the UI immediately
+    // Dismiss the card from the UI + delete the GCal event so it doesn't linger
     if (eventId) {
       dismissCalEvent(eventId);
+      fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), { method: 'DELETE', credentials: 'same-origin' }).catch(function() {});
     } else {
       var cardEl = panelEl ? panelEl.closest('.log-card') : null;
       if (cardEl) cardEl.remove();

@@ -1138,6 +1138,44 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .dh-wd-pip--has   { background: rgba(52,211,153,0.50); }
 .dh-wd-pip--today { background: var(--teal); }
 
+/* ─── WEEK AGENDA (stacked day view) ────────────────────────── */
+.dh-week-agenda {
+  overflow-y: auto; max-height: 480px;
+}
+.dh-wa-day { border-bottom: 1px solid var(--sep); }
+.dh-wa-day:last-child { border-bottom: none; }
+.dh-wa-day--past { opacity: 0.5; }
+.dh-wa-day--today { background: rgba(52,211,153,0.04); }
+.dh-wa-day-hd {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 20px 6px; position: sticky; top: 0;
+  background: var(--gc); z-index: 1;
+}
+.dh-wa-day-name {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--t3); min-width: 32px;
+}
+.dh-wa-day--today .dh-wa-day-name { color: var(--teal); }
+.dh-wa-day-num { font-size: 11px; color: var(--t3); font-weight: 500; }
+.dh-wa-today-pill {
+  font-size: 9px; font-weight: 700; padding: 1px 7px; border-radius: 8px;
+  background: rgba(52,211,153,0.15); color: var(--teal);
+}
+.dh-wa-day-cnt {
+  font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px;
+  background: rgba(255,255,255,0.06); color: var(--t3); margin-left: auto;
+}
+.dh-wa-empty {
+  padding: 6px 20px 10px 60px; font-size: 11px; color: var(--t3); opacity: 0.6;
+}
+.dh-wa-day .dh-sched-row { padding: 5px 20px 5px 20px; }
+.dh-wa-status {
+  font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 8px;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+/* (inbox tabs CSS moved below .dh-attn-card override for specificity) */
+
 /* ─── TASKS CARD ─────────────────────────────────────────────── */
 .dh-tasks-card {
   background: var(--gc);
@@ -1413,7 +1451,7 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 /* ─── FOLDER-TAB WRAPPER ─────────────────────────────────────── */
 .dh-fold {
   display: flex; flex-direction: column;
-  height: 100%; /* fills bento grid cell */
+  max-height: 560px;
 }
 .dh-feed > .dh-fold { height: auto; }
 
@@ -1591,7 +1629,7 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   font-size: 17px;
 }
 
-/* ─── INBOX CARD — split layout ──────────────────────────────── */
+/* ─── INBOX CARD — split layout (legacy sidebar, kept for mobile) ── */
 .dh-attn-card {
   display: flex !important;
   flex-direction: row !important;
@@ -1654,6 +1692,33 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
   display: flex; flex-direction: column;
 }
 .dh-inbox-list .dh-card-hd { border-bottom: 1px solid var(--sep); }
+
+/* ─── INBOX TABS (horizontal, replacing sidebar) ────────────── */
+.dh-inbox-tabs-layout {
+  display: flex !important; flex-direction: column !important;
+  padding: 0 !important; overflow: hidden;
+}
+.dh-inbox-tabs-bar {
+  display: flex; gap: 2px; padding: 10px 12px 0;
+  border-bottom: 1px solid var(--sep); flex-shrink: 0;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.dh-inbox-tab {
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  font-size: 11px; font-weight: 500; color: var(--t3);
+  padding: 7px 10px 9px; border-bottom: 2px solid transparent;
+  white-space: nowrap; display: flex; align-items: center; gap: 5px;
+  transition: color 0.12s, border-color 0.12s;
+}
+.dh-inbox-tab:hover { color: var(--t1); }
+.dh-inbox-tab.active { color: var(--teal); border-bottom-color: var(--teal); font-weight: 600; }
+.dh-inbox-tab-cnt {
+  font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px;
+  background: rgba(255,255,255,0.07); color: var(--t3);
+}
+.dh-inbox-tab.active .dh-inbox-tab-cnt { background: var(--teal-a); color: var(--teal); }
+.dh-inbox-tab-cnt--alert { background: rgba(239,68,68,0.15) !important; color: #ef4444 !important; }
+.dh-inbox-tab.active .dh-inbox-tab-cnt--alert { background: rgba(239,68,68,0.22) !important; color: #ef4444 !important; }
 
 /* ─── TASK ARROW BUTTON ──────────────────────────────────────── */
 .dh-task-arrow {
@@ -2174,6 +2239,41 @@ select.db-form-input { appearance: none; cursor: pointer; background-image: url(
 .settings-row-action button:hover {
   background: rgba(255,255,255,0.10) !important;
   color: var(--t1) !important;
+}
+
+/* Fee schedule — collapsible panel inside Halaxy integration row */
+.stg-fees-toggle { margin-left: 8px !important; }
+.stg-fee-panel {
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  padding: 0 12px;
+}
+.stg-fee-panel.open {
+  max-height: 600px;
+  padding: 4px 12px 12px;
+}
+.stg-fee-empty {
+  padding: 8px 0; font-size: 12px; color: rgba(255,255,255,0.4);
+}
+.stg-fee-group {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 10px 0 2px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.stg-fee-group:first-child { border-top: none; }
+.stg-fee-funder {
+  font-size: 12px; font-weight: 700; color: var(--t1);
+}
+.stg-fee-note {
+  font-size: 11px; color: rgba(255,255,255,0.35);
+}
+.stg-fee-item {
+  display: flex; justify-content: space-between;
+  padding: 3px 0 3px 12px; font-size: 12px;
+}
+.stg-fee-label { color: rgba(255,255,255,0.5); }
+.stg-fee-amt {
+  font-weight: 600; font-variant-numeric: tabular-nums; color: var(--t1);
 }
 
 /* Danger zone section */
