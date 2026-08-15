@@ -664,13 +664,24 @@ function _cbSubmitOutcome(eventId, baseName, btn) {
   _cbLogHistory(newFields, statusField + (noCharge ? ' — no charge, closed' : ''));
   var newDesc = _cbBuildDesc(newFields);
 
+  // Keep the actual calendar block in sync with the logged duration — only
+  // for a preset from _CB_DURATIONS, since a custom/legacy Duration string
+  // (kept verbatim so nothing's silently overwritten) has no known minutes
+  // to resize to. Start time never changes here, only how long it runs.
+  var durationMinutes = (_CB_DURATIONS.find(function(o) { return o[1] === duration; }) || [])[0];
+  var patchBody = { title: newTitle, description: newDesc };
+  if (durationMinutes && ev.start) {
+    patchBody.end = new Date(new Date(ev.start).getTime() + durationMinutes * 60000).toISOString();
+  }
+
   var restore = _cbBusy(btn, 'Saving…');
   fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
     method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title: newTitle, description: newDesc }),
+    body: JSON.stringify(patchBody),
   }).then(function(r) { return r.json(); }).then(function(d) {
     if (d.error) { _cbToast('Could not save: ' + d.error); restore(); return; }
     ev.title = newTitle; ev.description = newDesc;
+    if (patchBody.end) ev.end = patchBody.end;
     _cbToast('Saved');
     cbSetView('home');
   }).catch(function(err) { _cbToast('Could not save: ' + err.message); restore(); });
