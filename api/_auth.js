@@ -48,9 +48,19 @@ function cookieUser(req) {
   return (user && userToken(user) === token) ? user : null;
 }
 
-/** Check a submitted password and return the matching user (or null). */
-export function validateUser(pass) {
+/** Check a submitted name + password and return the matching user (or null).
+ * `name` is optional — if it matches a known user, the password is checked
+ * only against that user (lets Safari/Keychain save a distinct credential
+ * per person instead of one ambiguous password-only entry). If `name` is
+ * blank or doesn't match, falls back to matching by password alone so old
+ * saved-password-only autofills and the legacy ADMIN_PASS still work. */
+export function validateUser(name, pass) {
   if (!pass) return null;
+  const trimmed = (name || '').trim().toLowerCase();
+  if (trimmed) {
+    const named = USERS.find(u => u.name.toLowerCase() === trimmed);
+    if (named) return (process.env[named.passEnv] || '') === pass ? named : null;
+  }
   const user = USERS.find(u => (process.env[u.passEnv] || '') === pass);
   if (user) return user;
   // Legacy fallback — ADMIN_PASS logs in as Julian

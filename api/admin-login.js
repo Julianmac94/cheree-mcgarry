@@ -98,7 +98,7 @@ function loginPage(error = '') {
     letter-spacing: 0.12em; text-transform: uppercase;
     color: ${C.soft}; margin-bottom: 7px;
   }
-  input[type="password"] {
+  input[type="text"], input[type="password"] {
     display: block; width: 100%;
     padding: 11px 14px;
     border: 1.5px solid rgba(42,88,80,0.18);
@@ -109,7 +109,7 @@ function loginPage(error = '') {
     outline: none;
     transition: border-color 0.2s;
   }
-  input[type="password"]:focus { border-color: ${C.teal}; }
+  input[type="text"]:focus, input[type="password"]:focus { border-color: ${C.teal}; }
   .remember {
     display: flex; align-items: center; gap: 9px;
     margin-bottom: 22px; cursor: pointer;
@@ -166,11 +166,16 @@ function loginPage(error = '') {
     <form method="POST" action="/admin-login">
       ${error ? `<div class="error">${error}</div>` : ''}
       <div class="field">
+        <label for="user">Name</label>
+        <input type="text" id="user" name="user" autocomplete="username" list="cb-users" placeholder="Julian or Cheree" autocapitalize="words" spellcheck="false" autofocus>
+        <datalist id="cb-users"><option value="Julian"><option value="Cheree"></datalist>
+      </div>
+      <div class="field">
         <label for="pass">Passphrase</label>
-        <input type="password" id="pass" name="pass" autocomplete="current-password" autofocus>
+        <input type="password" id="pass" name="pass" autocomplete="current-password">
       </div>
       <label class="remember">
-        <input type="checkbox" name="remember" value="1">
+        <input type="checkbox" name="remember" value="1" checked>
         <span>Keep me signed in for 30 days</span>
       </label>
       <button class="btn-login" type="submit">Sign in</button>
@@ -202,10 +207,11 @@ export default async function handler(req, res) {
       raw = Object.fromEntries(p.entries());
     }
     const body     = raw;
+    const name     = (body.user     || '').trim();
     const pass     = (body.pass     || '').trim();
     const remember = body.remember === '1';
 
-    const user = validateUser(pass);
+    const user = validateUser(name, pass);
     if (!user) {
       res.setHeader('Content-Type', 'text/html');
       return res.status(401).send(loginPage('Incorrect passphrase. Please try again.'));
