@@ -4,7 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Private practice management dashboard for Cheree McGarry (psychologist). Two users: Cheree and Julian. Deployed on Vercel Hobby plan at `chereemcgarry.com`.
+Private practice management tool for Cheree McGarry (psychologist). Two users: Cheree and Julian. Deployed on Vercel Hobby plan at `chereemcgarry.com`.
+
+**The live app is `/book`.** Everything under it is a from-scratch rewrite (Aug 2026) that replaced an older Halaxy-integrated admin dashboard. See `ARCHITECTURE.md` for the full data-flow picture and `CHANGELOG.md` for how it got here — this file is deliberately just conventions and gotchas.
+
+## The one rule that governs everything here
+
+**The dashboard never writes to Halaxy — no patient creation, no appointment booking, no invoice creation, ever, from any code path.** Cheree books sessions in Google Calendar; she creates the actual appointment + invoice in Halaxy herself, manually. This tool's job is to help her and Julian *track* that, not replace it.
+
+This wasn't always true. An earlier iteration had at least seven independent code paths that created patients/appointments in Halaxy (a "Set up in Halaxy" wizard, a "New Appointment" modal, a few others) — all removed. If you're adding a feature and find yourself reaching for `halaxyPost('/Patient', ...)` or `halaxyPost('/Appointment/$book', ...)`, stop — that's very likely the wrong design. Halaxy access from this codebase should be **read-only** (`halaxyGet`) except in the two narrow, already-audited cases below.
+
+**Known residual risk, not yet cleaned up:** `api/admin-enquiries.js` still has `?halaxy_appt_action=1` (record/reschedule/cancel — patches an *existing* Halaxy appointment, never creates one) and `?halaxy_coverage=1` POST (writes Coverage to an existing patient). As of this writing, **no frontend file calls either** — `/book` and `/book/qfes` don't touch them. They're not create-flows (they require an existing `halaxyApptId`/`patientId`), so they're lower-risk than what was removed, but they're dead code sitting on live write endpoints. Worth removing entirely once confirmed nothing needs them.
 
 ## Deploy & Dev Commands
 
@@ -26,179 +36,166 @@ vercel env add VAR_NAME production
 vercel env pull .env.local
 ```
 
-There is **no build step** — files are served directly by Vercel. `package.json` has no scripts. Changes go live on the next `vercel --prod` or GitHub push (auto-deploy is connected).
+There is **no build step** — files are served directly by Vercel. Changes go live on the next `vercel --prod` or GitHub push (auto-deploy is connected).
+
+**⚠ Always push to git.** `vercel --prod` deploys straight from your local working tree, bypassing git entirely — that's exactly how this app ended up with a week of undocumented production code that no `git log` could see, and why a routine `git push` silently reverted it. If you deploy with the CLI for a quick iteration, follow up with a commit + push in the same sitting. Don't let production and `main` diverge.
 
 ## Architecture
 
-This is a **vanilla JS + Vercel serverless** app — no framework, no bundler.
+Vanilla JS + Vercel serverless. No framework, no bundler, no build step.
 
 ```
-api/          Vercel serverless functions (Node ESM, .js)
-  _auth.js        HMAC cookie auth shared helper
-  _supabase.js    Supabase service-role client singleton
-  _halaxy.js      Halaxy FHIR R4 API helper (OAuth + token cache)
-  admin.js        GET /admin — server-renders the full dashboard HTML page
-  admin-enquiries.js  Main data endpoint — aggregates Supabase + Halaxy + GCal
-  admin-intake.js     Sends onboarding email via Resend
-  admin-tasks.js      Tasks CRUD + AI receptionist brief (POST ?brief=1)
-  calendar-pending.js Google Calendar integration
-  clients.js      Client CRUD
-  sessions.js     Session CRUD (links to Halaxy appointments)
+api/          Vercel serverless functions (Node ESM, .js) — 12 total, at the Hobby-plan cap
+  admin.js            GET /book, /book/qfes (and /admin, /admin-new — both alias to /book now)
+  admin-enquiries.js   Main data + mutation endpoint (see full list below)
+  admin-intake.js      Registration/onboarding emails via Resend
+  admin-login.js       Password auth, session cookie
+  admin-tasks.js       Tasks CRUD + AI receptionist brief (POST ?brief=1)
+  calendar-pending.js  Google Calendar read/write — the real system of record for sessions
+  clients.js           Client CRUD (Supabase `clients` table)
+  contact.js           Public "Reach Out" form handler
+  google-auth.js       Google OAuth kickoff (Calendar + Gmail scopes)
+  google-callback.js   Google OAuth callback, stores refresh tokens
+  session.js           Public "Request a session" form handler
+  sessions.js          Session CRUD (Supabase `sessions` table — legacy, see note below)
+
+  _auth.js        HMAC cookie auth shared helper (leaf, not counted in the 12)
+  _emails.js      Shared email templates (leaf)
+  _gmail.js       Gmail search helpers — remittance, keyword, QFES submissions (leaf)
+  _halaxy.js      Halaxy FHIR R4 API helper — OAuth + token cache (leaf)
+  _push.js        Web Push subscription storage + notify() (leaf)
+  _supabase.js    Supabase service-role client singleton (leaf)
 
 js/
-  admin-ui.js   ~10k line client-side app — all dashboard interactivity
+  cheree-book.js  The app. ~1500 lines. Home / Board / Book / Clients views, all client-side.
+  cheree-qfes.js  QFES Individual Support Activity form staging tool, at /book/qfes.
+  main.js         Public site (index.html etc.) interactivity — unrelated to /book.
+
 css/
-  admin-dashboard.css  Dashboard styles
-assets/         Static images including logo.svg, pwa-icon.svg
-manifest.json   PWA manifest
-vercel.json     Rewrites /admin→/api/admin, /admin-login→/api/admin-login + cron
+  admin-dashboard.css  NOT used by /book — its pages are fully self-contained, CSS inline
+                        in api/admin.js's template strings. This file is legacy public-site
+                        styling territory now; check before assuming a class here applies.
+  styles.css           Public site styling.
+
+sw.js           Service worker — cache-busting + push notification display for /book as a PWA.
+manifest.json   PWA manifest.
+vercel.json     Rewrites — see Routing below.
 ```
 
-**Routing:** `/admin` and `/admin-login` are rewritten to serverless functions via `vercel.json`. All other HTML files are static.
+**Routing:** `/book` → `api/admin.js?cheree=1`, `/book/qfes` → `api/admin.js?cheree=1&qfes=1`. `/admin` and `/admin-new` also rewrite into `api/admin.js` but the handler ignores the distinction now — any authenticated hit on that function serves the `/book` page. Keep these old rewrites; a stale bookmark should land somewhere real, not 404.
 
-**`/register`** (`register.html`, rewrite in `vercel.json`) — **unlisted** (`noindex`, not linked) client registration page. **Self-contained single file** (uses design *tokens* + fonts from `styles.css`, but its own inline layout — NOT the site nav/layout). A **single unified screen** (`.reg`, viewport-height, no page scroll): green header + a persistent **funder list** (left rail on desktop / bottom-sheet on mobile, each option carries its referral note) + a form panel that shows a dashed **placeholder** until a funder is picked, then loads that funder's **Halaxy new-patient widget** in an iframe **in place** (`selectFunder()` swaps `hx.src`, no navigation/reload). iframe `max-width:880px`, left-aligned (verified live: Halaxy single-columns ≤767px, multi-column ≥768, no step sidebar 760–1000). Card capture stays inside Halaxy (no PCI for us). Deep-link `?funder=medicare` pre-selects. Mobile header = two rows (logo+name / funder selector) + mint "what you'll fill in" pill + a secure/scroll info strip. Earlier two-step picker→form flow was **retired**. **Full rationale + remaining work in `docs/registration-form-spec.md` and `TODO.md`.** Private + Medicare wired; other funders hidden until Cheree sends their widget URLs. **Next: Patient·Create webhook → thank-you email + advance enquiry (fold into an existing API file; 12/12 functions).**
+## `js/cheree-book.js` — how the app is put together
 
-**Page load flow:**
-1. `GET /admin` → `api/admin.js` renders the full HTML shell (inline CSS, meta tags, script tags)
-2. Browser loads `js/admin-ui.js` and `css/admin-dashboard.css` as static assets
-3. On load, `refreshPipeline()` calls `GET /api/admin-enquiries` which returns a combined payload: `{ enquiries, clients, halaxy: { appointments, patients, funders, fees, ... }, calendarEvents }`
-4. All subsequent data mutations call individual API endpoints then re-call `refreshPipeline()` to re-render
+Everything renders into a single `#root` div, dispatched by `_cbRender()` based on `_cbView` (`'home' | 'board' | 'book' | 'clients'`). No routing library, no virtual DOM — each view function builds an HTML string and sets `.innerHTML`.
 
-**Mobile vs Desktop:** `admin-ui.js` renders both layouts. Mobile has a floating glass dock nav (`_mobRenderApp()` dispatcher). Desktop has a sidebar. The brief loads into `#dh-hd-meta` (desktop) or `#mob-brief-text` (mobile).
+- **Home** — the daily landing view. Four modes (`_cbHomeMode`): `all` (flat needs-outcome/upcoming list, the default), `month`/`week`/`day` (an actual calendar). Sessions come entirely from `_cbEvents` (Google Calendar), never from Supabase. A session's state is derived *only* from parsing its own description — no external matching, no guessing from title text.
+- **Board** — a kanban pipeline: `triage → booked → outcome → billing → remittance → closed`, computed per-event by `_cbEventStage()` purely from the `Status`/`Bill`/`Billing` fields in its description. `triage` also pulls in open Supabase enquiries. This is the actual answer to "who hasn't been invoiced yet" — that's the `billing` column.
+- **Book** (`+` dock button) — new booking form. Picks an existing client (searched from Halaxy patients, read-only) or types a new name, sets modality/duration, and `POST /api/calendar-pending` creates the calendar event with a structured title/description. Never touches Halaxy.
+- **Clients** — a merged read-only view built from Halaxy patients + Supabase enquiries (`_cbBuildClientRows`). Manual multi-funder tagging (a client can be NDIS for one service, Medicare for another) is stored separately in a settings-cache ledger (`client_funders_set`), not written to `clients.funder`, because that column has a single-value DB constraint.
 
-**⚠ Two-layer CSS — the dark theme is produced by TWO mechanisms, not one.** `api/admin.js` has a large inline `<style>` block whose `:root` and hardcoded colours are a leftover **light/cream** theme (`--bg: #F5F2EE`, `.modal-card: #F3EFE6`). The dashboard looks dark because of two things working together:
-1. `css/admin-dashboard.css` loads *first* (in `<head>`) and overrides **colours/appearance** with `!important` (`--canvas: #080C18`, white text, ~320 `!important` decls).
-2. A **dark `:root` re-declaration sits LAST inside the inline block** (`api/admin.js` ~L3263, commented) that re-points `--teal`/`--amber`/`--canvas` to dark values — so the inline block's `var(--*)` references resolve **dark**.
+### The calendar event format — this is the actual data model
 
-Practical consequences:
-- The inline block is **mostly load-bearing** (~75%): it holds the only copy of **layout/positioning** for hundreds of selectors, plus token refs that resolve dark. Only the hardcoded *light hex* on selectors also defined in `admin-dashboard.css` is truly dead-overridden.
-- So: editing inline **layout** (width/flex/position) **works**; editing inline **hardcoded colours** that `admin-dashboard.css` overrides with `!important` does **not** — change those in `admin-dashboard.css`. The detail-panel modal styling lives there at ~L1645–2240.
-- When previewing in isolation you **must** load `admin-dashboard.css` or you'll see the cream fallback and think the app looks old.
-- The detail panel (`#modal-overlay`/`.modal-card`, opened by `openDetailPanel()`) is a **right-docked drawer** on desktop / **full-screen drill-in** (back arrow) on mobile. Form modals that reuse these classes (e.g. Add Reminder) opt back into a centered dialog via the `modal-centered` class.
+Every session /book creates is a Google Calendar event with:
+- **Title**: `<Name> — <Funder> — <Modality>`, later suffixed `— Attended` / `— Cancelled (Cheree)` / `— Cancelled (client)` once an outcome is recorded.
+- **Description**: plain `Key: Value` lines — `Funder`, `Type`, `Duration`, `Note`, `Status`, `Bill`, `Billing`, `Invoice`. Parsed back out by `_cbParseDesc()` / built by `_cbBuildDesc()` (client-side) and duplicated server-side in `calendar-pending.js`'s `_parseDesc()` for push-notification text (server module, can't import the browser script).
 
-### 🚧 In progress: CSS consolidation — branch `refactor/css-consolidation` (NOT on main/prod yet)
+This is intentional: the event reads correctly even opened directly in Google Calendar by Cheree, not just through this tool. **A calendar event with no `Status:` line at all is a legacy hand-typed entry** (or one from before this tool existed) — it's still surfaced on Home so it can be actioned, but it's excluded from the Board (which only shows events this tool explicitly created/logged).
 
-Collapsing the two-layer CSS above into ONE clean dark stylesheet. On that branch the description above is partly superseded; on `main`/prod it still holds.
+### Recording an outcome
 
-Done on the branch (each step verified **pixel-identical** via a computed-style diff — old `git HEAD` CSS vs working tree in a standalone harness, not just screenshots):
-- **Foundation:** the ~3,070-line inline `<style>` was moved out of `api/admin.js` into `css/admin-dashboard.css`; the 3 `:root` blocks collapsed into one (net values preserved); `${C.color}` interpolations replaced with literals; stylesheet `<link>` cache-busted with `?v=${VERCEL_GIT_COMMIT_SHA}`. `api/admin.js` dropped 3,958 → 888 lines.
-- **Slice 1** detail panel/modals, **Slice 2** sidebar (icon rail; dead 220px base deleted), **Slice 3** settings — all merged into `!important`-free rules. `!important`: 423 → 158.
+`_cbOpenOutcome()` → sets `Status: Attended` or `Status: Cancelled by <Cheree|client>` via `PATCH /api/calendar-pending`. The PATCH handler detects this specific pattern in the description (`/Status: (Attended|Cancelled by)/`) and fires a push notification to Julian — nothing else matches that regex, so it can't misfire on an unrelated rename or billing-stage edit.
 
-Remaining: **app-shell slice** (`.app-shell`/`.app-main`/`.view-content`/`.app-topbar`/`.view-title`/`.home-view`, ~26 base-fight `!important`, structural — affects every page) + ~3 mobile `@media` settings stragglers. The other ~130 `!important` are **legit dark-native** (defensive/responsive) and are intentionally being LEFT — zero `!important` is NOT the goal.
+### Invoice tracking
 
-Known quirk surfaced: the sidebar nav badge (`.si-badge`) renders as an 8×18 amber *stadium* on prod (latent bug — base overrode the dark layer's intended 8px **dot**); currently preserved as-is, could be flipped to the dot. When the branch merges, replace the two-layer note above with "single dark stylesheet".
+`cbSaveInvoice()` writes an `Invoice: <number>` line onto the event description — same PATCH endpoint, no Halaxy write. Once set, the Board card shows a one-tap deep link straight into that invoice in Halaxy (`_cbInvoiceUrl`, a plain URL, not an API call). This is the whole reconciliation mechanism — deliberately simple, no attempt at automated invoice↔session matching (Halaxy's API can't support that — see below).
+
+## `api/admin-enquiries.js` — endpoint index
+
+GET unless noted. Query-param-routed, one big handler function.
+
+| Param | Purpose |
+|---|---|
+| `reminder_cron=1` | Cron-only — 48h reminder emails |
+| `halaxy_webhook` (POST) | Halaxy Patient·Create webhook — the only thing that creates a Supabase client record from a Halaxy event |
+| `halaxy_sync` (POST) | Refresh cached funders/fees from Halaxy |
+| `halaxy_appt_action` (POST) | **Dead code, see above** — record/reschedule/cancel an *existing* Halaxy appointment |
+| `reminder=1` (POST) | Manually send one reminder email |
+| `halaxy_fees`, `halaxy_fees_raw`, `halaxy_funders` | Read cached/raw Halaxy fee & funder config |
+| `halaxy_appts_raw`, `halaxy_invoices_raw` | Raw Halaxy data dumps, diagnostic |
+| `inv_probe`, `match_debug` | Diagnostics for the (impossible) invoice-matching problem — see below |
+| `check_remittance` | Gmail search for a remittance email matching an invoice number |
+| `halaxy_patient_name` | Search Halaxy patients by name (read-only) |
+| `halaxy_patient_invoices` | Per-patient invoice list |
+| `halaxy_coverage` (GET) | Read a patient's funder Coverage |
+| `halaxy_coverage` (POST) | **Dead code, see above** — write Coverage to an existing patient |
+| `settings_set` (POST) | Generic settings-cache key/value write |
+| `cal_link` (POST) | Merge a calendar event onto an enquiry "contact card" — bookkeeping only |
+| `push_subscribe` (POST) | Save a Web Push subscription |
+| `client_funders_set` (POST) | Manual multi-funder tagging ledger |
+| `qfes_profiles_all`, `qfes_profile`, `qfes_profile_save` (POST) | QFES ISA form staging (`qfes_client_profiles` table) |
+| `session_bill=1` (POST) | Legacy funder-session reconciliation ledger — predates the Board, may be redundant with `Invoice:`/`Billing:` on the calendar event now. Not yet audited for removal. |
+| (bare GET) | Main pipeline payload — enquiries + clients + Halaxy patients/appointments |
+| PATCH | Update an enquiry's status/notes |
 
 ## Auth
 
-HMAC-signed cookie (`ast`). Two named users from env: `JULIAN_PASS`, `CHEREE_PASS`. All API handlers call `isAuthed(req)` as first line. `getSessionUser(req)` returns `{ name, initials }`. Legacy `ADMIN_PASS` still works (logs in as Julian).
+HMAC-signed cookie (`ast`). Two named users from env: `JULIAN_PASS`, `CHEREE_PASS`. All API handlers call `isAuthed(req)` as first line. `getSessionUser(req)` returns `{ name, initials }`. Legacy `ADMIN_PASS` still works (logs in as Julian). Login and the Google OAuth callback both redirect to `/book`.
 
 ## Data Sources
 
-### Supabase (primary store)
-Tables: `enquiries`, `clients`, `sessions`, `tasks`, `activity_log`, `settings`
+### Google Calendar — the real system of record for sessions
+OAuth token in `settings.google_refresh_token`. `calendar-pending.js` exports `createCalendarEvent`, `deleteCalendarEvent`, `fetchCalendarEvents(opts)`. The GET handler defaults to a wide `-180d/+91d` window (an explicit `?days=N` override is symmetric ±N) — the asymmetric default exists so a session from months back that was never logged still surfaces rather than silently aging out, which is exactly the bug that bit the old system before this rewrite. `fetchCalendarEvents` accepts `{ pastDays, futureDays, paginate }` — pass `paginate: true` for anything that might cross Google's 250-result page limit (a multi-month reconciliation pull, for instance).
 
-The `settings` table is used as a key-value cache — Halaxy OAuth tokens and funders/fees config are stored here to avoid hitting the Halaxy API on every request.
+`PATCH /api/calendar-pending?eventId=<id>` accepts any subset of `{ title, start, end, description }`. `start`/`end` reschedule (currently unused by any frontend — was for the old dashboard's duration-edit feature, kept because it's harmless and still correct). `description` is how /book records outcomes, billing stage, and invoice numbers, and triggers a push notification when it detects an outcome (`Status: Attended|Cancelled by...`).
 
-### Halaxy FHIR R4 API (`au-api.halaxy.com`)
-Practice management system. Used for appointments, patients, invoices, funders, fees. Auth is OAuth2 client credentials — token is cached in `settings` table with 2-minute expiry buffer. Helpers: `halaxyGet()`, `halaxyPost()`, `halaxyPatch()`.
+### Supabase
+Tables: `enquiries`, `clients`, `sessions`, `tasks`, `activity_log`, `settings`, `qfes_client_profiles`.
 
-**Critical Halaxy invoice paid/unpaid logic — THE BALANCE IS THE SOURCE OF TRUTH.** Halaxy keeps standard invoices at `status='active'` whether paid or not (verified against a "PAID IN FULL" NDIS invoice that was still `active`), so **status is NOT a reliable paid signal** — only `totalBalance` is.
-- `_invIsPaid(inv)` (`js/admin-ui.js`): `totalBalance <= 0` ⇒ **paid** (excludes only `cancelled`/`draft`). True whether the client paid by card, Medicare paid, or a funder (NDIS plan manager, WorkCover, DVA) sent remittance and the payment was recorded. **There is NO "paid but not yet reconciled" state** — recording the payment in Halaxy *is* the reconciliation, and that's what drives the balance to 0.
-- **Outstanding = `totalBalance > 0`** (money still owed). That's the only thing the billing block counts.
-- `_invIsAwaitingRemittance(inv)`: the *rare* case — a funder-billed invoice (`payorOrg` set) that is **still unpaid** (`balance > 0`), e.g. WorkCover (submit via Halaxy → wait for remittance → record payment → balance 0). It's a *flavour of outstanding* (money not in yet), shown amber "Submitted · awaiting remittance" — distinct from a private invoice the client owes (here we wait on the funder, don't chase a client). NOT a paid state.
-- ⚠ **The old model was wrong** (and broke the billing block): it treated `active + payorOrg + balance=0` as "paid-but-unreconciled" and counted ~78 fully-paid NDIS plan-managed invoices as "outstanding/unpaid". The retired function was `_invIsPendingRecon`. Don't reintroduce a "paid but unreconciled" concept.
-- Org-billed invoices (NDIS plan mgr / WorkCover / DVA) carry **no patient reference** in the bulk `/Invoice` fetch — `recipient` is the funder Org and `title` is just the funder name. Patient is resolved by the date-based fallback or a per-patient `/Invoice` fetch (`?halaxy_patient_invoices`). Unresolved → "Unknown" in the UI.
-- Never add `status === 'active'` as a blanket "unpaid" rule — it will flag every invoice as unpaid.
-- **Per-session invoice attribution is impossible — don't try.** Halaxy's `/Invoice` **ignores the `patient=` filter** and **exposes no line items by ANY route** (`lineItem` null even when the web UI shows them; `_include=Invoice:item` → 422; `/ChargeItem` → 404). So a funder bulk invoice (QFES/NDIS bill many sessions across dates onto one invoice, e.g. inv `1090256291` dated 05-May covered Kaegan's 27-Mar **and** Blair's 05-May sessions) **cannot** be matched to a session/patient via the API. The date-match is a coincidence (it linked Blair's 05-May because the invoice date was 05-May; missed Kaegan's March sessions on the same invoice). Confirmed via `?match_debug=1` / `?inv_probe=<id>`. **Resolution = manual review queue:** every past **funder** session (org-billed funder via `patientFunderMap` — built from a bulk **`/Coverage`** fetch, since `/Patient?_revinclude=Coverage:beneficiary` returns nothing) is flagged **`pending-invoice` → inbox** (wide-window bucket, any age) UNLESS reconciled via the **`session_billing_state`** ledger (`{halaxyApptId → 'invoiced'|'paid'}`, set from the "Funder billing" section on the session detail panel: `invoiced`→`funder-billed`/billing, `paid`→done; `POST ?session_bill=1`). Private/Medicare keep date-matching. The **billing block is the $ source of truth**. **Appointments DO carry `patientId`** via `participant[]` for most. Full detail: memory `halaxy-invoice-api-limits`.
+`sessions` is a **legacy table** — predates /book, which tracks sessions entirely via calendar events instead. Still has live CRUD (`api/sessions.js`) but check whether anything actually calls it before assuming it's load-bearing for current workflows.
 
-### Google Calendar
-OAuth tokens stored in `settings` table (`google_refresh_token`). Used for "pending clients" calendar and session events. `calendar-pending.js` exports `createCalendarEvent` / `deleteCalendarEvent` used by other handlers. `PATCH /api/calendar-pending?eventId=<id>` renames a cal event (`{title}`) and/or reschedules it (`{end}`, optionally `{start}`) — a partial `resource` is sent so untouched fields (e.g. `start` when only `end` changes) are preserved by Google's PATCH semantics.
+The `settings` table doubles as a generic key-value cache — Halaxy tokens, funders/fees, and several small ledgers (`client_funders`, `calendar_event_links`, `gcal_halaxy_links` if reintroduced, `session_billing_state`) all live here via `readCache`/`writeCache` helpers in `admin-enquiries.js`.
 
-**Editing session duration** (`editSessionDuration()` in `js/admin-ui.js`, surfaced in the session detail panel wherever a start+end time is known) — the session's *start* is kept fixed and only the *end* changes, computed from a minutes input. It updates whichever record is reachable: the Halaxy appointment via a new `action: 'reschedule'` on `POST /api/admin-enquiries?halaxy_appt_action=1` (`buildRescheduledAppt` — PATCHes only `start`/`end`, leaves fee/status untouched) when the session already has a `halaxyApptId`, and/or the Google Calendar event when the session has an `eventId`. **There is no stored link from a Halaxy appointment back to the calendar event it originated from** (`_calEventLinks` only maps `eventId → enquiryId`, not to a Halaxy appointment), so a session already booked in Halaxy only updates Halaxy here — a known limitation, not a bug. This most directly fixes the common case: a Google Calendar session not yet set up in Halaxy, where duration changes go straight to the calendar event.
+### Halaxy FHIR R4 API (`au-api.halaxy.com`) — read-only from this app
+Auth is OAuth2 client credentials, token cached in `settings` with a 2-minute expiry buffer. Helpers: `halaxyGet()`, `halaxyPost()`, `halaxyPatch()` in `_halaxy.js`. `halaxyPost`/`halaxyPatch` are only used by the two dead endpoints noted above — a genuinely new legitimate write use would be the first in a while and deserves real scrutiny given the project's history here.
 
-### Gmail (remittance search)
-Read-only inbox search to confirm a funder's remittance has actually landed. Reuses the **same Google OAuth app** as Calendar — `api/google-auth.js` requests `gmail.readonly` + `userinfo.email` alongside `calendar.events` (`prompt:consent` + `access_type:offline`, so re-consent mints a fresh refresh token with the new scope). **There is no service-account key** — the org policy `iam.disableServiceAccountKeyCreation` blocks those; a user refresh token is the unblocked path.
-- **Per-mailbox tokens:** `google-callback.js` decodes the `id_token` to learn which account consented and stores a **map** in `settings.gmail_tokens` (`{ "<email>": "<refresh_token>" }`) — merge, not clobber, so **admin@ and reachout@ are each connected by hitting Settings → Google → Reconnect and signing in as that account in turn**. `google_refresh_token` is still kept for Calendar back-compat (and used as a single-mailbox fallback by `_gmail.js` before any mailbox is explicitly connected).
-- **⚠ Calendar-token clobber (fixed, don't reintroduce):** Calendar (`calendar-pending.js`) reads `google_refresh_token` to fetch the **shared "Pending Clients" calendar** (`CALENDAR_ID`, exported from `calendar-pending.js`). The callback used to overwrite `google_refresh_token` on **every** consent — so a Gmail reconnect as admin@/reachout@ (mailboxes that can't see the shared calendar) repointed the calendar token and **the schedule went blank** (calendar-pending returned 0 events). Fix (`google-callback.js`): only update `google_refresh_token` when the consenting account can actually read `CALENDAR_ID` (`events.list maxResults:1`), with a first-time bootstrap fallback. **Self-healing** — reconnect as the calendar-owning account to restore it; Gmail-only reconnects leave it intact. Redirect carries `&cal=ok|no` so the right account is obvious. **Never make the calendar-token write unconditional again.**
-- **`api/_gmail.js`** (leaf module, not a serverless function — stays within the 12-function cap) exports `searchRemittance(invoiceNumber)`: fans out across every connected mailbox via the Gmail API (`Promise.allSettled` so one bad mailbox can't sink the check), query = the invoice number **AND** a remittance term (`remittance OR remitted OR "payment advice" OR "remittance advice"`) to drop noise (client threads, the invoice we sent). Never throws — per-mailbox failures land in `errors`.
-- **Endpoint:** `GET /api/admin-enquiries?check_remittance=<invoiceNumber>` (read-only). Wired to the **"🔍 Check inbox for remittance"** button shown only on **awaiting-remittance** invoices in the invoice modal (`_checkRemittance()` in `js/admin-ui.js`). A hit means the funder's money has arrived even though Halaxy still shows the invoice unpaid → go reconcile in Halaxy. **Searches `inv.ref`** (the real invoice number funders quote), not the URL-derived `invNumericId`.
-- **Deep link gotcha:** the result row links into Gmail via **`?authuser=<email>#search/<invoiceNumber>`**. The `/u/<email>/` email-in-path form throws Gmail's "Temporary Error (404)", and the `rfc822msgid:` fragment opened the right account but didn't surface the message (finicky encoding). A plain `#search/<invoiceNumber>` is the reliable choice — the server found the email by that number, so the same UI search hits the same index. It lands on **search results** (may include the invoice you sent for that number), not the message itself — accepted trade-off for reliability.
+**Per-session invoice attribution is impossible — don't try building it.** Halaxy's `/Invoice` ignores the `patient=` filter and exposes no line items by any route (`lineItem` null even when the web UI shows them; `_include=Invoice:item` → 422; `/ChargeItem` → 404). A funder bulk invoice (QFES/NDIS bill many sessions across dates onto one invoice) cannot be matched to a session via the API — confirmed via the `?match_debug=1`/`?inv_probe=<id>` diagnostics, kept around as evidence rather than something to build further on. This is *why* /book's invoice tracking is manual (`Invoice:` on the calendar event) instead of automated — it's not a missing feature, it's the correct response to a real API limitation.
+
+### Gmail (remittance + QFES search)
+Read-only. Same Google OAuth app as Calendar (`gmail.readonly` + `userinfo.email` scopes). Per-mailbox tokens in `settings.gmail_tokens` (`{ email → refresh_token }`) — admin@ and reachout@ are connected separately, each via Settings → Google → Reconnect while signed in as that account.
+
+**⚠ Calendar-token clobber (fixed, don't reintroduce):** the OAuth callback used to overwrite `google_refresh_token` on *every* consent, so a Gmail-only reconnect could repoint the Calendar token and blank the schedule. Fixed in `google-callback.js`: only updates `google_refresh_token` when the consenting account can actually read the shared calendar. Never make that write unconditional again.
+
+`_gmail.js` exports `searchRemittance(invoiceNumber)` (used by `check_remittance`), plus `searchKeyword(query)` and `searchQfesSubmissions()` — both currently unused by any endpoint (added in the /book rewrite, never wired up; fine to build on, not dead-in-a-bad-way).
 
 ### Resend (email)
-From address: `reachout@chereemcgarry.com` (domain verified). Used for registration/onboarding emails (`admin-intake.js`) and 48h appointment reminders (cron in `admin-enquiries.js`).
+From address: `reachout@chereemcgarry.com`. Templates live in `api/admin-intake.js` and `api/_emails.js` — see those files' own comments for the shell/template pattern. The Settings "Email tests" picker this was built for lived in the old `/admin` dashboard and doesn't exist in `/book` yet — `admin-intake.js`'s test path is kept as plumbing, currently unreachable from any UI.
 
-**Email templates live in `api/admin-intake.js`** — all built as inline-styled HTML tables (no external CSS) and rendered through a shared `wrap(innerHtml, preheader)` shell:
-- **Branding/shell:** light **cream + teal** theme (the `C` colour map). Logo at `/assets/email-logo.png` (transparent PNG, rasterized from `assets/logo.svg` via a browser canvas — `qlmanage` bakes a white bg, so use the canvas-download route). `wrap()` supports a hidden **preheader** (inbox-preview text).
-- **Templates:** `registrationEmailHtml` (the PRIMARY — one email with an in-email **funding-form picker**; `FUNDING_FORMS` = Private/Medicare/NDIS/Bupa/QFES/WorkCover, each a fully-tappable card with its own Halaxy link — **URLs are PLACEHOLDERS** pending the real links). Legacy: `personalEmailHtml`, `intakeEmailHtml` (per-funding, single-link). `buildIntakeHtml(clientType, …)` dispatches; `clientType ∈ {registration, complete, new, personal, medicare, ndis}`.
-- **Shared module `api/_emails.js`** holds the cross-handler `registrationCompleteEmailHtml` (the "thank-you / you're all set" email fired by the registration webhook) + its own `wrap`/`C`. It lives there (not in a handler) so both `admin-intake.js` (test picker) and `admin-enquiries.js` (webhook) import it **without a circular dependency**. Keep `_emails.js` a leaf — it must not import a route handler.
-- **Other live client emails** live in their own handlers and are **exported** so the test picker can render them: `clientReplyHtml` (contact.js — "thanks for reaching out"), `clientConfirmationHtml` (session.js — "your session request"), `_reminderHtml` (admin-enquiries.js — 48h appointment reminder).
-- **Terminology rule:** these are **"registration"** emails (administrative: get the client set up + booked), **never "intake"**. "Intake" is reserved for a future clinical questionnaire (couples/children intake). Don't reintroduce "intake" in client-facing copy.
-- **Email design constraints:** NO frosted glass / `backdrop-filter` / CSS gradients-as-sole-bg / web fonts — none render reliably in email. Keep it light (dark designs break under clients' dark-mode inversion). Gradient accent bars need a solid-colour fallback for Outlook. Mobile relies on simple stacking, not media queries.
-- **Test harness:** Settings → **"Email tests"** picker (`renderSettingsView` + `sendTestEmail()` in `admin-ui.js`) → `POST /api/admin-intake { test:1, clientType }` renders the chosen template with sample data and sends **only to `admin@chereemcgarry.com`** (no enquiry lookup, no DB writes). **`renderTestEmail(type)` in `admin-intake.js` is the single registry of testable emails** — it covers **every** live client email (enquiry thanks, session confirmation, registration, registration-complete, 48h reminder, + per-funder variants). **RULE: any new client email must get a `case` in `renderTestEmail()` + an `<option>` in `renderSettingsView`** so it stays test-sendable.
-- **Registration-complete webhook (LIVE):** `POST /api/admin-enquiries?halaxy_webhook=1` — Halaxy Patient·Create fires when a client finishes `/register`. The handler verifies `HALAXY_WEBHOOK_SECRET` (Bearer, in any header), extracts the `Patient/<id>` from the FHIR SubscriptionStatus payload, `halaxyGet`s the patient for name+email, then **matches the enquiry by email → advances it to `in_halaxy`** (+ stores the Halaxy ref, logs it) **or creates a `self-registered` enquiry** if none, and sends `registrationCompleteEmailHtml`. Idempotent via a `halaxy_registered_patients` settings-cache ledger; always returns 200.
+### Web Push (`api/_push.js`, `sw.js`)
+`saveSubscription()` stores a browser's PushSubscription; `notify({ title, body, url, tag, kind, detail })` sends to all saved subscriptions. Fires on a new booking and on an outcome being recorded (see `calendar-pending.js`). **iOS Safari only allows push subscription once the page has been added to the Home Screen** — an Apple platform restriction, not a bug if it silently doesn't work in a normal browser tab on iOS.
 
-- **Two front doors to Halaxy** (the earlier "single front door, no manual entry" principle is superseded — Cheree only uses Google Calendar and never opens Halaxy; Julian does the billing setup):
-  1. **Self-register** — `/register` widget → Patient·Create webhook (above) auto-advances the enquiry.
-  2. **Dashboard "Set up in Halaxy"** — the `openSetupInHalaxy()` wizard (`js/admin-ui.js`) for clients who won't self-register (booked in Google Calendar / known existing). It match-or-creates the Halaxy patient → writes Coverage (non-private; NDIS routes via the chosen plan manager) → `POST /Appointment/$book` with the configured fee (Halaxy then auto-creates the invoice + clinical note + reminder). Entry points: a button on the Appointments panel + a "⚕ Set up in Halaxy" CTA on upcoming unlinked Google Calendar events. The funder×session-type→fee mapping is configured in **Settings → "Booking fees"** (`session_fee_map`, `BOOKABLE_MENU`). **Full design + the live-test-before-real-use caveat: `docs/halaxy-onboarding-spec.md`.** Critical non-obvious facts for this flow:
-  - **`$book` only accepts `location-type: 'clinic'` when *creating* an appointment** — online/phone → HTTP 422 "too-costly". So the wizard always sends `clinic`; the **modality is carried by the chosen fee** (e.g. the "Online — $180" fee), so the invoice is correct even though the appointment's location flag is clinic.
-  - **NDIS routing is via Coverage, not the fee.** The FHIR fee list is deduped by name+amount, collapsing the 8 plan managers' identical $193.99 fees; the plan manager Cheree picks sets the **Coverage payor org** (`?halaxy_coverage=1`), which is what routes the invoice.
-  - **"Bupa" = DVA / ADFHCS** in this practice (not health insurance); DVA fee is **US24 $246.44** only.
-  - Confirm is an **arm-the-button** pattern (no native `window.confirm`); existing patients are found by **email auto-search + name search** inside the modal (avoids duplicates), shown as a "hero" card.
-  - **Funder reference number** (`clients.funder_ref`, migration `009_client_funder_ref.sql`) — a generic funder-issued identifier needed to lodge/reconcile a claim (e.g. a **QFES Employee ID**, an NDIS plan/reference number, a WorkCover claim number). Label shown per funder is `BOOKABLE_MENU[key].refLabel`. Collected in the wizard (`sih-funderref`, shown/hidden per funder via `_sihOnFunderChange()`) and written both to the Supabase client row (`halaxy_create_patient`) and to Halaxy itself as `Coverage.subscriberId` (`?halaxy_coverage=1`) — so it's visible in Halaxy, not just the dashboard. Editable from the client detail panel (`editFunderRefPl()`) and, when missing on a funder that needs one, surfaced as a "Missing <label>" chip in the Inbox (see below). DVA/private/Medicare don't carry one.
-  - **Per-funder guidance** (`BOOKABLE_MENU[key].guide`) — a short plain-language checklist per funder, shown inline in the wizard under the funder dropdown and in **Settings → "Funder guide"** (`_renderFunderGuideSection()`, an always-available `<details>` reference) so Cheree isn't dependent on asking Julian what a given funder needs.
-- **Optimistic UI pattern** — mutating actions update local `_pipelineData` + re-render via `renderPipeline()` (reads local data, **no re-fetch, no flash**), with a `revert()` on failure. See `_optimisticEnquiry()` (advanceEnquiryStatus, _submitCloseEnquiry) and `dhToggleTask`. `refreshPipeline()` (full re-fetch) is reserved for **manual refresh + actions that genuinely change server-side data** (convert-to-client, `$book`). There is **no "Pipeline refreshed" toast** — a background sync must be silent.
-- **Inbox = TWO issue buckets** (was three): **⚠ No Invoice** (Halaxy appts lacking an invoice) + **⚕ Not in Halaxy** (all calendar appts with no Halaxy patient, past+future, via `_dhNotInHalaxy()`). The old "Unlinked Events" / "Needs Action" split was merged since both resolve via "Set up in Halaxy". ⚠ **These two used to only cover ~30 days of past history** despite this doc's "past+future" claim — `_dhUnlinkedCalAppts` filtered to *upcoming-only* and `_dhNonHalaxyActions` defaulted to a 30d window, so a calendar session left unprocessed for a few months silently dropped out of the Inbox entirely (fixed 2026-08: both now read the wide `_DH_SCHED_WIN` window — 180d back/91d forward — and `_dhUnlinkedCalAppts` covers past+upcoming; `api/calendar-pending.js`'s Google Calendar fetch was widened to match, `-180d/+91d`).
-- **👤 Needs action — consolidated per-client Inbox view** (`_dhBuildClientActionMap()`/`_dhRenderClientActionItems()` in `js/admin-ui.js`, folder `data-status="byclient"`, now the default-open Inbox folder on both desktop and mobile when there are issues) — groups the three underlying issue arrays (`_dhHalaxyNoInvoice`, `_dhNonHalaxyActions`, `_dhUnlinkedCalAppts`) into **one card per person** instead of one row per session, with an issue-count summary and a single CTA ("Set up in Halaxy" / "Add \<funder ref label\>" / "Review"). Also flags **missing funder reference numbers** (see above) per person so that gap doesn't stay silent until claim time. The old flat "⚠ No Invoice" / "⚕ Not in Halaxy" folders are unchanged and still selectable for the raw session-level list.
-- **Parked work is in `TODO.md`** (repo root): appointment **confirmation email** (+ a combined "confirmation + registration" variant), simplifying the admin "send" flow to one button, and wiring the registration email live. **The manual "Add to Halaxy" flow has now been retired** (`admin-ui.js`): the pipeline "Add to Halaxy →" auto-advance, the "Send intake"/"Send onboarding" paste-Halaxy-URL UI, and the manual patient search/create/mark panel are gone — the Patient·Create webhook auto-advances `contacted → in_halaxy`. The non-test `admin-intake.js` send path is kept as plumbing for the future single "Send registration email" button.
-
-**Important:** Supabase query builders do not support `.catch()` chained directly — always use `try/catch` with `await`. Using `.catch(() => {})` throws `TypeError: .catch is not a function` at runtime, which surfaces to the user as a failed request even if the main operation (e.g. sending an email) already succeeded.
-
-### Anthropic API (AI brief)
-`POST /api/admin-tasks?brief=1` — calls `claude-haiku-4-5-20251001`. API key from `platform.claude.com` workspace (not `console.anthropic.com` — these are different key pools with different available models). The `platform.claude.com` workspace only has Claude 4.x models — Claude 3.x model IDs return 404. If the model 404s, check available models via `GET https://api.anthropic.com/v1/models` with the key.
-
-**If the API key stops working:** Always update via CLI (`vercel env rm` / `vercel env add`) not the Vercel dashboard UI — the dashboard edit form has shown issues where the old value persists. Confirm the key is active by checking "Last Used" in the Claude Console after a page load.
-
-Brief is cached client-side in `sessionStorage` keyed by target element + ISO hour. Passes `currentTime` + per-session `done: true/false` flags so the brief is time-aware. The brief handler **must** appear before the `title` guard in the POST block of `admin-tasks.js`, otherwise it returns 400 "Title required" before reaching the brief code.
-
-The brief response is rendered as paragraph chunks split on `\n\n` — each chunk gets `.ai-brief-para` class with a subtle teal divider between them. Fades in via `ai-brief-pulse-in` CSS animation (no typewriter).
-
-## Key Env Vars
-
-| Variable | Purpose |
-|---|---|
-| `ADMIN_SECRET` | Signs HMAC auth cookies |
-| `JULIAN_PASS` / `CHEREE_PASS` | Login passwords |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Supabase (server-side only) |
-| `HALAXY_CLIENT_ID` / `HALAXY_CLIENT_SECRET` | Halaxy OAuth |
-| `ANTHROPIC_API_KEY` | AI brief — must be from `platform.claude.com` |
-| `RESEND_API_KEY` | Outbound email |
-| `CRON_SECRET` | Authenticates the reminder cron. Vercel auto-injects it as `Authorization: Bearer <CRON_SECRET>` on cron calls. **If unset, cron auth falls back to the spoofable `x-vercel-cron` header** — keep it set. See `_isCronAuthed` in `admin-enquiries.js`. |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Calendar OAuth |
-| `HALAXY_WEBHOOK_SECRET` | Shared secret for the Halaxy Patient·Create webhook (`POST /api/admin-enquiries?halaxy_webhook=1`). Halaxy sends it as `Authorization: Bearer <secret>`; the handler accepts the secret in **any** request header (`Object.values(req.headers).some(...)`) since Halaxy's "Authentication Header" field forces the Bearer format. Set in Vercel + in the Halaxy webhook config (must match). |
-
-## Mobile UI
-
-The mobile layout lives entirely in `api/admin.js` (inline CSS) and `js/admin-ui.js`. Key pieces:
-
-- **Dock:** Floating glass pill (`mob-dock-pill`) with `backdrop-filter: blur(32px) saturate(180%)`. No text labels. Center `+` button rotates to `×` via `sheet-open` class. Active icon gets `dock-icon-pop` keyframe animation.
-- **`_mobRenderApp(app)`** dispatches to view renderers. `'reminders'` is aliased to `_mobRenderInbox()`.
-- **`_mobRenderHome()`** shows the AI brief card + today's sessions. After 4pm (or if no sessions remain today) it switches to show tomorrow's sessions with label "Tomorrow".
-- **Brief card** (`mob-home-brief-card`): teal-tinted background, brief text in `.mob-home-brief-text`, therapy quote as `.mob-home-brief-signoff` below a divider. Quote rotates daily by day-of-year index from `_MOB_QUOTES` array (10 quotes, not AI-generated).
-- **Bottom padding:** `mob-home-wrap` has 100px bottom padding to clear the floating dock.
+### QFES ISA form (`/book/qfes`, `js/cheree-qfes.js`)
+Staging tool for the QFES "Individual Support Activity" form — Cheree fills in the fields that can't be auto-collected (area, role, concern type) ahead of time, one row per client (`qfes_client_profiles`, upserted by `client_halaxy_id`). **Deliberately does not submit to the real Microsoft form** — Julian or Cheree copies the saved answers across manually, combined with appointment-specific fields (date/mode/duration/attended) from the Board and demographic fields from the Halaxy patient record. Same no-external-write principle as the rest of /book.
 
 ## Vercel / Deployment Gotchas
 
-- **Hobby plan:** Max 12 serverless functions. Streaming responses are buffered — use plain JSON responses, not `res.write()` streaming.
-- **Log access:** `vercel logs` defaults to current git branch. Always use `--no-branch --environment production` for production logs. Pipe through `--json` and Python to see untruncated messages.
-- **Env var updates** require a redeploy to take effect in serverless functions.
-- **GitHub auto-deploy** is connected — every `git push` to `main` triggers a production deploy. Running `vercel --prod` from the CLI also works and is faster for iteration.
-- **Asset cache-busting:** `api/admin.js` serves the `/admin` HTML with `Cache-Control: no-store` (always fresh) and links `admin-ui.js` + `admin-dashboard.css` with `?v=${process.env.VERCEL_GIT_COMMIT_SHA || Date.now()}` — assets cache *within* a deploy but bust *on* every deploy, so a **normal reload after a deploy gets the new code** (no hard-refresh). Caveat: a tab left **open** across a deploy keeps running old code until reloaded (no SW; an auto-update check would fix that — parked in `TODO.md`).
-- **Two-layer CSS hazard (light leftovers):** some `.xyz` rules in `api/admin.js`'s inline `<style>` use the old cream theme but are dead-overridden by `css/admin-dashboard.css` (`!important`) → they render dark. The genuinely-light ones are selectors **only** in the inline block (not in admin-dashboard.css) — fix those inline. The known live offenders (`.mm-*` mini-modal, `openNewSessionModal`, `.pl-link-input`) were dark-themed 2026-06; if you find another, check it's not just an overridden-dead rule before "fixing".
+- **Hobby plan: max 12 serverless functions** (leaf modules under `api/_*.js` don't count). Currently at the cap — adding a new endpoint means adding a query param to an existing handler, not a new file, unless you first fold something in or remove one.
+- Streaming responses are buffered — use plain JSON responses, not `res.write()` streaming.
+- `vercel logs` defaults to current git branch. Use `--no-branch --environment production` for production logs.
+- Env var updates require a redeploy to take effect.
+- **GitHub auto-deploy is connected** — every `git push` to `main` triggers a production deploy and promotes it live, same as `vercel --prod`. Whichever deployment was promoted *last* — CLI or git push — wins the `chereemcgarry.com` alias, regardless of which one is "newer" in a human sense. Keep git and production in sync (see the warning under Deploy Commands above).
+- Assets are cache-busted per-deploy via `?v=${process.env.VERCEL_GIT_COMMIT_SHA}` in the script tags `api/admin.js` emits.
 
 ## Cron
 
 `GET /api/admin-enquiries?reminder_cron=1` runs at 22:00 UTC daily (08:00 AEST) — sends 48h appointment reminder emails via Resend.
 
-## PWA
+## Registration (`/register`, unrelated to /book)
 
-`manifest.json` + `assets/pwa-icon.svg` (logo on cream background). Apple touch icon and theme colour configured in the `<head>` of `api/admin.js`.
+Separate, unlisted (`noindex`) client self-registration page — embeds Halaxy's own new-patient widget in an iframe so card capture never touches this app (keeps PCI scope at SAQ-A). Full detail in `docs/registration-form-spec.md`, which is still accurate. Completing it fires Halaxy's Patient·Create webhook (`?halaxy_webhook=1` above), which is the one legitimate place a Halaxy event drives a Supabase write — not the other direction.
+
+## Retired / historical, don't resurrect
+
+- **`js/admin-ui.js`** — the old dashboard's ~10k-line client app. Deleted. If you see it referenced in an old doc or comment, that doc is describing the pre-rewrite system.
+- **The "two-layer CSS" problem** (an inline light theme in `api/admin.js` fighting `admin-dashboard.css`'s dark overrides) — was a real, documented mess in the old dashboard. Doesn't exist in `/book`'s pages (fully self-contained inline CSS per page). `admin-dashboard.css` may still carry old-dashboard-era rules nobody's cleaned up; don't assume it applies to anything /book renders.
+- **`refactor/css-consolidation`** branch — was mid-flight cleanup of the above problem in the old dashboard. Abandoned and deleted once /book made it moot.
+- **The "Set up in Halaxy" wizard / two-front-doors model** — see the rule at the top of this file. `docs/halaxy-onboarding-spec.md` documents the old design; marked superseded at the top of that file.

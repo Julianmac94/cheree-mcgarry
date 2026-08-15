@@ -1,5 +1,12 @@
 # "Set up in Halaxy" — Cheree self-serve onboarding (DESIGN, not built yet)
 
+> **⚠ SUPERSEDED, 2026-08-15.** This design was built, then fully removed — the dashboard
+> creating patients/appointments in Halaxy turned out to be the wrong approach (see
+> `CLAUDE.md`'s top-level rule and `CHANGELOG.md`). The current system, `/book`, takes the
+> opposite approach: Google Calendar is the sole source of truth for sessions, and the
+> dashboard never writes to Halaxy at all. Kept below for historical context only — don't
+> build against this document.
+
 > Companion to `docs/registration-form-spec.md`. That doc covers the **self-registration**
 > front door (`/register` → Halaxy widget → Patient·Create webhook). **This doc covers the
 > SECOND front door:** the manual, dashboard-driven path for clients who will NOT self-register.

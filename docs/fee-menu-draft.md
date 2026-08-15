@@ -1,5 +1,10 @@
 # Fee menu draft — SHAPE THIS (Julian)
 
+> **⚠ SUPERSEDED, 2026-08-15.** This fed the "Set up in Halaxy" wizard's fee picker, which no
+> longer exists — `/book` never books a Halaxy appointment, so there's no fee-to-invoice
+> mapping to maintain. Confirmed no fee-menu concept exists anywhere in `js/cheree-book.js` or
+> `js/cheree-qfes.js`. Kept for historical context only.
+
 > Source: Halaxy CSV export, `Status=current` only (archived rows dropped). This becomes the seed
 > for the `session_type_fee_map` config. **Edit freely** — move rows between "Bookable" and "Hidden",
 > fix labels/mappings, answer the `❓` prompts. I'll turn whatever you leave here into the config.
