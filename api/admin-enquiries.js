@@ -707,21 +707,21 @@ export default async function handler(req, res) {
     }
   }
 
-  /* ── POST ?halaxy_appt_action=1 — record attended or cancel a session in Halaxy ──
+  /* ── POST ?halaxy_appt_action=1 — record, reschedule, or cancel a session already
+   * booked in Halaxy. This dashboard never creates a Halaxy appointment or patient —
+   * Cheree books directly in Halaxy; this only patches an appointment that already
+   * exists there.
    *
    * Body fields:
-   *   action        'record' | 'cancel'               (required)
+   *   action        'record' | 'cancel' | 'reschedule' (required)
    *   patientId     Halaxy Patient FHIR ID             (required)
-   *   halaxyApptId  Halaxy Appointment FHIR ID         (optional — omit for Google Cal events)
+   *   halaxyApptId  Halaxy Appointment FHIR ID         (required — must already exist)
    *   apptStart     ISO datetime string                (optional, e.g. "2026-05-12T10:00:00")
    *   apptEnd       ISO datetime string                (optional)
    *   feeId         ChargeItemDefinition FHIR ID       (required for 'record')
    *   feeName       Human-readable fee name            (optional)
    *   feeAmount     Numeric dollar amount              (required for 'record')
    *   notes         Session notes / cancellation note  (optional)
-   *
-   * For Google Cal events (no halaxyApptId): first calls POST /Appointment/$book to
-   * create the appointment in Halaxy, then PATCHes it with the fee / cancelled status.
    * ─────────────────────────────────────────────────────────────────────────────────── */
   if (req.method === 'POST' && (req.query?.halaxy_appt_action || new URL(req.url, 'http://x').searchParams.get('halaxy_appt_action'))) {
     if (!process.env.HALAXY_CLIENT_ID) {
@@ -730,60 +730,29 @@ export default async function handler(req, res) {
 
     const {
       action, halaxyApptId, patientId, apptStart, apptEnd,
-      feeId, feeName, feeAmount, notes, locationType,
+      feeId, feeName, feeAmount, notes,
     } = req.body || {};
 
-    // Log received fields so we can confirm feeId is arriving correctly
     console.log('halaxy_appt_action:', JSON.stringify({ action, patientId, feeId: feeId || null, feeAmount: feeAmount || null, hasApptId: !!halaxyApptId }));
 
     if (!action || !patientId) {
       return res.status(400).json({ error: 'action and patientId are required' });
     }
-    // 'book' creates a new appointment via $book — feeAmount not required (fee via feeId only)
-    // 'record' patches an existing appointment — feeAmount required when apptId is known
-    if (action === 'record' && halaxyApptId && feeAmount == null) {
+    if (!halaxyApptId) {
+      return res.status(400).json({ error: 'halaxyApptId is required — this endpoint only patches an appointment that already exists in Halaxy' });
+    }
+    if (action === 'record' && feeAmount == null) {
       return res.status(400).json({ error: 'feeAmount is required to record a session' });
     }
-    if (action === 'reschedule' && (!halaxyApptId || !apptStart || !apptEnd)) {
-      return res.status(400).json({ error: 'halaxyApptId, apptStart and apptEnd are required to reschedule' });
+    if (action === 'reschedule' && (!apptStart || !apptEnd)) {
+      return res.status(400).json({ error: 'apptStart and apptEnd are required to reschedule' });
     }
-    if (!['record', 'cancel', 'book', 'reschedule'].includes(action)) {
-      return res.status(400).json({ error: 'action must be "record", "cancel", "book", or "reschedule"' });
+    if (!['record', 'cancel', 'reschedule'].includes(action)) {
+      return res.status(400).json({ error: 'action must be "record", "cancel", or "reschedule"' });
     }
 
     try {
-      let apptId = halaxyApptId || null;
-
-      // No existing Halaxy appointment (Google Cal-only event) — use $book to create one.
-      // $book with charge-item-definition-id auto-creates invoice + clinical note + reminder.
-      if (!apptId) {
-        const db2 = supabase();
-        const prCache = await readCache(db2, 'halaxy_practitioner_role');
-        const practitionerRoleId = prCache?.id;
-
-        if (!practitionerRoleId) {
-          console.warn('No PractitionerRole cached — run a Halaxy sync first. Returning calOnly.');
-          return res.status(200).json({ ok: true, calOnly: true, noSync: true, halaxyApptId: null });
-        }
-
-        console.log(`Halaxy $book: patient=${patientId} start=${apptStart} pr=${practitionerRoleId} fee=${feeId || 'none'} location=${locationType || 'clinic'}`);
-        const booked = await halaxyPost('/Appointment/$book',
-          buildBookParameters(patientId, apptStart || null, apptEnd || null, feeId || null, locationType || 'clinic', practitionerRoleId)
-        );
-
-        apptId = booked.id
-               || booked.entry?.[0]?.resource?.id
-               || (booked.parameter || []).find(p => p.name === 'appointment')?.resource?.id;
-
-        if (!apptId) {
-          throw new Error('$book did not return an appointment ID. Response: ' + JSON.stringify(booked).slice(0, 300));
-        }
-        console.log(`Halaxy $book: created appointment ${apptId} — invoice auto-created by Halaxy`);
-
-        // $book already created the invoice — no PATCH needed
-        return res.status(200).json({ ok: true, booked: true, halaxyApptId: apptId });
-      }
-
+      const apptId = halaxyApptId;
       let patchResult = null;
 
       if (action === 'record') {
@@ -815,250 +784,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, halaxyApptId: apptId, patchResult });
     } catch (err) {
       console.error('Halaxy appt action error:', err.message);
-      return res.status(500).json({ error: err.message });
-    }
-  }
-
-  /* ── POST ?halaxy_create_patient=1 — create a new patient in Halaxy + dashboard client ──
-   * Creates a FHIR R4 Patient in Halaxy, then saves a Supabase client record linked to them.
-   *
-   * Body fields:
-   *   firstName     string   (required)
-   *   lastName      string   (required)
-   *   phone         string   (optional)
-   *   email         string   (optional)
-   *   dob           string   YYYY-MM-DD (optional)
-   *   gender        string   male|female|other|unknown (optional)
-   *   funder        string   billing key e.g. 'private', 'medicare', 'ndis_plan' (optional)
-   *   planManager   string   plan manager name for ndis_plan (optional)
-   *   funderRef     string   funder-issued reference, e.g. QFES Employee ID (optional)
-   *   notes         string   dashboard notes (optional)
-   * ──────────────────────────────────────────────────────────────────────────────────── */
-  if (req.method === 'POST' && (req.query?.halaxy_create_patient || new URL(req.url, 'http://x').searchParams.get('halaxy_create_patient'))) {
-    if (!process.env.HALAXY_CLIENT_ID) {
-      return res.status(400).json({ error: 'Halaxy not configured' });
-    }
-
-    const { firstName, lastName, phone, email, dob, gender, funder, planManager, funderRef, notes,
-            client_type, is_contact, parent_client_id } = req.body || {};
-    if (!firstName || !lastName) {
-      return res.status(400).json({ error: 'firstName and lastName are required' });
-    }
-
-    try {
-      // Build FHIR R4 Patient resource
-      const patientResource = {
-        resourceType: 'Patient',
-        name: [{ use: 'official', given: [firstName.trim()], family: lastName.trim() }],
-      };
-      if (dob)    patientResource.birthDate = dob;
-      if (gender) patientResource.gender    = gender;
-      const telecom = [];
-      if (phone) telecom.push({ system: 'phone', value: phone.trim(), use: 'mobile' });
-      if (email) telecom.push({ system: 'email', value: email.trim() });
-      if (telecom.length) patientResource.telecom = telecom;
-
-      console.log('Creating Halaxy patient:', firstName, lastName);
-      const created   = await halaxyPost('/Patient', patientResource);
-      const halaxyId  = created.id;
-      if (!halaxyId) throw new Error('Halaxy did not return a patient ID. Response: ' + JSON.stringify(created).slice(0, 300));
-      console.log('Halaxy patient created:', halaxyId);
-
-      // Build privacy-safe display name (first name + last initial)
-      const displayName = firstName.trim() + ' ' + lastName.trim()[0] + '.';
-
-      // Create Supabase client record
-      const db2 = supabase();
-      const { data: client, error: clientErr } = await db2
-        .from('clients')
-        .insert({
-          display_name:     displayName,
-          halaxy_id:        halaxyId,
-          funder:           funder            || null,
-          plan_manager:     planManager       || null,
-          funder_ref:       funderRef         || null,
-          notes:            notes             || null,
-          client_type:      client_type       || null,
-          is_contact:       is_contact        || false,
-          parent_client_id: parent_client_id  || null,
-          active:           true,
-        })
-        .select()
-        .single();
-
-      if (clientErr) throw new Error('Supabase client insert failed: ' + clientErr.message);
-      console.log('Supabase client created:', client.id, 'linked to Halaxy', halaxyId);
-
-      return res.status(201).json({ ok: true, client, halaxyId });
-    } catch (err) {
-      console.error('halaxy_create_patient error:', err.message);
-      return res.status(500).json({ error: err.message });
-    }
-  }
-
-  /* ── POST ?halaxy_create_and_map=1 — create patient in Halaxy, patch existing Supabase client ──
-   * Unlike halaxy_create_patient (which inserts a new Supabase record), this endpoint
-   * maps an EXISTING Supabase onboarding record to a freshly-created Halaxy patient.
-   * The Supabase client already exists (onboarding stage); we just update its halaxy_id.
-   *
-   * Body fields:
-   *   clientId      string   Supabase client UUID  (required)
-   *   firstName     string   (required)
-   *   lastName      string   (required)
-   *   phone         string   (optional)
-   *   email         string   (optional)
-   *   dob           string   YYYY-MM-DD (optional)
-   * ──────────────────────────────────────────────────────────────────────────────────── */
-  if (req.method === 'POST' && (req.query?.halaxy_create_and_map || new URL(req.url, 'http://x').searchParams.get('halaxy_create_and_map'))) {
-    if (!process.env.HALAXY_CLIENT_ID) {
-      return res.status(400).json({ error: 'Halaxy not configured' });
-    }
-
-    const { clientId, firstName, lastName, phone, email, dob } = req.body || {};
-    if (!clientId)              return res.status(400).json({ error: 'clientId is required' });
-    if (!firstName || !lastName) return res.status(400).json({ error: 'firstName and lastName are required' });
-
-    try {
-      // Build FHIR R4 Patient resource
-      const patientResource = {
-        resourceType: 'Patient',
-        name: [{ use: 'official', given: [firstName.trim()], family: lastName.trim() }],
-      };
-      if (dob) patientResource.birthDate = dob;
-      const telecom = [];
-      if (phone) telecom.push({ system: 'phone', value: phone.trim(), use: 'mobile' });
-      if (email) telecom.push({ system: 'email', value: email.trim() });
-      if (telecom.length) patientResource.telecom = telecom;
-
-      console.log('Creating Halaxy patient (create-and-map):', firstName, lastName);
-      const created  = await halaxyPost('/Patient', patientResource);
-      const halaxyId = created.id;
-      if (!halaxyId) throw new Error('Halaxy did not return a patient ID. Response: ' + JSON.stringify(created).slice(0, 300));
-      console.log('Halaxy patient created:', halaxyId, '— patching Supabase client', clientId);
-
-      // PATCH the existing Supabase client record with the new halaxy_id
-      const db2 = supabase();
-      const { data: client, error: patchErr } = await db2
-        .from('clients')
-        .update({ halaxy_id: halaxyId })
-        .eq('id', clientId)
-        .select()
-        .single();
-
-      if (patchErr) throw new Error('Supabase client patch failed: ' + patchErr.message);
-      console.log('Supabase client', clientId, 'linked to Halaxy', halaxyId);
-
-      return res.status(200).json({ ok: true, client, halaxyId });
-    } catch (err) {
-      console.error('halaxy_create_and_map error:', err.message);
-      return res.status(500).json({ error: err.message });
-    }
-  }
-
-  /* ── POST ?new_session=1 — create a session from the dashboard ──────────────────────
-   * Creates a Google Calendar event and, for Halaxy clients, $books the appointment
-   * in Halaxy (which auto-creates invoice + clinical note + reminder).
-   *
-   * Body fields:
-   *   clientName    string   Display name for the calendar event title  (required)
-   *   start         ISO      Appointment start datetime                  (required)
-   *   end           ISO      Appointment end datetime                    (required)
-   *   notes         string   Event description / session notes           (optional)
-   *   halaxyPatientId string Halaxy Patient FHIR ID — triggers $book    (optional)
-   *   feeId         string   ChargeItemDefinition ID — for auto-invoice  (optional)
-   *   locationType  string   clinic|telehealth|phone|online              (optional)
-   * ─────────────────────────────────────────────────────────────────────────────── */
-  if (req.method === 'POST' && (req.query?.new_session || new URL(req.url, 'http://x').searchParams.get('new_session'))) {
-    const { clientName, start, end, notes, halaxyPatientId, feeId, locationType } = req.body || {};
-
-    if (!clientName || !start || !end) {
-      return res.status(400).json({ error: 'clientName, start and end are required' });
-    }
-
-    try {
-      // 1. Create Google Calendar event
-      const calTitle = clientName + ' — session';
-      const calEvent = await createCalendarEvent({ title: calTitle, start, end, notes: notes || '' });
-      console.log(`New session: Cal event created ${calEvent.id} for ${clientName}`);
-
-      // 2. If this is a Halaxy client, $book the appointment (auto-creates invoice)
-      let halaxyApptId = null;
-      let halaxyBooked = false;
-
-      if (halaxyPatientId) {
-        const db2 = supabase();
-        const prCache = await readCache(db2, 'halaxy_practitioner_role');
-        const practitionerRoleId = prCache?.id;
-
-        if (practitionerRoleId) {
-          console.log(`New session: $booking Halaxy appt for patient ${halaxyPatientId} fee=${feeId || 'none'}`);
-          const booked = await halaxyPost('/Appointment/$book',
-            buildBookParameters(halaxyPatientId, start, end, feeId || null, locationType || 'clinic', practitionerRoleId)
-          );
-          halaxyApptId = booked.id
-                      || booked.entry?.[0]?.resource?.id
-                      || (booked.parameter || []).find(p => p.name === 'appointment')?.resource?.id;
-          if (halaxyApptId) {
-            halaxyBooked = true;
-            console.log(`New session: Halaxy appointment ${halaxyApptId} created — invoice auto-generated`);
-          }
-        } else {
-          console.warn('New session: no PractitionerRole cached — skipping $book. Run a sync first.');
-        }
-      }
-
-      return res.status(201).json({
-        ok:           true,
-        calEventId:   calEvent.id,
-        halaxyApptId: halaxyApptId || null,
-        halaxyBooked,
-      });
-    } catch (err) {
-      console.error('New session error:', err.message);
-      return res.status(500).json({ error: err.message });
-    }
-  }
-
-  /* ── POST ?new_appt=1 — book a new appointment directly in Halaxy (no Google Cal) ─────────
-   * Halaxy IS the calendar for client appointments. This endpoint books via $book and returns
-   * the created appointment ID. Passing a feeId triggers Halaxy to auto-create invoice + note.
-   *
-   * Body fields:
-   *   patientId     string   Halaxy Patient FHIR ID   (required)
-   *   start         ISO      Appointment start         (required)
-   *   end           ISO      Appointment end           (required)
-   *   feeId         string   ChargeItemDefinition ID   (optional — triggers auto-invoice)
-   *   locationType  string   clinic|telehealth|phone   (optional, default 'clinic')
-   * ─────────────────────────────────────────────────────────────────────────────────── */
-  if (req.method === 'POST' && (req.query?.new_appt || new URL(req.url, 'http://x').searchParams.get('new_appt'))) {
-    if (!process.env.HALAXY_CLIENT_ID) {
-      return res.status(400).json({ error: 'Halaxy not configured' });
-    }
-    const { patientId, start, end, feeId, locationType } = req.body || {};
-    if (!patientId || !start || !end) {
-      return res.status(400).json({ error: 'patientId, start and end are required' });
-    }
-    try {
-      const db3 = supabase();
-      const prCache = await readCache(db3, 'halaxy_practitioner_role');
-      const practitionerRoleId = prCache?.id;
-      if (!practitionerRoleId) {
-        return res.status(400).json({ error: 'No PractitionerRole cached — run a Halaxy sync first' });
-      }
-      console.log(`new_appt: $booking patient=${patientId} start=${start} pr=${practitionerRoleId} fee=${feeId || 'none'} location=${locationType || 'clinic'}`);
-      const booked = await halaxyPost('/Appointment/$book',
-        buildBookParameters(patientId, start, end, feeId || null, locationType || 'clinic', practitionerRoleId)
-      );
-      const halaxyApptId = booked.id
-        || booked.entry?.[0]?.resource?.id
-        || (booked.parameter || []).find(p => p.name === 'appointment')?.resource?.id;
-      if (!halaxyApptId) {
-        throw new Error('$book did not return an appointment ID. Response: ' + JSON.stringify(booked).slice(0, 300));
-      }
-      console.log(`new_appt: Halaxy appointment ${halaxyApptId} created — invoice auto-generated`);
-      return res.status(201).json({ ok: true, halaxyApptId });
-    } catch (err) {
-      console.error('new_appt error:', err.message);
       return res.status(500).json({ error: err.message });
     }
   }

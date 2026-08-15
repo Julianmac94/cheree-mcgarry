@@ -3646,7 +3646,6 @@ body {
     <!-- Mode toggle -->
     <div class="cl-mode-toggle">
       <button class="cl-mode-btn cl-mode-btn--active" id="cl-mode-search-btn" onclick="setClientModalMode('search')">Import from Halaxy</button>
-      <button class="cl-mode-btn" id="cl-mode-new-btn" onclick="setClientModalMode('new')">New in Halaxy</button>
       <button class="cl-mode-btn" id="cl-mode-dash-btn" onclick="setClientModalMode('dashboard')">Dashboard only</button>
     </div>
 
@@ -3705,81 +3704,6 @@ body {
           <label for="cl-notes">Notes (optional)</label>
           <input class="cl-modal-input" id="cl-notes" type="text" placeholder="Any useful context…">
         </div>
-      </div>
-    </div>
-
-    <!-- ── NEW MODE: create patient in Halaxy ── -->
-    <div id="cl-new-mode" style="display:none">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div class="cl-modal-field">
-          <label for="cl-first-name">First name <span style="color:var(--terra)">*</span></label>
-          <input class="cl-modal-input" id="cl-first-name" type="text" placeholder="e.g. Sarah">
-        </div>
-        <div class="cl-modal-field">
-          <label for="cl-last-name">Last name <span style="color:var(--terra)">*</span></label>
-          <input class="cl-modal-input" id="cl-last-name" type="text" placeholder="e.g. Jones">
-        </div>
-      </div>
-      <div class="cl-modal-field">
-        <label for="cl-new-phone">Phone (optional)</label>
-        <input class="cl-modal-input" id="cl-new-phone" type="tel" placeholder="04xx xxx xxx">
-      </div>
-      <div class="cl-modal-field">
-        <label for="cl-new-email">Email (optional)</label>
-        <input class="cl-modal-input" id="cl-new-email" type="email" placeholder="sarah@example.com">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div class="cl-modal-field">
-          <label for="cl-new-dob">Date of birth (optional)</label>
-          <input class="cl-modal-input" id="cl-new-dob" type="date">
-        </div>
-        <div class="cl-modal-field">
-          <label for="cl-new-gender">Gender (optional)</label>
-          <select class="cl-modal-select" id="cl-new-gender">
-            <option value="">— select —</option>
-            <option value="female">Female</option>
-            <option value="male">Male</option>
-            <option value="other">Other</option>
-            <option value="unknown">Prefer not to say</option>
-          </select>
-        </div>
-      </div>
-      <div class="cl-modal-field">
-        <label for="cl-new-funder">Funder</label>
-        <select class="cl-modal-select" id="cl-new-funder" onchange="onModalFunderChange(this, 'new')">
-          <option value="">Loading…</option>
-        </select>
-      </div>
-      <div class="cl-modal-field" id="plan-manager-field-new" style="display:none">
-        <label for="cl-new-plan-manager">Plan manager name</label>
-        <input class="cl-modal-input" id="cl-new-plan-manager" type="text" placeholder="e.g. ABC Plan Management">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div class="cl-modal-field">
-          <label for="cl-new-client-type">Client type</label>
-          <select class="cl-modal-select" id="cl-new-client-type" onchange="onClientTypeChange(this,'new')">
-            <option value="individual">Individual</option>
-            <option value="couples">Couples</option>
-            <option value="child">Child</option>
-          </select>
-        </div>
-        <div class="cl-modal-field">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-            <input type="checkbox" id="cl-new-is-contact" style="margin:0"> Contact only
-          </label>
-          <div style="font-size:10px;color:#9AABA8;margin-top:2px">Non-billable (referrer, parent etc.)</div>
-        </div>
-      </div>
-      <div class="cl-modal-field" id="cl-new-parent-field" style="display:none">
-        <label for="cl-new-parent-id">Parent/Guardian client</label>
-        <input class="cl-modal-input" id="cl-new-parent-search" type="text" placeholder="Search client by name…"
-          autocomplete="off" oninput="_debounceParentSearch(this.value,'new')">
-        <input type="hidden" id="cl-new-parent-id">
-        <div id="cl-new-parent-results" style="margin-top:4px"></div>
-      </div>
-      <div class="cl-modal-field">
-        <label for="cl-new-notes">Notes (optional)</label>
-        <input class="cl-modal-input" id="cl-new-notes" type="text" placeholder="Any useful context…">
       </div>
     </div>
 

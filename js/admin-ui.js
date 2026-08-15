@@ -2331,66 +2331,6 @@ function _dbPopulateHxFees(funderKey) {
   }
 }
 
-/** Book an appointment directly in Halaxy via POST /Appointment/$book */
-async function dbBookHalaxyAppt() {
-  var patientId    = (document.getElementById('db-ap-hx-client')   || {}).value || '';
-  var date         = (document.getElementById('db-ap-hx-date')     || {}).value || '';
-  var time         = (document.getElementById('db-ap-hx-time')     || {}).value || '10:00';
-  var duration     = parseInt((document.getElementById('db-ap-hx-duration') || {}).value || '50', 10);
-  var locationSel  = document.getElementById('db-ap-hx-location');
-  var locationType = locationSel ? (locationSel.value || 'clinic') : 'clinic';
-  var funderSel    = document.getElementById('db-ap-hx-funder');
-  if (funderSel && !funderSel.value) { toast('Please select a funder', 'err'); return; }
-  var feeSel       = document.getElementById('db-ap-hx-fee');
-  var feeId        = feeSel ? (feeSel.value || '') : '';
-  var feeOpt       = feeSel ? feeSel.options[feeSel.selectedIndex] : null;
-  var feeName      = feeOpt ? (feeOpt.dataset.name   || '') : '';
-  var feeAmount    = feeOpt ? parseFloat(feeOpt.dataset.amount || '0') : 0;
-
-  if (!patientId) { toast('Please select a patient', 'err'); return; }
-  if (!date)      { toast('Date is required', 'err'); return; }
-
-  // Build ISO start/end strings — Halaxy requires a timezone offset (Brisbane = UTC+10, no DST)
-  var TZ = '+10:00';
-  var apptStart = date + 'T' + (time.length === 5 ? time : '10:00') + ':00' + TZ;
-  var startMs   = new Date(apptStart).getTime();
-  var endMs     = startMs + duration * 60 * 1000;
-  // Format end in Brisbane time: shift by +10h then read UTC components
-  var _endBris  = new Date(endMs + 10 * 3600 * 1000);
-  var _p        = function(n) { return ('0' + n).slice(-2); };
-  var apptEnd   = _endBris.getUTCFullYear() + '-' + _p(_endBris.getUTCMonth() + 1) + '-'
-                + _p(_endBris.getUTCDate()) + 'T'
-                + _p(_endBris.getUTCHours()) + ':' + _p(_endBris.getUTCMinutes()) + ':00' + TZ;
-
-  var nextBtn = document.getElementById('db-ap-next');
-  if (nextBtn) { nextBtn.disabled = true; nextBtn.textContent = 'Booking…'; }
-
-  try {
-    await apiFetch('/api/admin-enquiries?halaxy_appt_action=1', {
-      method: 'POST',
-      body: {
-        action:      'book',
-        patientId,
-        apptStart,
-        apptEnd,
-        feeId:       feeId    || undefined,
-        feeName:     feeName  || undefined,
-        feeAmount:   feeAmount || undefined,
-        locationType,
-      }
-    });
-    closeDbModal('db-modal-appt');
-    var msg = feeId
-      ? 'Appointment booked — invoice auto-created in Halaxy'
-      : 'Appointment booked in Halaxy (no fee selected)';
-    toast(msg, 'ok');
-  } catch (err) {
-    toast('Booking failed: ' + err.message, 'err');
-  } finally {
-    if (nextBtn) { nextBtn.disabled = false; nextBtn.textContent = 'Book in Halaxy →'; }
-  }
-}
-
 /** Navigate to client detail from upcoming strip by Halaxy patient ID */
 function _openClientFromAppt(hxPatientId) {
   if (!hxPatientId) return;
@@ -3620,13 +3560,8 @@ function renderAppointmentsPanel() {
         var apptStartIso = sess.startIso || (sess.dateStr + 'T09:00:00');
         return '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px" onclick="openHalaxyApptLogPanel(\'' + uid + '\',\'' + escHtml(sess.patientId) + '\',\'' + escHtml(hxName) + '\',\'' + sess.dateStr + '\',\'' + escHtml(apptStartIso) + '\',\'' + escHtml(sess.halaxyApptId || '') + '\')">Record →</button>';
       }
-      if (sess.source === 'cal' && sess.eventId) {
-        return '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px" onclick="openCalSessionPanel(\'' + uid + '\',\'' + escHtml(sess.eventId) + '\')">Link &amp; Record →</button>';
-      }
-    }
-    // Upcoming Google Calendar event not yet in Halaxy → one-click set up (create patient + book).
-    if (status === 'upcoming' && sess.source === 'cal' && sess.eventId) {
-      return '<button class="dp-btn dp-btn--primary" style="font-size:10px;padding:4px 9px" onclick="_sihFromCalEvent(\'' + escHtml(sess.eventId) + '\')">⚕ Set up in Halaxy →</button>';
+      // Cal-only session with no Halaxy patient — resolve via the session's own
+      // detail panel ("Link to a contact card"), not a dashboard-driven booking.
     }
     if (status === 'pending-invoice') {
       var calUrl = _halaxyWebUrl ? (_halaxyWebUrl + '/calendar?date=' + sess.dateStr) : 'https://www.halaxy.com/practitioner';
@@ -3677,7 +3612,7 @@ function renderAppointmentsPanel() {
           + '<div class="log-card-title">' + escHtml(sess.name) + '</div>'
           + '<div class="log-card-date">' + escHtml(sess.dateLabel) + ' · Calendar</div>'
           + '</div>'
-          + '<button class="dp-btn dp-btn--primary" onclick="openCalSessionPanel(\'' + uid + '\',\'' + eid + '\')">Link &amp; Record →</button>'
+          + '<button class="dp-btn dp-btn--primary" onclick="openMergePicker(\'event\',\'' + eid + '\')">🔗 Link to a contact card</button>'
           + '<div id="pl-link-' + uid + '"></div>'
           + '</div>';
       }
@@ -3753,12 +3688,8 @@ function renderAppointmentsPanel() {
 
   var html = '';
 
-  /* ── Header row: + New Session + Set up in Halaxy + view toggle ── */
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:2px">'
-    + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
-    +   '<button class="dp-btn dp-btn--soft" style="font-size:12px;padding:4px 10px" onclick="openNewSessionModal()">+ New Appointment</button>'
-    +   '<button class="dp-btn dp-btn--primary" style="font-size:12px;padding:4px 10px" onclick="openSetupInHalaxy()">⚕ Set up in Halaxy</button>'
-    + '</div>'
+  /* ── Header row: view toggle ── */
+  html += '<div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px;margin-bottom:2px">'
     + viewToggleHtml
     + '</div>';
 
@@ -3861,7 +3792,7 @@ function renderAppointmentsPanel() {
             + '<span class="week-event-source">Google Cal</span>'
             + '<div class="week-event-title">' + escHtml(title) + '</div>'
             + '<div class="week-event-actions">'
-            + '<button class="week-event-btn" onclick="event.stopPropagation();openCalSessionPanel(\'' + uid + '\',\'' + eid + '\')">Create Invoice →</button>'
+            + '<button class="week-event-btn" onclick="event.stopPropagation();openMergePicker(\'event\',\'' + eid + '\')">🔗 Link to a contact card</button>'
             + '<button class="week-event-dismiss" onclick="event.stopPropagation();dismissCalEvent(\'' + eid + '\')">Dismiss</button>'
             + '</div>'
             + '<div id="pl-link-' + uid + '"></div>'
@@ -4643,8 +4574,8 @@ function _dhRenderClientActionItems(listEl, map) {
     var ctaLabel, ctaOnclick;
     var notInHalaxy = e.issues.find(function(i) { return i.kind === 'not-in-halaxy'; });
     if (notInHalaxy) {
-      ctaLabel = 'Set up in Halaxy';
-      ctaOnclick = "event.stopPropagation();_sihFromCalEvent('" + escHtml(String(notInHalaxy.eventId || '')) + "')";
+      ctaLabel = '🔗 Link to a contact card';
+      ctaOnclick = "event.stopPropagation();openMergePicker('event','" + escHtml(String(notInHalaxy.eventId || '')) + "')";
     } else if (e.missingFunderRef) {
       ctaLabel = 'Add ' + e.refLabel;
       ctaOnclick = "event.stopPropagation();editFunderRefPl('" + escHtml(String(e.clientId)) + "','" + escHtml(e.refLabel) + "')";
@@ -8272,18 +8203,14 @@ function _calUnlinkedActionHtml(eventId, calName) {
 
   var html = '';
 
-  // Primary: the wizard handles BOTH new and existing clients (it searches Halaxy by name + email),
-  // books the session and raises the invoice — no need to open Halaxy first.
-  html += '<button class="m-btn-primary" onclick="_sihFromCalEvent(\'' + safeId + '\')">⚕ Set up in Halaxy &amp; book →</button>';
-  html += '<div class="m-info-box" style="margin:8px 0 14px">Finds or creates the client in Halaxy, books this session, and raises the invoice — all here.</div>';
+  // Primary: merge this calendar event onto an existing contact card — no Halaxy
+  // write. The appointment + invoice happen in Halaxy directly; this dashboard
+  // only tracks who the session is for.
+  html += '<button class="m-btn-primary" onclick="openMergePicker(\'event\',\'' + safeId + '\')">🔗 Link to a contact card →</button>';
+  html += '<div class="m-info-box" style="margin:8px 0 14px">Merge onto an existing enquiry — it becomes that contact\'s appointment. No Halaxy write.</div>';
 
   html += '<div class="m-question">Or…</div>';
   html += '<div class="m-option-list">';
-
-  html += '<button class="m-option-item" onclick="openMergePicker(\'event\',\'' + safeId + '\')">'
-    + '<span class="m-option-label">🔗 Link to a contact card</span>'
-    + '<span class="m-option-hint">Merge onto an existing enquiry — it becomes that contact\'s appointment</span>'
-    + '</button>';
 
   html += '<button class="m-option-item" onclick="_calDismissAlreadyBooked(\'' + safeId + '\',\'' + safeName + '\')">'
     + '<span class="m-option-label">Already booked in Halaxy</span>'
@@ -8806,9 +8733,7 @@ function _renderClientDetailPanel(cl) {
   // Primary CTA — single action, no competing buttons
   if (hid && _halaxyWebUrl) {
     html += '<a class="m-btn-primary" href="' + escHtml(_halaxyWebUrl + '/clients') + '" target="_blank" rel="noopener">Open in Halaxy →</a>';
-    html += '<button class="m-btn-ghost" onclick="openNewSessionModal()">Log appointment</button>';
   } else {
-    html += '<button class="m-btn-primary" onclick="openNewSessionModal()">Log appointment</button>';
     html += '<div class="m-links"><button class="m-link" onclick="_dhRenameClient(\'' + escHtml(cl.id) + '\',\'' + escHtml(cl.display_name || '') + '\')">✎ Edit name</button></div>';
   }
 
@@ -8955,338 +8880,6 @@ var _advanceInFlight = {};
 /* ── Hello / greeting section (stubbed — replaced by sidebar badge) ── */
 function renderHelloSection() {
   updateSidebarBadge(); // update queue badge instead
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   "SET UP IN HALAXY" — Cheree self-serve onboarding wizard (step 2)
-   Match-or-create patient → (coverage) → $book (Halaxy auto-creates the
-   invoice). Reuses the proven endpoints ?halaxy_create_patient /
-   ?halaxy_coverage / ?halaxy_appt_action, and the funder×session-type→fee
-   config from session_fee_map (Settings → Booking fees). No Halaxy UI.
-   Full design: docs/halaxy-onboarding-spec.md.
-   ════════════════════════════════════════════════════════════════════ */
-var _sihState = { patientId: null, eventId: null };
-
-function openSetupInHalaxy(prefill) {
-  prefill = prefill || {};
-  _sihState = { patientId: null, eventId: prefill.eventId || null };
-
-  var funderOpts = '<option value="">Select funding…</option>'
-    + BOOKABLE_MENU.map(function(f) { return '<option value="' + f.key + '">' + escHtml(f.label) + '</option>'; }).join('');
-
-  var existing = document.getElementById('sih-overlay');
-  if (existing) existing.remove();
-  var overlay = document.createElement('div');
-  overlay.id = 'sih-overlay';
-  overlay.className = 'db-modal-overlay open';
-  overlay.innerHTML =
-      '<div class="db-modal" style="width:480px;max-width:94vw">'
-    + '<div class="db-modal-hdr"><div>'
-    +   '<div class="db-modal-title">Set up in Halaxy</div>'
-    +   '<div class="db-modal-sub">Create the client &amp; book — the invoice is made automatically. No need to open Halaxy.</div>'
-    + '</div><button class="db-modal-close" onclick="this.closest(\'.db-modal-overlay\').remove()">×</button></div>'
-    + '<div class="db-modal-body" id="sih-body" style="display:flex;flex-direction:column;gap:10px;padding:16px 24px;max-height:70vh;overflow:auto;transition:opacity .15s">'
-    +   '<div id="sih-client-entry" style="display:flex;flex-direction:column;gap:10px">'
-    +     '<div style="display:flex;gap:8px">'
-    +       '<input id="sih-first" class="db-form-input" placeholder="First name" value="' + escHtml(prefill.firstName || '') + '" style="flex:1">'
-    +       '<input id="sih-last"  class="db-form-input" placeholder="Last name"  value="' + escHtml(prefill.lastName  || '') + '" style="flex:1">'
-    +     '</div>'
-    +     '<input id="sih-email" class="db-form-input" type="email" placeholder="Email" value="' + escHtml(prefill.email || '') + '" oninput="_sihState.patientId=null" onblur="_sihSearchPatient()">'
-    +     '<input id="sih-phone" class="db-form-input" placeholder="Phone (optional)" value="' + escHtml(prefill.phone || '') + '">'
-    +     '<div id="sih-match" style="font-size:11.5px;color:var(--t3);min-height:16px"></div>'
-    +     '<input id="sih-namesearch" class="db-form-input" placeholder="🔍 …or find an existing Halaxy patient by name" oninput="_sihDebounceNameSearch()">'
-    +     '<div id="sih-nameresults"></div>'
-    +   '</div>'
-    +   '<div id="sih-client-hero" style="display:none"></div>'
-    +   '<select id="sih-funder" class="db-form-input" onchange="_sihOnFunderChange()">' + funderOpts + '</select>'
-    +   '<div id="sih-guide" style="display:none;font-size:11.5px;line-height:1.5;color:var(--teal);background:rgba(45,212,191,0.08);border-radius:8px;padding:8px 10px"></div>'
-    +   '<select id="sih-pm" class="db-form-input" style="display:none"></select>'
-    +   '<input id="sih-funderref" class="db-form-input" style="display:none" placeholder="">'
-    +   '<select id="sih-type" class="db-form-input" style="display:none" onchange="_sihOnTypeChange()"></select>'
-    +   '<div id="sih-fee" style="font-size:12px;color:var(--teal);min-height:16px"></div>'
-    +   '<div style="display:flex;gap:8px">'
-    +     '<input id="sih-date" class="db-form-input" type="date" value="' + escHtml(prefill.dateISO || '') + '" style="flex:1">'
-    +     '<input id="sih-time" class="db-form-input" type="time" value="' + escHtml(prefill.time || '10:00') + '" style="width:118px">'
-    +     '<input id="sih-dur"  class="db-form-input" type="number" min="1" value="' + (prefill.durationMin || 60) + '" style="width:80px" title="Minutes">'
-    +   '</div>'
-    +   '<div id="sih-msg" style="font-size:12px;min-height:16px"></div>'
-    + '</div>'
-    + '<div class="db-modal-ftr" style="padding:14px 20px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;justify-content:flex-end">'
-    +   '<button id="sih-cancel-btn" onclick="this.closest(\'.db-modal-overlay\').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.18);color:var(--t2);border-radius:9px;padding:8px 16px;font-size:13px;font-family:var(--sans);cursor:pointer">Cancel</button>'
-    +   '<button class="db-btn-primary" id="sih-book-btn" onclick="_sihSubmit()">Book in Halaxy →</button>'
-    + '</div>'
-    + '</div>';
-  document.body.appendChild(overlay);
-  if (prefill.email) _sihSearchPatient();
-}
-
-// Open the "Set up in Halaxy" wizard prefilled from a Google Calendar event.
-function _sihFromCalEvent(eventId) {
-  var ev = _calEventMap[String(eventId)];
-  if (!ev) { openSetupInHalaxy(); return; }
-  var title = (ev.title || ev.summary || '').trim();
-  var parts = title ? title.split(/\s+/) : [];
-  var firstName = parts.shift() || '';
-  var lastName  = parts.join(' ');
-  var start = ev.start || '';
-  var dateISO = start.slice(0, 10);
-  // Pull wall-clock time straight from the ISO string's offset (avoids browser-TZ skew).
-  var time = (!ev.allDay && start.indexOf('T') === 10) ? start.slice(11, 16) : '';
-  var durationMin = 60;
-  if (start && ev.end) {
-    var mins = Math.round((new Date(ev.end) - new Date(start)) / 60000);
-    if (mins > 0 && mins < 24 * 60) durationMin = mins;
-  }
-  openSetupInHalaxy({
-    firstName: firstName, lastName: lastName, email: ev.email || '',
-    dateISO: dateISO, time: time || '10:00', durationMin: durationMin, eventId: String(eventId),
-  });
-}
-
-function _sihOnFunderChange() {
-  var fkey   = (document.getElementById('sih-funder') || {}).value || '';
-  var funder = _bookableFunder(fkey);
-  var typeSel = document.getElementById('sih-type');
-  var pmSel   = document.getElementById('sih-pm');
-  var feeDiv  = document.getElementById('sih-fee');
-  var guideDiv = document.getElementById('sih-guide');
-  var refInput = document.getElementById('sih-funderref');
-  if (feeDiv) feeDiv.textContent = '';
-
-  if (guideDiv) {
-    if (funder && funder.guide && funder.guide.length) {
-      guideDiv.innerHTML = funder.guide.map(function(g) { return '<div>· ' + escHtml(g) + '</div>'; }).join('');
-      guideDiv.style.display = '';
-    } else { guideDiv.style.display = 'none'; guideDiv.innerHTML = ''; }
-  }
-
-  if (refInput) {
-    if (funder && funder.refLabel) {
-      refInput.placeholder = funder.refLabel + ' (optional)';
-      refInput.style.display = '';
-    } else { refInput.style.display = 'none'; refInput.value = ''; }
-  }
-
-  if (funder && funder.planManaged) {
-    var pms = (_halaxyFunders || []).filter(function(f) { return f.billingKey === 'ndis_plan'; });
-    pmSel.innerHTML = '<option value="">Select plan manager…</option>'
-      + pms.map(function(p) { return '<option value="' + escHtml(p.name) + '">' + escHtml(p.name) + '</option>'; }).join('');
-    pmSel.style.display = '';
-  } else { pmSel.style.display = 'none'; pmSel.innerHTML = ''; }
-
-  if (funder) {
-    var opts = '<option value="">Select session type…</option>';
-    funder.items.forEach(function(it) {
-      var fee = _bookableResolveFee(it);
-      var lbl = it.label + (fee ? ' — $' + fee.amount.toFixed(2) : ' — (no fee set)');
-      opts += '<option value="' + it.id + '"' + (fee ? '' : ' disabled') + '>' + escHtml(lbl) + '</option>';
-    });
-    typeSel.innerHTML = opts;
-    typeSel.style.display = '';
-  } else { typeSel.style.display = 'none'; typeSel.innerHTML = ''; }
-  _sihOnTypeChange();
-}
-
-function _sihOnTypeChange() {
-  var funder = _bookableFunder((document.getElementById('sih-funder') || {}).value || '');
-  var tid    = (document.getElementById('sih-type') || {}).value || '';
-  var item   = funder && funder.items.find(function(i) { return i.id === tid; });
-  var feeDiv = document.getElementById('sih-fee');
-  var durEl  = document.getElementById('sih-dur');
-  if (!item) { if (feeDiv) feeDiv.textContent = ''; return; }
-  var fee = _bookableResolveFee(item);
-  if (feeDiv) {
-    feeDiv.textContent = fee ? ('Fee: ' + fee.name + ' — $' + fee.amount.toFixed(2)) : '⚠ No fee configured — set it in Settings → Booking fees.';
-    feeDiv.style.color = fee ? 'var(--teal)' : 'var(--amber)';
-  }
-  // QFES bands lock the duration (Halaxy invoicing requires the appt length to match).
-  if (item.durationMin && durEl) { durEl.value = item.durationMin; durEl.readOnly = true; }
-  else if (durEl) { durEl.readOnly = false; }
-}
-
-async function _sihSearchPatient() {
-  var email = ((document.getElementById('sih-email') || {}).value || '').trim();
-  var matchDiv = document.getElementById('sih-match');
-  if (!email) { if (matchDiv) matchDiv.textContent = ''; return; }
-  if (matchDiv) { matchDiv.textContent = '🔍 Checking Halaxy…'; matchDiv.style.color = 'var(--t3)'; }
-  try {
-    var d = await apiFetch('/api/admin-enquiries?halaxy_search=' + encodeURIComponent(email));
-    var pts = (d && d.patients) || [];
-    if (pts.length) {
-      _sihState.patientId = String(pts[0].id);
-      if (matchDiv) { matchDiv.innerHTML = '✓ Found <strong>' + escHtml(pts[0].name) + '</strong> in Halaxy — will book the existing patient.'; matchDiv.style.color = 'var(--teal)'; }
-    } else {
-      _sihState.patientId = null;
-      if (matchDiv) { matchDiv.textContent = 'No Halaxy match — a new patient will be created.'; matchDiv.style.color = 'var(--t3)'; }
-    }
-  } catch (e) {
-    _sihState.patientId = null;
-    if (matchDiv) { matchDiv.textContent = 'Could not check Halaxy (will create new on book).'; matchDiv.style.color = 'var(--amber)'; }
-  }
-}
-
-var _sihNameTimer = null;
-function _sihDebounceNameSearch() { clearTimeout(_sihNameTimer); _sihNameTimer = setTimeout(_sihNameSearch, 350); }
-
-// Find an EXISTING Halaxy patient by name (so existing clients are booked, not duplicated).
-async function _sihNameSearch() {
-  var q = ((document.getElementById('sih-namesearch') || {}).value || '').trim();
-  var box = document.getElementById('sih-nameresults');
-  if (!box) return;
-  if (q.length < 2) { box.innerHTML = ''; return; }
-  box.innerHTML = '<div style="font-size:11px;color:var(--t3);padding:4px 0">Searching Halaxy…</div>';
-  try {
-    var d = await apiFetch('/api/admin-enquiries?halaxy_patient_name=' + encodeURIComponent(q));
-    var pts = (d && d.patients) || [];
-    if (!pts.length) { box.innerHTML = '<div style="font-size:11px;color:var(--t3);padding:4px 0">No Halaxy patient found — fill the name above to create a new one.</div>'; return; }
-    box.innerHTML = pts.slice(0, 8).map(function(p) {
-      return '<div onclick="_sihPickPatient(\'' + escHtml(String(p.id)) + '\',\'' + escHtml(p.name) + '\')" '
-        + 'style="padding:7px 10px;border:1px solid rgba(255,255,255,0.12);border-radius:7px;margin-top:4px;cursor:pointer;font-size:12px;color:var(--t1)">'
-        + escHtml(p.name) + ' <span style="color:var(--t3)">#' + escHtml(String(p.id)) + '</span></div>';
-    }).join('');
-  } catch (e) { box.innerHTML = '<div style="font-size:11px;color:var(--amber)">Search failed — try again.</div>'; }
-}
-
-function _sihPickPatient(id, name) {
-  _sihState.patientId = String(id);
-  // Keep the name in the (now-hidden) fields so a later create still has it if cleared.
-  var parts = (name || '').trim().split(/\s+/);
-  var fe = document.getElementById('sih-first'), le = document.getElementById('sih-last');
-  if (fe && parts.length) fe.value = parts[0];
-  if (le) le.value = parts.slice(1).join(' ');
-
-  // Collapse the whole entry section and show a single "selected patient" hero.
-  var entry = document.getElementById('sih-client-entry');
-  var hero  = document.getElementById('sih-client-hero');
-  if (entry) entry.style.display = 'none';
-  if (hero) {
-    var ini = (name || '?').split(/\s+/).slice(0, 2).map(function(w) { return (w[0] || '').toUpperCase(); }).join('');
-    hero.style.display = '';
-    hero.innerHTML =
-        '<div style="display:flex;align-items:center;gap:12px;background:rgba(119,207,189,0.10);border:1px solid rgba(119,207,189,0.35);border-radius:12px;padding:13px 15px">'
-      + '<div style="width:38px;height:38px;flex:0 0 auto;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px">' + escHtml(ini) + '</div>'
-      + '<div style="flex:1;min-width:0">'
-      +   '<div style="font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--teal);font-weight:600">Existing Halaxy patient</div>'
-      +   '<div style="font-size:15px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(name) + '</div>'
-      +   '<div style="font-size:11px;color:var(--t3)">Booking against this patient — no duplicate created</div>'
-      + '</div>'
-      + '<button onclick="_sihClearPatient()" title="Change patient" style="flex:0 0 auto;background:transparent;border:1px solid rgba(255,255,255,0.18);color:var(--t2);border-radius:8px;padding:6px 11px;font-size:11.5px;cursor:pointer">Change</button>'
-      + '</div>';
-  }
-}
-
-// Undo a patient selection — restore the entry fields so a different patient (or a new one) can be entered.
-function _sihClearPatient() {
-  _sihState.patientId = null;
-  var entry = document.getElementById('sih-client-entry');
-  var hero  = document.getElementById('sih-client-hero');
-  if (hero)  { hero.style.display = 'none'; hero.innerHTML = ''; }
-  if (entry) entry.style.display = '';
-  var md = document.getElementById('sih-match'); if (md) md.textContent = '';
-  var ns = document.getElementById('sih-namesearch'); if (ns) { ns.value = ''; ns.focus(); }
-}
-
-// Undo the armed state — restore the form and the Book/Cancel buttons.
-function _sihUnarm() {
-  var bodyEl = document.getElementById('sih-body');
-  if (bodyEl) { bodyEl.style.opacity = ''; bodyEl.style.pointerEvents = ''; }
-  var bk = document.getElementById('sih-book-btn');
-  var cn = document.getElementById('sih-cancel-btn');
-  if (bk) { bk.disabled = false; bk.textContent = 'Book in Halaxy →'; bk.setAttribute('onclick', '_sihSubmit()'); }
-  if (cn) { cn.textContent = 'Cancel'; cn.setAttribute('onclick', "this.closest('.db-modal-overlay').remove()"); }
-  var msg = document.getElementById('sih-msg'); if (msg) msg.textContent = '';
-}
-
-async function _sihSubmit(confirmed) {
-  function val(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
-  var msg = document.getElementById('sih-msg');
-  function err(t) { if (msg) { msg.textContent = t; msg.style.color = 'var(--terra)'; } }
-
-  var first = val('sih-first'), last = val('sih-last'), email = val('sih-email'), phone = val('sih-phone');
-  var fkey = val('sih-funder'), tid = val('sih-type'), date = val('sih-date'), time = val('sih-time');
-  var funderRef = val('sih-funderref');
-  var dur = parseInt(val('sih-dur') || '60', 10) || 60;
-  var funder = _bookableFunder(fkey);
-  if (!first || !last) return err('Enter the client’s first and last name.');
-  if (!funder)         return err('Choose a funding type.');
-  var item = funder.items.find(function(i) { return i.id === tid; });
-  if (!item)           return err('Choose a session type.');
-  if (!date)           return err('Choose a date.');
-  var fee = _bookableResolveFee(item);
-  if (!fee)            return err('This session type has no fee configured — set it in Settings → Booking fees.');
-  var pmName = funder.planManaged ? val('sih-pm') : '';
-  if (funder.planManaged && !pmName) return err('Choose the NDIS plan manager.');
-
-  // Arm-to-confirm — no popup, no duplicated summary. First tap dims the form for a final glance
-  // and turns the button into a deliberate "Confirm — book $X" with the amount on it; a second tap
-  // commits. "Edit" un-arms. Proves intent without a dialog or repeating the details.
-  if (!confirmed) {
-    if (msg) msg.textContent = '';
-    var bodyEl = document.getElementById('sih-body');
-    if (bodyEl) { bodyEl.style.opacity = '0.45'; bodyEl.style.pointerEvents = 'none'; }
-    var bk = document.getElementById('sih-book-btn');
-    var cn = document.getElementById('sih-cancel-btn');
-    if (bk) {
-      bk.textContent = 'Confirm — book $' + fee.amount.toFixed(2) + ' →';
-      bk.setAttribute('onclick', '_sihSubmit(true)');
-      bk.disabled = true; // brief guard so an accidental double-tap can't auto-confirm
-      setTimeout(function () { var b = document.getElementById('sih-book-btn'); if (b) b.disabled = false; }, 350);
-    }
-    if (cn) { cn.textContent = 'Edit'; cn.setAttribute('onclick', '_sihUnarm()'); }
-    return;
-  }
-
-  // Brisbane = UTC+10, no DST. Build start, derive end from duration.
-  var TZ = '+10:00';
-  var apptStart = date + 'T' + (time.length === 5 ? time : '10:00') + ':00' + TZ;
-  var endMs = new Date(apptStart).getTime() + dur * 60 * 1000;
-  var _e = new Date(endMs + 10 * 3600 * 1000), _p = function(n) { return ('0' + n).slice(-2); };
-  var apptEnd = _e.getUTCFullYear() + '-' + _p(_e.getUTCMonth() + 1) + '-' + _p(_e.getUTCDate())
-    + 'T' + _p(_e.getUTCHours()) + ':' + _p(_e.getUTCMinutes()) + ':00' + TZ;
-
-  var btn = document.getElementById('sih-book-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
-  if (msg) { msg.style.color = 'var(--t3)'; msg.textContent = 'Setting up…'; }
-  try {
-    var patientId = _sihState.patientId;
-    if (!patientId) {
-      if (msg) msg.textContent = 'Creating patient in Halaxy…';
-      var cr = await apiFetch('/api/admin-enquiries?halaxy_create_patient=1', { method: 'POST', body: {
-        firstName: first, lastName: last, email: email || undefined, phone: phone || undefined,
-        funder: funder.billingKey, planManager: pmName || undefined, funderRef: funderRef || undefined,
-      } });
-      patientId = cr && cr.halaxyId;
-      if (!patientId) throw new Error('Halaxy did not return a patient id');
-    }
-    if (funder.billingKey !== 'private') {
-      var payorId = null, payorName = funder.label;
-      if (funder.planManaged) {
-        var pm = (_halaxyFunders || []).find(function(f) { return f.name === pmName; });
-        payorId = pm ? pm.id : null; payorName = pmName;
-      } else {
-        var hxF = (_halaxyFunders || []).find(function(f) { return f.billingKey === funder.billingKey; });
-        payorId = hxF ? hxF.id : null; payorName = hxF ? hxF.name : funder.label;
-      }
-      if (msg) msg.textContent = 'Linking funder coverage…';
-      try {
-        await apiFetch('/api/admin-enquiries?halaxy_coverage=1', { method: 'POST', body: { patientId: String(patientId), payorId: payorId, payorName: payorName, funderRef: funderRef || undefined } });
-      } catch (ce) { console.warn('[sih] coverage failed:', ce && ce.message); }
-    }
-    if (msg) msg.textContent = 'Booking appointment + creating invoice…';
-    // Halaxy's $book only accepts location-type 'clinic' on CREATE (online/phone → 422). The
-    // modality is already captured by the chosen fee (e.g. "Online — $180"), so the invoice is
-    // correct; the appointment's location can be adjusted in Halaxy later if it matters.
-    await apiFetch('/api/admin-enquiries?halaxy_appt_action=1', { method: 'POST', body: {
-      action: 'book', patientId: String(patientId), apptStart: apptStart, apptEnd: apptEnd,
-      feeId: fee.feeId, feeName: fee.name, feeAmount: fee.amount, locationType: 'clinic',
-    } });
-    toast('Set up in Halaxy ✓ — patient booked, invoice created', 'ok');
-    var ov = document.getElementById('sih-overlay'); if (ov) ov.remove();
-    refreshPipeline();
-  } catch (e) {
-    _sihUnarm(); // restore the form + buttons so they can fix and retry
-    err('Failed: ' + (e && e.message ? e.message : 'error'));
-  }
 }
 
 /* ── Add appointment (opens Google Calendar pre-filled) ── */
@@ -9746,106 +9339,8 @@ function _renderMapToHalaxySearch(modal, clientId, c) {
     + '<div id="map-hx-results" style="margin-top:6px"></div>'
     + '</div>'
 
-    // Divider
-    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">'
-    + '<div style="flex:1;height:1px;background:#E8E4DF"></div>'
-    + '<div style="font-size:11px;color:#9AABA8">or</div>'
-    + '<div style="flex:1;height:1px;background:#E8E4DF"></div>'
-    + '</div>'
-
-    // Option 2 — Create new (button shows the form)
-    + '<div style="margin-bottom:24px">'
-    + '<div style="font-size:11px;font-weight:600;color:#9AABA8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Not yet in Halaxy?</div>'
-    + '<div style="font-size:12.5px;color:#4A5A58;margin-bottom:12px">Enter their details to create a new patient in Halaxy and link them automatically.</div>'
-    + '<button class="cl-modal-save-btn" onclick="_showCreateHalaxyForm(\'' + escHtml(clientId) + '\')" style="width:100%;background:transparent;color:var(--teal);border:1.5px solid var(--teal)">Create new in Halaxy →</button>'
-    + '</div>'
-
     + '<button onclick="closeAddClient()" style="background:none;border:none;color:#9AABA8;font-size:12px;cursor:pointer;padding:0">Cancel</button>'
     + '</div>';
-}
-
-function _showCreateHalaxyForm(clientId) {
-  var clients = (_pipelineData && _pipelineData.clients) || [];
-  var c = clients.find(function(x) { return x.id === clientId; });
-  if (!c) return;
-  var modal = document.getElementById('add-client-modal');
-  if (!modal) return;
-
-  // Try to pre-split display_name into first/last
-  var parts = (c.display_name || '').trim().split(/\s+/);
-  var prefillFirst = parts.length > 1 ? parts.slice(0, -1).join(' ') : (parts[0] || '');
-  var prefillLast  = parts.length > 1 ? parts[parts.length - 1] : '';
-  // If last name looks like an initial (single char), clear it so user fills properly
-  if (prefillLast.length === 1) prefillLast = '';
-
-  var inner = modal.querySelector('.cl-modal-inner') || modal;
-  inner.innerHTML = '<div style="padding:28px 24px;max-width:480px;width:100%">'
-    + '<div style="font-size:22px;font-weight:600;color:var(--t1,rgba(255,255,255,0.92));margin-bottom:6px">Create in Halaxy</div>'
-    + '<div style="font-size:13px;color:var(--t3,rgba(255,255,255,0.4));margin-bottom:24px">A new patient record will be created in Halaxy and linked to this onboarding record.</div>'
-
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">'
-    + '<div><label style="font-size:11px;font-weight:600;color:#9AABA8;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">First name <span style="color:#BE6E44">*</span></label>'
-    + '<input type="text" id="hx-create-first" class="cl-modal-input" value="' + escHtml(prefillFirst) + '" placeholder="First name" autocomplete="off"></div>'
-    + '<div><label style="font-size:11px;font-weight:600;color:#9AABA8;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Last name <span style="color:#BE6E44">*</span></label>'
-    + '<input type="text" id="hx-create-last" class="cl-modal-input" value="' + escHtml(prefillLast) + '" placeholder="Last name" autocomplete="off"></div>'
-    + '</div>'
-
-    + '<div style="margin-bottom:12px">'
-    + '<label style="font-size:11px;font-weight:600;color:#9AABA8;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Date of birth</label>'
-    + '<input type="date" id="hx-create-dob" class="cl-modal-input">'
-    + '</div>'
-
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">'
-    + '<div><label style="font-size:11px;font-weight:600;color:#9AABA8;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Phone</label>'
-    + '<input type="tel" id="hx-create-phone" class="cl-modal-input" placeholder="04xx xxx xxx"></div>'
-    + '<div><label style="font-size:11px;font-weight:600;color:#9AABA8;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Email</label>'
-    + '<input type="email" id="hx-create-email" class="cl-modal-input" placeholder=""></div>'
-    + '</div>'
-
-    + '<div id="hx-create-error" style="display:none;color:#BE6E44;font-size:12px;margin-bottom:10px"></div>'
-
-    + '<button id="hx-create-submit" class="cl-modal-save-btn" onclick="_submitCreateAndMap(\'' + escHtml(clientId) + '\')" style="width:100%;margin-bottom:10px">Create in Halaxy + Link →</button>'
-    + '<button onclick="openMapToHalaxy(\'' + escHtml(clientId) + '\')" style="background:none;border:none;color:#9AABA8;font-size:12px;cursor:pointer;padding:0">← Back</button>'
-    + '</div>';
-}
-
-async function _submitCreateAndMap(clientId) {
-  var firstEl  = document.getElementById('hx-create-first');
-  var lastEl   = document.getElementById('hx-create-last');
-  var dobEl    = document.getElementById('hx-create-dob');
-  var phoneEl  = document.getElementById('hx-create-phone');
-  var emailEl  = document.getElementById('hx-create-email');
-  var errEl    = document.getElementById('hx-create-error');
-  var btn      = document.getElementById('hx-create-submit');
-
-  var firstName = (firstEl && firstEl.value.trim()) || '';
-  var lastName  = (lastEl  && lastEl.value.trim())  || '';
-  if (!firstName || !lastName) {
-    if (errEl) { errEl.textContent = 'First name and last name are required.'; errEl.style.display = 'block'; }
-    return;
-  }
-  if (errEl) errEl.style.display = 'none';
-
-  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
-  try {
-    var body = { clientId: clientId, firstName: firstName, lastName: lastName };
-    if (dobEl   && dobEl.value)   body.dob   = dobEl.value;
-    if (phoneEl && phoneEl.value.trim()) body.phone = phoneEl.value.trim();
-    if (emailEl && emailEl.value.trim()) body.email = emailEl.value.trim();
-
-    await apiFetch('/api/admin-enquiries?halaxy_create_and_map=1', { method: 'POST', body: body });
-    closeAddClient();
-    toast(firstName + ' ' + lastName + ' created in Halaxy and linked');
-    refreshPipeline();
-  } catch (e) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Create in Halaxy + Link →'; }
-    if (errEl) { errEl.textContent = e.message || 'Something went wrong — please try again.'; errEl.style.display = 'block'; }
-  }
-}
-
-async function _createAndMapHalaxyPatient(clientId) {
-  // Kept for backwards-compat — now delegates to the form flow
-  _showCreateHalaxyForm(clientId);
 }
 
 async function _mapHxSearch(q, clientId) {
@@ -9938,23 +9433,16 @@ function openAddClient(prefillHalaxyId) {
 
 function setClientModalMode(mode) {
   var findEl    = document.getElementById('cl-find-mode');
-  var newEl     = document.getElementById('cl-new-mode');
   var dashEl    = document.getElementById('cl-dash-mode');
   var searchBtn = document.getElementById('cl-mode-search-btn');
-  var newBtn    = document.getElementById('cl-mode-new-btn');
   var dashBtn   = document.getElementById('cl-mode-dash-btn');
   var saveBtn   = document.getElementById('cl-modal-save-btn');
 
   // Hide all panels, deactivate all buttons
-  [findEl, newEl, dashEl].forEach(function(el) { if (el) el.style.display = 'none'; });
-  [searchBtn, newBtn, dashBtn].forEach(function(btn) { if (btn) btn.classList.remove('cl-mode-btn--active'); });
+  [findEl, dashEl].forEach(function(el) { if (el) el.style.display = 'none'; });
+  [searchBtn, dashBtn].forEach(function(btn) { if (btn) btn.classList.remove('cl-mode-btn--active'); });
 
-  if (mode === 'new') {
-    if (newEl)  newEl.style.display = '';
-    if (newBtn) newBtn.classList.add('cl-mode-btn--active');
-    if (saveBtn) saveBtn.textContent = 'Create in Halaxy →';
-    setTimeout(function() { var f = document.getElementById('cl-first-name'); if (f) f.focus(); }, 80);
-  } else if (mode === 'dashboard') {
+  if (mode === 'dashboard') {
     if (dashEl)   dashEl.style.display = '';
     if (dashBtn)  dashBtn.classList.add('cl-mode-btn--active');
     if (saveBtn)  saveBtn.textContent  = 'Add to dashboard';
@@ -10249,47 +9737,7 @@ async function saveNewClient() {
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
 
   try {
-    if (mode === 'new') {
-      // ── NEW PATIENT IN HALAXY ──────────────────────────────────────
-      var firstName = (document.getElementById('cl-first-name') || {}).value.trim();
-      var lastName  = (document.getElementById('cl-last-name')  || {}).value.trim();
-      var phone     = (document.getElementById('cl-new-phone')  || {}).value.trim();
-      var email     = (document.getElementById('cl-new-email')  || {}).value.trim();
-      var dob       = (document.getElementById('cl-new-dob')    || {}).value.trim();
-      var gender    = (document.getElementById('cl-new-gender') || {}).value;
-      var funderSel = document.getElementById('cl-new-funder');
-      var funderOpt = funderSel && funderSel.options[funderSel.selectedIndex];
-      var funder    = (funderOpt && (funderOpt.dataset.billing || funderSel.value)) || '';
-      var pm        = (document.getElementById('cl-new-plan-manager') || {}).value.trim();
-      var notes     = (document.getElementById('cl-new-notes') || {}).value.trim();
-
-      if (!firstName) { showErr('First name is required'); return; }
-      if (!lastName)  { showErr('Last name is required');  return; }
-
-      var clientTypeN = (document.getElementById('cl-new-client-type') || {}).value || 'individual';
-      var isContactN  = !!(document.getElementById('cl-new-is-contact') || {}).checked;
-      var parentIdN   = (document.getElementById('cl-new-parent-id')   || {}).value.trim() || null;
-
-      var resp = await apiFetch('/api/admin-enquiries?halaxy_create_patient=1', {
-        method: 'POST',
-        body: { firstName, lastName, phone: phone || undefined, email: email || undefined,
-                dob: dob || undefined, gender: gender || undefined,
-                funder: funder || undefined, planManager: pm || undefined, notes: notes || undefined,
-                client_type: clientTypeN || undefined, is_contact: isContactN || undefined,
-                parent_client_id: parentIdN || undefined },
-      });
-      toast('Patient created in Halaxy ✓ — ' + resp.client.display_name);
-
-      // Write Coverage (funder) to Halaxy for non-private funders
-      if (funder && funder !== 'private' && resp.halaxyId) {
-        var hxF = (_halaxyFunders || []).find(function(f) { return f.billingKey === funder || f.key === funder; });
-        apiFetch('/api/admin-enquiries?halaxy_coverage=1', {
-          method: 'POST',
-          body: { patientId: String(resp.halaxyId), payorId: hxF ? hxF.id : null, payorName: hxF ? hxF.name : (FUNDER_LABELS[funder] || funder) }
-        }).catch(function() {}); // non-blocking, best-effort
-      }
-
-    } else if (mode === 'dashboard') {
+    if (mode === 'dashboard') {
       // ── DASHBOARD ONLY: Supabase record, no Halaxy ID ──────────────
       var dashName    = (document.getElementById('cl-dash-name')        || {}).value.trim();
       var dashFundSel = document.getElementById('cl-dash-funder');
@@ -10873,73 +10321,6 @@ function openHalaxyApptLogPanel(cardUid, patientId, patientName, dateStr, apptSt
   _selectHalaxyPatient(cardUid, null, patientId, patientName);
 }
 
-async function openCalSessionPanel(cardUid, eventId) {
-  var panel = document.getElementById('pl-link-' + cardUid);
-  if (!panel) return;
-
-  // Ensure fees are available — if not yet loaded, initialise to [] immediately so
-  // we never block the UI, then fetch in the background to populate for next time.
-  if (_halaxyFees === null) {
-    _halaxyFees = [];
-    if (_halaxyData && _halaxyData.connected) {
-      fetch('/api/admin-enquiries?halaxy_fees=1')
-        .then(function(fr) { return fr.json(); })
-        .then(function(d)  { _halaxyFees = d.fees || []; })
-        .catch(function()  {});
-    }
-  }
-
-  panel.innerHTML = '<div class="pl-link-panel">'
-    + '<div class="pl-link-panel-title">Search Halaxy patient</div>'
-    + '<input class="pl-link-input" id="pl-cs-inp-' + cardUid + '"'
-    + ' placeholder="Type patient name…" autocomplete="off" onclick="event.stopPropagation()"'
-    + ' oninput="_debounceCalSearch(\'' + cardUid + '\',\'' + eventId + '\',this.value)">'
-    + '<div id="pl-cs-res-' + cardUid + '" class="pl-link-results">'
-    + '<div style="font-size:11px;color:var(--soft);padding:5px 2px">Type at least 2 characters…</div>'
-    + '</div>'
-    + '<button class="pl-dd-item" style="margin-top:4px;font-size:10px;padding:5px 8px;color:var(--soft)"'
-    + ' onclick="event.stopPropagation();closeLinkPanel(\'' + cardUid + '\')">✕ Cancel</button>'
-    + '</div>';
-  setTimeout(function() {
-    var inp = document.getElementById('pl-cs-inp-' + cardUid);
-    if (inp) inp.focus();
-  }, 60);
-}
-
-function _debounceCalSearch(cardUid, eventId, query) {
-  clearTimeout(_calSearchTimer);
-  _calSearchTimer = setTimeout(function() { _searchHalaxyPatients(cardUid, eventId, query); }, 350);
-}
-
-async function _searchHalaxyPatients(cardUid, eventId, query) {
-  var res = document.getElementById('pl-cs-res-' + cardUid);
-  if (!res) return;
-  if (!query || query.trim().length < 2) {
-    res.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:5px 2px">Type at least 2 characters…</div>';
-    return;
-  }
-  res.innerHTML = '<div class="cl-halaxy-lookup-searching">Searching Halaxy…</div>';
-  try {
-    var r = await fetch('/api/admin-enquiries?halaxy_patient_name=' + encodeURIComponent(query.trim()));
-    var d = await r.json();
-    var patients = d.patients || [];
-    if (!patients.length) {
-      res.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:5px 2px">No Halaxy patients found for "' + escHtml(query) + '"</div>';
-      return;
-    }
-    res.innerHTML = patients.map(function(p) {
-      var local = (_pipelineData && _pipelineData.clients || []).find(function(c) { return String(c.halaxy_id) === String(p.id); });
-      var meta  = local ? (FUNDER_LABELS[local.funder] || '') + ' · in dashboard ✓' : 'Halaxy patient';
-      return '<div class="pl-link-result" onclick="event.stopPropagation();_selectHalaxyPatient(\'' + cardUid + '\',\'' + eventId + '\',\'' + escHtml(String(p.id)) + '\',\'' + escHtml(p.name) + '\')">'
-        + '<span class="pl-link-result-name">' + escHtml(p.name) + '</span>'
-        + '<span class="pl-link-result-meta">' + escHtml(meta) + '</span>'
-        + '</div>';
-    }).join('');
-  } catch (_) {
-    res.innerHTML = '<div style="font-size:11px;color:var(--soft);padding:5px 2px">Search error — try again</div>';
-  }
-}
-
 async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
   var panel = document.getElementById('pl-link-' + cardUid);
   if (!panel) return;
@@ -11015,13 +10396,10 @@ async function _selectHalaxyPatient(cardUid, eventId, patientId, patientName) {
       + ' onclick="event.stopPropagation()" style="margin-bottom:6px">';
   }
 
-  // Read appointment metadata stored by openHalaxyApptLogPanel (or openCalSessionPanel)
+  // Read appointment metadata stored by openHalaxyApptLogPanel
   var halaxyApptId = (panel && panel.dataset.halaxyApptId) || '';
 
-  // Show different back button depending on whether we came from search or direct-open
-  var backBtn = eventId
-    ? '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();openCalSessionPanel(\'' + cardUid + '\',\'' + eventId + '\')">← Back</button>'
-    : '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();closeLinkPanel(\'' + cardUid + '\')">✕ Close</button>';
+  var backBtn = '<button class="pl-action-btn pl-action-btn--soft" onclick="event.stopPropagation();closeLinkPanel(\'' + cardUid + '\')">✕ Close</button>';
 
   // Halaxy manual-entry helper: shown after a fee is selected — lets Cheree
   // copy the fee details to paste directly into Halaxy if $book is unavailable.
@@ -11619,176 +10997,6 @@ function dismissCalEvent(eventId) {
   _calDismissed.add(String(eventId));
   localStorage.setItem('cal_dismissed', JSON.stringify([..._calDismissed]));
   renderAppointmentsPanel();
-}
-
-/* ── New Session Modal ──────────────────────────────────────────────────────────────── */
-
-function openNewSessionModal() {
-  // Build client list: dashboard clients + Halaxy patients, deduplicated by name
-  var clients  = (_pipelineData && _pipelineData.clients) || [];
-  var patients = (_halaxyData   && _halaxyData.patients)  || [];
-  var fees     = _halaxyFees || [];
-
-  // Only include clients with a Halaxy ID — this is a Halaxy booking
-  var allClients = [];
-  clients.forEach(function(c) {
-    if (c.halaxy_id) allClients.push({ label: c.display_name, halaxyId: c.halaxy_id, dashId: c.id });
-  });
-  // Add Halaxy patients not yet on the dashboard
-  patients.forEach(function(p) {
-    var already = allClients.some(function(c) { return String(c.halaxyId) === String(p.id); });
-    if (!already) allClients.push({ label: p.name, halaxyId: p.id, dashId: null });
-  });
-  allClients.sort(function(a, b) { return a.label.localeCompare(b.label); });
-
-  // Default date/time: next hour, rounded
-  var now = new Date();
-  now.setMinutes(0, 0, 0);
-  now.setHours(now.getHours() + 1);
-  var defaultDate = now.toISOString().slice(0, 10);
-  var defaultTime = now.toTimeString().slice(0, 5);
-
-  // Fee options
-  var feeOpts = fees.map(function(f) {
-    return '<option value="' + escHtml(String(f.id)) + '" data-amount="' + f.amount + '" data-name="' + escHtml(f.name) + '">'
-      + escHtml(f.name) + ' — $' + Number(f.amount).toFixed(2) + '</option>';
-  }).join('');
-
-  // Client options — all have a Halaxy ID
-  var clientOpts = allClients.map(function(c) {
-    return '<option value="' + escHtml(c.label) + '" data-halaxy-id="' + escHtml(String(c.halaxyId)) + '">'
-      + escHtml(c.label) + '</option>';
-  }).join('');
-
-  var modal = document.createElement('div');
-  modal.id  = 'new-session-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-  modal.innerHTML = '<div style="background:#111A2B;border:1px solid rgba(255,255,255,0.10);border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,0.5);color:var(--t1,#F4F7F6)">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
-    + '<strong style="font-size:15px;color:var(--t1,#F4F7F6)">New Appointment</strong>'
-    + '<button onclick="closeNewSessionModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--t3,#7E93A8)">&times;</button>'
-    + '</div>'
-    + '<div style="font-size:11.5px;color:#9AABA8;margin-bottom:16px">Books directly into Halaxy — invoice auto-generated when a fee is selected</div>'
-
-    + '<label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Halaxy client</label>'
-    + '<input list="ns-client-list" id="ns-client-input" class="pl-link-input" placeholder="Search Halaxy clients…" style="margin-bottom:10px" oninput="_nsClientChange()">'
-    + '<datalist id="ns-client-list">' + clientOpts + '</datalist>'
-    + '<input type="hidden" id="ns-halaxy-id">'
-
-    + '<label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Date</label>'
-    + '<input type="date" id="ns-date" class="pl-link-input" value="' + defaultDate + '" style="margin-bottom:10px">'
-
-    + '<div style="display:flex;gap:8px;margin-bottom:10px">'
-    + '<div style="flex:1"><label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Start time</label>'
-    + '<input type="time" id="ns-start" class="pl-link-input" value="' + defaultTime + '"></div>'
-    + '<div style="flex:1"><label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Duration</label>'
-    + '<select id="ns-duration" class="pl-link-input">'
-    + '<option value="30">30 min</option><option value="45">45 min</option>'
-    + '<option value="60" selected>60 min</option><option value="90">90 min</option>'
-    + '<option value="120">2 hours</option></select></div>'
-    + '</div>'
-
-    + '<label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Fee <span style="color:#9AABA8;font-weight:400">(optional — triggers auto-invoice in Halaxy)</span></label>'
-    + '<select id="ns-fee" class="pl-link-input" style="margin-bottom:10px">'
-    + '<option value="">— select a fee —</option>' + feeOpts + '</select>'
-
-    + '<label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Location</label>'
-    + '<select id="ns-location" class="pl-link-input" style="margin-bottom:10px">'
-    + '<option value="clinic" selected>In-clinic</option>'
-    + '<option value="telehealth">Telehealth (video)</option>'
-    + '<option value="phone">Phone</option>'
-    + '<option value="online">Online</option>'
-    + '</select>'
-
-    + '<label style="font-size:12px;color:var(--t3,#7E93A8);display:block;margin-bottom:3px">Notes</label>'
-    + '<input type="text" id="ns-notes" class="pl-link-input" placeholder="Appointment notes…" style="margin-bottom:16px">'
-
-    + '<div id="ns-error" style="color:#c0392b;font-size:12px;margin-bottom:8px;display:none"></div>'
-
-    + '<div style="display:flex;gap:8px;justify-content:flex-end">'
-    + '<button class="dp-btn" onclick="closeNewSessionModal()">Cancel</button>'
-    + '<button class="dp-btn dp-btn--primary" id="ns-submit-btn" onclick="_submitNewSession()">Create Appointment</button>'
-    + '</div>'
-    + '</div>';
-
-  document.body.appendChild(modal);
-  modal.addEventListener('click', function(e) { if (e.target === modal) closeNewSessionModal(); });
-  setTimeout(function() { var el = document.getElementById('ns-client-input'); if (el) el.focus(); }, 50);
-}
-
-function _nsClientChange() {
-  var input    = document.getElementById('ns-client-input');
-  var hiddenId = document.getElementById('ns-halaxy-id');
-  var list     = document.getElementById('ns-client-list');
-  if (!input || !hiddenId || !list) return;
-
-  var val  = input.value;
-  var opts = list.querySelectorAll('option');
-  var hId  = '';
-  opts.forEach(function(o) { if (o.value === val) hId = o.dataset.halaxyId || ''; });
-  hiddenId.value = hId;
-}
-
-function closeNewSessionModal() {
-  var m = document.getElementById('new-session-modal');
-  if (m) m.remove();
-}
-
-async function _submitNewSession() {
-  var btn      = document.getElementById('ns-submit-btn');
-  var errEl    = document.getElementById('ns-error');
-  var client   = (document.getElementById('ns-client-input') || {}).value  || '';
-  var halaxyId = (document.getElementById('ns-halaxy-id')    || {}).value  || '';
-  var date     = (document.getElementById('ns-date')         || {}).value  || '';
-  var startT   = (document.getElementById('ns-start')        || {}).value  || '';
-  var duration = parseInt((document.getElementById('ns-duration') || {}).value || '60', 10);
-  var feeSel   = document.getElementById('ns-fee');
-  var location = (document.getElementById('ns-location')     || {}).value  || 'clinic';
-  var notes    = (document.getElementById('ns-notes')        || {}).value  || '';
-
-  errEl.style.display = 'none';
-
-  if (!client)   { errEl.textContent = 'Please select a client';          errEl.style.display = ''; return; }
-  if (!halaxyId) { errEl.textContent = 'Selected client has no Halaxy ID — add them to Halaxy first'; errEl.style.display = ''; return; }
-  if (!date)     { errEl.textContent = 'Please pick a date';              errEl.style.display = ''; return; }
-  if (!startT)   { errEl.textContent = 'Please set a start time';         errEl.style.display = ''; return; }
-
-  // Build ISO datetimes — Halaxy requires offset (Brisbane = UTC+10, no DST)
-  var TZ_OFFSET  = '+10:00';
-  var pad        = function(n) { return ('0' + n).slice(-2); };
-  var start      = date + 'T' + startT + ':00' + TZ_OFFSET;
-  var endMs      = new Date(start).getTime() + duration * 60000;
-  // Express end in Brisbane time: shift +10h then read UTC components
-  var _endBris2  = new Date(endMs + 10 * 3600 * 1000);
-  var end        = _endBris2.getUTCFullYear() + '-' + pad(_endBris2.getUTCMonth() + 1) + '-'
-                 + pad(_endBris2.getUTCDate()) + 'T'
-                 + pad(_endBris2.getUTCHours()) + ':' + pad(_endBris2.getUTCMinutes()) + ':00' + TZ_OFFSET;
-
-  var feeId  = feeSel && feeSel.value ? feeSel.value : null;
-
-  if (btn) { btn.disabled = true; btn.textContent = 'Booking…'; }
-
-  try {
-    // Book directly in Halaxy — Halaxy IS the calendar for client appointments
-    var resp = await apiFetch('/api/admin-enquiries?new_appt=1', {
-      method: 'POST',
-      body: {
-        patientId:   halaxyId,
-        start,
-        end,
-        feeId:       feeId    || undefined,
-        locationType: location,
-      },
-    });
-
-    closeNewSessionModal();
-    toast('Appointment booked in Halaxy ✓' + (feeId ? ' — invoice auto-generated' : ''), 'ok');
-    setTimeout(function() { refreshPipeline(); }, 1500);
-  } catch (err) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Create Appointment'; }
-    errEl.textContent = err.message || 'Failed to book appointment';
-    errEl.style.display = '';
-  }
 }
 
 /* ── Close enquiry with reason modal ── */
