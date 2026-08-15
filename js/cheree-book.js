@@ -1136,10 +1136,12 @@ function _cbRenderForms() {
    own billing-stage actions (decision, remittance close-out).
    ═══════════════════════════════════════════════════════════════ */
 
+// No "Booked" column — a future scheduled session is just the schedule
+// (Home), not something needing action. The Board starts once a session
+// is in the past and needs something done about it.
 var BOARD_COLUMNS = [
   { key: 'triage',     label: 'New / Triage' },
-  { key: 'booked',     label: 'Booked' },
-  { key: 'outcome',    label: 'Needs outcome' },
+  { key: 'outcome',    label: 'Session Action' },
   { key: 'billing',    label: 'Needs billing decision' },
   { key: 'remittance', label: 'Awaiting payment' },
   { key: 'closed',     label: 'Closed' },
@@ -1168,7 +1170,9 @@ function _cbEventStage(ev) {
   var f = _cbFields(ev);
   if (!f.Status) return null; // not created via this tool — not part of this pipeline
   if (f.Status === 'Scheduled') {
-    return new Date(ev.start) < new Date() ? 'outcome' : 'booked';
+    // Still upcoming → that's the schedule (Home), not the Board. Only
+    // once it's in the past with no outcome yet does it need action here.
+    return new Date(ev.start) < new Date() ? 'outcome' : null;
   }
   if (f.Status === 'Attended' || f.Status.indexOf('Cancelled') === 0) {
     if (f.Bill === 'No') return 'closed';
@@ -1195,7 +1199,7 @@ function _cbBoardCards() {
     var name = ev.title.split(' — ')[0];
     var d = new Date(ev.start);
     var when = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
-    var meta = stage === 'booked' || stage === 'outcome'
+    var meta = stage === 'outcome'
       ? when + ' · ' + (f.Funder || '') + (f.Type ? ' · ' + f.Type : '')
       : stage === 'billing'
         ? (f.Status || '') + ' · ' + when
@@ -1264,9 +1268,9 @@ function cbSaveInvoice(eventId) {
 function _cbInvoiceHtml(c) {
   var id = _cbEsc(String(c.id));
   if (c.fields.Invoice) {
-    return '<a class="inv-link" onclick="event.stopPropagation()" href="' + _cbEsc(_cbInvoiceUrl(c.fields.Invoice)) + '" target="_blank" rel="noopener">Invoice #' + _cbEsc(c.fields.Invoice) + ' ↗</a>';
+    return '<a class="inv-link" href="' + _cbEsc(_cbInvoiceUrl(c.fields.Invoice)) + '" target="_blank" rel="noopener">Invoice #' + _cbEsc(c.fields.Invoice) + ' ↗</a>';
   }
-  return '<div class="act act-inv" onclick="event.stopPropagation()">'
+  return '<div class="act act-inv">'
     + '<input type="text" inputmode="numeric" class="inv-input" id="inv-' + id + '" placeholder="Invoice #…">'
     + '<button onclick="cbSaveInvoice(\'' + id + '\')">Save</button>'
     + '</div>';
@@ -1348,25 +1352,29 @@ function _cbRenderBoard() {
         var f = c.fields || {};
         var sdot = f.Status === 'Attended' ? '<span class="sdot sdot-green"></span>'
           : (f.Status && f.Status.indexOf('Cancelled') === 0) ? '<span class="sdot sdot-red"></span>' : '';
-        // Whole card opens the full history sheet; every interactive element
-        // inside stops propagation so its own action fires instead of also
-        // opening history underneath it.
-        html += '<div class="card2" onclick="cbOpenHistory(\'' + id + '\')" style="cursor:pointer"><div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>' + _cbFunderChip(f.Funder) + '</div><div class="mt">' + _cbEsc(c.meta) + '</div>';
+        // A dedicated history icon, not the whole card — a card-wide click
+        // target was too easy to trigger by accident while reaching for one
+        // of the action buttons below it.
+        var histBtn = '<button onclick="cbOpenHistory(\'' + id + '\')" title="History" aria-label="History"'
+          + ' style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:2px 4px;flex-shrink:0;line-height:1">🕘</button>';
+        html += '<div class="card2"><div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>'
+          + '<div style="display:flex;align-items:center;gap:4px">' + histBtn + _cbFunderChip(f.Funder) + '</div>'
+          + '</div><div class="mt">' + _cbEsc(c.meta) + '</div>';
         if (col.key === 'billing') {
           if (_cbIsDirectFunder(c.fields.Funder)) {
             html += '<div class="act">'
-              + '<button onclick="event.stopPropagation();cbSetBilling(\'' + id + '\',\'Auto paid\')">Auto paid</button>'
-              + '<button onclick="event.stopPropagation();cbSetBilling(\'' + id + '\',\'Invoice sent\')">Invoice sent</button>'
+              + '<button onclick="cbSetBilling(\'' + id + '\',\'Auto paid\')">Auto paid</button>'
+              + '<button onclick="cbSetBilling(\'' + id + '\',\'Invoice sent\')">Invoice sent</button>'
               + '</div>';
           } else {
             html += '<div class="act">'
-              + '<button onclick="event.stopPropagation();cbSetBilling(\'' + id + '\',\'Halaxy direct\')">Halaxy direct</button>'
-              + '<button onclick="event.stopPropagation();cbSetBilling(\'' + id + '\',\'Funder — awaiting remittance\')">Via funder</button>'
+              + '<button onclick="cbSetBilling(\'' + id + '\',\'Halaxy direct\')">Halaxy direct</button>'
+              + '<button onclick="cbSetBilling(\'' + id + '\',\'Funder — awaiting remittance\')">Via funder</button>'
               + '</div>';
           }
         } else if (col.key === 'remittance') {
           var isInvoiced = c.fields.Billing === 'Invoice sent';
-          html += '<div class="act"><button onclick="event.stopPropagation();cbSetBilling(\'' + id + '\',\'' + (isInvoiced ? 'Closed (paid)' : 'Closed (remittance received)') + '\')">' + (isInvoiced ? 'Payment received' : 'Remittance received') + '</button></div>';
+          html += '<div class="act"><button onclick="cbSetBilling(\'' + id + '\',\'' + (isInvoiced ? 'Closed (paid)' : 'Closed (remittance received)') + '\')">' + (isInvoiced ? 'Payment received' : 'Remittance received') + '</button></div>';
         }
         if ((col.key === 'billing' || col.key === 'remittance' || col.key === 'closed') && c.fields.Bill === 'Yes') {
           html += _cbInvoiceHtml(c);
@@ -1376,8 +1384,8 @@ function _cbRenderBoard() {
         // /admin behaviour, ported here card-by-card since the Board shows
         // several remittance cards at once, not one modal at a time).
         if (col.key === 'remittance' && c.fields.Invoice) {
-          html += '<button class="remit-btn" id="remit-btn-' + id + '" onclick="event.stopPropagation();_cbCheckRemittance(\'' + _cbEsc(c.fields.Invoice) + '\',\'' + id + '\',this)">🔍 Check inbox for remittance</button>'
-            + '<div class="remit-result" id="remit-result-' + id + '" onclick="event.stopPropagation()"></div>';
+          html += '<button class="remit-btn" id="remit-btn-' + id + '" onclick="_cbCheckRemittance(\'' + _cbEsc(c.fields.Invoice) + '\',\'' + id + '\',this)">🔍 Check inbox for remittance</button>'
+            + '<div class="remit-result" id="remit-result-' + id + '"></div>';
         }
         html += '</div>';
       });
