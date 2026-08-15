@@ -1469,7 +1469,12 @@ function cbOpenHistory(eventId) {
       }).join('')
     : '<div class="empty">No history yet — this fills in as the session moves through the Board.</div>';
 
-  document.getElementById('cb-history-body').innerHTML = head + histHtml;
+  // Board cards don't carry the date navigation the schedule does — this is
+  // the only route from "here's a card in the pipeline" back to "show me
+  // this exact day on Home" without hand-paging Day/Week/Month to relocate it.
+  var jumpBtn = ev.start ? '<button class="btn-ghost" onclick="cbJumpToSchedule(\'' + _cbEsc(ev.id) + '\')">View in schedule →</button>' : '';
+
+  document.getElementById('cb-history-body').innerHTML = head + jumpBtn + histHtml;
   document.getElementById('cb-history-backdrop').classList.add('open');
   document.getElementById('cb-history-sheet').classList.add('open');
 }
@@ -1477,6 +1482,15 @@ function cbOpenHistory(eventId) {
 function cbCloseHistory() {
   document.getElementById('cb-history-backdrop').classList.remove('open');
   document.getElementById('cb-history-sheet').classList.remove('open');
+}
+
+function cbJumpToSchedule(eventId) {
+  var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
+  if (!ev || !ev.start) return;
+  cbCloseHistory();
+  _cbHomeMode = 'day';
+  _cbCalDate = new Date(ev.start);
+  cbSetView('home');
 }
 
 /* ═══════════════════════════════════════════════════════════════
