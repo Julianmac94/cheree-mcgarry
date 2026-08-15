@@ -68,6 +68,19 @@ function _cbParseDesc(desc) {
   return out;
 }
 
+/* Memoized per-event — every render pass calls this on the same events
+   repeatedly (Home's list, the Board, the outcome form all parse the
+   same description independently), so cache the parse and only redo it
+   if the description has actually changed since (self-healing: no need
+   to remember to invalidate at every PATCH call site). */
+function _cbFields(e) {
+  if (e._fieldsFor !== e.description) {
+    e._fields = _cbParseDesc(e.description);
+    e._fieldsFor = e.description;
+  }
+  return e._fields;
+}
+
 function _cbBuildDesc(fields) {
   var order = ['Funder', 'Type', 'Duration', 'Note', 'Status', 'Bill', 'Billing', 'Invoice'];
   return order.filter(function(k) { return fields[k] !== undefined && fields[k] !== null; })
@@ -84,7 +97,12 @@ function _cbBuildTitle(name, funder, modality, statusSuffix) {
 function _cbLoadData() {
   return Promise.all([
     fetch('/api/admin-enquiries', { credentials: 'include' }).then(function(r) { return r.status === 401 ? null : r.json(); }),
-    fetch('/api/calendar-pending?days=60', { credentials: 'include' }).then(function(r) { return r.status === 401 ? null : r.json(); }),
+    // No ?days override — uses the server's wide -180d/+91d default, so a
+    // session from months back that never got an outcome logged still
+    // surfaces on Home/Board instead of silently aging out of the fetch
+    // window (the same failure mode the old dashboard had before it was
+    // fixed, just at a smaller ±60d threshold if left as an override here).
+    fetch('/api/calendar-pending', { credentials: 'include' }).then(function(r) { return r.status === 401 ? null : r.json(); }),
   ]).then(function(results) {
     var pipeline = results[0], cal = results[1];
     if (!pipeline || !cal) { window.location.href = '/admin-login'; return false; }
@@ -162,7 +180,7 @@ function _cbNeedsAttentionItems() {
   var now = new Date();
   return _cbEvents.filter(function(e) {
     if (!e.start) return false;
-    var fields = _cbParseDesc(e.description);
+    var fields = _cbFields(e);
     return !_cbIsResolved(fields) && new Date(e.start) < now;
   }).sort(function(a, b) { return new Date(b.start) - new Date(a.start); });
 }
@@ -171,7 +189,7 @@ function _cbUpcomingItems() {
   var now = new Date();
   return _cbEvents.filter(function(e) {
     if (!e.start) return false;
-    var fields = _cbParseDesc(e.description);
+    var fields = _cbFields(e);
     return !_cbIsResolved(fields) && new Date(e.start) >= now;
   }).sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
 }
@@ -180,7 +198,7 @@ function _cbUpcomingItems() {
  * Board's colour language, just per-event instead of per-column. Used to
  * colour cards in every Home view mode, not just the All list. */
 function _cbEventKind(e) {
-  var fields = _cbParseDesc(e.description);
+  var fields = _cbFields(e);
   if (fields.Status === 'Attended') return 'attended';
   if (fields.Status && fields.Status.indexOf('Cancelled') === 0) return 'cancelled';
   return (e.start && new Date(e.start) < new Date()) ? 'attention' : 'upcoming';
@@ -190,7 +208,7 @@ function _cbListHtml(items) {
   return items.map(function(e) {
     var d = new Date(e.start);
     var when = d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
-    var fields = _cbParseDesc(e.description);
+    var fields = _cbFields(e);
     var name = e.title.split(' — ')[0] || e.title;
     var legacy = !fields.Status; // never booked/logged through this tool
     var modIcon = fields.Type === 'Online' ? '💻 ' : fields.Type === 'In person' ? '📍 ' : '';
@@ -399,7 +417,7 @@ function _cbFireBrief() {
   var todayKey = _cbDateKey(now);
   var todaySess = _cbEvents.filter(function(e) {
     if (!e.start) return false;
-    var f = _cbParseDesc(e.description);
+    var f = _cbFields(e);
     return _cbDateKey(new Date(e.start)) === todayKey && (!f.Status || f.Status.indexOf('Cancelled') !== 0);
   }).sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
 
@@ -481,7 +499,7 @@ function _cbLoadAIBrief(data, targetId) {
 function _cbOpenOutcome(eventId) {
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev) return;
-  var fields = _cbParseDesc(ev.description);
+  var fields = _cbFields(ev);
   var baseName = ev.title.split(' — ')[0] || ev.title;
 
   var root = document.getElementById('root');
@@ -559,7 +577,7 @@ function _cbSetBill(v) {
 function _cbSubmitOutcome(eventId, baseName) {
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev) return;
-  var fields = _cbParseDesc(ev.description);
+  var fields = _cbFields(ev);
   var funderSel = document.getElementById('cb-out-funder');
   var funder = (funderSel && funderSel.value) || '';
   // Required, not defaulted to "Unknown" — a blank funder used to silently
@@ -1104,7 +1122,7 @@ function _cbIsDirectFunder(funder) {
 /** Stage for one calendar event, from its own title/description — no
  * guessing, only what's explicitly recorded. */
 function _cbEventStage(ev) {
-  var f = _cbParseDesc(ev.description);
+  var f = _cbFields(ev);
   if (!f.Status) return null; // not created via this tool — not part of this pipeline
   if (f.Status === 'Scheduled') {
     return new Date(ev.start) < new Date() ? 'outcome' : 'booked';
@@ -1130,7 +1148,7 @@ function _cbBoardCards() {
   _cbEvents.forEach(function(ev) {
     var stage = _cbEventStage(ev);
     if (!stage) return;
-    var f = _cbParseDesc(ev.description);
+    var f = _cbFields(ev);
     var name = ev.title.split(' — ')[0];
     var d = new Date(ev.start);
     var when = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
@@ -1150,7 +1168,7 @@ function _cbBoardCards() {
 function cbSetBilling(eventId, choice) {
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev) return;
-  var f = _cbParseDesc(ev.description);
+  var f = _cbFields(ev);
   f.Billing = choice;
   var newDesc = _cbBuildDesc(f);
   fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
@@ -1175,7 +1193,7 @@ function cbSaveInvoice(eventId) {
   if (!num) return;
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev) return;
-  var f = _cbParseDesc(ev.description);
+  var f = _cbFields(ev);
   f.Invoice = num;
   var newDesc = _cbBuildDesc(f);
   fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
