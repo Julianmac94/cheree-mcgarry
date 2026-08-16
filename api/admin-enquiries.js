@@ -262,6 +262,29 @@ function fhirPatientLegalName(p) {
   return [given, family].filter(Boolean).join(' ') || p.id || 'Unknown';
 }
 
+/** FHIR gender -> the exact QFES ISA-form option string. */
+function fhirGenderToQfes(gender) {
+  if (gender === 'male') return 'Male';
+  if (gender === 'female') return 'Female';
+  return gender ? 'Other' : null;
+}
+
+/** Birth date -> the exact QFES ISA-form age-bracket option string. */
+function qfesAgeBracket(birthDate) {
+  if (!birthDate) return null;
+  const dob = new Date(birthDate);
+  if (isNaN(dob)) return null;
+  const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 3600 * 1000));
+  if (age < 20) return 'Under 20';
+  if (age < 30) return '20-29';
+  if (age < 40) return '30-39';
+  if (age < 50) return '40-49';
+  if (age < 60) return '50-59';
+  if (age < 70) return '60-69';
+  if (age < 80) return '70-79';
+  return '80 and above';
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    FHIR Appointment write-back helpers
    ───────────────────────────────────────────────────────────────────────── */
@@ -1355,12 +1378,41 @@ export default async function handler(req, res) {
     if (!clientHalaxyId) return res.status(400).json({ error: 'client id required' });
     const db = supabase();
     try {
-      const { data, error } = await db
+      let { data, error } = await db
         .from('qfes_client_profiles')
         .select('*')
         .eq('client_halaxy_id', clientHalaxyId)
         .maybeSingle();
       if (error) throw error;
+
+      // Gender/Age come straight off the Halaxy patient record, not from
+      // anything Cheree fills in — hydrate + cache them here on first look
+      // (or whenever they're still missing) so a QFES card's details sheet
+      // never needs its own live Halaxy round-trip after the first time.
+      if ((!data?.gender || !data?.age_bracket) && process.env.HALAXY_CLIENT_ID) {
+        try {
+          const patient = await halaxyGet('/Patient/' + clientHalaxyId);
+          const gender  = fhirGenderToQfes(patient.gender);
+          const age     = qfesAgeBracket(patient.birthDate);
+          if (gender || age) {
+            const { data: updated, error: upErr } = await db
+              .from('qfes_client_profiles')
+              .upsert({
+                client_halaxy_id: clientHalaxyId,
+                client_name: data?.client_name || fhirPatientLegalName(patient),
+                gender: gender || data?.gender || null,
+                age_bracket: age || data?.age_bracket || null,
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'client_halaxy_id' })
+              .select().single();
+            if (!upErr) data = updated;
+          }
+        } catch (hErr) {
+          console.error('qfes_profile Halaxy hydrate error:', hErr.message);
+          // fall through with whatever was already in Supabase (possibly null)
+        }
+      }
+
       return res.status(200).json({ profile: data || null });
     } catch (err) {
       console.error('qfes_profile error:', err.message);

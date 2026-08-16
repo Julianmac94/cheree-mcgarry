@@ -346,6 +346,12 @@ function cbBookPage({ currentUser = null }) {
     <div class="sheet-body" id="cb-history-body"></div>
   </div>
 
+  <div class="sheet-backdrop" id="cb-qfes-backdrop" onclick="cbCloseQfesDetails()"></div>
+  <div class="sheet" id="cb-qfes-sheet">
+    <div class="sheet-hd"><span id="cb-qfes-title">QFES form details</span><button onclick="cbCloseQfesDetails()" aria-label="Close">✕</button></div>
+    <div class="sheet-body" id="cb-qfes-body"></div>
+  </div>
+
   <nav class="dock">
     <div class="dock-pill">
       <button class="dock-btn active" id="dock-home" onclick="cbSetView('home')" aria-label="Home">

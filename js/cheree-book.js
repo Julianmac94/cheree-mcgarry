@@ -122,7 +122,7 @@ function _cbFields(e) {
 }
 
 function _cbBuildDesc(fields) {
-  var order = ['Funder', 'Type', 'Duration', 'Note', 'Status', 'Bill', 'Billing', 'Invoice'];
+  var order = ['Funder', 'HalaxyId', 'Type', 'Duration', 'Note', 'Status', 'Bill', 'Billing', 'Invoice', 'QFES Form'];
   var head = order.filter(function(k) { return fields[k] !== undefined && fields[k] !== null; })
     .map(function(k) { return k + ': ' + fields[k]; }).join('\n');
   var hist = fields._history || [];
@@ -657,9 +657,9 @@ function _cbSubmitOutcome(eventId, baseName, btn) {
   if (noCharge || alreadyClosed) newTitle = _cbCloseTitle(newTitle);
 
   var newFields = {
-    'Funder': funder, 'Type': modality, 'Duration': duration, 'Note': fields.Note,
+    'Funder': funder, 'HalaxyId': fields.HalaxyId, 'Type': modality, 'Duration': duration, 'Note': fields.Note,
     'Status': statusField, 'Bill': window._cbBill ? 'Yes' : 'No', 'Billing': fields.Billing,
-    'Invoice': fields.Invoice, '_history': fields._history,
+    'Invoice': fields.Invoice, 'QFES Form': fields['QFES Form'], '_history': fields._history,
   };
   _cbLogHistory(newFields, statusField + (noCharge ? ' — no charge, closed' : ''));
   var newDesc = _cbBuildDesc(newFields);
@@ -795,7 +795,10 @@ function _cbSubmitBooking() {
 
   var durationLabel = (_CB_DURATIONS.find(function(o) { return o[0] === duration; }) || [duration, duration + ' min'])[1];
   var title = _cbBuildTitle(_cbPicked.name, funder, _cbModality, null);
-  var fields = { 'Funder': funder, 'Type': _cbModality, 'Duration': durationLabel,
+  // _cbPicked always comes from the Halaxy patient search (adding a brand
+  // new, not-yet-in-Halaxy client is parked — see the note above), so its
+  // id is always a real Halaxy Patient ID, not a Supabase-only enquiry id.
+  var fields = { 'Funder': funder, 'HalaxyId': _cbPicked.id, 'Type': _cbModality, 'Duration': durationLabel,
     'Note': note || null, 'Status': 'Scheduled' };
   _cbLogHistory(fields, 'Booked — ' + funder + ', ' + _cbModality);
   var desc = _cbBuildDesc(fields);
@@ -1315,6 +1318,45 @@ function _cbInvoiceHtml(c) {
     + '</div>';
 }
 
+/* QFES-only, sits right under the Invoice line — the ISA "Individual
+ * Support Activity" form has to be submitted before Julian sends a QFES
+ * invoice, and this is the confirmation number that comes back once he's
+ * done that. Same save mechanics as Invoice, own field on the event so
+ * either can be filled in independently of the other. */
+function cbSaveQfesForm(eventId, btn) {
+  var input = document.getElementById('qform-' + eventId);
+  if (!input) return;
+  var num = input.value.trim();
+  if (!num) return;
+  var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
+  if (!ev) return;
+  var f = _cbFields(ev);
+  f['QFES Form'] = num;
+  _cbLogHistory(f, 'QFES form ref ' + num + ' saved');
+  var newDesc = _cbBuildDesc(f);
+  input.disabled = true;
+  var restore = _cbBusy(btn, 'Saving…');
+  fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ description: newDesc }),
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { _cbToast('Could not save QFES form ref: ' + d.error); input.disabled = false; restore(); return; }
+    ev.description = newDesc;
+    _cbRenderBoard();
+  }).catch(function(err) { _cbToast('Could not save QFES form ref: ' + err.message); input.disabled = false; restore(); });
+}
+
+function _cbQfesFormHtml(c) {
+  var id = _cbEsc(String(c.id));
+  if (c.fields['QFES Form']) {
+    return '<div class="mt" style="margin-top:4px">QFES form ref: ' + _cbEsc(c.fields['QFES Form']) + '</div>';
+  }
+  return '<div class="act act-inv">'
+    + '<input type="text" class="inv-input" id="qform-' + id + '" placeholder="QFES form ref…">'
+    + '<button onclick="cbSaveQfesForm(\'' + id + '\',this)">Save</button>'
+    + '</div>';
+}
+
 /* ── Remittance inbox check — ported from the old /admin invoice modal
  * (js/admin-ui.js `_checkRemittance`/`_remitGmailUrl`/`_remitFromName`).
  * Same server endpoint (`?check_remittance=`), searches admin@ + reachout@
@@ -1417,6 +1459,10 @@ function _cbRenderBoard() {
         }
         if ((col.key === 'billing' || col.key === 'remittance' || col.key === 'closed') && c.fields.Bill === 'Yes') {
           html += _cbInvoiceHtml(c);
+          if (c.fields.Funder === 'QFES') {
+            html += _cbQfesFormHtml(c)
+              + '<div class="mt" style="margin-top:6px"><a href="#" onclick="cbOpenQfesDetails(\'' + id + '\');return false" style="color:var(--teal);font-size:11px">📋 QFES form details</a></div>';
+          }
         }
         // Remittance inbox check — only once an invoice # exists to search
         // for, and only on the Awaiting payment column (matching the old
@@ -1518,6 +1564,70 @@ function cbJumpToSchedule(eventId) {
   _cbHomeMode = 'day';
   _cbCalDate = new Date(ev.start);
   cbSetView('home');
+}
+
+/* ── QFES card → "everything I need to fill in the real ISA form" sheet.
+ * Type of activity/Date/Mode/Time spent come straight off the event, same
+ * as everywhere else on the Board. Client code/Gender/Age and the saved
+ * profile (Area/Role/Concern/Client type) need the client's Halaxy ID,
+ * which only exists on events booked through /book since HalaxyId started
+ * being captured — older or hand-typed entries won't have one. ── */
+function cbOpenQfesDetails(eventId) {
+  var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
+  if (!ev) return;
+  var f = _cbFields(ev);
+  var name = ev.title.split(' — ')[0] || ev.title;
+  document.getElementById('cb-qfes-title').textContent = 'QFES form details — ' + name;
+
+  var d = new Date(ev.start);
+  var typeOfActivity = f.Status === 'Attended' ? 'Individual Support' : 'Did Not Attend (late cancellation)';
+  var mode = f.Type === 'Online' ? 'Telehealth/Phone' : 'Face to face';
+
+  var head = '<div class="field"><label>Type of activity</label><div class="mt">' + _cbEsc(typeOfActivity) + '</div></div>'
+    + '<div class="field"><label>Date of activity</label><div class="mt">' + _cbEsc(d.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' })) + '</div></div>'
+    + '<div class="field"><label>Mode of Contact</label><div class="mt">' + _cbEsc(mode) + '</div></div>'
+    + '<div class="field"><label>Time spent</label><div class="mt">' + _cbEsc(f.Duration || 'Not set') + '</div></div>';
+
+  var body = document.getElementById('cb-qfes-body');
+  body.innerHTML = head + '<div class="mt">Loading client details…</div>';
+  document.getElementById('cb-qfes-backdrop').classList.add('open');
+  document.getElementById('cb-qfes-sheet').classList.add('open');
+
+  if (!f.HalaxyId) {
+    body.innerHTML = head + '<div class="empty">This session isn\'t linked to a Halaxy client (booked before this was tracked, or hand-typed on the calendar) — Client code/Gender/Age and any saved QFES profile aren\'t available here. Pull those from Halaxy directly.</div>';
+    return;
+  }
+
+  fetch('/api/admin-enquiries?qfes_profile=' + encodeURIComponent(f.HalaxyId), { credentials: 'include' })
+    .then(function(r) { return r.json(); }).then(function(d2) {
+      var p = d2.profile;
+      var extra = '<div class="field"><label>Client code</label><div class="mt">' + _cbEsc(f.HalaxyId) + '</div></div>';
+      if (p && (p.gender || p.age_bracket)) {
+        extra += (p.gender ? '<div class="field"><label>Gender</label><div class="mt">' + _cbEsc(p.gender) + '</div></div>' : '')
+          + (p.age_bracket ? '<div class="field"><label>Age</label><div class="mt">' + _cbEsc(p.age_bracket) + '</div></div>' : '');
+      }
+      if (p && (p.area || p.client_type || p.concern_primary
+          || (p.urban_firefighters && p.urban_firefighters !== 'Not Applicable')
+          || (p.rural_firefighters && p.rural_firefighters !== 'Not Applicable')
+          || (p.qfd_staff && p.qfd_staff !== 'Not Applicable'))) {
+        extra += (p.area ? '<div class="field"><label>Area</label><div class="mt">' + _cbEsc(p.area) + '</div></div>' : '')
+          + (p.client_type ? '<div class="field"><label>Client type</label><div class="mt">' + _cbEsc(p.client_type) + '</div></div>' : '')
+          + ((p.urban_firefighters && p.urban_firefighters !== 'Not Applicable') ? '<div class="field"><label>Urban Firefighters</label><div class="mt">' + _cbEsc(p.urban_firefighters) + '</div></div>' : '')
+          + ((p.rural_firefighters && p.rural_firefighters !== 'Not Applicable') ? '<div class="field"><label>Rural Firefighters</label><div class="mt">' + _cbEsc(p.rural_firefighters) + '</div></div>' : '')
+          + ((p.qfd_staff && p.qfd_staff !== 'Not Applicable') ? '<div class="field"><label>QFD Staff</label><div class="mt">' + _cbEsc(p.qfd_staff) + '</div></div>' : '')
+          + (p.concern_primary ? '<div class="field"><label>' + (p.concern_category === 'nonwork' ? 'Non-work' : 'Work') + ' concern</label><div class="mt">' + _cbEsc(p.concern_primary) + (p.concern_secondary ? ', ' + _cbEsc(p.concern_secondary) : '') + '</div></div>' : '');
+      } else {
+        extra += '<div class="empty">No saved QFES profile for this client yet — <a href="/book/qfes" style="color:var(--teal)">fill one in</a> for Area/Role/Concern/Client type.</div>';
+      }
+      body.innerHTML = head + extra;
+    }).catch(function() {
+      body.innerHTML = head + '<div class="empty">Could not load client details.</div>';
+    });
+}
+
+function cbCloseQfesDetails() {
+  document.getElementById('cb-qfes-backdrop').classList.remove('open');
+  document.getElementById('cb-qfes-sheet').classList.remove('open');
 }
 
 /* ═══════════════════════════════════════════════════════════════
