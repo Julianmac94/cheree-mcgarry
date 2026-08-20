@@ -687,6 +687,116 @@ function _cbSubmitOutcome(eventId, baseName, btn) {
   }).catch(function(err) { _cbToast('Could not save: ' + err.message); restore(); });
 }
 
+/* ── Edit / delete an existing session — reachable from the Board (which
+ * otherwise has no way to fix a wrong date/time/duration or remove a
+ * mis-entered session short of finding it on Home) and from anywhere else
+ * that has an eventId. Deliberately separate from _cbOpenOutcome: that flow
+ * forces picking Attended/Cancelled to save anything, which doesn't fit
+ * "I typo'd the date on a session that hasn't happened yet". ── */
+function cbOpenEdit(eventId) {
+  var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
+  if (!ev) return;
+  var fields = _cbFields(ev);
+  var start = ev.start ? new Date(ev.start) : new Date();
+  var p = function(n) { return (n < 10 ? '0' : '') + n; };
+
+  document.getElementById('cb-edit-title').textContent = ev.title.split(' — ')[0] || 'Edit session';
+
+  var durationMinutes = ev.start && ev.end ? Math.round((new Date(ev.end) - start) / 60000) : null;
+  var durationKnown = _CB_DURATIONS.some(function(o) { return o[0] === durationMinutes; });
+
+  var html = '<div class="field"><label>Date</label><input type="date" id="cb-edit-date" value="' + _cbDateKey(start) + '"></div>';
+  html += '<div class="field"><label>Time</label><input type="time" id="cb-edit-time" value="' + p(start.getHours()) + ':' + p(start.getMinutes()) + '"></div>';
+  html += '<div class="field"><label>How long?</label><select id="cb-edit-duration">'
+    + (!durationMinutes || !durationKnown ? '<option value="" selected>' + (durationMinutes ? durationMinutes + ' min (custom)' : 'Not set') + '</option>' : '')
+    + _CB_DURATIONS.map(function(o) { return '<option value="' + o[0] + '"' + (o[0] === durationMinutes ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('')
+    + '</select></div>';
+  html += '<div class="field"><label>In person or online?</label><div class="modality">'
+    + '<button id="cb-edit-mod-inperson" class="' + (fields.Type === 'Online' ? '' : 'sel') + '" onclick="_cbSetEditModality(\'In person\')">In person</button>'
+    + '<button id="cb-edit-mod-online" class="' + (fields.Type === 'Online' ? 'sel' : '') + '" onclick="_cbSetEditModality(\'Online\')">Online</button>'
+    + '</div></div>';
+  html += '<button class="btn-primary" onclick="cbSaveEdit(\'' + _cbEsc(eventId) + '\',this)">Save</button>';
+  html += '<button class="btn-ghost" style="color:var(--red,#c0392b)" onclick="cbDeleteEvent(\'' + _cbEsc(eventId) + '\',this)">Delete this session</button>';
+
+  document.getElementById('cb-edit-body').innerHTML = html;
+  window._cbEditModality = fields.Type === 'Online' ? 'Online' : 'In person';
+  document.getElementById('cb-edit-backdrop').classList.add('open');
+  document.getElementById('cb-edit-sheet').classList.add('open');
+}
+
+function _cbSetEditModality(m) {
+  window._cbEditModality = m;
+  document.getElementById('cb-edit-mod-inperson').classList.toggle('sel', m === 'In person');
+  document.getElementById('cb-edit-mod-online').classList.toggle('sel', m === 'Online');
+}
+
+function cbCloseEdit() {
+  document.getElementById('cb-edit-backdrop').classList.remove('open');
+  document.getElementById('cb-edit-sheet').classList.remove('open');
+}
+
+function cbSaveEdit(eventId, btn) {
+  var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
+  if (!ev) return;
+  var fields = _cbFields(ev);
+  var date = document.getElementById('cb-edit-date').value;
+  var time = document.getElementById('cb-edit-time').value;
+  if (!date || !time) { _cbToast('Pick a date and time'); return; }
+
+  var durationSel = document.getElementById('cb-edit-duration');
+  var durationMinutes = durationSel && durationSel.value ? parseInt(durationSel.value, 10) : null;
+  var durationLabel = durationMinutes
+    ? (_CB_DURATIONS.find(function(o) { return o[0] === durationMinutes; }) || [durationMinutes, durationMinutes + ' min'])[1]
+    : fields.Duration;
+  var modality = window._cbEditModality || fields.Type || 'In person';
+
+  var start = new Date(date + 'T' + time + ':00');
+  var end = new Date(start.getTime() + (durationMinutes || 60) * 60000);
+
+  var baseName = ev.title.split(' — ')[0] || ev.title;
+  var statusSuffix = fields.Status === 'Attended' ? 'Attended'
+    : fields.Status === 'Cancelled by Cheree' ? 'Cancelled (Cheree)'
+    : fields.Status === 'Cancelled by client' ? 'Cancelled (client)' : null;
+  var newTitle = _cbBuildTitle(baseName, fields.Funder || 'Unknown', modality, statusSuffix);
+  if (/ ✓$/.test(ev.title)) newTitle = _cbCloseTitle(newTitle);
+
+  var newFields = { 'Funder': fields.Funder, 'HalaxyId': fields.HalaxyId, 'Type': modality, 'Duration': durationLabel,
+    'Note': fields.Note, 'Status': fields.Status, 'Bill': fields.Bill, 'Billing': fields.Billing,
+    'Invoice': fields.Invoice, 'QFES Form': fields['QFES Form'], '_history': fields._history };
+  _cbLogHistory(newFields, 'Edited — ' + date + ' ' + time + ', ' + durationLabel + ', ' + modality);
+  var newDesc = _cbBuildDesc(newFields);
+
+  var restore = _cbBusy(btn, 'Saving…');
+  fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: newTitle, description: newDesc, start: start.toISOString(), end: end.toISOString() }),
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { _cbToast('Could not save: ' + d.error); restore(); return; }
+    ev.title = newTitle; ev.description = newDesc; ev.start = start.toISOString(); ev.end = end.toISOString();
+    _cbToast('Saved');
+    cbCloseEdit();
+    _cbRender();
+  }).catch(function(err) { _cbToast('Could not save: ' + err.message); restore(); });
+}
+
+function cbDeleteEvent(eventId, btn) {
+  var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
+  if (!ev) return;
+  var name = ev.title.split(' — ')[0] || 'this session';
+  if (!window.confirm('Delete ' + name + '’s session? This removes it from the calendar entirely — it can’t be undone from here.')) return;
+
+  var restore = _cbBusy(btn, 'Deleting…');
+  fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
+    method: 'DELETE', credentials: 'include',
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { _cbToast('Could not delete: ' + d.error); restore(); return; }
+    _cbEvents = _cbEvents.filter(function(e) { return String(e.id) !== String(eventId); });
+    _cbToast('Deleted');
+    cbCloseEdit();
+    _cbRender();
+  }).catch(function(err) { _cbToast('Could not delete: ' + err.message); restore(); });
+}
+
 /* ── Book new appointment (existing client only — "add new" is parked) ── */
 function _cbRenderBook() {
   var root = document.getElementById('root');
@@ -1438,8 +1548,10 @@ function _cbRenderBoard() {
         // of the action buttons below it.
         var histBtn = '<button onclick="cbOpenHistory(\'' + id + '\')" title="History" aria-label="History"'
           + ' style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:2px 4px;flex-shrink:0;line-height:1">🕘</button>';
+        var editBtn = '<button onclick="cbOpenEdit(\'' + id + '\')" title="Edit or delete" aria-label="Edit or delete"'
+          + ' style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:2px 4px;flex-shrink:0;line-height:1">✏️</button>';
         html += '<div class="card2"><div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>'
-          + '<div style="display:flex;align-items:center;gap:4px">' + histBtn + _cbFunderChip(f.Funder) + '</div>'
+          + '<div style="display:flex;align-items:center;gap:4px">' + editBtn + histBtn + _cbFunderChip(f.Funder) + '</div>'
           + '</div><div class="mt">' + _cbEsc(c.meta) + '</div>';
         if (col.key === 'billing') {
           if (_cbIsDirectFunder(c.fields.Funder)) {

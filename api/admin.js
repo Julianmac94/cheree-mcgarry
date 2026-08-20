@@ -346,6 +346,12 @@ function cbBookPage({ currentUser = null }) {
     <div class="sheet-body" id="cb-history-body"></div>
   </div>
 
+  <div class="sheet-backdrop" id="cb-edit-backdrop" onclick="cbCloseEdit()"></div>
+  <div class="sheet" id="cb-edit-sheet">
+    <div class="sheet-hd"><span id="cb-edit-title">Edit session</span><button onclick="cbCloseEdit()" aria-label="Close">✕</button></div>
+    <div class="sheet-body" id="cb-edit-body"></div>
+  </div>
+
   <div class="sheet-backdrop" id="cb-qfes-backdrop" onclick="cbCloseQfesDetails()"></div>
   <div class="sheet" id="cb-qfes-sheet">
     <div class="sheet-hd"><span id="cb-qfes-title">QFES form details</span><button onclick="cbCloseQfesDetails()" aria-label="Close">✕</button></div>
