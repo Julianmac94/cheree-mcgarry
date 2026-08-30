@@ -180,6 +180,88 @@ function qfInit() {
   });
   document.getElementById('qf-form-close').addEventListener('click', _qfCloseForm);
   document.getElementById('qf-form-backdrop').addEventListener('click', _qfCloseForm);
+
+  document.getElementById('qf-compile-toggle').addEventListener('click', function() {
+    var panel = document.getElementById('qf-compile');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  });
+  document.getElementById('qf-inv-btn').addEventListener('click', _qfRunCompile);
+  document.getElementById('qf-inv-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') _qfRunCompile();
+  });
+}
+
+/* ── Invoice compile panel — joins calendar sessions tagged with an
+ * invoice number to their staged QFES profile + Halaxy demographics via
+ * ?qfes_invoice_compile=, replacing the old fully-manual cross-reference.
+ * Read-only: nothing here writes to Halaxy or submits anything. ── */
+function _qfRoleLabel(s) {
+  if (s.corporateSupport) return 'Corporate: ' + s.corporateSupport;
+  if (s.urbanFirefighters) return 'Urban FF: ' + s.urbanFirefighters;
+  if (s.ruralFirefighters) return 'Rural FF: ' + s.ruralFirefighters;
+  if (s.qfdStaff) return 'QFD: ' + s.qfdStaff;
+  return '';
+}
+
+function _qfRunCompile() {
+  var input = document.getElementById('qf-inv-input');
+  var num = (input.value || '').trim();
+  var out = document.getElementById('qf-inv-result');
+  if (!num) { out.innerHTML = ''; return; }
+  out.innerHTML = '<div class="loading">Compiling&hellip;</div>';
+  fetch('/api/admin-enquiries?qfes_invoice_compile=' + encodeURIComponent(num), { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.error) { out.innerHTML = '<div class="empty">Could not compile: ' + _qfEsc(d.error) + '</div>'; return; }
+      _qfRenderCompileResult(num, d.sessions || []);
+    })
+    .catch(function(err) {
+      out.innerHTML = '<div class="empty">Could not compile: ' + _qfEsc(err.message) + '</div>';
+    });
+}
+
+function _qfRenderCompileResult(invoiceNumber, sessions) {
+  var out = document.getElementById('qf-inv-result');
+  if (!sessions.length) {
+    out.innerHTML = '<div class="empty">No calendar sessions are tagged with invoice ' + _qfEsc(invoiceNumber) + '.</div>';
+    return;
+  }
+  var cols = ['Date', 'Client', 'Code', 'Funder', 'Mode', 'Duration', 'Status', 'Area', 'Role', 'Concern', 'Client type', 'Gender', 'Age'];
+  var rows = sessions.map(function(s) {
+    var concern = [s.concernPrimary, s.concernSecondary].filter(Boolean).join(' / ');
+    var flagged = !s.halaxyId || s.ambiguous || s.profileIncomplete;
+    var cells = [
+      (s.date || '').slice(0, 10),
+      s.name,
+      s.halaxyId || (s.ambiguous ? 'Ambiguous name' : 'Not matched'),
+      s.funder || '', s.mode || '', s.duration || '', s.status || '',
+      s.area || '', _qfRoleLabel(s), concern, s.clientType || '', s.gender || '', s.ageBracket || '',
+    ];
+    return { cells: cells, flagged: flagged };
+  });
+
+  var html = '<div class="qf-inv-wrap"><table class="qf-inv-table"><thead><tr>'
+    + cols.map(function(c) { return '<th>' + c + '</th>'; }).join('')
+    + '</tr></thead><tbody>'
+    + rows.map(function(r) {
+        return '<tr' + (r.flagged ? ' class="warn"' : '') + '>' + r.cells.map(function(c) { return '<td>' + _qfEsc(String(c || '')) + '</td>'; }).join('') + '</tr>';
+      }).join('')
+    + '</tbody></table></div>';
+
+  var flaggedCount = rows.filter(function(r) { return r.flagged; }).length;
+  html += '<div class="qf-inv-actions">'
+    + '<button class="qf-copy-btn" id="qf-inv-copy">Copy as table</button>'
+    + (flaggedCount ? '<span class="qf-inv-note">' + flaggedCount + ' row' + (flaggedCount === 1 ? '' : 's') + ' need' + (flaggedCount === 1 ? 's' : '') + ' a look — unmatched client, ambiguous name, or incomplete ISA profile</span>' : '<span class="qf-inv-note">' + rows.length + ' session' + (rows.length === 1 ? '' : 's') + ', all matched</span>')
+    + '</div>';
+
+  out.innerHTML = html;
+
+  document.getElementById('qf-inv-copy').addEventListener('click', function() {
+    var tsv = cols.join('\t') + '\n' + rows.map(function(r) { return r.cells.join('\t'); }).join('\n');
+    (navigator.clipboard ? navigator.clipboard.writeText(tsv) : Promise.reject())
+      .then(function() { _qfToast('Copied — paste into Numbers/Excel'); })
+      .catch(function() { _qfToast('Could not copy — select the table manually'); });
+  });
 }
 
 function _qfRenderList() {

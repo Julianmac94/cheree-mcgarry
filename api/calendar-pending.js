@@ -19,8 +19,10 @@ export const CALENDAR_ID = 'c_af1c120054ecb4479786f98965dc27dbf1b52ab7ae3a58db89
 /** Same tiny "Key: Value" line parser as the client-side js/cheree-book.js —
  * duplicated rather than shared since this is a server module (that's a
  * browser script). Used to pull Funder/Type/Bill out of an event
- * description for richer notification text. */
-function _parseDesc(desc) {
+ * description for richer notification text. Exported so other server
+ * modules (the QFES invoice compiler) can read the same fields instead of
+ * re-parsing descriptions themselves. */
+export function _parseDesc(desc) {
   const out = {};
   (desc || '').split('\n').forEach(line => {
     const idx = line.indexOf(': ');

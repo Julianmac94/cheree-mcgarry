@@ -10,7 +10,7 @@ import { Resend } from 'resend';
 import { isAuthed, getSessionUser } from './_auth.js';
 import { supabase } from './_supabase.js';
 import { halaxyGet, halaxyPost, halaxyPatch } from './_halaxy.js';
-import { createCalendarEvent } from './calendar-pending.js';
+import { createCalendarEvent, fetchCalendarEvents, _parseDesc as parseEventDesc } from './calendar-pending.js';
 import { registrationCompleteEmailHtml } from './_emails.js';
 import { searchRemittance } from './_gmail.js';
 import { saveSubscription } from './_push.js';
@@ -1457,6 +1457,124 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, profile: data });
     } catch (err) {
       console.error('qfes_profile_save error:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /* ── GET ?qfes_invoice_compile=<invoiceNumber> — read-only join of the
+     three sources Julian previously cross-referenced by hand for a QFES
+     bulk invoice: calendar sessions tagged `Invoice: <number>` (the only
+     per-session↔invoice link that exists — Halaxy's API can't do this, see
+     "Per-session invoice attribution is impossible" above), each session's
+     staged ISA fields (`qfes_client_profiles`, via /book/qfes), and Halaxy
+     patient demographics. Matches calendar events to a Halaxy patient by
+     exact display-name match (calendar events carry no Halaxy id) — a name
+     matching zero or 2+ patients is left unresolved (`halaxyId: null` /
+     `ambiguous: true`) rather than guessed. Nothing is written to Halaxy or
+     the calendar; gender/age may be cached onto `qfes_client_profiles`,
+     same as `qfes_profile` already does for a single client. ── */
+  if (req.method === 'GET' && params.get('qfes_invoice_compile')) {
+    const invoiceNumber = (params.get('qfes_invoice_compile') || '').trim();
+    if (!invoiceNumber) return res.status(400).json({ error: 'invoice number required' });
+    const db = supabase();
+    try {
+      // Funder bulk invoices can span months of sessions — look back
+      // generously rather than trying to guess the invoice's date range.
+      const { events } = await fetchCalendarEvents({ pastDays: 420, futureDays: 14, paginate: true });
+      const matches = events
+        .map(e => ({ e, fields: parseEventDesc(e.description) }))
+        .filter(({ fields }) => (fields.Invoice || '').trim() === invoiceNumber);
+
+      if (!matches.length) {
+        return res.status(200).json({ invoiceNumber, sessions: [] });
+      }
+
+      const patientBundle = await halaxyGet('/Patient', { _count: '500' });
+      const patients = (patientBundle.entry || []).map(en => en.resource).filter(Boolean);
+      const byName = {};
+      patients.forEach(p => {
+        const n = fhirPatientLegalName(p);
+        if (n) (byName[n] = byName[n] || []).push(p);
+      });
+
+      const halaxyIds = new Set();
+      const sessions = matches.map(({ e, fields }) => {
+        const name = (e.title.split(' — ')[0] || e.title).trim();
+        const candidates = byName[name] || [];
+        const patient = candidates.length === 1 ? candidates[0] : null;
+        if (patient) halaxyIds.add(patient.id);
+        return {
+          eventId:  e.id,
+          date:     e.start,
+          name,
+          funder:   fields.Funder || null,
+          mode:     fields.Type || null,
+          duration: fields.Duration || null,
+          status:   fields.Status || null,
+          halaxyId: patient ? patient.id : null,
+          ambiguous: candidates.length > 1,
+        };
+      });
+
+      const { data: existingProfiles } = await db
+        .from('qfes_client_profiles')
+        .select('*')
+        .in('client_halaxy_id', Array.from(halaxyIds).length ? Array.from(halaxyIds) : ['']);
+      const profileById = {};
+      (existingProfiles || []).forEach(p => { profileById[String(p.client_halaxy_id)] = p; });
+
+      // Hydrate gender/age for any matched client missing it — same logic
+      // as qfes_profile's GET, batched here since the /Patient bundle above
+      // already has every patient record in hand.
+      const patientById = {};
+      patients.forEach(p => { patientById[p.id] = p; });
+      for (const halaxyId of halaxyIds) {
+        const profile = profileById[halaxyId];
+        if (profile && profile.gender && profile.age_bracket) continue;
+        const patient = patientById[halaxyId];
+        if (!patient) continue;
+        const gender = fhirGenderToQfes(patient.gender);
+        const age    = qfesAgeBracket(patient.birthDate);
+        if (!gender && !age) continue;
+        try {
+          const { data: updated } = await db
+            .from('qfes_client_profiles')
+            .upsert({
+              client_halaxy_id: halaxyId,
+              client_name: profile?.client_name || fhirPatientLegalName(patient),
+              gender: gender || profile?.gender || null,
+              age_bracket: age || profile?.age_bracket || null,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'client_halaxy_id' })
+            .select().single();
+          if (updated) profileById[halaxyId] = updated;
+        } catch (hErr) {
+          console.error('qfes_invoice_compile hydrate error:', hErr.message);
+        }
+      }
+
+      const compiled = sessions.map(s => {
+        const profile = s.halaxyId ? profileById[s.halaxyId] : null;
+        return {
+          ...s,
+          area:              profile?.area || null,
+          corporateSupport:  profile?.corporate_support || null,
+          urbanFirefighters: profile?.urban_firefighters || null,
+          ruralFirefighters: profile?.rural_firefighters || null,
+          qfdStaff:          profile?.qfd_staff || null,
+          concernCategory:   profile?.concern_category || null,
+          concernPrimary:    profile?.concern_primary || null,
+          concernSecondary:  profile?.concern_secondary || null,
+          clientType:        profile?.client_type || null,
+          gender:            profile?.gender || null,
+          ageBracket:        profile?.age_bracket || null,
+          profileIncomplete: !profile || !profile.area || !profile.client_type,
+        };
+      });
+
+      return res.status(200).json({ invoiceNumber, sessions: compiled });
+    } catch (err) {
+      console.error('qfes_invoice_compile error:', err.message);
       return res.status(500).json({ error: err.message });
     }
   }

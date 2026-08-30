@@ -133,6 +133,7 @@ GET unless noted. Query-param-routed, one big handler function.
 | `push_subscribe` (POST) | Save a Web Push subscription |
 | `client_funders_set` (POST) | Manual multi-funder tagging ledger |
 | `qfes_profiles_all`, `qfes_profile`, `qfes_profile_save` (POST) | QFES ISA form staging (`qfes_client_profiles` table) |
+| `qfes_invoice_compile=<invoiceNumber>` | Read-only join of calendar sessions tagged `Invoice: <number>`, their staged QFES profile, and Halaxy demographics — into one table for manual ISA submission. See `js/cheree-qfes.js`'s compile panel. |
 | `session_bill=1` (POST) | Legacy funder-session reconciliation ledger — predates the Board, may be redundant with `Invoice:`/`Billing:` on the calendar event now. Not yet audited for removal. |
 | (bare GET) | Main pipeline payload — enquiries + clients + Halaxy patients/appointments |
 | PATCH | Update an enquiry's status/notes |

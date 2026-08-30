@@ -483,6 +483,21 @@ function cbQfesPage({ currentUser = null }) {
   .qf-hint { font-size: 12px; color: var(--t3); line-height: 1.5; padding: 2px 0 4px; }
 
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--teal); color: var(--t1); padding: 12px 20px; border-radius: 10px; font-size: 13px; z-index: 90; }
+
+  /* ── Invoice compile panel ── */
+  .qf-compile-toggle { font-size: 12.5px; font-weight: 600; color: var(--teal); cursor: pointer; margin: -4px 0 16px; display: inline-block; }
+  .qf-compile { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 20px; }
+  .qf-compile-row { display: flex; gap: 8px; }
+  .qf-compile-hint { font-size: 12px; color: var(--t3); margin: 0 0 10px; line-height: 1.5; }
+  .qf-inv-wrap { overflow-x: auto; margin-top: 14px; }
+  .qf-inv-table { border-collapse: collapse; width: 100%; font-size: 12px; white-space: nowrap; }
+  .qf-inv-table th, .qf-inv-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+  .qf-inv-table th { color: var(--t3); font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.04em; }
+  .qf-inv-table tr.warn td { color: var(--amber); }
+  .qf-inv-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .qf-copy-btn { padding: 8px 14px; border-radius: 8px; background: rgba(119,207,189,0.12); border: 1px solid var(--teal); color: var(--teal); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+  .qf-copy-btn:hover { background: rgba(119,207,189,0.2); }
+  .qf-inv-note { font-size: 11.5px; color: var(--t3); }
 </style>
 </head>
 <body>
@@ -492,6 +507,17 @@ function cbQfesPage({ currentUser = null }) {
       <h1>QFES Forms</h1>
     </div>
     <div class="top-sub">What Cheree needs to give us for the ISA form — everything else comes from Halaxy or the appointment itself. Answers save automatically as you go.</div>
+
+    <div class="qf-compile-toggle" id="qf-compile-toggle">Compile a QFES invoice for ISA submission &rarr;</div>
+    <div class="qf-compile" id="qf-compile" style="display:none;">
+      <div class="qf-compile-hint">Pulls every session tagged with this invoice number off the calendar and joins it with each client's staged ISA fields and Halaxy demographics — read-only, nothing is submitted anywhere.</div>
+      <div class="qf-compile-row">
+        <input class="search" id="qf-inv-input" placeholder="Invoice number&hellip;" autocomplete="off">
+        <button class="qf-add-btn" id="qf-inv-btn">Compile</button>
+      </div>
+      <div id="qf-inv-result"></div>
+    </div>
+
     <div class="qf-toolbar">
       <input class="search" id="qf-search" placeholder="Search clients by name&hellip;" autocomplete="off">
       <button class="qf-add-btn" id="qf-add-btn">+ Add QFES client</button>
