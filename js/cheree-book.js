@@ -1344,7 +1344,7 @@ function _cbBoardCards() {
   ((_cbData && _cbData.enquiries) || []).forEach(function(e) {
     if (e.status === 'converted' || e.status === 'closed') return;
     var name = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
-    cols.triage.push({ id: 'e:' + e.id, enquiryId: e.id, name: name, meta: 'Enquiry — ' + (e.status || 'new') });
+    cols.triage.push({ id: 'e:' + e.id, enquiryId: e.id, name: name, meta: 'Enquiry — ' + (e.status || 'new'), enq: e });
   });
 
   _cbEvents.forEach(function(ev) {
@@ -1545,15 +1545,38 @@ function cbToggleCardExpand(id) {
 }
 
 /* New/Triage cards are enquiries (Supabase `enquiries` table), not
- * calendar events — no billing/invoice actions apply, just the ability to
- * get one out of triage, same as any other card can be edited/deleted
- * (2026-08-31 feedback: this was the one card type with no way to remove
- * it). Soft-close rather than a hard row delete — status:'closed' is
- * already what _cbBoardCards filters out of triage, and the PATCH
- * endpoint/field already existed (api/admin-enquiries.js), just never
- * wired up from this rewrite. */
+ * calendar events — no billing/invoice actions apply. Shows every field
+ * the enquiry actually carries (whichever form it came from — Reach Out
+ * has reason/message, Request a Session has service/coverage/phone/
+ * preferred times — the row select('*') already fetches all of it, this
+ * just displays it) plus the ability to remove it, same as any other card
+ * can be edited/deleted (2026-08-31 feedback: this was the one card type
+ * with no way to see its own details or remove it). Soft-close rather
+ * than a hard row delete — status:'closed' is already what _cbBoardCards
+ * filters out of triage, and the PATCH endpoint/field already existed
+ * (api/admin-enquiries.js), just never wired up from this rewrite. */
 function _cbEnquiryActionsHtml(c) {
-  return '<button class="btn-ghost" style="color:var(--red,#c0392b)" onclick="cbDismissEnquiry(\'' + _cbEsc(String(c.enquiryId)) + '\',\'' + _cbEsc(c.name) + '\',this)">Delete this enquiry</button>';
+  var e = c.enq || {};
+  var rows = [
+    ['Email', e.email ? '<a href="mailto:' + _cbEsc(e.email) + '" style="color:var(--teal)">' + _cbEsc(e.email) + '</a>' : ''],
+    ['Phone', e.phone],
+    ['Service', e.service],
+    ['Coverage', e.coverage],
+    ['Client type', e.client_type],
+    ['Reason', e.reason],
+    ['Preferred times', e.preferred_times],
+    ['Received', e.created_at ? new Date(e.created_at).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : ''],
+  ].filter(function(r) { return r[1]; });
+
+  var detailHtml = rows.length
+    ? '<div class="mt" style="margin-top:8px;line-height:1.7">' + rows.map(function(r) {
+        return '<strong style="color:var(--t1)">' + r[0] + ':</strong> ' + (r[0] === 'Email' ? r[1] : _cbEsc(r[1]));
+      }).join('<br>') + '</div>'
+    : '';
+  var messageHtml = e.message ? '<div class="mt" style="margin-top:8px;white-space:pre-wrap">' + _cbEsc(e.message) + '</div>' : '';
+
+  return detailHtml + messageHtml
+    + '<button class="btn-ghost" style="color:var(--red,#c0392b);margin-top:10px" onclick="cbDismissEnquiry(\'' + _cbEsc(String(c.enquiryId)) + '\',\'' + _cbEsc(c.name) + '\',this)">Delete this enquiry</button>';
 }
 
 function cbDismissEnquiry(enquiryId, name, btn) {
