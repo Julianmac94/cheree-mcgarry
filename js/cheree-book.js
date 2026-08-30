@@ -138,8 +138,15 @@ function _cbBuildDesc(fields) {
 // compiler in api/admin-enquiries.js) still gets just the primary name
 // either way, so this can't break that or any of the purely-display split
 // sites elsewhere.
+// funder/modality are both optional now (2026-08-31 bug: editing/
+// rescheduling/archiving a legacy hand-typed session with no Funder was
+// passing a fake 'Unknown' fallback in, permanently baking "— Unknown —"
+// into its title just from changing the date — a real, visible-looking
+// corruption of a title that never had that structure to begin with).
+// Omitting a falsy segment instead of faking one leaves an untouched
+// legacy title exactly as untouched as the date/time actually was.
 function _cbBuildTitle(name, funder, modality, statusSuffix, additionalName, billSeparately) {
-  var base = name + ' — ' + funder + ' — ' + modality;
+  var base = name + (funder ? ' — ' + funder : '') + (modality ? ' — ' + modality : '');
   if (additionalName) base += ' — with ' + additionalName + (billSeparately ? ' · bill separately' : '');
   return statusSuffix ? base + ' — ' + statusSuffix : base;
 }
@@ -318,7 +325,7 @@ function _cbArchiveOne(eventId) {
     'AdditionalClient': fields.AdditionalClient, 'AdditionalHalaxyId': fields.AdditionalHalaxyId, 'BillSeparately': fields.BillSeparately,
     '_history': fields._history };
   _cbLogHistory(newFields, 'Archived — no outcome recorded');
-  var newTitle = _cbBuildTitle(baseName, fields.Funder || 'Unknown', fields.Type || 'In person', 'Archived', fields.AdditionalClient, fields.BillSeparately === 'Yes');
+  var newTitle = _cbBuildTitle(baseName, fields.Funder, fields.Type, 'Archived', fields.AdditionalClient, fields.BillSeparately === 'Yes');
   var newDesc = _cbBuildDesc(newFields);
 
   return fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
@@ -953,7 +960,15 @@ function _cbRenderEditSheet() {
   html += '<div class="field"><label>Date</label><input type="date" id="cb-edit-date" value="' + _cbDateKey(start) + '"></div>';
   html += '<div class="field"><label>Time</label><input type="time" id="cb-edit-time" value="' + p(start.getHours()) + ':' + p(start.getMinutes()) + '"></div>';
   html += '<div class="field"><label>How long?</label><select id="cb-edit-duration">'
-    + (!durationMinutes || !durationKnown ? '<option value="" selected>' + (durationMinutes ? durationMinutes + ' min (custom)' : 'Not set') + '</option>' : '')
+    // The custom-duration option used to always carry value="" — fine for
+    // genuinely "Not set", but for a real known-but-non-preset duration
+    // (e.g. 50 min) it meant leaving this untouched silently submitted no
+    // duration at all, which cbSaveEdit then defaulted to 60 min — quietly
+    // changing a session's actual length just from opening this sheet to
+    // edit something else entirely (2026-08-31 bug, found via testing the
+    // reschedule flow). The option's own value now carries the real
+    // minutes when they're known, so leaving it alone preserves them.
+    + (!durationMinutes || !durationKnown ? '<option value="' + (durationMinutes || '') + '" selected>' + (durationMinutes ? durationMinutes + ' min (custom)' : 'Not set') + '</option>' : '')
     + _CB_DURATIONS.map(function(o) { return '<option value="' + o[0] + '"' + (o[0] === durationMinutes ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('')
     + '</select></div>';
   html += '<div class="field"><label>In person or online?</label><div class="modality">'
@@ -1063,7 +1078,7 @@ function cbSaveEdit(eventId, btn) {
   var statusSuffix = fields.Status === 'Attended' ? 'Attended'
     : fields.Status === 'Cancelled by Cheree' ? 'Cancelled (Cheree)'
     : fields.Status === 'Cancelled by client' ? 'Cancelled (client)' : null;
-  var newTitle = _cbBuildTitle(baseName, fields.Funder || 'Unknown', modality, statusSuffix, additionalName, billSeparately);
+  var newTitle = _cbBuildTitle(baseName, fields.Funder, modality, statusSuffix, additionalName, billSeparately);
   if (/ ✓$/.test(ev.title)) newTitle = _cbCloseTitle(newTitle);
 
   var newFields = { 'Funder': fields.Funder, 'HalaxyId': halaxyId, 'Type': modality, 'Duration': durationLabel,
@@ -1103,9 +1118,15 @@ function cbSaveEdit(eventId, btn) {
   var fmtWhen = function(d) {
     return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
   };
+  // durationLabel can genuinely be undefined (a legacy session with no
+  // Duration ever set, and no preset picked here either) — string-
+  // concatenating that literally spells out "undefined" in the history
+  // log, so it needs its own guard rather than falling out of the
+  // template like modality does (modality always has a fallback above).
+  var durationPart = durationLabel ? durationLabel + ', ' : '';
   var histText = (timeChanged && oldStart)
-    ? 'Rescheduled from ' + fmtWhen(oldStart) + ' to ' + fmtWhen(start) + ' — ' + durationLabel + ', ' + modality
-    : 'Edited — ' + fmtWhen(start) + ', ' + durationLabel + ', ' + modality;
+    ? 'Rescheduled from ' + fmtWhen(oldStart) + ' to ' + fmtWhen(start) + ' — ' + durationPart + modality
+    : 'Edited — ' + fmtWhen(start) + ', ' + durationPart + modality;
   _cbLogHistory(newFields, histText);
   var newDesc = _cbBuildDesc(newFields);
 
