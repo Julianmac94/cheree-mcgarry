@@ -553,12 +553,16 @@ function _cbOpenOutcome(eventId) {
 
   // Reflect whatever's actually saved, not a guess — re-opening an already
   // logged session (e.g. from the Board) must show its real outcome, not
-  // silently reset the picker to Attended every time.
+  // silently reset the picker to Attended every time. The three cancel
+  // reasons fold in the old separate "Bill for this?" step — who cancelled
+  // and whether it's billable were never independent in practice (the
+  // practice cancelling is never billed), so cancelled_by_practice implies
+  // No and the client split just asks the one real remaining question.
   var initialOutcome = fields.Status === 'Attended' ? 'attended'
-    : fields.Status === 'Cancelled by Cheree' ? 'cancelled_cheree'
-    : fields.Status === 'Cancelled by client' ? 'cancelled_client'
+    : fields.Status === 'Cancelled by Cheree' ? 'cancelled_by_practice'
+    : fields.Status === 'Cancelled by client' ? (fields.Bill === 'No' ? 'cancelled_no_payment' : 'cancelled_payment_needed')
     : null;
-  var initialBill = fields.Bill === 'No' ? false : true;
+  var isCancelledFamily = initialOutcome && initialOutcome.indexOf('cancelled_') === 0;
 
   var root = document.getElementById('root');
   var html = '<div class="card"><div class="nm">' + _cbEsc(ev.title) + '</div>'
@@ -588,32 +592,27 @@ function _cbOpenOutcome(eventId) {
     + _CB_DURATIONS.map(function(o) { return '<option value="' + o[1] + '"' + (o[1] === fields.Duration ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('')
     + '</select></div>';
 
+  // Three equal-weight top-level options, colour-hued so the category
+  // reads at a glance (2026-08-31 feedback: reschedule as a text link
+  // looked like an afterthought next to two real buttons). Rescheduled
+  // isn't a toggle like the other two — nothing here can actually change
+  // the date/time, so it jumps straight to the Edit sheet
+  // (cbOpenEdit/cbSaveEdit) that already does that PATCH + history
+  // logging, rather than a parallel picker. Only offered while nothing's
+  // been recorded yet — doesn't make sense once a session has an outcome.
   html += '<div class="field"><label>What happened?</label>'
     + '<div class="modality">'
-    + '<button id="cb-out-attend" class="' + (initialOutcome === 'attended' ? 'sel' : '') + '" onclick="_cbSetOutcome(\'attended\')">Attended</button>'
-    + '<button id="cb-out-cheree" class="' + (initialOutcome === 'cancelled_cheree' ? 'sel' : '') + '" onclick="_cbSetOutcome(\'cancelled_cheree\')">Cancelled by me</button>'
-    + '<button id="cb-out-client" class="' + (initialOutcome === 'cancelled_client' ? 'sel' : '') + '" onclick="_cbSetOutcome(\'cancelled_client\')">Cancelled by client</button>'
-    + '</div></div>';
-
-  // Nothing recorded yet (still just 'Scheduled') — offer moving it instead
-  // of forcing a cancellation for something that just needs a new time.
-  // Reuses the existing Edit sheet (cbOpenEdit/cbSaveEdit) rather than a
-  // parallel picker — that sheet already does the date/time/duration PATCH
-  // and history logging; see the fix there for the actual "keep a memory
-  // of the old time" part (2026-08-31 feedback).
-  if (!initialOutcome) {
-    html += '<div class="mt" style="margin:-6px 0 4px">Just need to move it? '
-      + '<a href="#" onclick="cbOpenEdit(\'' + _cbEsc(eventId) + '\');return false" style="color:var(--teal)">Reschedule instead</a></div>';
-  }
-
-  // Attended assumes billable — no separate question for the common case.
-  // Only cancellations need an explicit yes/no (a cancellation fee is a
-  // judgement call; attending never isn't billable).
-  var showBillWrap = initialOutcome === 'cancelled_cheree' || initialOutcome === 'cancelled_client';
-  html += '<div class="field" id="cb-bill-wrap" style="display:' + (showBillWrap ? '' : 'none') + '"><label>Bill for this?</label>'
-    + '<div class="modality">'
-    + '<button id="cb-bill-yes" class="' + (initialBill ? 'sel' : '') + '" onclick="_cbSetBill(true)">Yes</button>'
-    + '<button id="cb-bill-no" class="' + (!initialBill ? 'sel' : '') + '" onclick="_cbSetBill(false)">No</button>'
+    + '<button id="cb-out-attend" class="out-attend' + (initialOutcome === 'attended' ? ' sel' : '') + '" onclick="_cbSetOutcome(\'attended\')">Attended</button>'
+    + (!initialOutcome ? '<button id="cb-out-resched" class="out-resched" onclick="cbOpenEdit(\'' + _cbEsc(eventId) + '\')">Rescheduled</button>' : '')
+    + '<button id="cb-out-cancel" class="out-cancel' + (isCancelledFamily ? ' sel' : '') + '" onclick="_cbSetOutcome(\'cancelled\')">Cancelled</button>'
+    + '</div>'
+    // Folds the old separate "Bill for this?" question in: cancelling as
+    // the practice is never billed, so the only real remaining question
+    // for a client cancellation is whether a fee applies.
+    + '<div class="modality" id="cb-out-cancel-sub" style="display:' + (isCancelledFamily ? '' : 'none') + ';margin-top:8px">'
+    +   '<button id="cb-out-no_payment" class="out-cancel-sub' + (initialOutcome === 'cancelled_no_payment' ? ' sel' : '') + '" onclick="_cbSetOutcome(\'cancelled_no_payment\')">No payment</button>'
+    +   '<button id="cb-out-payment_needed" class="out-cancel-sub' + (initialOutcome === 'cancelled_payment_needed' ? ' sel' : '') + '" onclick="_cbSetOutcome(\'cancelled_payment_needed\')">Payment needed</button>'
+    +   '<button id="cb-out-by_practice" class="out-cancel-sub' + (initialOutcome === 'cancelled_by_practice' ? ' sel' : '') + '" onclick="_cbSetOutcome(\'cancelled_by_practice\')">By practice</button>'
     + '</div></div>';
 
   html += '<button class="btn-primary" onclick="_cbSubmitOutcome(\'' + _cbEsc(eventId) + '\',\'' + _cbEsc(baseName) + '\',this)">Save</button>';
@@ -621,7 +620,6 @@ function _cbOpenOutcome(eventId) {
   root.innerHTML = html;
 
   window._cbOutcome = initialOutcome;
-  window._cbBill = initialBill;
   window._cbOutcomeModality = fields.Type === 'Online' ? 'Online' : 'In person';
 }
 
@@ -631,25 +629,18 @@ function _cbSetOutcomeModality(m) {
   document.getElementById('cb-out-mod-online').classList.toggle('sel', m === 'Online');
 }
 
+// v is 'attended', the bare top-level 'cancelled' (reveals the sub-row
+// without finalising anything — Save still requires one of the three
+// below), or one of the three final 'cancelled_*' reasons.
 function _cbSetOutcome(v) {
-  window._cbOutcome = v;
-  ['attend', 'cheree', 'client'].forEach(function(k) { document.getElementById('cb-out-' + k).classList.remove('sel'); });
-  var map = { attended: 'attend', cancelled_cheree: 'cheree', cancelled_client: 'client' };
-  document.getElementById('cb-out-' + map[v]).classList.add('sel');
-
-  var billWrap = document.getElementById('cb-bill-wrap');
-  if (v === 'attended') {
-    window._cbBill = true;
-    billWrap.style.display = 'none';
-  } else {
-    billWrap.style.display = '';
-  }
-}
-
-function _cbSetBill(v) {
-  window._cbBill = v;
-  document.getElementById('cb-bill-yes').classList.toggle('sel', v === true);
-  document.getElementById('cb-bill-no').classList.toggle('sel', v === false);
+  var isCancelledFamily = v === 'cancelled' || v.indexOf('cancelled_') === 0;
+  document.getElementById('cb-out-attend').classList.toggle('sel', v === 'attended');
+  document.getElementById('cb-out-cancel').classList.toggle('sel', isCancelledFamily);
+  document.getElementById('cb-out-cancel-sub').style.display = isCancelledFamily ? '' : 'none';
+  ['no_payment', 'payment_needed', 'by_practice'].forEach(function(k) {
+    document.getElementById('cb-out-' + k).classList.toggle('sel', v === 'cancelled_' + k);
+  });
+  window._cbOutcome = (v === 'attended' || v.indexOf('cancelled_') === 0) ? v : null;
 }
 
 function _cbSubmitOutcome(eventId, baseName, btn) {
@@ -668,9 +659,14 @@ function _cbSubmitOutcome(eventId, baseName, btn) {
   var duration = durationSel && durationSel.value ? durationSel.value : (fields.Duration || null);
   var modality = window._cbOutcomeModality || fields.Type || 'In person';
   var statusSuffix = window._cbOutcome === 'attended' ? 'Attended'
-    : window._cbOutcome === 'cancelled_cheree' ? 'Cancelled (Cheree)' : 'Cancelled (client)';
+    : window._cbOutcome === 'cancelled_by_practice' ? 'Cancelled (Cheree)' : 'Cancelled (client)';
   var statusField = window._cbOutcome === 'attended' ? 'Attended'
-    : window._cbOutcome === 'cancelled_cheree' ? 'Cancelled by Cheree' : 'Cancelled by client';
+    : window._cbOutcome === 'cancelled_by_practice' ? 'Cancelled by Cheree' : 'Cancelled by client';
+  // Cancelling as the practice is never billed; a client cancellation is
+  // exactly the one case that's a real judgement call (late-cancellation
+  // fee or not) — this fully replaces the old separate "Bill for this?"
+  // step, which asked the same question in two clicks instead of one.
+  var billYes = window._cbOutcome === 'attended' || window._cbOutcome === 'cancelled_payment_needed';
 
   // No charge at all → nothing will ever move it through billing/remittance,
   // so it's closed the moment the outcome is saved (matches _cbEventStage's
@@ -678,14 +674,14 @@ function _cbSubmitOutcome(eventId, baseName, btn) {
   // from a prior save — re-opening the outcome form to fix a typo shouldn't
   // silently drop the ✓ from a session whose Billing already reached closed
   // via the Board.
-  var noCharge = window._cbBill === false;
+  var noCharge = !billYes;
   var alreadyClosed = _CB_CLOSED_BILLING.indexOf(fields.Billing) !== -1;
   var newTitle = _cbBuildTitle(baseName, funder, modality, statusSuffix);
   if (noCharge || alreadyClosed) newTitle = _cbCloseTitle(newTitle);
 
   var newFields = {
     'Funder': funder, 'HalaxyId': fields.HalaxyId, 'Type': modality, 'Duration': duration, 'Note': fields.Note,
-    'Status': statusField, 'Bill': window._cbBill ? 'Yes' : 'No', 'Billing': fields.Billing,
+    'Status': statusField, 'Bill': billYes ? 'Yes' : 'No', 'Billing': fields.Billing,
     'Invoice': fields.Invoice, 'QFES Form': fields['QFES Form'], '_history': fields._history,
   };
   _cbLogHistory(newFields, statusField + (noCharge ? ' — no charge, closed' : ''));

@@ -132,6 +132,20 @@ function cbBookPage({ currentUser = null }) {
   .modality { display: flex; gap: 8px; }
   .modality button { flex: 1; padding: 10px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); color: var(--t2); font-size: 13px; cursor: pointer; }
   .modality button.sel { background: rgba(119,207,189,0.14); border-color: var(--teal); color: var(--teal); }
+
+  /* ── Outcome hues — Attended/Rescheduled/Cancelled get a colour each so
+     the category reads at a glance instead of three identically-styled
+     buttons (2026-08-31 feedback). Rescheduled has no .sel state (it jumps
+     straight to the Edit sheet rather than toggling), so it just carries
+     its hue permanently instead of only once selected. ── */
+  .modality button.out-attend { border-color: rgba(96,165,250,0.35); color: #60a5fa; }
+  .modality button.out-attend.sel { background: rgba(96,165,250,0.16); border-color: #60a5fa; }
+  .modality button.out-resched { border-color: rgba(224,163,57,0.35); color: var(--amber); }
+  .modality button.out-resched:hover { background: rgba(224,163,57,0.12); }
+  .modality button.out-cancel { border-color: rgba(224,113,74,0.35); color: var(--red); }
+  .modality button.out-cancel.sel { background: rgba(224,113,74,0.16); border-color: var(--red); }
+  .modality button.out-cancel-sub { border-color: rgba(224,113,74,0.25); font-size: 12px; }
+  .modality button.out-cancel-sub.sel { background: rgba(224,113,74,0.16); border-color: var(--red); color: var(--red); }
   .card { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
   .card-attention { border-left-color: var(--amber); }
   .card-upcoming { border-left-color: var(--teal); }
