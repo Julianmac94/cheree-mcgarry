@@ -513,7 +513,17 @@ function _cbLoadAIBrief(data, targetId) {
   if (!el) return;
 
   var now = new Date();
-  var cacheKey = 'ai-brief-' + targetId + '-' + now.toISOString().slice(0, 13);
+  // Keyed by the hour *and* the actual numbers the brief is about — hour
+  // alone meant dismissing/contacting an enquiry (or anything else that
+  // changes these counts) still showed the stale brief text for up to an
+  // hour, since _cbFireBrief fires on every Home re-render and kept
+  // hitting the same cached entry (2026-08-31 feedback: brief said "2 new
+  // enquiries" while the live triage section already correctly showed 1).
+  // Real state changes get a fresh brief immediately; an unrelated
+  // re-render (e.g. expanding a card) still hits cache as before.
+  var cacheFingerprint = [data.newEnquiries, data.critCount, data.awaitingPayCount, data.unlinkedCount,
+    data.todaySessions.length, data.nextAppt ? data.nextAppt.name + data.nextAppt.time : ''].join('|');
+  var cacheKey = 'ai-brief-' + targetId + '-' + now.toISOString().slice(0, 13) + '-' + cacheFingerprint;
   var cached = sessionStorage.getItem(cacheKey);
   if (cached) { el.innerHTML = cached; return; }
 
