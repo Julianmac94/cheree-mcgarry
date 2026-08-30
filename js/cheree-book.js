@@ -1789,7 +1789,15 @@ function _cbIsDirectFunder(funder) {
  * guessing, only what's explicitly recorded. */
 function _cbEventStage(ev) {
   var f = _cbFields(ev);
-  if (!f.Status) return null; // not created via this tool — not part of this pipeline
+  if (!f.Status) {
+    // Hand-typed/legacy — no Status line at all (shows as "Not logged" on
+    // Home). Once it's in the past it needs an outcome exactly like this
+    // tool's own 'Scheduled' events do (2026-08-31 feedback: an overdue
+    // legacy session was invisible on the Board's Session Action column,
+    // only findable via Home's schedule). Still in the future → nothing
+    // to action yet, same as a future 'Scheduled' one below.
+    return (ev.start && new Date(ev.start) < new Date()) ? 'outcome' : null;
+  }
   if (f.Status === 'Scheduled') {
     // Still upcoming → that's the schedule (Home), not the Board. Only
     // once it's in the past with no outcome yet does it need action here.
@@ -1827,7 +1835,10 @@ function _cbBoardCards() {
     var d = new Date(ev.start);
     var when = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
     var meta = stage === 'outcome'
-      ? when + ' · ' + (f.Funder || '') + (f.Type ? ' · ' + f.Type : '')
+      // Funder/Type can be genuinely absent now that a legacy no-Status
+      // event can reach this stage too — no dangling " · " when they're
+      // not there.
+      ? when + (f.Funder ? ' · ' + f.Funder : '') + (f.Type ? ' · ' + f.Type : '')
       : stage === 'billing'
         // Duration/modality matter for the actual billing decision (session
         // length affects the item number/amount) — missing before, the
