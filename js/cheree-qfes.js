@@ -213,17 +213,24 @@ function _qfRunCompile() {
     .then(function(r) { return r.json(); })
     .then(function(d) {
       if (d.error) { out.innerHTML = '<div class="empty">Could not compile: ' + _qfEsc(d.error) + '</div>'; return; }
-      _qfRenderCompileResult(num, d.sessions || []);
+      _qfRenderCompileResult(num, d.sessions || [], d.knownInvoices || []);
     })
     .catch(function(err) {
       out.innerHTML = '<div class="empty">Could not compile: ' + _qfEsc(err.message) + '</div>';
     });
 }
 
-function _qfRenderCompileResult(invoiceNumber, sessions) {
+function _qfRenderCompileResult(invoiceNumber, sessions, knownInvoices) {
   var out = document.getElementById('qf-inv-result');
   if (!sessions.length) {
-    out.innerHTML = '<div class="empty">No calendar sessions are tagged with invoice ' + _qfEsc(invoiceNumber) + '.</div>';
+    var msg = '<div class="empty">No calendar sessions are tagged with invoice ' + _qfEsc(invoiceNumber) + '.'
+      + ' This reads the Board\'s "Invoice:" field on each session, not Halaxy directly — check that these sessions actually have that invoice number set on their Board card.';
+    if (knownInvoices && knownInvoices.length) {
+      msg += '<br><br>Invoice numbers found on calendar sessions in the last ~14 months: ' + knownInvoices.map(_qfEsc).join(', ');
+    } else {
+      msg += '<br><br>No sessions in the last ~14 months have an Invoice number set at all.';
+    }
+    out.innerHTML = msg + '</div>';
     return;
   }
   var cols = ['Date', 'Client', 'Code', 'Funder', 'Mode', 'Duration', 'Status', 'Area', 'Role', 'Concern', 'Client type', 'Gender', 'Age'];

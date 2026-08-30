@@ -1481,12 +1481,18 @@ export default async function handler(req, res) {
       // Funder bulk invoices can span months of sessions — look back
       // generously rather than trying to guess the invoice's date range.
       const { events } = await fetchCalendarEvents({ pastDays: 420, futureDays: 14, paginate: true });
-      const matches = events
-        .map(e => ({ e, fields: parseEventDesc(e.description) }))
-        .filter(({ fields }) => (fields.Invoice || '').trim() === invoiceNumber);
+      const withFields = events.map(e => ({ e, fields: parseEventDesc(e.description) }));
+      const matches = withFields.filter(({ fields }) => (fields.Invoice || '').trim() === invoiceNumber);
 
       if (!matches.length) {
-        return res.status(200).json({ invoiceNumber, sessions: [] });
+        // Diagnostic, not a guess: this number simply isn't stamped on any
+        // calendar event's `Invoice:` line (the Board's billing-stage
+        // field) within the lookback window — surface what IS there so
+        // it's obvious whether the tag was never set vs. set differently.
+        const knownInvoices = Array.from(new Set(
+          withFields.map(({ fields }) => (fields.Invoice || '').trim()).filter(Boolean)
+        )).sort();
+        return res.status(200).json({ invoiceNumber, sessions: [], knownInvoices });
       }
 
       const patientBundle = await halaxyGet('/Patient', { _count: '500' });
