@@ -299,13 +299,22 @@ function cbBookPage({ currentUser = null }) {
     .dock-add { width: 100%; height: auto; border-radius: 10px; flex-direction: row; justify-content: flex-start; gap: 12px; padding: 11px 14px; margin: 4px 0 10px; box-shadow: none; font-size: 13.5px; font-weight: 700; }
     .dock-add::after { content: 'New booking'; }
 
-    .wrap { flex: 1 1 auto; max-width: 1200px; margin: 0; padding: 32px 40px 60px; }
+    /* min-width:0 overrides the flex-item default of never shrinking below
+       its content's natural width — without it, a wide child (the board,
+       below) drags .wrap wider than max-width, which drags body wider than
+       the viewport, with no scrollbar to reach the overflow: real bug hit
+       and fixed during rollout, keeping this comment as the why. */
+    .wrap { flex: 1 1 auto; min-width: 0; max-width: 1200px; margin: 0; padding: 32px 40px 60px; }
 
-    /* Board: 5 fixed-220px columns become flexible so they spread across
-       the extra width — overflow-x stays as a safety net on the narrower
-       end of "desktop" rather than assuming every window is wide enough. */
+    /* Board: same fixed-width columns as mobile, just wider (260px vs
+       220px) — kept as a hard flex:0 0 (not flex-grow) deliberately, since
+       letting columns grow/shrink based on content exposed the same
+       min-width:auto issue one level down (uneven column widths driven by
+       whichever card had the longest unbreakable text/buttons). Fixed
+       width + .board's existing overflow-x:auto is the same proven pattern
+       mobile already uses, just resized. */
     .board { margin: 0; padding-left: 0; padding-right: 0; }
-    .col { flex: 1 1 200px; min-width: 180px; }
+    .col { flex: 0 0 260px; }
 
     /* Home list + Clients list wrap their cards/rows in .card-grid (see
        cheree-book.js) so they can go multi-column instead of one stacked
