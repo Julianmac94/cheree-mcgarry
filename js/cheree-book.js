@@ -1344,7 +1344,7 @@ function _cbBoardCards() {
   ((_cbData && _cbData.enquiries) || []).forEach(function(e) {
     if (e.status === 'converted' || e.status === 'closed') return;
     var name = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
-    cols.triage.push({ id: 'e:' + e.id, name: name, meta: 'Enquiry — ' + (e.status || 'new') });
+    cols.triage.push({ id: 'e:' + e.id, enquiryId: e.id, name: name, meta: 'Enquiry — ' + (e.status || 'new') });
   });
 
   _cbEvents.forEach(function(ev) {
@@ -1544,6 +1544,35 @@ function cbToggleCardExpand(id) {
   _cbRenderBoard();
 }
 
+/* New/Triage cards are enquiries (Supabase `enquiries` table), not
+ * calendar events — no billing/invoice actions apply, just the ability to
+ * get one out of triage, same as any other card can be edited/deleted
+ * (2026-08-31 feedback: this was the one card type with no way to remove
+ * it). Soft-close rather than a hard row delete — status:'closed' is
+ * already what _cbBoardCards filters out of triage, and the PATCH
+ * endpoint/field already existed (api/admin-enquiries.js), just never
+ * wired up from this rewrite. */
+function _cbEnquiryActionsHtml(c) {
+  return '<button class="btn-ghost" style="color:var(--red,#c0392b)" onclick="cbDismissEnquiry(\'' + _cbEsc(String(c.enquiryId)) + '\',\'' + _cbEsc(c.name) + '\',this)">Delete this enquiry</button>';
+}
+
+function cbDismissEnquiry(enquiryId, name, btn) {
+  if (!window.confirm('Remove ' + name + ' from triage? This closes the enquiry — it won\'t appear on the Board again.')) return;
+
+  var restore = _cbBusy(btn, 'Removing…');
+  fetch('/api/admin-enquiries?id=' + encodeURIComponent(enquiryId), {
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'closed' }),
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { _cbToast('Could not remove: ' + d.error); restore(); return; }
+    var enq = (_cbData && _cbData.enquiries || []).find(function(e) { return String(e.id) === String(enquiryId); });
+    if (enq) enq.status = 'closed';
+    _cbExpandedCardId = null;
+    _cbToast('Removed from triage');
+    _cbRenderBoard();
+  }).catch(function(err) { _cbToast('Could not remove: ' + err.message); restore(); });
+}
+
 function _cbRenderBoard() {
   var root = document.getElementById('root');
   var cols = _cbBoardCards();
@@ -1568,13 +1597,13 @@ function _cbRenderBoard() {
         var f = c.fields || {};
         var sdot = f.Status === 'Attended' ? '<span class="sdot sdot-green"></span>'
           : (f.Status && f.Status.indexOf('Cancelled') === 0) ? '<span class="sdot sdot-red"></span>' : '';
-        var expanded = c.ev && _cbExpandedCardId === c.id;
+        var expanded = _cbExpandedCardId === c.id;
         html += '<div class="card2' + (expanded ? ' card2-expanded' : '') + '">'
           + '<div onclick="cbToggleCardExpand(\'' + id + '\')" style="cursor:pointer">'
           +   '<div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>' + _cbFunderChip(f.Funder) + '</div>'
           +   '<div class="mt">' + _cbEsc(c.meta) + '</div>'
           + '</div>'
-          + (expanded ? _cbCardActionsHtml(c.ev) : '')
+          + (expanded ? (c.ev ? _cbCardActionsHtml(c.ev) : _cbEnquiryActionsHtml(c)) : '')
           + '</div>';
       });
     }
