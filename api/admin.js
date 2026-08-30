@@ -282,6 +282,42 @@ function cbBookPage({ currentUser = null }) {
   .dock-add { width: 52px; height: 52px; border-radius: 50%; background: var(--teal); border: none; color: #08120F; display: flex; align-items: center; justify-content: center; cursor: pointer; margin: 0 4px; box-shadow: 0 4px 16px rgba(119,207,189,0.4); flex-shrink: 0; }
   .dock-add:active { transform: scale(0.95); }
   .dock-add.active { box-shadow: 0 0 0 3px rgba(119,207,189,0.35), 0 4px 16px rgba(119,207,189,0.4); }
+
+  /* ── Desktop (≥900px): the mobile bottom dock becomes a persistent left
+     sidebar (same elements/ids/onclick handlers, just reflowed — see
+     ARCHITECTURE notes), content gets real width instead of a centred
+     phone-width column, list views become a grid instead of one stacked
+     column, and the bottom-sheets become right-side drawers. Everything
+     below 900px is untouched — this block is purely additive. ── */
+  @media (min-width: 900px) {
+    body { display: flex; }
+
+    .dock { order: -1; position: sticky; top: 0; left: auto; right: auto; bottom: auto; align-self: flex-start; height: 100vh; flex: 0 0 220px; justify-content: flex-start; padding: 28px 14px; pointer-events: auto; z-index: 10; }
+    .dock-pill { flex-direction: column; align-items: stretch; width: 100%; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; border: none; box-shadow: none; padding: 0; gap: 4px; }
+    .dock-btn { flex-direction: row; justify-content: flex-start; gap: 12px; width: 100%; padding: 11px 14px; border-radius: 10px; font-size: 13.5px; }
+    .dock-badge { top: 6px; left: 26px; right: auto; }
+    .dock-add { width: 100%; height: auto; border-radius: 10px; flex-direction: row; justify-content: flex-start; gap: 12px; padding: 11px 14px; margin: 4px 0 10px; box-shadow: none; font-size: 13.5px; font-weight: 700; }
+    .dock-add::after { content: 'New booking'; }
+
+    .wrap { flex: 1 1 auto; max-width: 1200px; margin: 0; padding: 32px 40px 60px; }
+
+    /* Board: 5 fixed-220px columns become flexible so they spread across
+       the extra width — overflow-x stays as a safety net on the narrower
+       end of "desktop" rather than assuming every window is wide enough. */
+    .board { margin: 0; padding-left: 0; padding-right: 0; }
+    .col { flex: 1 1 200px; min-width: 180px; }
+
+    /* Home list + Clients list wrap their cards/rows in .card-grid (see
+       cheree-book.js) so they can go multi-column instead of one stacked
+       column; harmless on mobile since the class carries no rule there. */
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; align-content: start; }
+    .card-grid .card, .card-grid .pick-row { margin-bottom: 0; }
+
+    /* Sheets slide in from the right as a drawer instead of up from the
+       bottom — same .open toggle, same open/close functions as mobile. */
+    .sheet { left: auto; right: 0; top: 0; bottom: 0; width: 440px; max-width: 440px; margin: 0; border-radius: 0; border-left: 1px solid var(--border); border-bottom: none; max-height: none; transform: translateX(100%); }
+    .sheet.open { transform: translateX(0); }
+  }
 </style>
 </head>
 <body>
@@ -498,6 +534,17 @@ function cbQfesPage({ currentUser = null }) {
   .qf-copy-btn { padding: 8px 14px; border-radius: 8px; background: rgba(119,207,189,0.12); border: 1px solid var(--teal); color: var(--teal); font-size: 12.5px; font-weight: 700; cursor: pointer; }
   .qf-copy-btn:hover { background: rgba(119,207,189,0.2); }
   .qf-inv-note { font-size: 11.5px; color: var(--t3); }
+
+  /* ── Desktop (≥900px): wider container + multi-column client list,
+     matching /book's treatment. This page keeps its simple back-link
+     header rather than the /book sidebar — it's a sub-page, not a peer
+     view. The compile panel's table already scrolls horizontally on its
+     own, so it needs no change here. ── */
+  @media (min-width: 900px) {
+    .wrap { max-width: 1100px; padding: 32px 40px 60px; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 9px; align-content: start; }
+    .card-grid .qf-row { margin-bottom: 0; }
+  }
 </style>
 </head>
 <body>

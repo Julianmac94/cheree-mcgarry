@@ -260,7 +260,10 @@ function _cbStageBadge(e) {
 }
 
 function _cbListHtml(items) {
-  return items.map(function(e) {
+  // Wrapped in .card-grid so desktop widths (≥900px, see admin.js) can lay
+  // these out as a multi-column grid instead of one stacked column — the
+  // class carries no rule below that breakpoint, so mobile is unaffected.
+  return '<div class="card-grid">' + items.map(function(e) {
     var d = new Date(e.start);
     var when = d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
     var fields = _cbFields(e);
@@ -271,7 +274,7 @@ function _cbListHtml(items) {
       + '<div class="card-top"><div class="nm">' + _cbEsc(name) + '</div>' + _cbFunderChip(fields.Funder) + '</div>'
       + '<div class="mt">' + modIcon + _cbEsc(when) + (legacy ? '<span class="legacy-tag">Not logged</span>' : '') + _cbStageBadge(e) + '</div>'
       + '</div>';
-  }).join('');
+  }).join('') + '</div>';
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1114,6 +1117,7 @@ function _cbRenderClients() {
   }
 
   var html = '<div class="sec-hd">' + rows.length + (q ? ' match' + (rows.length === 1 ? '' : 'es') : ' people') + '</div>';
+  html += '<div class="card-grid">';
   rows.forEach(function(r) {
     var metaParts = [];
     if (r.lastSeen) metaParts.push('Last seen ' + _cbFmtDate(r.lastSeen));
@@ -1138,6 +1142,7 @@ function _cbRenderClients() {
           : chips)
       + '</div>';
   });
+  html += '</div>';
   root.innerHTML = html;
 }
 

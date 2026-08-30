@@ -294,11 +294,11 @@ function _qfRenderList() {
     html += '<div class="qf-add-hint">Search any client below and open them &mdash; saving their info here adds the QFES tag automatically.</div>';
     html += '<div class="sec-hd">' + (_qfQuery ? matchRows.length + ' match' + (matchRows.length === 1 ? '' : 'es') : 'All clients') + '</div>';
     var list = _qfQuery ? matchRows : _qfClientRows;
-    html += list.length ? list.map(row).join('') : '<div class="empty">No one matches "' + _qfEsc(_qfQuery) + '"</div>';
+    html += list.length ? '<div class="card-grid">' + list.map(row).join('') + '</div>' : '<div class="empty">No one matches "' + _qfEsc(_qfQuery) + '"</div>';
   } else {
     html += '<div class="sec-hd">QFES clients (' + qfesRows.length + ')</div>';
     html += qfesRows.length
-      ? qfesRows.map(row).join('')
+      ? '<div class="card-grid">' + qfesRows.map(row).join('') + '</div>'
       : '<div class="empty">No clients tagged QFES yet.<br>Use "+ Add QFES client" above to find and add one.</div>';
   }
   root.innerHTML = html;
