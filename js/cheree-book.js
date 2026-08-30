@@ -595,6 +595,17 @@ function _cbOpenOutcome(eventId) {
     + '<button id="cb-out-client" class="' + (initialOutcome === 'cancelled_client' ? 'sel' : '') + '" onclick="_cbSetOutcome(\'cancelled_client\')">Cancelled by client</button>'
     + '</div></div>';
 
+  // Nothing recorded yet (still just 'Scheduled') — offer moving it instead
+  // of forcing a cancellation for something that just needs a new time.
+  // Reuses the existing Edit sheet (cbOpenEdit/cbSaveEdit) rather than a
+  // parallel picker — that sheet already does the date/time/duration PATCH
+  // and history logging; see the fix there for the actual "keep a memory
+  // of the old time" part (2026-08-31 feedback).
+  if (!initialOutcome) {
+    html += '<div class="mt" style="margin:-6px 0 4px">Just need to move it? '
+      + '<a href="#" onclick="cbOpenEdit(\'' + _cbEsc(eventId) + '\');return false" style="color:var(--teal)">Reschedule instead</a></div>';
+  }
+
   // Attended assumes billable — no separate question for the common case.
   // Only cancellations need an explicit yes/no (a cancellation fee is a
   // judgement call; attending never isn't billable).
@@ -779,7 +790,22 @@ function cbSaveEdit(eventId, btn) {
   var newFields = { 'Funder': fields.Funder, 'HalaxyId': fields.HalaxyId, 'Type': modality, 'Duration': durationLabel,
     'Note': fields.Note, 'Status': fields.Status, 'Bill': fields.Bill, 'Billing': fields.Billing,
     'Invoice': fields.Invoice, 'QFES Form': fields['QFES Form'], '_history': fields._history };
-  _cbLogHistory(newFields, 'Edited — ' + date + ' ' + time + ', ' + durationLabel + ', ' + modality);
+
+  // The actual "keep a memory of the old appointment" ask (2026-08-31):
+  // this used to log only the new date/time, with no record of what it
+  // was moved from. When the date/time genuinely changed, spell out
+  // old → new explicitly — it lands in the event's own description (read
+  // directly in Google Calendar, per _cbLogHistory) as well as this card's
+  // Activity list, so the prior slot isn't lost, just superseded.
+  var oldStart = ev.start ? new Date(ev.start) : null;
+  var timeChanged = !oldStart || oldStart.getTime() !== start.getTime();
+  var fmtWhen = function(d) {
+    return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+  };
+  var histText = (timeChanged && oldStart)
+    ? 'Rescheduled from ' + fmtWhen(oldStart) + ' to ' + fmtWhen(start) + ' — ' + durationLabel + ', ' + modality
+    : 'Edited — ' + fmtWhen(start) + ', ' + durationLabel + ', ' + modality;
+  _cbLogHistory(newFields, histText);
   var newDesc = _cbBuildDesc(newFields);
 
   var restore = _cbBusy(btn, 'Saving…');
