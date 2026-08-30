@@ -1714,7 +1714,12 @@ function _cbBoardCards() {
     var meta = stage === 'outcome'
       ? when + ' · ' + (f.Funder || '') + (f.Type ? ' · ' + f.Type : '')
       : stage === 'billing'
-        ? (f.Status || '') + ' · ' + when
+        // Duration/modality matter for the actual billing decision (session
+        // length affects the item number/amount) — missing before, the
+        // compact card had no way to see how long a session ran without
+        // expanding it, and expanding it doesn't show a summary either
+        // (2026-08-31 feedback).
+        ? (f.Status || '') + ' · ' + when + (f.Duration ? ' · ' + f.Duration : '') + (f.Type ? ' · ' + f.Type : '')
         : stage === 'remittance'
           ? (f.Funder || 'Funder') + ' · billed ' + when
           : (f.Billing || (f.Bill === 'No' ? 'No charge' : 'Done'));
