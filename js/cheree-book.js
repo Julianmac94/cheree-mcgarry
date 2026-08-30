@@ -124,15 +124,23 @@ function _cbFields(e) {
 }
 
 function _cbBuildDesc(fields) {
-  var order = ['Funder', 'HalaxyId', 'Type', 'Duration', 'Note', 'Status', 'Bill', 'Billing', 'Invoice', 'QFES Form'];
+  var order = ['Funder', 'HalaxyId', 'Type', 'Duration', 'Note', 'Status', 'Bill', 'Billing', 'Invoice', 'QFES Form',
+    'AdditionalClient', 'AdditionalHalaxyId', 'BillSeparately'];
   var head = order.filter(function(k) { return fields[k] !== undefined && fields[k] !== null; })
     .map(function(k) { return k + ': ' + fields[k]; }).join('\n');
   var hist = fields._history || [];
   return hist.length ? (head + '\n\n' + _CB_HISTORY_MARKER + '\n' + hist.join('\n')) : head;
 }
 
-function _cbBuildTitle(name, funder, modality, statusSuffix) {
+// additionalName/billSeparately are appended as their own segment after
+// modality, before any status suffix — title.split(' — ')[0] (the only
+// place anything does exact-match lookup against this, the QFES invoice
+// compiler in api/admin-enquiries.js) still gets just the primary name
+// either way, so this can't break that or any of the purely-display split
+// sites elsewhere.
+function _cbBuildTitle(name, funder, modality, statusSuffix, additionalName, billSeparately) {
   var base = name + ' — ' + funder + ' — ' + modality;
+  if (additionalName) base += ' — with ' + additionalName + (billSeparately ? ' · bill separately' : '');
   return statusSuffix ? base + ' — ' + statusSuffix : base;
 }
 
@@ -272,9 +280,13 @@ function _cbListHtml(items) {
     var name = e.title.split(' — ')[0] || e.title;
     var legacy = !fields.Status; // never booked/logged through this tool
     var modIcon = fields.Type === 'Online' ? '💻 ' : fields.Type === 'In person' ? '📍 ' : '';
+    var additionalLine = fields.AdditionalClient
+      ? '<div class="mt">+ ' + _cbEsc(fields.AdditionalClient) + (fields.BillSeparately === 'Yes' ? ' <span class="billsep-tag">Bill separately</span>' : '') + '</div>'
+      : '';
     return '<div class="card card-' + _cbEventKind(e) + '" onclick="_cbOpenOutcome(\'' + _cbEsc(e.id) + '\')" style="cursor:pointer">'
       + '<div class="card-top"><div class="nm">' + _cbEsc(name) + '</div>' + _cbFunderChip(fields.Funder) + '</div>'
       + '<div class="mt">' + modIcon + _cbEsc(when) + (legacy ? '<span class="legacy-tag">Not logged</span>' : '') + _cbStageBadge(e) + '</div>'
+      + additionalLine
       + '</div>';
   }).join('') + '</div>';
 }
@@ -676,13 +688,18 @@ function _cbSubmitOutcome(eventId, baseName, btn) {
   // via the Board.
   var noCharge = !billYes;
   var alreadyClosed = _CB_CLOSED_BILLING.indexOf(fields.Billing) !== -1;
-  var newTitle = _cbBuildTitle(baseName, funder, modality, statusSuffix);
+  // Preserve whatever additional client/bill-separately was already on this
+  // session (set via the Edit sheet) — recording an outcome shouldn't
+  // silently drop it from the title.
+  var newTitle = _cbBuildTitle(baseName, funder, modality, statusSuffix, fields.AdditionalClient, fields.BillSeparately === 'Yes');
   if (noCharge || alreadyClosed) newTitle = _cbCloseTitle(newTitle);
 
   var newFields = {
     'Funder': funder, 'HalaxyId': fields.HalaxyId, 'Type': modality, 'Duration': duration, 'Note': fields.Note,
     'Status': statusField, 'Bill': billYes ? 'Yes' : 'No', 'Billing': fields.Billing,
-    'Invoice': fields.Invoice, 'QFES Form': fields['QFES Form'], '_history': fields._history,
+    'Invoice': fields.Invoice, 'QFES Form': fields['QFES Form'],
+    'AdditionalClient': fields.AdditionalClient, 'AdditionalHalaxyId': fields.AdditionalHalaxyId, 'BillSeparately': fields.BillSeparately,
+    '_history': fields._history,
   };
   _cbLogHistory(newFields, statusField + (noCharge ? ' — no charge, closed' : ''));
   var newDesc = _cbBuildDesc(newFields);
@@ -720,31 +737,149 @@ function cbOpenEdit(eventId) {
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev) return;
   var fields = _cbFields(ev);
+  window._cbEditEventId = eventId;
+  // Pending changes, not yet saved — null/undefined both mean "unchanged
+  // from what's on the event"; _cbEditAdditionalPick is explicitly null
+  // only once Remove has been clicked (distinct from "never touched").
+  window._cbEditClientPick = null;
+  window._cbEditAdditionalPick = undefined;
+  window._cbEditShowClientSearch = false;
+  window._cbEditShowAdditionalSearch = false;
+  window._cbEditBillSeparately = fields.BillSeparately === 'Yes';
+  window._cbEditModality = fields.Type === 'Online' ? 'Online' : 'In person';
+
+  document.getElementById('cb-edit-backdrop').classList.add('open');
+  document.getElementById('cb-edit-sheet').classList.add('open');
+  _cbRenderEditSheet();
+}
+
+/* Rebuilds the whole sheet body from the pending-change state above —
+ * every action below (change client, add/remove additional client, pick a
+ * search result) mutates that state and calls this again, same "one
+ * render function, re-run on every change" convention as the rest of the
+ * app rather than patching individual DOM nodes. */
+function _cbRenderEditSheet() {
+  var eventId = window._cbEditEventId;
+  var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
+  if (!ev) return;
+  var fields = _cbFields(ev);
   var start = ev.start ? new Date(ev.start) : new Date();
   var p = function(n) { return (n < 10 ? '0' : '') + n; };
 
-  document.getElementById('cb-edit-title').textContent = ev.title.split(' — ')[0] || 'Edit session';
+  var oldBaseName = ev.title.split(' — ')[0] || ev.title;
+  var clientName = window._cbEditClientPick ? window._cbEditClientPick.name : oldBaseName;
+  document.getElementById('cb-edit-title').textContent = clientName || 'Edit session';
+
+  var additionalName = window._cbEditAdditionalPick === null ? null
+    : window._cbEditAdditionalPick ? window._cbEditAdditionalPick.name
+    : (fields.AdditionalClient || null);
 
   var durationMinutes = ev.start && ev.end ? Math.round((new Date(ev.end) - start) / 60000) : null;
   var durationKnown = _CB_DURATIONS.some(function(o) { return o[0] === durationMinutes; });
 
-  var html = '<div class="field"><label>Date</label><input type="date" id="cb-edit-date" value="' + _cbDateKey(start) + '"></div>';
+  // ── Client — "link a client" for a session Cheree typed straight into
+  // Google Calendar (no HalaxyId), or to fix a wrong pick. Same
+  // search-and-pick pattern as New Booking (_cbSearchClients/_cbPickClient),
+  // scoped to this sheet via the 'client'/'additional' prefix. ──
+  var html = '<div class="field"><label>Client</label>';
+  if (window._cbEditShowClientSearch) {
+    html += '<input class="search" id="cb-edit-client-search" placeholder="Search by name…" autocomplete="off" oninput="_cbEditSearchClient(\'client\',this.value)">'
+      + '<div id="cb-edit-client-results"></div>';
+  } else {
+    html += '<div class="pick-row static"><div class="pick-body"><div class="nm">' + _cbEsc(clientName) + '</div>'
+      + (!fields.HalaxyId && !window._cbEditClientPick ? '<div class="mt">Not linked to a Halaxy client</div>' : '')
+      + '</div></div>'
+      + '<a href="#" onclick="_cbEditToggleClientSearch();return false" style="color:var(--teal);font-size:12px">Change client</a>';
+  }
+  html += '</div>';
+
+  // ── Additional client — a second person on this session (e.g. a
+  // couple's session), optionally billed separately from the main client.
+  html += '<div class="field"><label>Additional client (optional)</label>';
+  if (window._cbEditShowAdditionalSearch) {
+    html += '<input class="search" id="cb-edit-additional-search" placeholder="Search by name…" autocomplete="off" oninput="_cbEditSearchClient(\'additional\',this.value)">'
+      + '<div id="cb-edit-additional-results"></div>';
+  } else if (additionalName) {
+    html += '<div class="pick-row static"><div class="pick-body"><div class="nm">' + _cbEsc(additionalName) + '</div></div></div>'
+      + '<a href="#" onclick="_cbEditRemoveAdditional();return false" style="color:var(--red,#c0392b);font-size:12px">Remove</a>';
+  } else {
+    html += '<a href="#" onclick="_cbEditToggleAdditionalSearch();return false" style="color:var(--teal);font-size:12px">+ Add a second client</a>';
+  }
+  html += '</div>';
+
+  if (additionalName) {
+    html += '<div class="field"><label>Bill separately?</label><div class="modality">'
+      + '<button id="cb-edit-billsep-yes" class="' + (window._cbEditBillSeparately ? 'sel' : '') + '" onclick="_cbEditSetBillSeparately(true)">Yes</button>'
+      + '<button id="cb-edit-billsep-no" class="' + (!window._cbEditBillSeparately ? 'sel' : '') + '" onclick="_cbEditSetBillSeparately(false)">No</button>'
+      + '</div></div>';
+  }
+
+  html += '<div class="field"><label>Date</label><input type="date" id="cb-edit-date" value="' + _cbDateKey(start) + '"></div>';
   html += '<div class="field"><label>Time</label><input type="time" id="cb-edit-time" value="' + p(start.getHours()) + ':' + p(start.getMinutes()) + '"></div>';
   html += '<div class="field"><label>How long?</label><select id="cb-edit-duration">'
     + (!durationMinutes || !durationKnown ? '<option value="" selected>' + (durationMinutes ? durationMinutes + ' min (custom)' : 'Not set') + '</option>' : '')
     + _CB_DURATIONS.map(function(o) { return '<option value="' + o[0] + '"' + (o[0] === durationMinutes ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('')
     + '</select></div>';
   html += '<div class="field"><label>In person or online?</label><div class="modality">'
-    + '<button id="cb-edit-mod-inperson" class="' + (fields.Type === 'Online' ? '' : 'sel') + '" onclick="_cbSetEditModality(\'In person\')">In person</button>'
-    + '<button id="cb-edit-mod-online" class="' + (fields.Type === 'Online' ? 'sel' : '') + '" onclick="_cbSetEditModality(\'Online\')">Online</button>'
+    + '<button id="cb-edit-mod-inperson" class="' + (window._cbEditModality === 'Online' ? '' : 'sel') + '" onclick="_cbSetEditModality(\'In person\')">In person</button>'
+    + '<button id="cb-edit-mod-online" class="' + (window._cbEditModality === 'Online' ? 'sel' : '') + '" onclick="_cbSetEditModality(\'Online\')">Online</button>'
     + '</div></div>';
   html += '<button class="btn-primary" onclick="cbSaveEdit(\'' + _cbEsc(eventId) + '\',this)">Save</button>';
   html += '<button class="btn-ghost" style="color:var(--red,#c0392b)" onclick="cbDeleteEvent(\'' + _cbEsc(eventId) + '\',this)">Delete this session</button>';
 
   document.getElementById('cb-edit-body').innerHTML = html;
-  window._cbEditModality = fields.Type === 'Online' ? 'Online' : 'In person';
-  document.getElementById('cb-edit-backdrop').classList.add('open');
-  document.getElementById('cb-edit-sheet').classList.add('open');
+}
+
+function _cbEditToggleClientSearch() {
+  window._cbEditShowClientSearch = true;
+  _cbRenderEditSheet();
+  setTimeout(function() { var i = document.getElementById('cb-edit-client-search'); if (i) i.focus(); }, 30);
+}
+
+function _cbEditToggleAdditionalSearch() {
+  window._cbEditShowAdditionalSearch = true;
+  _cbRenderEditSheet();
+  setTimeout(function() { var i = document.getElementById('cb-edit-additional-search'); if (i) i.focus(); }, 30);
+}
+
+function _cbEditRemoveAdditional() {
+  window._cbEditAdditionalPick = null;
+  window._cbEditShowAdditionalSearch = false;
+  _cbRenderEditSheet();
+}
+
+function _cbEditSetBillSeparately(v) {
+  window._cbEditBillSeparately = v;
+  document.getElementById('cb-edit-billsep-yes').classList.toggle('sel', v === true);
+  document.getElementById('cb-edit-billsep-no').classList.toggle('sel', v === false);
+}
+
+// prefix is 'client' (the primary client) or 'additional' (the second
+// client) — same Halaxy-patient search either way, just written into a
+// different pending-pick variable on selection.
+function _cbEditSearchClient(prefix, q) {
+  var resultsEl = document.getElementById('cb-edit-' + prefix + '-results');
+  q = (q || '').trim().toLowerCase();
+  if (!q) { resultsEl.innerHTML = ''; return; }
+  var matches = _cbClients.filter(function(c) { return c.name.toLowerCase().indexOf(q) !== -1; }).slice(0, 8);
+  resultsEl.innerHTML = matches.length ? matches.map(function(c) {
+    var initials = c.name.trim().split(/\s+/).slice(0, 2).map(function(p) { return p[0]; }).join('').toUpperCase();
+    return '<div class="pick-row" onclick="_cbEditPickClient(\'' + prefix + '\',\'' + _cbEsc(String(c.id)) + '\')">'
+      + '<div class="av">' + _cbEsc(initials) + '</div><div class="nm">' + _cbEsc(c.name) + '</div></div>';
+  }).join('') : '<div class="empty">No one matches "' + _cbEsc(q) + '"</div>';
+}
+
+function _cbEditPickClient(prefix, id) {
+  var c = _cbClients.find(function(x) { return String(x.id) === String(id); });
+  if (!c) return;
+  if (prefix === 'client') {
+    window._cbEditClientPick = c;
+    window._cbEditShowClientSearch = false;
+  } else {
+    window._cbEditAdditionalPick = c;
+    window._cbEditShowAdditionalSearch = false;
+  }
+  _cbRenderEditSheet();
 }
 
 function _cbSetEditModality(m) {
@@ -776,16 +911,43 @@ function cbSaveEdit(eventId, btn) {
   var start = new Date(date + 'T' + time + ':00');
   var end = new Date(start.getTime() + (durationMinutes || 60) * 60000);
 
-  var baseName = ev.title.split(' — ')[0] || ev.title;
+  var oldBaseName = ev.title.split(' — ')[0] || ev.title;
+  var baseName = window._cbEditClientPick ? window._cbEditClientPick.name : oldBaseName;
+  var halaxyId = window._cbEditClientPick ? window._cbEditClientPick.id : fields.HalaxyId;
+
+  var oldAdditionalName = fields.AdditionalClient || null;
+  var additionalName = window._cbEditAdditionalPick === null ? null
+    : window._cbEditAdditionalPick ? window._cbEditAdditionalPick.name
+    : oldAdditionalName;
+  var additionalHalaxyId = window._cbEditAdditionalPick === null ? null
+    : window._cbEditAdditionalPick ? window._cbEditAdditionalPick.id
+    : (fields.AdditionalHalaxyId || null);
+  var billSeparately = additionalName ? !!window._cbEditBillSeparately : false;
+
   var statusSuffix = fields.Status === 'Attended' ? 'Attended'
     : fields.Status === 'Cancelled by Cheree' ? 'Cancelled (Cheree)'
     : fields.Status === 'Cancelled by client' ? 'Cancelled (client)' : null;
-  var newTitle = _cbBuildTitle(baseName, fields.Funder || 'Unknown', modality, statusSuffix);
+  var newTitle = _cbBuildTitle(baseName, fields.Funder || 'Unknown', modality, statusSuffix, additionalName, billSeparately);
   if (/ ✓$/.test(ev.title)) newTitle = _cbCloseTitle(newTitle);
 
-  var newFields = { 'Funder': fields.Funder, 'HalaxyId': fields.HalaxyId, 'Type': modality, 'Duration': durationLabel,
+  var newFields = { 'Funder': fields.Funder, 'HalaxyId': halaxyId, 'Type': modality, 'Duration': durationLabel,
     'Note': fields.Note, 'Status': fields.Status, 'Bill': fields.Bill, 'Billing': fields.Billing,
-    'Invoice': fields.Invoice, 'QFES Form': fields['QFES Form'], '_history': fields._history };
+    'Invoice': fields.Invoice, 'QFES Form': fields['QFES Form'],
+    'AdditionalClient': additionalName, 'AdditionalHalaxyId': additionalName ? additionalHalaxyId : null,
+    'BillSeparately': billSeparately ? 'Yes' : null,
+    '_history': fields._history };
+
+  // Client-link and additional-client changes get their own history line
+  // before the date/time one below, so each is individually visible in
+  // the Activity list rather than folded into one generic "Edited" entry.
+  if (window._cbEditClientPick && window._cbEditClientPick.name !== oldBaseName) {
+    _cbLogHistory(newFields, 'Linked to Halaxy client ' + window._cbEditClientPick.name);
+  }
+  if (additionalName !== oldAdditionalName) {
+    _cbLogHistory(newFields, additionalName
+      ? ('Additional client set: ' + additionalName + (billSeparately ? ' (billed separately)' : ''))
+      : 'Additional client removed');
+  }
 
   // The actual "keep a memory of the old appointment" ask (2026-08-31):
   // this used to log only the new date/time, with no record of what it
@@ -794,7 +956,14 @@ function cbSaveEdit(eventId, btn) {
   // directly in Google Calendar, per _cbLogHistory) as well as this card's
   // Activity list, so the prior slot isn't lost, just superseded.
   var oldStart = ev.start ? new Date(ev.start) : null;
-  var timeChanged = !oldStart || oldStart.getTime() !== start.getTime();
+  // Floored (not rounded) to the minute, matching how the date/time inputs
+  // themselves truncate seconds (p(start.getHours())+':'+getMinutes() below
+  // in _cbRenderEditSheet, no rounding) — an event's actual start can carry
+  // real seconds/ms (e.g. one hand-typed outside this app), which would
+  // otherwise register as "changed" even when she didn't touch the fields.
+  // (Math.round here would be wrong: 33s truncates to the same minute the
+  // form shows, but rounds up to the next one — a false mismatch.)
+  var timeChanged = !oldStart || Math.floor(oldStart.getTime() / 60000) !== Math.floor(start.getTime() / 60000);
   var fmtWhen = function(d) {
     return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
   };
@@ -1820,10 +1989,18 @@ function _cbCard2Html(c) {
   var sdot = f.Status === 'Attended' ? '<span class="sdot sdot-green"></span>'
     : (f.Status && f.Status.indexOf('Cancelled') === 0) ? '<span class="sdot sdot-red"></span>' : '';
   var expanded = _cbExpandedCardId === c.id;
+  // Second person on the session (couples/family) — the title already
+  // carries this (_cbBuildTitle's "— with <name>" segment, readable
+  // directly in Google Calendar), this just surfaces it on the card too
+  // without waiting for it to expand.
+  var additionalLine = f.AdditionalClient
+    ? '<div class="mt">+ ' + _cbEsc(f.AdditionalClient) + (f.BillSeparately === 'Yes' ? ' <span class="billsep-tag">Bill separately</span>' : '') + '</div>'
+    : '';
   return '<div class="card2' + (expanded ? ' card2-expanded' : '') + '">'
     + '<div onclick="cbToggleCardExpand(\'' + id + '\')" style="cursor:pointer">'
     +   '<div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>' + _cbFunderChip(f.Funder) + '</div>'
     +   '<div class="mt">' + _cbEsc(c.meta) + '</div>'
+    +   additionalLine
     + '</div>'
     + (expanded ? (c.ev ? _cbCardActionsHtml(c.ev) : _cbEnquiryActionsHtml(c)) : '')
     + '</div>';
