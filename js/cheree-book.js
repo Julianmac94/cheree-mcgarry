@@ -374,14 +374,15 @@ function _cbEventKind(e) {
 /* A schedule entry that's moved into the action pipeline (an outcome's
  * been logged, or it's sitting past-and-unresolved) gets a small tappable
  * badge showing exactly which Board stage it's at — the "this has moved
- * to the Board" mark, right on the schedule card itself, tap through to
- * its full history instead of just a static note. */
+ * to the Board" mark, right on the schedule card itself. Tapping it
+ * expands the card in place (same accordion as the Board — see
+ * cbToggleCardExpand/_cbListHtml) rather than opening a separate drawer. */
 function _cbStageBadge(e) {
   var stage = _cbEventStage(e);
   if (!stage) return '';
   var col = BOARD_COLUMNS.find(function(c) { return c.key === stage; });
   if (!col) return '';
-  return '<span class="stage-badge" onclick="event.stopPropagation();cbOpenHistory(\'' + _cbEsc(e.id) + '\')">→ ' + _cbEsc(col.label) + '</span>';
+  return '<span class="stage-badge" onclick="event.stopPropagation();cbToggleCardExpand(\'' + _cbEsc(e.id) + '\')">→ ' + _cbEsc(col.label) + '</span>';
 }
 
 function _cbListHtml(items) {
@@ -398,10 +399,20 @@ function _cbListHtml(items) {
     var additionalLine = fields.AdditionalClient
       ? '<div class="mt">+ ' + _cbEsc(fields.AdditionalClient) + (fields.BillSeparately === 'Yes' ? ' <span class="billsep-tag">Bill separately</span>' : '') + '</div>'
       : '';
-    return '<div class="card card-' + _cbEventKind(e) + '" onclick="_cbOpenOutcome(\'' + _cbEsc(e.id) + '\')" style="cursor:pointer">'
-      + '<div class="card-top"><div class="nm">' + _cbEsc(name) + '</div>' + _cbFunderChip(fields.Funder) + '</div>'
-      + '<div class="mt">' + modIcon + _cbEsc(when) + (legacy ? '<span class="legacy-tag">Not logged</span>' : '') + _cbStageBadge(e) + '</div>'
-      + additionalLine
+    // Tapping the card itself still goes to the full outcome-recording
+    // screen (_cbOpenOutcome) — the main daily task, worth its own screen,
+    // not a cramped accordion. The stage badge is a separate, smaller
+    // target (stopPropagation) that expands the card in place instead —
+    // same _cbCardActionsHtml content the Board shows, no more side drawer
+    // (2026-08-31 feedback).
+    var expanded = _cbExpandedCardId === e.id;
+    return '<div class="card card-' + _cbEventKind(e) + (expanded ? ' card2-expanded' : '') + '">'
+      + '<div onclick="_cbOpenOutcome(\'' + _cbEsc(e.id) + '\')" style="cursor:pointer">'
+      +   '<div class="card-top"><div class="nm">' + _cbEsc(name) + '</div>' + _cbFunderChip(fields.Funder) + '</div>'
+      +   '<div class="mt">' + modIcon + _cbEsc(when) + (legacy ? '<span class="legacy-tag">Not logged</span>' : '') + _cbStageBadge(e) + '</div>'
+      +   additionalLine
+      + '</div>'
+      + (expanded ? _cbCardActionsHtml(e) : '')
       + '</div>';
   }).join('') + '</div>';
 }
@@ -2120,10 +2131,10 @@ function cbMarkContacted(enquiryId, name, btn) {
 // style, one at a time) instead of opening a separate drawer — that felt
 // like too much ceremony for "show me this card's actions" and loses
 // sight of the rest of the board (2026-08-30 follow-up feedback).
-// _cbCardActionsHtml/_cbEnquiryActionsHtml are the same content
-// cbOpenHistory shows for Home's stage badge. Shared by _cbRenderBoard's
-// pipeline columns and Home's "Needs triage" section (2026-08-31) — one
-// card renderer either way.
+// _cbCardActionsHtml/_cbEnquiryActionsHtml are the same content Home's own
+// schedule cards expand into too (_cbListHtml, via that card's stage
+// badge). Shared by _cbRenderBoard's pipeline columns and Home's "Needs
+// triage" section (2026-08-31) — one card renderer either way.
 function _cbCard2Html(c) {
   var id = _cbEsc(String(c.id));
   var f = c.fields || {};
@@ -2199,17 +2210,17 @@ function cbCloseActivity() {
 
 /* ── Everything one card can do — billing-decision buttons, invoice/QFES
  * form ref inputs, remittance check, jump-to-schedule, edit/delete — keyed
- * off _cbEventStage rather than a column loop since this is shared by two
- * very different places it renders into: inline inside a Board card
- * (_cbRenderBoard) and inside cbOpenHistory's drawer (opened from Home's
- * stage badge, which has no board column to expand within). cbCloseHistory
- * calls here are safe even when no drawer is open — removing an 'open'
- * class that isn't set is a no-op, not an error. ── */
+ * off _cbEventStage rather than a column loop since this is shared by
+ * every place a session card can expand: inline inside a Board card
+ * (_cbRenderBoard) and inline inside a Home schedule card (_cbListHtml,
+ * toggled by that card's stage badge — 2026-08-31 feedback: this used to
+ * open a separate side drawer on Home, inconsistent with the Board's
+ * tap-to-expand-in-place once that shipped). ── */
 function _cbCardActionsHtml(ev) {
   var f = _cbFields(ev);
   var stage = _cbEventStage(ev);
   var jumpBtn = ev.start ? '<button class="btn-ghost" onclick="cbJumpToSchedule(\'' + _cbEsc(ev.id) + '\')">View in schedule →</button>' : '';
-  var editBtn = '<button class="btn-ghost" onclick="cbCloseHistory();cbOpenEdit(\'' + _cbEsc(ev.id) + '\')">Edit or delete</button>';
+  var editBtn = '<button class="btn-ghost" onclick="cbOpenEdit(\'' + _cbEsc(ev.id) + '\')">Edit or delete</button>';
 
   var actionsHtml = '';
   if (stage === 'billing') {
@@ -2232,7 +2243,7 @@ function _cbCardActionsHtml(ev) {
     billingHtml += _cbInvoiceHtml({ id: ev.id, fields: f });
     if (f.Funder === 'QFES') {
       billingHtml += _cbQfesFormHtml({ id: ev.id, fields: f })
-        + '<div class="mt" style="margin-top:6px"><a href="#" onclick="cbCloseHistory();cbOpenQfesDetails(\'' + _cbEsc(ev.id) + '\');return false" style="color:var(--teal);font-size:11px">📋 QFES form details</a></div>';
+        + '<div class="mt" style="margin-top:6px"><a href="#" onclick="cbOpenQfesDetails(\'' + _cbEsc(ev.id) + '\');return false" style="color:var(--teal);font-size:11px">📋 QFES form details</a></div>';
     }
   }
 
@@ -2246,24 +2257,15 @@ function _cbCardActionsHtml(ev) {
 }
 
 /* Runs after a card action (billing decision, invoice save, QFES ref save)
- * succeeds — refreshes whichever view is actually showing (this fires from
- * both the Board's inline expansion and Home's history drawer) and, for a
- * stage-changing action, closes/collapses that action's surface since the
- * card just moved somewhere else; a non-stage-changing save (invoice/QFES
- * ref) instead re-opens/redraws in place so more fields can be filled in
- * without re-finding the card. */
+ * succeeds — refreshes whichever view is actually showing (Board or Home,
+ * both expand cards inline the same way now) and, for a stage-changing
+ * action, collapses the card since it just moved somewhere else; a non-
+ * stage-changing save (invoice/QFES ref) leaves it expanded so more
+ * fields can be filled in without re-finding the card — _cbRender()
+ * redraws it from _cbExpandedCardId either way. */
 function _cbAfterCardAction(eventId, movesStage) {
-  if (movesStage) {
-    _cbExpandedCardId = null;
-    cbCloseHistory();
-    _cbRender();
-  } else {
-    // Board's inline expansion redraws itself from _cbExpandedCardId as
-    // part of _cbRender() → _cbRenderBoard(); only the drawer (Home) needs
-    // an explicit re-open to redraw its already-rendered content.
-    _cbRender();
-    if (_cbView !== 'board') cbOpenHistory(eventId);
-  }
+  if (movesStage) _cbExpandedCardId = null;
+  _cbRender();
 }
 
 /* ── Board card → full history. The event's own description already
@@ -2272,47 +2274,9 @@ function _cbAfterCardAction(eventId, movesStage) {
  * the entry point for Home's stage badge, which has no board column to
  * expand within, so it always uses this drawer rather than inline
  * expansion. ── */
-function cbOpenHistory(eventId) {
-  var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
-  if (!ev) return;
-  var f = _cbFields(ev);
-  var name = ev.title.split(' — ')[0] || ev.title;
-
-  document.getElementById('cb-history-title').textContent = name;
-
-  var head = '<div class="card"><div class="nm">' + _cbEsc(ev.title) + '</div>'
-    + '<div class="mt">' + _cbFunderChip(f.Funder) + (f.Type ? ' ' + _cbEsc(f.Type) : '')
-    + (f.Duration ? ' · ' + _cbEsc(f.Duration) : '') + '</div>'
-    + (f.Note ? '<div class="mt">' + _cbEsc(f.Note) + '</div>' : '')
-    + '</div>';
-
-  var hist = f._history || [];
-  var histHtml = hist.length
-    ? hist.map(function(line) {
-        var idx = line.indexOf(': ');
-        var when = idx === -1 ? '' : line.slice(0, idx);
-        var text = idx === -1 ? line : line.slice(idx + 2);
-        return '<div class="act-item"><div class="act-dot booking"></div>'
-          + '<div><div class="act-title">' + _cbEsc(text) + '</div>'
-          + '<div class="act-when">' + _cbEsc(when) + '</div></div></div>';
-      }).join('')
-    : '<div class="empty">No history yet — this fills in as the session moves through the Board.</div>';
-
-  document.getElementById('cb-history-body').innerHTML = head + _cbCardActionsHtml(ev)
-    + '<div class="sec-hd" style="margin-top:20px">Activity</div>' + histHtml;
-  document.getElementById('cb-history-backdrop').classList.add('open');
-  document.getElementById('cb-history-sheet').classList.add('open');
-}
-
-function cbCloseHistory() {
-  document.getElementById('cb-history-backdrop').classList.remove('open');
-  document.getElementById('cb-history-sheet').classList.remove('open');
-}
-
 function cbJumpToSchedule(eventId) {
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev || !ev.start) return;
-  cbCloseHistory();
   _cbHomeMode = 'day';
   _cbCalDate = new Date(ev.start);
   cbSetView('home');

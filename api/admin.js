@@ -401,12 +401,6 @@ function cbBookPage({ currentUser = null }) {
     <div class="sheet-body" id="cb-settings-body"></div>
   </div>
 
-  <div class="sheet-backdrop" id="cb-history-backdrop" onclick="cbCloseHistory()"></div>
-  <div class="sheet" id="cb-history-sheet">
-    <div class="sheet-hd"><span id="cb-history-title">History</span><button onclick="cbCloseHistory()" aria-label="Close">✕</button></div>
-    <div class="sheet-body" id="cb-history-body"></div>
-  </div>
-
   <div class="sheet-backdrop" id="cb-edit-backdrop" onclick="cbCloseEdit()"></div>
   <div class="sheet" id="cb-edit-sheet">
     <div class="sheet-hd"><span id="cb-edit-title">Edit session</span><button onclick="cbCloseEdit()" aria-label="Close">✕</button></div>
