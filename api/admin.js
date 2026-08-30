@@ -197,6 +197,7 @@ function cbBookPage({ currentUser = null }) {
   .col-hd { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--t3); padding: 4px 4px 10px; display: flex; justify-content: space-between; }
   .col-hd .n { color: var(--col-c, var(--t2)); font-weight: 700; }
   .card2 { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 11px; margin-bottom: 8px; }
+  .card2-expanded { border-color: var(--teal); }
   .card2-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
   .card2 .nm { font-size: 13px; font-weight: 600; color: var(--t1); display: flex; align-items: center; }
   .card2 .mt { font-size: 11px; color: var(--t3); margin-top: 2px; }
