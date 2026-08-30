@@ -294,7 +294,7 @@ function cbBookPage({ currentUser = null }) {
   .dock-pill { pointer-events: auto; display: flex; align-items: center; gap: 6px; background: rgba(18,28,25,0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--border); border-radius: 20px; padding: 8px; box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
   .dock-btn { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: none; color: var(--t3); width: 60px; padding: 6px 4px; border-radius: 13px; cursor: pointer; font-size: 10px; font-weight: 600; }
   .dock-btn.active { color: var(--teal); background: rgba(119,207,189,0.12); }
-  .dock-badge { position: absolute; top: 2px; right: 10px; background: var(--amber); color: #241a05; font-size: 9px; font-weight: 800; min-width: 15px; height: 15px; border-radius: 8px; display: none; align-items: center; justify-content: center; padding: 0 3px; }
+  .dock-badge { position: absolute; top: 2px; right: 10px; background: var(--amber); color: #241a05; font-size: 9px; font-weight: 800; min-width: 15px; height: 15px; border-radius: 8px; display: none; align-items: center; justify-content: center; padding: 0 3px; cursor: pointer; }
   .dock-add { width: 52px; height: 52px; border-radius: 50%; background: var(--teal); border: none; color: #08120F; display: flex; align-items: center; justify-content: center; cursor: pointer; margin: 0 4px; box-shadow: 0 4px 16px rgba(119,207,189,0.4); flex-shrink: 0; }
   .dock-add:active { transform: scale(0.95); }
   .dock-add.active { box-shadow: 0 0 0 3px rgba(119,207,189,0.35), 0 4px 16px rgba(119,207,189,0.4); }
@@ -425,10 +425,16 @@ function cbBookPage({ currentUser = null }) {
     <div class="sheet-body" id="cb-linkappt-body"></div>
   </div>
 
+  <div class="sheet-backdrop" id="cb-backlog-backdrop" onclick="cbCloseBacklog()"></div>
+  <div class="sheet" id="cb-backlog-sheet">
+    <div class="sheet-hd"><span>Needs an outcome</span><button onclick="cbCloseBacklog()" aria-label="Close">✕</button></div>
+    <div class="sheet-body" id="cb-backlog-body"></div>
+  </div>
+
   <nav class="dock">
     <div class="dock-pill">
       <button class="dock-btn active" id="dock-home" onclick="cbSetView('home')" aria-label="Home">
-        <span class="dock-badge" id="dock-home-badge"></span>
+        <span class="dock-badge" id="dock-home-badge" onclick="event.stopPropagation();cbOpenBacklog()" title="Sessions needing an outcome"></span>
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         <span>Home</span>
       </button>

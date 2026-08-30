@@ -220,9 +220,13 @@ function _cbRender() {
    explicit-only principle as the Board's _cbEventStage). Anything else —
    including calendar entries Cheree hand-typed before this tool existed,
    which carry no "Status:" line at all — is still open and belongs on
-   Home so she can action it here. */
+   Home so she can action it here. 'Archived' (cbOpenBacklog/_cbArchiveOne)
+   is the fourth resolved state: an honest "no real outcome, dismissed
+   from the list" rather than a false Attended/Cancelled, for backlog
+   sessions from before this tool tracked outcomes that will never get a
+   real one logged retroactively. */
 function _cbIsResolved(fields) {
-  return fields.Status === 'Attended' || (!!fields.Status && fields.Status.indexOf('Cancelled') === 0);
+  return fields.Status === 'Attended' || fields.Status === 'Archived' || (!!fields.Status && fields.Status.indexOf('Cancelled') === 0);
 }
 
 /* ── Home: needs-attention (past, unresolved) + upcoming (future, unresolved),
@@ -246,6 +250,116 @@ function _cbUpcomingItems() {
   }).sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
 }
 
+/* ── Backlog sheet — opened by tapping the Home nav badge (2026-08-31
+ * feedback: the badge just showed a number with no way to see what it
+ * counted or do anything about it). Lets Cheree either work through
+ * sessions one at a time (tap through to the real outcome screen) or bulk
+ * "Archive" everything on/before a cutoff date — an honest fourth
+ * resolved state (see _cbIsResolved) for old pre-tool sessions that will
+ * never get a real Attended/Cancelled logged retroactively. Nothing is
+ * deleted; an archived session still shows up if she browses to its
+ * actual date on Home. ── */
+function cbOpenBacklog() {
+  window._cbBacklogCutoff = _cbDateKey(new Date(Date.now() - 30 * 86400000));
+  document.getElementById('cb-backlog-backdrop').classList.add('open');
+  document.getElementById('cb-backlog-sheet').classList.add('open');
+  _cbRenderBacklogList();
+}
+
+function cbCloseBacklog() {
+  document.getElementById('cb-backlog-backdrop').classList.remove('open');
+  document.getElementById('cb-backlog-sheet').classList.remove('open');
+}
+
+function _cbRenderBacklogList() {
+  var cutoffInput = document.getElementById('cb-backlog-cutoff');
+  var cutoff = cutoffInput ? cutoffInput.value : window._cbBacklogCutoff;
+  window._cbBacklogCutoff = cutoff;
+
+  var items = _cbNeedsAttentionItems();
+  var cutoffDate = new Date(cutoff + 'T23:59:59');
+  var toArchive = items.filter(function(e) { return new Date(e.start) <= cutoffDate; });
+
+  var html = '<div class="field"><label>Archive everything on or before</label>'
+    + '<input type="date" id="cb-backlog-cutoff" value="' + _cbEsc(cutoff) + '" onchange="_cbRenderBacklogList()"></div>'
+    + '<div class="mt" style="margin-bottom:12px">' + toArchive.length + ' of ' + items.length
+    + ' will be archived — marked as no outcome needed, nothing is deleted, and each still shows up if you browse to its actual date.</div>'
+    + (toArchive.length
+        ? '<button class="btn-primary" id="cb-backlog-archive-btn" onclick="cbArchiveBacklogBulk()">Archive ' + toArchive.length + ' session' + (toArchive.length === 1 ? '' : 's') + '</button>'
+        : '')
+    + '<div class="sec-hd" style="margin-top:20px">All ' + items.length + ' needing an outcome</div>';
+
+  html += items.length ? items.map(function(e) {
+    var f = _cbFields(e);
+    var name = e.title.split(' — ')[0] || e.title;
+    var when = new Date(e.start).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+    return '<div class="pick-row" style="justify-content:space-between">'
+      + '<div class="pick-body" onclick="cbCloseBacklog();_cbOpenOutcome(\'' + _cbEsc(e.id) + '\')" style="cursor:pointer">'
+      +   '<div class="nm">' + _cbEsc(name) + '</div><div class="mt">' + _cbEsc(when) + (f.Funder ? ' · ' + _cbEsc(f.Funder) : '') + '</div>'
+      + '</div>'
+      + '<a href="#" onclick="cbArchiveOneFromBacklog(\'' + _cbEsc(e.id) + '\');return false" style="color:var(--t3);font-size:11px;flex-shrink:0">Archive</a>'
+      + '</div>';
+  }).join('') : '<div class="empty">Nothing needs an outcome — the backlog is clear.</div>';
+
+  document.getElementById('cb-backlog-body').innerHTML = html;
+}
+
+// Shared by both the bulk archive and a single row's "Archive" link —
+// same PATCH either way, just a different caller. Returns the fetch
+// promise so the bulk path can Promise.all a batch of these.
+function _cbArchiveOne(eventId) {
+  var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
+  if (!ev) return Promise.resolve();
+  var fields = _cbFields(ev);
+  var baseName = ev.title.split(' — ')[0] || ev.title;
+  var newFields = { 'Funder': fields.Funder, 'HalaxyId': fields.HalaxyId, 'Type': fields.Type, 'Duration': fields.Duration,
+    'Note': fields.Note, 'Status': 'Archived', 'Bill': fields.Bill, 'Billing': fields.Billing,
+    'Invoice': fields.Invoice, 'QFES Form': fields['QFES Form'],
+    'AdditionalClient': fields.AdditionalClient, 'AdditionalHalaxyId': fields.AdditionalHalaxyId, 'BillSeparately': fields.BillSeparately,
+    '_history': fields._history };
+  _cbLogHistory(newFields, 'Archived — no outcome recorded');
+  var newTitle = _cbBuildTitle(baseName, fields.Funder || 'Unknown', fields.Type || 'In person', 'Archived', fields.AdditionalClient, fields.BillSeparately === 'Yes');
+  var newDesc = _cbBuildDesc(newFields);
+
+  return fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: newTitle, description: newDesc }),
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) throw new Error(d.error);
+    ev.title = newTitle; ev.description = newDesc;
+  });
+}
+
+function cbArchiveOneFromBacklog(eventId) {
+  _cbArchiveOne(eventId).then(function() {
+    _cbToast('Archived');
+    _cbUpdateHomeBadge(_cbNeedsAttentionItems().length);
+    _cbRenderBacklogList();
+  }).catch(function(err) { _cbToast('Could not archive: ' + err.message); });
+}
+
+function cbArchiveBacklogBulk() {
+  var cutoffInput = document.getElementById('cb-backlog-cutoff');
+  var cutoffDate = new Date(cutoffInput.value + 'T23:59:59');
+  var items = _cbNeedsAttentionItems().filter(function(e) { return new Date(e.start) <= cutoffDate; });
+  if (!items.length) return;
+  if (!window.confirm('Archive ' + items.length + ' session' + (items.length === 1 ? '' : 's') + '? This marks them as no outcome needed — nothing is deleted, and each stays visible on its actual date.')) return;
+
+  var btn = document.getElementById('cb-backlog-archive-btn');
+  var restore = btn ? _cbBusy(btn, 'Archiving…') : null;
+  Promise.all(items.map(function(e) {
+    return _cbArchiveOne(e.id).catch(function(err) { return { failed: e.id, message: err.message }; });
+  })).then(function(results) {
+    var failed = results.filter(function(r) { return r && r.failed; });
+    _cbToast(failed.length
+      ? ('Archived ' + (items.length - failed.length) + ', ' + failed.length + ' failed')
+      : ('Archived ' + items.length + ' session' + (items.length === 1 ? '' : 's')));
+    _cbUpdateHomeBadge(_cbNeedsAttentionItems().length);
+    if (restore) restore();
+    _cbRenderBacklogList();
+  });
+}
+
 /* Attended/Cancelled/needs-outcome/upcoming — the same four states as the
  * Board's colour language, just per-event instead of per-column. Used to
  * colour cards in every Home view mode, not just the All list. */
@@ -253,6 +367,7 @@ function _cbEventKind(e) {
   var fields = _cbFields(e);
   if (fields.Status === 'Attended') return 'attended';
   if (fields.Status && fields.Status.indexOf('Cancelled') === 0) return 'cancelled';
+  if (fields.Status === 'Archived') return 'cancelled'; // same muted styling as a resolved/closed card
   return (e.start && new Date(e.start) < new Date()) ? 'attention' : 'upcoming';
 }
 
