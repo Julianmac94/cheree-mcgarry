@@ -232,11 +232,50 @@ export default async function handler(req, res) {
   const [firstName, ...rest] = name.trim().split(' ');
   const lastName = rest.join(' ');
 
+  // ── 1. Save to Supabase first — this is the source of truth ──────
+  // Same fix api/contact.js already got: the form succeeds if the DB
+  // insert works, regardless of email delivery. Previously this ran
+  // after the email sends inside the same try/catch, so any Resend
+  // failure (e.g. sending to a real client address from onboarding@
+  // resend.dev, which Resend restricts to the account owner only —
+  // see the FROM_* logic below) 500'd the request before the enquiry
+  // was ever saved, silently losing it.
+  try {
+    const { error: dbErr } = await supabase().from('enquiries').insert({
+      first_name:      firstName,
+      last_name:       lastName,
+      email,
+      phone:           phone || null,
+      service,
+      coverage,
+      client_type,
+      preferred_times,
+      message,
+      source:          'session-request',
+      status:          'new',
+    });
+    if (dbErr) console.error('[api/session] Supabase insert error:', dbErr.message);
+    else       console.log('[api/session] Enquiry saved to Supabase');
+  } catch (dbEx) {
+    console.error('[api/session] Supabase exception:', dbEx.message);
+  }
+
+  // ── 2. Send emails via Resend (best-effort — never fail the form) ─
+  // Same FROM_* switch as api/contact.js: onboarding@resend.dev only
+  // delivers to the account owner, so the client confirmation needs
+  // the verified domain once it's set up, not a hardcoded fallback.
+  const FROM_CHEREE = process.env.RESEND_DOMAIN_VERIFIED === '1'
+    ? 'Cheree McGarry Counselling & Wellness <reachout@chereemcgarry.com>'
+    : 'Cheree McGarry Counselling & Wellness <onboarding@resend.dev>';
+  const FROM_WEBSITE = process.env.RESEND_DOMAIN_VERIFIED === '1'
+    ? 'Practice - Website Enquiry <reachout@chereemcgarry.com>'
+    : 'Practice - Website Enquiry <onboarding@resend.dev>';
+
   try {
     await Promise.all([
-      // 1 — Confirmation to client
+      // Confirmation to client
       resend.emails.send({
-        from:    'Cheree McGarry <onboarding@resend.dev>',
+        from:    FROM_CHEREE,
         to:      [email],
         subject: 'Your session request — Cheree McGarry Counselling',
         html:    clientConfirmationHtml({
@@ -246,10 +285,9 @@ export default async function handler(req, res) {
         }),
       }),
 
-      // 2 — Detailed notification to Cheree
-      // TODO: update from address to admin@chereemcgarry.com once domain is verified on Resend
+      // Detailed notification to Cheree
       resend.emails.send({
-        from:    'Website <onboarding@resend.dev>',
+        from:    FROM_WEBSITE,
         to:      ['reachout@chereemcgarry.com'],
         replyTo: email,
         subject: `Session request from ${name.trim()} — ${service || 'General'}${coverage ? ' · ' + coverage : ''}`,
@@ -266,27 +304,11 @@ export default async function handler(req, res) {
         }),
       }),
     ]);
-
-    // 3 — Save to Supabase (non-blocking)
-    supabase().from('enquiries').insert({
-      first_name:      firstName,
-      last_name:       lastName,
-      email,
-      phone:           phone || null,
-      service,
-      coverage,
-      client_type,
-      preferred_times,
-      message,
-      source:          'session-request',
-      status:          'new',
-    }).then(({ error }) => {
-      if (error) console.error('[api/session] Supabase insert error:', error.message);
-    });
-
-    return res.status(200).json({ ok: true });
-  } catch (err) {
-    console.error('[api/session] Resend error:', err);
-    return res.status(500).json({ error: 'Failed to send email.' });
+    console.log('[api/session] Emails sent via Resend');
+  } catch (emailErr) {
+    // Log but do NOT fail — enquiry is already saved in Supabase
+    console.error('[api/session] Resend email error (enquiry still saved):', emailErr.message || emailErr);
   }
+
+  return res.status(200).json({ ok: true });
 }
