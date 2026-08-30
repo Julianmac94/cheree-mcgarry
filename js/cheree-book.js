@@ -1390,7 +1390,12 @@ function cbSetBilling(eventId, choice, btn) {
     if (d.error) { _cbToast('Could not update: ' + d.error); restore(); return; }
     ev.description = newDesc;
     if (newTitle) ev.title = newTitle;
-    _cbRenderBoard();
+    // This action now fires from cbOpenHistory's drawer, reachable from
+    // Home as well as the Board — re-render whichever view is actually
+    // showing (not always the Board), then drop back to it so the change
+    // is visible immediately instead of sitting behind a stale drawer.
+    cbCloseHistory();
+    _cbRender();
   }).catch(function(err) { _cbToast('Could not update: ' + err.message); restore(); });
 }
 
@@ -1418,7 +1423,8 @@ function cbSaveInvoice(eventId, btn) {
   }).then(function(r) { return r.json(); }).then(function(d) {
     if (d.error) { _cbToast('Could not save invoice #: ' + d.error); input.disabled = false; restore(); return; }
     ev.description = newDesc;
-    _cbRenderBoard();
+    _cbRender();
+    cbOpenHistory(eventId);
   }).catch(function(err) { _cbToast('Could not save invoice #: ' + err.message); input.disabled = false; restore(); });
 }
 
@@ -1457,7 +1463,11 @@ function cbSaveQfesForm(eventId, btn) {
   }).then(function(r) { return r.json(); }).then(function(d) {
     if (d.error) { _cbToast('Could not save QFES form ref: ' + d.error); input.disabled = false; restore(); return; }
     ev.description = newDesc;
-    _cbRenderBoard();
+    // Doesn't move the card between stages, so refresh the underlying view
+    // in the background and just redraw the drawer in place, rather than
+    // closing it — there may be more to fill in on the same card.
+    _cbRender();
+    cbOpenHistory(eventId);
   }).catch(function(err) { _cbToast('Could not save QFES form ref: ' + err.message); input.disabled = false; restore(); });
 }
 
@@ -1543,53 +1553,22 @@ function _cbRenderBoard() {
     if (!cards.length) {
       html += '<div class="col-empty">Nothing here</div>';
     } else {
+      // Compact card: name/status/funder + the one meta line. Everything
+      // that used to live inline (edit/history icons, billing-decision
+      // buttons, invoice/QFES-ref inputs, remittance check) moved into
+      // cbOpenHistory's drawer, opened by tapping the card — a kanban
+      // column of these got cramped and overdetailed once every card was
+      // showing all of that at once (2026-08-30 feedback). One click to
+      // act instead of everything inline, but the board is scannable.
       cards.forEach(function(c) {
         var id = _cbEsc(String(c.id));
         var f = c.fields || {};
         var sdot = f.Status === 'Attended' ? '<span class="sdot sdot-green"></span>'
           : (f.Status && f.Status.indexOf('Cancelled') === 0) ? '<span class="sdot sdot-red"></span>' : '';
-        // A dedicated history icon, not the whole card — a card-wide click
-        // target was too easy to trigger by accident while reaching for one
-        // of the action buttons below it.
-        var histBtn = '<button onclick="cbOpenHistory(\'' + id + '\')" title="History" aria-label="History"'
-          + ' style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:2px 4px;flex-shrink:0;line-height:1">🕘</button>';
-        var editBtn = '<button onclick="cbOpenEdit(\'' + id + '\')" title="Edit or delete" aria-label="Edit or delete"'
-          + ' style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:2px 4px;flex-shrink:0;line-height:1">✏️</button>';
-        html += '<div class="card2"><div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>'
-          + '<div style="display:flex;align-items:center;gap:4px">' + editBtn + histBtn + _cbFunderChip(f.Funder) + '</div>'
-          + '</div><div class="mt">' + _cbEsc(c.meta) + '</div>';
-        if (col.key === 'billing') {
-          if (_cbIsDirectFunder(c.fields.Funder)) {
-            html += '<div class="act">'
-              + '<button onclick="cbSetBilling(\'' + id + '\',\'Auto paid\',this)">Auto paid</button>'
-              + '<button onclick="cbSetBilling(\'' + id + '\',\'Invoice sent\',this)">Invoice sent</button>'
-              + '</div>';
-          } else {
-            html += '<div class="act">'
-              + '<button onclick="cbSetBilling(\'' + id + '\',\'Halaxy direct\',this)">Halaxy direct</button>'
-              + '<button onclick="cbSetBilling(\'' + id + '\',\'Funder — awaiting remittance\',this)">Via funder</button>'
-              + '</div>';
-          }
-        } else if (col.key === 'remittance') {
-          var isInvoiced = c.fields.Billing === 'Invoice sent';
-          html += '<div class="act"><button onclick="cbSetBilling(\'' + id + '\',\'' + (isInvoiced ? 'Closed (paid)' : 'Closed (remittance received)') + '\',this)">' + (isInvoiced ? 'Payment received' : 'Remittance received') + '</button></div>';
-        }
-        if ((col.key === 'billing' || col.key === 'remittance' || col.key === 'closed') && c.fields.Bill === 'Yes') {
-          html += _cbInvoiceHtml(c);
-          if (c.fields.Funder === 'QFES') {
-            html += _cbQfesFormHtml(c)
-              + '<div class="mt" style="margin-top:6px"><a href="#" onclick="cbOpenQfesDetails(\'' + id + '\');return false" style="color:var(--teal);font-size:11px">📋 QFES form details</a></div>';
-          }
-        }
-        // Remittance inbox check — only once an invoice # exists to search
-        // for, and only on the Awaiting payment column (matching the old
-        // /admin behaviour, ported here card-by-card since the Board shows
-        // several remittance cards at once, not one modal at a time).
-        if (col.key === 'remittance' && c.fields.Invoice) {
-          html += '<button class="remit-btn" id="remit-btn-' + id + '" onclick="_cbCheckRemittance(\'' + _cbEsc(c.fields.Invoice) + '\',\'' + id + '\',this)">🔍 Check inbox for remittance</button>'
-            + '<div class="remit-result" id="remit-result-' + id + '"></div>';
-        }
-        html += '</div>';
+        html += '<div class="card2" onclick="cbOpenHistory(\'' + id + '\')" style="cursor:pointer">'
+          + '<div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>' + _cbFunderChip(f.Funder) + '</div>'
+          + '<div class="mt">' + _cbEsc(c.meta) + '</div>'
+          + '</div>';
       });
     }
     html += '</div>';
@@ -1663,8 +1642,47 @@ function cbOpenHistory(eventId) {
   // the only route from "here's a card in the pipeline" back to "show me
   // this exact day on Home" without hand-paging Day/Week/Month to relocate it.
   var jumpBtn = ev.start ? '<button class="btn-ghost" onclick="cbJumpToSchedule(\'' + _cbEsc(ev.id) + '\')">View in schedule →</button>' : '';
+  var editBtn = '<button class="btn-ghost" onclick="cbCloseHistory();cbOpenEdit(\'' + _cbEsc(ev.id) + '\')">Edit or delete</button>';
 
-  document.getElementById('cb-history-body').innerHTML = head + jumpBtn + histHtml;
+  // Everything below used to be inline on the Board card itself — moved
+  // here (2026-08-30) so the card stays a compact, scannable summary. Same
+  // stage logic _cbRenderBoard used to decide what to show, keyed off
+  // _cbEventStage instead of a column loop since this opens from Home's
+  // stage badge too, not just the Board.
+  var stage = _cbEventStage(ev);
+  var actionsHtml = '';
+  if (stage === 'billing') {
+    actionsHtml = _cbIsDirectFunder(f.Funder)
+      ? '<div class="act">'
+        + '<button onclick="cbSetBilling(\'' + _cbEsc(ev.id) + '\',\'Auto paid\',this)">Auto paid</button>'
+        + '<button onclick="cbSetBilling(\'' + _cbEsc(ev.id) + '\',\'Invoice sent\',this)">Invoice sent</button>'
+        + '</div>'
+      : '<div class="act">'
+        + '<button onclick="cbSetBilling(\'' + _cbEsc(ev.id) + '\',\'Halaxy direct\',this)">Halaxy direct</button>'
+        + '<button onclick="cbSetBilling(\'' + _cbEsc(ev.id) + '\',\'Funder — awaiting remittance\',this)">Via funder</button>'
+        + '</div>';
+  } else if (stage === 'remittance') {
+    var isInvoiced = f.Billing === 'Invoice sent';
+    actionsHtml = '<div class="act"><button onclick="cbSetBilling(\'' + _cbEsc(ev.id) + '\',\'' + (isInvoiced ? 'Closed (paid)' : 'Closed (remittance received)') + '\',this)">' + (isInvoiced ? 'Payment received' : 'Remittance received') + '</button></div>';
+  }
+
+  var billingHtml = '';
+  if ((stage === 'billing' || stage === 'remittance' || stage === 'closed') && f.Bill === 'Yes') {
+    billingHtml += _cbInvoiceHtml({ id: ev.id, fields: f });
+    if (f.Funder === 'QFES') {
+      billingHtml += _cbQfesFormHtml({ id: ev.id, fields: f })
+        + '<div class="mt" style="margin-top:6px"><a href="#" onclick="cbCloseHistory();cbOpenQfesDetails(\'' + _cbEsc(ev.id) + '\');return false" style="color:var(--teal);font-size:11px">📋 QFES form details</a></div>';
+    }
+  }
+
+  var remitHtml = '';
+  if (stage === 'remittance' && f.Invoice) {
+    remitHtml = '<button class="remit-btn" id="remit-btn-' + _cbEsc(ev.id) + '" onclick="_cbCheckRemittance(\'' + _cbEsc(f.Invoice) + '\',\'' + _cbEsc(ev.id) + '\',this)">🔍 Check inbox for remittance</button>'
+      + '<div class="remit-result" id="remit-result-' + _cbEsc(ev.id) + '"></div>';
+  }
+
+  document.getElementById('cb-history-body').innerHTML = head + jumpBtn + editBtn + actionsHtml + billingHtml + remitHtml
+    + '<div class="sec-hd" style="margin-top:20px">Activity</div>' + histHtml;
   document.getElementById('cb-history-backdrop').classList.add('open');
   document.getElementById('cb-history-sheet').classList.add('open');
 }
