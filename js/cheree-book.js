@@ -772,6 +772,12 @@ function _cbOpenOutcome(eventId) {
 
   html += '<button class="btn-primary" onclick="_cbSubmitOutcome(\'' + _cbEsc(eventId) + '\',\'' + _cbEsc(baseName) + '\',this)">Save</button>';
   html += '<button class="btn-ghost" onclick="cbSetView(\'home\')">Back</button>';
+  // Previously the only way to delete a session from Home was to click
+  // "Rescheduled" (implying you want to move it) to reach the Edit
+  // sheet's own delete button — not a real path for "I just want this
+  // gone" (2026-08-31 feedback). Same cbDeleteEvent the Edit sheet uses,
+  // just a direct entry point here too.
+  html += '<button class="btn-ghost" style="color:var(--red,#c0392b)" onclick="cbDeleteEvent(\'' + _cbEsc(eventId) + '\',this)">Delete this session</button>';
   root.innerHTML = html;
 
   window._cbOutcome = initialOutcome;
