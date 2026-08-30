@@ -30,6 +30,7 @@ var _cbView     = 'home'; // 'home' | 'board' | 'book' | outcome-form (rendered 
 var _cbPicked   = null; // selected client for a new booking {id, name}
 var _cbModality = null; // 'In person' | 'Online'
 var _cbExpandedCardId = null; // Board card currently expanded in place, or null — one at a time
+var _cbBookingEnquiry = null; // {id, name, email} when the New Booking flow was opened from an enquiry, else null
 
 function _cbEsc(str) {
   // Also escapes single quotes (unlike the old admin-ui.js escHtml) since
@@ -420,6 +421,17 @@ function _cbRenderHome() {
   }
   html += _cbModesHtml();
 
+  // Above the schedule, in every mode (not just Day) — a new enquiry
+  // shouldn't wait on which calendar mode she happens to be browsing.
+  // Hidden entirely when triage is empty rather than an empty section
+  // header (2026-08-31 feedback: enquiries needed to be actionable from
+  // Home, not just the separate Board).
+  var triageCards = _cbTriageCards();
+  if (triageCards.length) {
+    html += '<div class="sec-hd">Needs triage (' + triageCards.length + ')</div>'
+      + '<div class="card-grid">' + triageCards.map(_cbCard2Html).join('') + '</div>';
+  }
+
   if (_cbHomeMode === 'month') {
     // Grid only — clicking a day (cbCalOpenDay) is how you see what's on
     // it, not a second list dumped underneath showing the whole month at
@@ -801,16 +813,30 @@ function cbDeleteEvent(eventId, btn) {
   }).catch(function(err) { _cbToast('Could not delete: ' + err.message); restore(); });
 }
 
-/* ── Book new appointment (existing client only — "add new" is parked) ── */
+/* ── Book new appointment (existing client only — "add new" is parked) ──
+ * When opened via cbCreateAppointmentFromEnquiry, _cbBookingEnquiry names
+ * who this is for — the search box pre-fills and auto-runs with their
+ * name so she just needs to confirm the matching Halaxy record, but she
+ * still explicitly picks it (this doesn't skip the Halaxy-client
+ * requirement, just saves the typing). ── */
 function _cbRenderBook() {
   var root = document.getElementById('root');
   if (!_cbPicked) {
-    root.innerHTML = '<div class="sec-hd">New booking</div>'
+    var forEnq = _cbBookingEnquiry;
+    var banner = forEnq
+      ? '<div class="card"><div class="mt">Booking for <strong style="color:var(--t1)">' + _cbEsc(forEnq.name) + '</strong> (from an enquiry) — pick their Halaxy record below, or <a href="#" onclick="_cbBookingEnquiry=null;_cbRenderBook();return false" style="color:var(--teal)">search for someone else</a>.</div></div>'
+      : '';
+    root.innerHTML = '<div class="sec-hd">New booking</div>' + banner
       + '<div class="field"><label>Find the client</label>'
-      + '<input id="cb-search" placeholder="Search by name…" autocomplete="off" oninput="_cbSearchClients(this.value)"></div>'
+      + '<input id="cb-search" placeholder="Search by name…" autocomplete="off" value="' + (forEnq ? _cbEsc(forEnq.name) : '') + '" oninput="_cbSearchClients(this.value)"></div>'
       + '<div id="cb-search-results"></div>'
-      + '<button class="btn-ghost" onclick="cbSetView(\'home\')">Cancel</button>';
-    setTimeout(function() { var i = document.getElementById('cb-search'); if (i) i.focus(); }, 60);
+      + '<button class="btn-ghost" onclick="_cbBookingEnquiry=null;cbSetView(\'home\')">Cancel</button>';
+    setTimeout(function() {
+      var i = document.getElementById('cb-search');
+      if (!i) return;
+      i.focus();
+      if (forEnq) _cbSearchClients(forEnq.name);
+    }, 60);
     return;
   }
   _cbRenderBookForm();
@@ -866,7 +892,7 @@ function _cbRenderBookForm() {
   html += '<div id="cb-day-context" class="mt" style="margin-bottom:12px"></div>';
 
   html += '<button class="btn-primary" id="cb-submit" onclick="_cbSubmitBooking()">Add to calendar</button>';
-  html += '<button class="btn-ghost" onclick="cbSetView(\'home\')">Cancel</button>';
+  html += '<button class="btn-ghost" onclick="_cbBookingEnquiry=null;cbSetView(\'home\')">Cancel</button>';
 
   root.innerHTML = html;
   document.getElementById('cb-date').addEventListener('change', _cbShowDayContext);
@@ -928,11 +954,135 @@ function _cbSubmitBooking() {
     _cbEvents.push({ id: d.id, title: title, description: desc, start: start.toISOString(), end: end.toISOString() });
     _cbToast('Added to the calendar ✓');
     _cbPicked = null;
-    cbSetView('home');
+
+    var bookedFor = _cbBookingEnquiry;
+    _cbBookingEnquiry = null;
+    if (bookedFor) {
+      _cbConvertEnquiryAfterBooking(bookedFor.id, d.id);
+      _cbRenderBookingConfirmed(bookedFor.name, bookedFor.email);
+    } else {
+      cbSetView('home');
+    }
   }).catch(function(err) {
     _cbToast('Could not add: ' + err.message);
     btn.disabled = false; btn.textContent = 'Add to calendar';
   });
+}
+
+/* Bookkeeping only, fired after the calendar event already exists — never
+ * blocks the confirmation screen and never fails loudly, since the actual
+ * booking (the part that matters) already succeeded. Marks the enquiry
+ * converted (same convention as linking to a client elsewhere) and merges
+ * the new event onto it via the existing, previously-unused cal_link
+ * endpoint (api/admin-enquiries.js). */
+function _cbConvertEnquiryAfterBooking(enquiryId, eventId) {
+  fetch('/api/admin-enquiries?id=' + encodeURIComponent(enquiryId), {
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'converted' }),
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { console.error('[cbConvertEnquiryAfterBooking] status update failed:', d.error); return; }
+    var enq = (_cbData && _cbData.enquiries || []).find(function(e) { return String(e.id) === String(enquiryId); });
+    if (enq) enq.status = 'converted';
+  }).catch(function(err) { console.error('[cbConvertEnquiryAfterBooking] status update error:', err.message); });
+
+  fetch('/api/admin-enquiries?cal_link=1', {
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ eventId: eventId, enquiryId: enquiryId }),
+  }).catch(function(err) { console.error('[cbConvertEnquiryAfterBooking] cal_link error:', err.message); });
+}
+
+// Same idea as _cbRemitGmailUrl below, but a compose window instead of a
+// search — she reviews and sends it herself, nothing is sent from here.
+function _cbComposeGmailUrl(to, subject, body) {
+  return 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(to || '')
+    + '&su=' + encodeURIComponent(subject || '') + '&body=' + encodeURIComponent(body || '');
+}
+
+function _cbRenderBookingConfirmed(name, email) {
+  var root = document.getElementById('root');
+  var subject = 'Your upcoming session — Cheree McGarry Counselling';
+  var body = 'Hi ' + name + ',\n\nJust confirming your upcoming session with Cheree. Let me know if you have any questions.\n\nWarm regards,\nCheree';
+  var composeUrl = email ? _cbComposeGmailUrl(email, subject, body) : null;
+
+  root.innerHTML = '<div class="card"><div class="nm">Booked for ' + _cbEsc(name) + '</div>'
+    + '<div class="mt">Added to the calendar and linked back to their enquiry.</div></div>'
+    + (composeUrl
+        ? '<a class="btn-primary" style="display:block;text-align:center;text-decoration:none" href="' + _cbEsc(composeUrl) + '" target="_blank" rel="noopener">Send them a confirmation email →</a>'
+        : '')
+    + '<button class="btn-ghost" onclick="cbSetView(\'home\')">Done</button>';
+}
+
+function cbCreateAppointmentFromEnquiry(enquiryId) {
+  var enq = (_cbData && _cbData.enquiries || []).find(function(e) { return String(e.id) === String(enquiryId); });
+  if (!enq) return;
+  var name = [enq.first_name, enq.last_name].filter(Boolean).join(' ') || 'Unknown';
+  _cbBookingEnquiry = { id: enquiryId, name: name, email: enq.email || null };
+  _cbPicked = null;
+  _cbModality = null;
+  _cbExpandedCardId = null;
+  cbSetView('book');
+}
+
+/* ── Link an enquiry to an existing upcoming appointment, instead of
+ * creating a new one — e.g. she already booked the session before getting
+ * to triage. Lists the next 60 days from _cbEvents (already loaded
+ * client-side, same window _cbLoadData fetches — no extra request) and
+ * merges the pick via the existing cal_link endpoint, previously wired up
+ * server-side but never called from anywhere. ── */
+function cbOpenLinkAppointment(enquiryId, name) {
+  document.getElementById('cb-linkappt-title').textContent = 'Link ' + name + ' to…';
+  var body = document.getElementById('cb-linkappt-body');
+
+  var now = new Date();
+  var cutoff = new Date(now.getTime() + 60 * 86400000);
+  var upcoming = _cbEvents.filter(function(e) {
+    if (!e.start) return false;
+    var d = new Date(e.start);
+    return d >= now && d <= cutoff;
+  }).sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
+
+  if (!upcoming.length) {
+    body.innerHTML = '<div class="empty">Nothing booked in the next 60 days to link to.</div>';
+  } else {
+    body.innerHTML = upcoming.map(function(e) {
+      var d = new Date(e.start);
+      var when = d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+      var evName = e.title.split(' — ')[0] || e.title;
+      return '<div class="pick-row" onclick="cbConfirmLinkAppointment(\'' + _cbEsc(String(enquiryId)) + '\',\'' + _cbEsc(String(e.id)) + '\',this)">'
+        + '<div class="pick-body"><div class="nm">' + _cbEsc(evName) + '</div><div class="mt">' + _cbEsc(when) + '</div></div></div>';
+    }).join('');
+  }
+
+  document.getElementById('cb-linkappt-backdrop').classList.add('open');
+  document.getElementById('cb-linkappt-sheet').classList.add('open');
+}
+
+function cbCloseLinkAppointment() {
+  document.getElementById('cb-linkappt-backdrop').classList.remove('open');
+  document.getElementById('cb-linkappt-sheet').classList.remove('open');
+}
+
+function cbConfirmLinkAppointment(enquiryId, eventId, row) {
+  if (row) row.style.opacity = '0.5';
+  fetch('/api/admin-enquiries?cal_link=1', {
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ eventId: eventId, enquiryId: enquiryId }),
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { _cbToast('Could not link: ' + d.error); if (row) row.style.opacity = '1'; return; }
+    return fetch('/api/admin-enquiries?id=' + encodeURIComponent(enquiryId), {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'converted' }),
+    }).then(function(r2) { return r2.json(); });
+  }).then(function(d2) {
+    if (!d2) return; // the linked-catch above already toasted and returned
+    if (d2.error) { _cbToast('Linked, but could not update enquiry status: ' + d2.error); }
+    var enq = (_cbData && _cbData.enquiries || []).find(function(e) { return String(e.id) === String(enquiryId); });
+    if (enq) enq.status = 'converted';
+    _cbExpandedCardId = null;
+    _cbToast('Linked to appointment');
+    cbCloseLinkAppointment();
+    _cbRender();
+  }).catch(function(err) { _cbToast('Could not link: ' + err.message); if (row) row.style.opacity = '1'; });
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1338,14 +1488,20 @@ function _cbEventStage(ev) {
   return null;
 }
 
+/* Pulled out of _cbBoardCards so Home's "Needs triage" section can list
+ * the same cards without duplicating the enquiry→card mapping. */
+function _cbTriageCards() {
+  return ((_cbData && _cbData.enquiries) || []).filter(function(e) {
+    return e.status !== 'converted' && e.status !== 'closed';
+  }).map(function(e) {
+    var name = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
+    return { id: 'e:' + e.id, enquiryId: e.id, name: name, meta: 'Enquiry — ' + (e.status || 'new'), enq: e };
+  });
+}
+
 function _cbBoardCards() {
   var cols = {}; BOARD_COLUMNS.forEach(function(c) { cols[c.key] = []; });
-
-  ((_cbData && _cbData.enquiries) || []).forEach(function(e) {
-    if (e.status === 'converted' || e.status === 'closed') return;
-    var name = [e.first_name, e.last_name].filter(Boolean).join(' ') || 'Unknown';
-    cols.triage.push({ id: 'e:' + e.id, enquiryId: e.id, name: name, meta: 'Enquiry — ' + (e.status || 'new'), enq: e });
-  });
+  cols.triage = _cbTriageCards();
 
   _cbEvents.forEach(function(ev) {
     var stage = _cbEventStage(ev);
@@ -1538,10 +1694,12 @@ function _cbCheckRemittance(invNum, cardId, btn) {
 }
 
 /* Accordion-style: expanding a card collapses whichever one was open
- * before it, so the board never grows more than one card taller. */
+ * before it. Triage cards can now appear on both Home and the Board (same
+ * _cbExpandedCardId either way), so this re-renders whichever view is
+ * actually showing rather than assuming Board. */
 function cbToggleCardExpand(id) {
   _cbExpandedCardId = (_cbExpandedCardId === id) ? null : id;
-  _cbRenderBoard();
+  _cbRender();
 }
 
 /* New/Triage cards are enquiries (Supabase `enquiries` table), not
@@ -1575,8 +1733,16 @@ function _cbEnquiryActionsHtml(c) {
     : '';
   var messageHtml = e.message ? '<div class="mt" style="margin-top:8px;white-space:pre-wrap">' + _cbEsc(e.message) + '</div>' : '';
 
-  return detailHtml + messageHtml
-    + '<button class="btn-ghost" style="color:var(--red,#c0392b);margin-top:10px" onclick="cbDismissEnquiry(\'' + _cbEsc(String(c.enquiryId)) + '\',\'' + _cbEsc(c.name) + '\',this)">Delete this enquiry</button>';
+  var eid = _cbEsc(String(c.enquiryId));
+  var ename = _cbEsc(c.name);
+  var actionsHtml = '<div class="act" style="margin-top:10px">'
+    + '<button onclick="cbMarkContacted(\'' + eid + '\',\'' + ename + '\',this)">Contacted</button>'
+    + '<button onclick="cbCreateAppointmentFromEnquiry(\'' + eid + '\')">Create appointment</button>'
+    + '<button onclick="cbOpenLinkAppointment(\'' + eid + '\',\'' + ename + '\')">Link to appointment</button>'
+    + '</div>';
+
+  return detailHtml + messageHtml + actionsHtml
+    + '<button class="btn-ghost" style="color:var(--red,#c0392b);margin-top:8px" onclick="cbDismissEnquiry(\'' + eid + '\',\'' + ename + '\',this)">Delete this enquiry</button>';
 }
 
 function cbDismissEnquiry(enquiryId, name, btn) {
@@ -1592,8 +1758,53 @@ function cbDismissEnquiry(enquiryId, name, btn) {
     if (enq) enq.status = 'closed';
     _cbExpandedCardId = null;
     _cbToast('Removed from triage');
-    _cbRenderBoard();
+    _cbRender();
   }).catch(function(err) { _cbToast('Could not remove: ' + err.message); restore(); });
+}
+
+/* Log-only — stays in triage (only 'converted'/'closed' are filtered out
+ * of _cbTriageCards) since a contacted lead still needs booking. The
+ * status PATCH already writes an activity_log entry for any status change
+ * (api/admin-enquiries.js) — no separate logging call needed. */
+function cbMarkContacted(enquiryId, name, btn) {
+  var restore = _cbBusy(btn, 'Saving…');
+  fetch('/api/admin-enquiries?id=' + encodeURIComponent(enquiryId), {
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'contacted' }),
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { _cbToast('Could not update: ' + d.error); restore(); return; }
+    var enq = (_cbData && _cbData.enquiries || []).find(function(e) { return String(e.id) === String(enquiryId); });
+    if (enq) enq.status = 'contacted';
+    _cbExpandedCardId = null;
+    _cbToast(name + ' marked as contacted');
+    _cbRender();
+  }).catch(function(err) { _cbToast('Could not update: ' + err.message); restore(); });
+}
+
+// Compact by default: name/status/funder + the one meta line — a kanban
+// column of cards got cramped and overdetailed once every card always
+// showed its billing buttons/invoice fields/remittance check at once
+// (2026-08-30 feedback). Tapping a card expands it in place (accordion-
+// style, one at a time) instead of opening a separate drawer — that felt
+// like too much ceremony for "show me this card's actions" and loses
+// sight of the rest of the board (2026-08-30 follow-up feedback).
+// _cbCardActionsHtml/_cbEnquiryActionsHtml are the same content
+// cbOpenHistory shows for Home's stage badge. Shared by _cbRenderBoard's
+// pipeline columns and Home's "Needs triage" section (2026-08-31) — one
+// card renderer either way.
+function _cbCard2Html(c) {
+  var id = _cbEsc(String(c.id));
+  var f = c.fields || {};
+  var sdot = f.Status === 'Attended' ? '<span class="sdot sdot-green"></span>'
+    : (f.Status && f.Status.indexOf('Cancelled') === 0) ? '<span class="sdot sdot-red"></span>' : '';
+  var expanded = _cbExpandedCardId === c.id;
+  return '<div class="card2' + (expanded ? ' card2-expanded' : '') + '">'
+    + '<div onclick="cbToggleCardExpand(\'' + id + '\')" style="cursor:pointer">'
+    +   '<div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>' + _cbFunderChip(f.Funder) + '</div>'
+    +   '<div class="mt">' + _cbEsc(c.meta) + '</div>'
+    + '</div>'
+    + (expanded ? (c.ev ? _cbCardActionsHtml(c.ev) : _cbEnquiryActionsHtml(c)) : '')
+    + '</div>';
 }
 
 function _cbRenderBoard() {
@@ -1606,29 +1817,7 @@ function _cbRenderBoard() {
     if (!cards.length) {
       html += '<div class="col-empty">Nothing here</div>';
     } else {
-      // Compact by default: name/status/funder + the one meta line — a
-      // kanban column of cards got cramped and overdetailed once every
-      // card always showed its billing buttons/invoice fields/remittance
-      // check at once (2026-08-30 feedback). Tapping a card expands it in
-      // place (accordion-style, one at a time) instead of opening a
-      // separate drawer — that felt like too much ceremony for "show me
-      // this card's actions" and loses sight of the rest of the board
-      // (2026-08-30 follow-up feedback). _cbCardActionsHtml is the same
-      // content cbOpenHistory shows for Home's stage badge.
-      cards.forEach(function(c) {
-        var id = _cbEsc(String(c.id));
-        var f = c.fields || {};
-        var sdot = f.Status === 'Attended' ? '<span class="sdot sdot-green"></span>'
-          : (f.Status && f.Status.indexOf('Cancelled') === 0) ? '<span class="sdot sdot-red"></span>' : '';
-        var expanded = _cbExpandedCardId === c.id;
-        html += '<div class="card2' + (expanded ? ' card2-expanded' : '') + '">'
-          + '<div onclick="cbToggleCardExpand(\'' + id + '\')" style="cursor:pointer">'
-          +   '<div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>' + _cbFunderChip(f.Funder) + '</div>'
-          +   '<div class="mt">' + _cbEsc(c.meta) + '</div>'
-          + '</div>'
-          + (expanded ? (c.ev ? _cbCardActionsHtml(c.ev) : _cbEnquiryActionsHtml(c)) : '')
-          + '</div>';
-      });
+      cards.forEach(function(c) { html += _cbCard2Html(c); });
     }
     html += '</div>';
   });

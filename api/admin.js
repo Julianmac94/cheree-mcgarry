@@ -404,6 +404,12 @@ function cbBookPage({ currentUser = null }) {
     <div class="sheet-body" id="cb-qfes-body"></div>
   </div>
 
+  <div class="sheet-backdrop" id="cb-linkappt-backdrop" onclick="cbCloseLinkAppointment()"></div>
+  <div class="sheet" id="cb-linkappt-sheet">
+    <div class="sheet-hd"><span id="cb-linkappt-title">Link to an appointment</span><button onclick="cbCloseLinkAppointment()" aria-label="Close">✕</button></div>
+    <div class="sheet-body" id="cb-linkappt-body"></div>
+  </div>
+
   <nav class="dock">
     <div class="dock-pill">
       <button class="dock-btn active" id="dock-home" onclick="cbSetView('home')" aria-label="Home">
