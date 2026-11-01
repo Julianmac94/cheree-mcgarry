@@ -88,6 +88,9 @@ function cbBookPage({ currentUser = null }) {
   .fchip-Lead { background: rgba(224,163,57,0.12); color: var(--amber); }
   .fchip-Unknown { background: rgba(255,255,255,0.05); color: var(--t3); }
   .legacy-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--t3); border: 1px dashed var(--border); padding: 1px 6px; border-radius: 6px; flex-shrink: 0; }
+  .p-blk { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+  .p-blk:first-of-type { border-top: none; padding-top: 0; }
+  .p-who { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--t3); margin-bottom: 6px; }
   .billsep-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--amber); background: rgba(224,163,57,0.1); border: 1px solid rgba(224,163,57,0.35); padding: 1px 6px; border-radius: 6px; }
   .stage-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.02em; color: var(--teal); background: rgba(119,207,189,0.12); border: 1px solid rgba(119,207,189,0.3); padding: 2px 7px; border-radius: 6px; flex-shrink: 0; cursor: pointer; }
   .stage-badge:hover { background: rgba(119,207,189,0.2); }
@@ -131,7 +134,8 @@ function cbBookPage({ currentUser = null }) {
   .funder-check:last-of-type { border-bottom: none; }
   .funder-check input { width: 18px; height: 18px; accent-color: var(--teal); flex-shrink: 0; }
   .modality { display: flex; gap: 8px; }
-  .modality button { flex: 1; padding: 10px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); color: var(--t2); font-size: 13px; cursor: pointer; }
+  .modality button { flex: 1; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--t2); font-size: 13px; cursor: pointer; }
+  .modality button:hover { border-color: var(--teal); }
   .modality button.sel { background: rgba(119,207,189,0.14); border-color: var(--teal); color: var(--teal); }
 
   /* ── Outcome hues — Attended/Rescheduled/Cancelled get a colour each so
@@ -161,7 +165,7 @@ function cbBookPage({ currentUser = null }) {
   .brief-card { background: rgba(119,207,189,0.06); border: 1px solid rgba(119,207,189,0.16); border-radius: 14px; padding: 16px 18px 14px; margin-bottom: 18px; }
   .brief-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--teal); opacity: 0.75; margin-bottom: 8px; }
   .brief-text { font-size: 14px; line-height: 1.7; color: var(--t1); min-height: 18px; }
-  .brief-text.ai-brief-streaming { min-height: 40px; }
+  .brief-text.ai-brief-streaming { min-height: 18px; }
   .brief-text.ai-brief-pulse-in { animation: ai-brief-pulse-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
   .brief-text .ai-brief-para { margin: 0; padding: 0; }
   .brief-text .ai-brief-para + .ai-brief-para { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(119,207,189,0.12); }
@@ -170,17 +174,21 @@ function cbBookPage({ currentUser = null }) {
   @keyframes ai-brief-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
   /* ── Home view-mode switch + calendar (Month/Week/Day) ── */
-  .cal-modes { display: flex; gap: 6px; margin-bottom: 16px; }
-  .cal-mode-btn { flex: 1; padding: 8px; border-radius: 9px; background: var(--card); border: 1px solid var(--border); color: var(--t2); font-size: 12px; font-weight: 600; cursor: pointer; }
-  .cal-mode-btn.active { background: rgba(119,207,189,0.14); border-color: var(--teal); color: var(--teal); }
-  .cal-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-  .cal-arrow { background: var(--card); border: 1px solid var(--border); color: var(--t2); width: 32px; height: 32px; border-radius: 9px; cursor: pointer; font-size: 15px; line-height: 1; flex-shrink: 0; }
+  /* Mode and date are one control strip — see _cbCalBarHtml. */
+  .cal-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .cal-modes { display: flex; gap: 3px; padding: 3px; background: var(--card); border: 1px solid var(--border); border-radius: 11px; }
+  .cal-mode-btn { padding: 7px 16px; border-radius: 8px; background: none; border: none; color: var(--t3); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .cal-mode-btn.active { background: rgba(119,207,189,0.12); color: var(--teal); }
+  .cal-when { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .cal-arrow { background: none; border: 1px solid var(--border); color: var(--t2); width: 30px; height: 30px; border-radius: 9px; cursor: pointer; font-size: 15px; line-height: 1; flex-shrink: 0; }
   .cal-arrow:hover { border-color: var(--teal); color: var(--teal); }
-  .cal-nav-label { flex: 1; text-align: center; font-size: 13px; font-weight: 700; }
-  .cal-today-btn { background: var(--card); border: 1px solid var(--border); color: var(--teal); font-size: 11px; font-weight: 700; padding: 0 10px; height: 32px; border-radius: 9px; cursor: pointer; flex-shrink: 0; }
+  .cal-nav-label { min-width: 150px; text-align: center; font-size: 13px; font-weight: 700; }
+  .cal-today-btn { background: none; border: 1px solid var(--border); color: var(--teal); font-size: 11px; font-weight: 700; padding: 0 11px; height: 30px; border-radius: 9px; cursor: pointer; flex-shrink: 0; }
+  .cal-today-btn:hover { border-color: var(--teal); }
+
   .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
   .cal-dow { text-align: center; font-size: 10px; font-weight: 700; color: var(--t3); padding-bottom: 4px; }
-  .cal-cell { aspect-ratio: 1; border-radius: 9px; background: var(--card); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; }
+  .cal-cell { aspect-ratio: 1; border-radius: 9px; background: var(--card); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; overflow: hidden; }
   .cal-cell:hover { border-color: var(--teal); }
   .cal-cell--out { opacity: 0.35; }
   .cal-cell--today { border-color: var(--teal); box-shadow: 0 0 0 1px var(--teal) inset; }
@@ -191,11 +199,23 @@ function cbBookPage({ currentUser = null }) {
   .cal-dot-upcoming { background: var(--teal); }
   .cal-dot-attended { background: var(--green); }
   .cal-dot-cancelled { background: var(--red); }
-  .cal-day-hd { margin-top: 22px; }
-  .cal-day-hd:first-of-type { margin-top: 0; }
-  .cal-week-day { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
-  .cal-week-day .cal-day-hd:first-of-type { margin-top: 0; }
-  .cal-week-day--today { border-color: var(--teal); }
+  /* Names in the month cells only where they'd actually fit — below this
+     the dots carry it, same as before. */
+  .cal-evs { display: none; }
+  .cal-more { font-size: 9.5px; font-weight: 600; color: var(--t3); padding: 0 4px; }
+
+  /* Week = a date gutter with the day's sessions beside it. */
+  .cal-week { display: grid; gap: 2px; }
+  .cal-wrow { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: start; padding: 9px 0; border-top: 1px solid var(--border); }
+  .cal-wrow:first-child { border-top: none; }
+  .cal-wday { display: flex; align-items: baseline; gap: 6px; padding: 2px 0 0; background: none; border: none; cursor: pointer; color: var(--t2); text-align: left; }
+  .cal-wday b { font-size: 16px; font-weight: 700; color: var(--t1); }
+  .cal-wday span { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--t3); }
+  .cal-wday:hover b, .cal-wday:hover span { color: var(--teal); }
+  .cal-wrow--today .cal-wday b { color: var(--teal); }
+  .cal-wrow--none { padding: 5px 0; }
+  .cal-wrow--none .cal-wday b { font-size: 13px; font-weight: 600; color: var(--t3); }
+  .cal-wnone { font-size: 12px; color: var(--t3); padding-top: 1px; }
   .loading { text-align: center; padding: 50px 20px; color: var(--t3); font-size: 13px; }
   .toast { position: fixed; bottom: calc(100px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--teal); color: var(--t1); padding: 12px 20px; border-radius: 10px; font-size: 13px; z-index: 90; }
 
@@ -235,45 +255,75 @@ function cbBookPage({ currentUser = null }) {
   .fx-step.done i { background: var(--green); border-color: var(--green); }
   .fx-step.now { color: var(--teal); }
   .fx-step.now i { background: var(--teal); border-color: var(--teal); box-shadow: 0 0 0 3px rgba(119,207,189,0.2); }
-  .fx-name { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+  .fx-name-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .fx-name { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; min-width: 0; }
+  .fx-why { margin: -2px 0 14px; padding-left: 11px; border-left: 2px solid rgba(224,163,57,0.4); font-size: 12.5px; line-height: 1.45; color: var(--t2); }
+  .fx-shared { margin-top: 5px; font-size: 11.5px; font-weight: 600; color: var(--amber); }
+  .fx-edit { flex: none; font-size: 12px; font-weight: 600; padding: 6px 11px; border-radius: 9px; background: none; border: 1px solid var(--border); color: var(--t3); cursor: pointer; }
+  .fx-edit:hover { border-color: var(--teal); color: var(--teal); }
   .fx-chips { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
   .fx-chips .fchip { font-size: 11px; padding: 4px 10px; }
   .fx-status { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 7px; }
   .fx-status-ok { background: rgba(63,191,143,0.14); color: var(--green); }
   .fx-status-bad { background: rgba(224,113,74,0.14); color: var(--red); }
-  .fx-facts { margin: 18px 0 0; display: grid; gap: 10px; }
-  .fx-facts div { display: grid; grid-template-columns: 74px 1fr; gap: 10px; }
-  .fx-facts dt { font-size: 12px; color: var(--t3); padding-top: 1px; }
-  .fx-facts dd { margin: 0; font-size: 14px; color: var(--t1); }
-  .fx-age { margin-left: 8px; font-size: 11.5px; color: var(--amber); }
-  .fx-sec { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--t3); margin: 22px 0 8px; }
+  .fx-h { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+  .fx-h i { flex: none; width: 19px; height: 19px; border-radius: 50%; background: rgba(119,207,189,0.14); color: var(--teal); font-size: 10.5px; font-weight: 800; font-style: normal; line-height: 19px; text-align: center; }
+  .fx-h-t { font-size: 14px; font-weight: 700; color: var(--t1); letter-spacing: -0.01em; }
+  .fx-h-x { font-size: 11.5px; font-weight: 600; color: var(--t3); }
+  .fx-h-1 { margin-top: 20px; }
+  .fx-group .fx-h:not(:first-child) { margin-top: 20px; }
+  .fx-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 11px 18px; }
+  .fx-fact { display: grid; gap: 2px; align-content: start; min-width: 0; }
+  .fx-fact-w { grid-column: 1 / -1; }
+  .fx-fact span { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--t3); }
+  .fx-fact b { font-size: 13.5px; font-weight: 600; color: var(--t1); }
+  .fx-fact em { font-style: normal; font-size: 11.5px; color: var(--amber); }
+  /* Amber means overdue — a session that hasn't happened yet isn't. */
+  .fx-fact em.ahead { color: var(--t3); }
+  .fx-note { margin-top: 12px; padding-left: 11px; border-left: 2px solid var(--border); font-size: 13px; line-height: 1.45; color: var(--t2); }
+  .fx-link { display: inline-block; margin-top: 14px; padding: 0; background: none; border: none; font-size: 12px; font-weight: 600; color: var(--t2); cursor: pointer; }
+  .fx-link:hover { color: var(--teal); }
+  .fx-group { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .fx-fields { display: grid; gap: 14px; }
+  .fx-fields > .fx-field:only-child { grid-column: 1 / -1; }
+  .fx-field .fx-sec { margin: 0 0 7px; }
+  .fx-sec { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--t3); margin: 16px 0 8px; }
   .fx-inv { display: flex; gap: 8px; }
   .fx-inv input { flex: 1; min-width: 0; font-size: 15px; padding: 12px 14px; border-radius: 11px; background: var(--bg); border: 1px solid var(--border); color: var(--t1); }
   .fx-inv input:focus { outline: none; border-color: var(--teal); }
   .fx-inv button { font-size: 14px; font-weight: 600; padding: 0 18px; border-radius: 11px; background: rgba(119,207,189,0.12); border: 1px solid rgba(119,207,189,0.3); color: var(--teal); cursor: pointer; }
   .fx-inv-link { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 11px; background: var(--bg); border: 1px solid var(--border); color: var(--t1); font-size: 15px; font-weight: 600; text-decoration: none; }
   .fx-inv-link span { font-size: 12.5px; font-weight: 600; color: var(--teal); }
-  .fx-sec-link { float: right; text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--teal); text-decoration: none; }
+  .fx-sec-link { flex: none; text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 600; color: var(--t2); text-decoration: none; padding: 3px 9px; border: 1px solid var(--border); border-radius: 8px; }
+  .fx-sec-link:hover { border-color: var(--teal); color: var(--teal); }
   .fx-inv-static { color: var(--t2); }
-  .fx-more { display: flex; gap: 8px; margin-top: 16px; }
-  .fx-more button { flex: 1; font-size: 12.5px; padding: 10px; border-radius: 10px; background: none; border: 1px solid var(--border); color: var(--t2); cursor: pointer; }
-  .fx-more button:hover { border-color: var(--teal); color: var(--teal); }
   .fx-act:disabled { opacity: 0.6; cursor: default; }
-  .fx-remit { display: block; width: 100%; margin-top: 10px; font-size: 13.5px; font-weight: 600; padding: 12px; border-radius: 11px; cursor: pointer; background: rgba(224,163,57,0.1); border: 1px solid rgba(224,163,57,0.3); color: var(--amber); }
+  .fx-remit { display: block; width: 100%; margin-top: 12px; font-size: 13px; font-weight: 600; padding: 10px; border-radius: 10px; cursor: pointer; background: rgba(224,163,57,0.1); border: 1px solid rgba(224,163,57,0.3); color: var(--amber); }
   .fx-remit:disabled { opacity: 0.6; cursor: default; }
-  .fx-acts { display: grid; grid-template-columns: 1fr; gap: 10px; }
-  .fx-act { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; padding: 15px 16px 15px 50px; border-radius: 13px; cursor: pointer; background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--t1); transition: border-color 0.15s, background 0.15s; }
-  .fx-act:hover { border-color: var(--teal); background: rgba(119,207,189,0.06); }
+  .fx-done { padding: 14px; border-radius: 12px; background: rgba(63,191,143,0.08); border: 1px solid rgba(63,191,143,0.28); }
+  .fx-done-t { font-size: 15px; font-weight: 700; color: var(--green); }
+  .fx-done-s { font-size: 12.5px; color: var(--t2); margin-top: 3px; }
+  /* One card, centred and kept to a readable width — the outcome screen
+     is a column of steps, not a form stretched to the window. */
+  .fx-solo { max-width: 680px; margin: 0 auto; }
+  .fx-solo .fx-nav { justify-content: flex-start; }
+  .fx-fields > .field { margin-bottom: 0; }
+  .fx-undo { margin-top: 10px; font-size: 11.5px; font-weight: 600; padding: 5px 10px; border-radius: 8px; background: none; border: 1px solid rgba(63,191,143,0.35); color: var(--t2); cursor: pointer; }
+  .fx-undo:hover { border-color: var(--teal); color: var(--teal); }
+  #cb-edit-inline .field:first-child { margin-top: 2px; }
+  #cb-edit-inline .btn-primary { margin-top: 4px; }
+  .fx-acts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+  .fx-acts .fx-act:only-child { grid-column: 1 / -1; }
+  .fx-act { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; padding: 11px 13px 11px 42px; border-radius: 11px; cursor: pointer; background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--t1); transition: border-color 0.15s, background 0.15s; }
+  .fx-act:hover, .fx-act:focus-visible { outline: none; border-color: var(--teal); background: rgba(119,207,189,0.08); }
   .fx-act:active { transform: scale(0.99); }
-  .fx-act-primary { background: rgba(119,207,189,0.1); border-color: rgba(119,207,189,0.35); }
-  .fx-act kbd { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--border); font: 700 11px inherit; font-family: inherit; color: var(--t3); }
-  .fx-act-lbl { font-size: 15.5px; font-weight: 700; color: var(--t1); }
-  .fx-act-primary .fx-act-lbl { color: var(--teal); }
-  .fx-act-sub { font-size: 12px; color: var(--t3); }
+  .fx-act kbd { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--border); font: 700 11px inherit; font-family: inherit; color: var(--t3); }
+  .fx-act-lbl { font-size: 14px; font-weight: 650; color: var(--t1); }
+  .fx-act-sub { font-size: 11.5px; line-height: 1.3; color: var(--t3); }
   .fx-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
   .fx-nav button { font-size: 13.5px; font-weight: 600; padding: 10px 16px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--t1); cursor: pointer; }
   .fx-nav button:disabled { opacity: 0.35; cursor: default; }
-  .fx-keys { font-size: 11px; color: var(--t3); display: none; }
+  .fx-next.on { background: var(--teal); border-color: var(--teal); color: #08120F; }
 
   .fx-waiting { margin-top: 14px; font-size: 12px; color: var(--t3); text-align: center; }
   .fx-clear { text-align: center; padding: 56px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; }
@@ -294,9 +344,8 @@ function cbBookPage({ currentUser = null }) {
   .fx-ov-grp .card2:last-child { margin-bottom: 0; }
   .fx-ov-empty { font-size: 12px; color: var(--t3); padding: 4px 0 2px; }
 
-  @media (min-width: 640px) {
-    .fx-acts { grid-template-columns: 1fr 1fr; }
-    .fx-acts .fx-act:only-child { grid-column: 1 / -1; }
+  @media (min-width: 1100px) {
+    .fx-fields { grid-template-columns: 1fr 1fr; }
   }
   @media (min-width: 900px) {
     .fx-wrap { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
@@ -305,7 +354,6 @@ function cbBookPage({ currentUser = null }) {
     .fx-list-toggle { display: none; }
     .fx-card { padding: 28px 30px; }
     .fx-name { font-size: 30px; }
-    .fx-keys { display: inline; }
     .fx-overview { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-items: start; }
   }
   @media (max-width: 899px) {
@@ -430,6 +478,17 @@ function cbBookPage({ currentUser = null }) {
        column; harmless on mobile since the class carries no rule there. */
     .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; align-content: start; }
     .card-grid .card, .card-grid .pick-row { margin-bottom: 0; }
+    /* Month cells get room to name what's on the day. */
+    .cal-cell { aspect-ratio: auto; min-height: 104px; justify-content: flex-start; align-items: stretch; gap: 0; padding: 6px; }
+    .cal-daynum { text-align: right; font-size: 11.5px; }
+    .cal-dots { display: none; }
+    .cal-evs { display: grid; gap: 2px; margin-top: 3px; }
+    .cal-ev { font-size: 10px; line-height: 1.35; padding: 2px 5px; border-radius: 5px; background: rgba(255,255,255,0.04); color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 2px solid var(--t3); }
+    .cal-ev b { font-weight: 700; color: var(--t1); }
+    .cal-ev-attention { border-left-color: var(--amber); }
+    .cal-ev-upcoming  { border-left-color: var(--teal); }
+    .cal-ev-attended  { border-left-color: var(--green); }
+    .cal-ev-cancelled { border-left-color: var(--red); opacity: 0.6; }
 
     /* Sheets slide in from the right as a drawer instead of up from the
        bottom — same .open toggle, same open/close functions as mobile. */
@@ -492,12 +551,6 @@ function cbBookPage({ currentUser = null }) {
   <div class="sheet" id="cb-settings-sheet">
     <div class="sheet-hd"><span>Settings</span><button onclick="cbCloseSettings()" aria-label="Close">✕</button></div>
     <div class="sheet-body" id="cb-settings-body"></div>
-  </div>
-
-  <div class="sheet-backdrop" id="cb-edit-backdrop" onclick="cbCloseEdit()"></div>
-  <div class="sheet" id="cb-edit-sheet">
-    <div class="sheet-hd"><span id="cb-edit-title">Edit session</span><button onclick="cbCloseEdit()" aria-label="Close">✕</button></div>
-    <div class="sheet-body" id="cb-edit-body"></div>
   </div>
 
   <div class="sheet-backdrop" id="cb-qfes-backdrop" onclick="cbCloseQfesDetails()"></div>

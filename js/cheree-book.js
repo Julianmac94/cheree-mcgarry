@@ -30,6 +30,10 @@ var _cbView     = 'home'; // 'home' | 'board' | 'book' | outcome-form (rendered 
 var _cbPicked   = null; // selected client for a new booking {id, name}
 var _cbModality = null; // 'In person' | 'Online'
 var _cbExpandedCardId = null; // Board card currently expanded in place, or null — one at a time
+var _cbInlineEditId = null;   // event being edited inside its expanded card, or null
+var _cbOutcomeEdit = null;    // event being edited inside the outcome screen, or null
+var _cbOutcomeEditWhy = null; // 'reschedule' when that button opened it, else null
+var _cbEditReturn = null;     // how to redraw whichever surface holds the inline form
 var _cbBookingEnquiry = null; // {id, name, email} when the New Booking flow was opened from an enquiry, else null
 
 function _cbEsc(str) {
@@ -125,7 +129,10 @@ function _cbFields(e) {
 
 function _cbBuildDesc(fields) {
   var order = ['Funder', 'HalaxyId', 'Type', 'Duration', 'Note', 'Status', 'Bill', 'Billing', 'Invoice', 'QFES Form',
-    'AdditionalClient', 'AdditionalHalaxyId', 'BillSeparately'];
+    'AdditionalClient', 'AdditionalHalaxyId', 'BillSeparately',
+    // The additional client's own bill, when they're billed separately —
+    // same four fields, suffixed. See _cbParties.
+    'Funder2', 'Billing2', 'Invoice2', 'QFES Form 2'];
   var head = order.filter(function(k) { return fields[k] !== undefined && fields[k] !== null; })
     .map(function(k) { return k + ': ' + fields[k]; }).join('\n');
   var hist = fields._history || [];
@@ -323,6 +330,7 @@ function _cbArchiveOne(eventId) {
     'Note': fields.Note, 'Status': 'Archived', 'Bill': fields.Bill, 'Billing': fields.Billing,
     'Invoice': fields.Invoice, 'QFES Form': fields['QFES Form'],
     'AdditionalClient': fields.AdditionalClient, 'AdditionalHalaxyId': fields.AdditionalHalaxyId, 'BillSeparately': fields.BillSeparately,
+    'Funder2': fields.Funder2, 'Billing2': fields.Billing2, 'Invoice2': fields.Invoice2, 'QFES Form 2': fields['QFES Form 2'],
     '_history': fields._history };
   _cbLogHistory(newFields, 'Archived — no outcome recorded');
   var newTitle = _cbBuildTitle(baseName, fields.Funder, fields.Type, 'Archived', fields.AdditionalClient, fields.BillSeparately === 'Yes');
@@ -392,17 +400,22 @@ function _cbStageBadge(e) {
   return '<span class="stage-badge" onclick="event.stopPropagation();cbToggleCardExpand(\'' + _cbEsc(e.id) + '\')">→ ' + _cbEsc(col.label) + '</span>';
 }
 
-function _cbListHtml(items) {
+/* `timeOnly` drops the date from each card: both callers sit under
+ * something that already names the day (the bar in Day, the date gutter
+ * in Week), so repeating it on every card is noise. */
+function _cbListHtml(items, timeOnly) {
   // Wrapped in .card-grid so desktop widths (≥900px, see admin.js) can lay
   // these out as a multi-column grid instead of one stacked column — the
   // class carries no rule below that breakpoint, so mobile is unaffected.
   return '<div class="card-grid">' + items.map(function(e) {
     var d = new Date(e.start);
-    var when = d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+    var time = d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+    var when = timeOnly ? time
+      : d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + time;
     var fields = _cbFields(e);
     var name = e.title.split(' — ')[0] || e.title;
     var legacy = !fields.Status; // never booked/logged through this tool
-    var modIcon = fields.Type === 'Online' ? '💻 ' : fields.Type === 'In person' ? '📍 ' : '';
+    var modality = fields.Type ? ' · ' + fields.Type : '';
     var additionalLine = fields.AdditionalClient
       ? '<div class="mt">+ ' + _cbEsc(fields.AdditionalClient) + (fields.BillSeparately === 'Yes' ? ' <span class="billsep-tag">Bill separately</span>' : '') + '</div>'
       : '';
@@ -412,11 +425,11 @@ function _cbListHtml(items) {
     // target (stopPropagation) that expands the card in place instead —
     // same _cbCardActionsHtml content the Board shows, no more side drawer
     // (2026-08-31 feedback).
-    var expanded = _cbExpandedCardId === e.id;
+    var expanded = _cbExpandedCardId === String(e.id);
     return '<div class="card card-' + _cbEventKind(e) + (expanded ? ' card2-expanded' : '') + '">'
       + '<div onclick="_cbOpenOutcome(\'' + _cbEsc(e.id) + '\')" style="cursor:pointer">'
       +   '<div class="card-top"><div class="nm">' + _cbEsc(name) + '</div>' + _cbFunderChip(fields.Funder) + '</div>'
-      +   '<div class="mt">' + modIcon + _cbEsc(when) + (legacy ? '<span class="legacy-tag">Not logged</span>' : '') + _cbStageBadge(e) + '</div>'
+      +   '<div class="mt">' + _cbEsc(when + modality) + (legacy ? '<span class="legacy-tag">Not logged</span>' : '') + _cbStageBadge(e) + '</div>'
       +   additionalLine
       + '</div>'
       + (expanded ? _cbCardActionsHtml(e) : '')
@@ -433,6 +446,21 @@ function _cbListHtml(items) {
 
 var _cbHomeMode = 'day'; // 'day' | 'week' | 'month'
 var _cbCalDate  = new Date(); // focused date for month/week/day navigation
+
+/* How long ago (or how far off) a session is, counted in calendar days so
+ * a 4pm session is "Yesterday" from 9am today rather than hours-rounded.
+ * Returns { text, ahead } — `ahead` marks a session that hasn't happened
+ * yet, which shouldn't be flagged the amber "this is overdue" way. */
+function _cbAgeLabel(d) {
+  var a = new Date(); a.setHours(0, 0, 0, 0);
+  var b = new Date(d); b.setHours(0, 0, 0, 0);
+  var days = Math.round((a - b) / 86400000);
+  if (days > 1)   return { text: days + ' days ago', ahead: false };
+  if (days === 1) return { text: 'Yesterday', ahead: false };
+  if (days === 0) return { text: 'Today', ahead: false };
+  if (days === -1) return { text: 'Tomorrow', ahead: true };
+  return { text: 'In ' + (-days) + ' days', ahead: true };
+}
 
 function _cbDateKey(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -466,11 +494,22 @@ function cbCalOpenDay(key) {
   _cbRenderHome();
 }
 
-function _cbModesHtml() {
+/* Day/Week/Month and which day you're looking at are one decision, so
+ * they're one bar — they used to be two full-width rows stacked on top of
+ * each other, which is a lot of chrome above a schedule that's often a
+ * couple of lines long. */
+function _cbCalBarHtml() {
   var modes = [['day', 'Day'], ['week', 'Week'], ['month', 'Month']];
-  return '<div class="cal-modes">' + modes.map(function(m) {
-    return '<button class="cal-mode-btn' + (_cbHomeMode === m[0] ? ' active' : '') + '" onclick="cbSetHomeMode(\'' + m[0] + '\')">' + m[1] + '</button>';
-  }).join('') + '</div>';
+  return '<div class="cal-bar">'
+    + '<div class="cal-modes">' + modes.map(function(m) {
+        return '<button class="cal-mode-btn' + (_cbHomeMode === m[0] ? ' active' : '') + '" onclick="cbSetHomeMode(\'' + m[0] + '\')">' + m[1] + '</button>';
+      }).join('') + '</div>'
+    + '<div class="cal-when">'
+    +   '<button class="cal-arrow" onclick="cbCalNav(-1)" aria-label="Previous">‹</button>'
+    +   '<div class="cal-nav-label">' + _cbEsc(_cbNavLabel()) + '</div>'
+    +   '<button class="cal-arrow" onclick="cbCalNav(1)" aria-label="Next">›</button>'
+    +   '<button class="cal-today-btn" onclick="cbCalToday()">Today</button>'
+    + '</div></div>';
 }
 
 function _cbNavLabel() {
@@ -482,15 +521,6 @@ function _cbNavLabel() {
     return s.toLocaleDateString('en-AU', { day: 'numeric', month: sameMonth ? undefined : 'short' }) + ' – ' + e.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
   }
   return _cbCalDate.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' });
-}
-
-function _cbNavHtml() {
-  return '<div class="cal-nav">'
-    + '<button class="cal-arrow" onclick="cbCalNav(-1)" aria-label="Previous">‹</button>'
-    + '<div class="cal-nav-label">' + _cbEsc(_cbNavLabel()) + '</div>'
-    + '<button class="cal-arrow" onclick="cbCalNav(1)" aria-label="Next">›</button>'
-    + '<button class="cal-today-btn" onclick="cbCalToday()">Today</button>'
-    + '</div>';
 }
 
 function _cbMonthGridHtml() {
@@ -512,39 +542,64 @@ function _cbMonthGridHtml() {
     var cellDate = new Date(gridStart.getTime() + i * 86400000);
     var key = _cbDateKey(cellDate);
     var inMonth = cellDate.getMonth() === month;
+    var dayEvents = (byDay[key] || []).sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
     var kinds = {};
-    (byDay[key] || []).forEach(function(e) { kinds[_cbEventKind(e)] = true; });
+    dayEvents.forEach(function(e) { kinds[_cbEventKind(e)] = true; });
     var dots = Object.keys(kinds).map(function(k) { return '<span class="cal-dot cal-dot-' + k + '"></span>'; }).join('');
+    // Names where there's room for them — a wall of identical dots says a
+    // day is busy but nothing about who's in it. CSS swaps these for the
+    // dots again on a phone, where there genuinely isn't room.
+    var evs = dayEvents.slice(0, 3).map(function(e) {
+      var t = new Date(e.start).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }).replace(':00', '');
+      return '<div class="cal-ev cal-ev-' + _cbEventKind(e) + '"><b>' + _cbEsc(t.replace(/\s/g, '')) + '</b> '
+        + _cbEsc((e.title.split(' — ')[0] || e.title).split(' ')[0]) + '</div>';
+    }).join('');
+    if (dayEvents.length > 3) evs += '<div class="cal-more">+' + (dayEvents.length - 3) + ' more</div>';
     html += '<div class="cal-cell' + (inMonth ? '' : ' cal-cell--out') + (key === todayKey ? ' cal-cell--today' : '') + '" onclick="cbCalOpenDay(\'' + key + '\')">'
       + '<div class="cal-daynum">' + cellDate.getDate() + '</div>'
       + (dots ? '<div class="cal-dots">' + dots + '</div>' : '')
+      + (evs ? '<div class="cal-evs">' + evs + '</div>' : '')
       + '</div>';
   }
   html += '</div>';
   return html;
 }
 
-function _cbDayAgendaHtml(date, containered) {
+function _cbDayItems(date) {
   var key = _cbDateKey(date);
-  var items = _cbEvents.filter(function(e) { return e.start && _cbDateKey(new Date(e.start)) === key; })
+  return _cbEvents.filter(function(e) { return e.start && _cbDateKey(new Date(e.start)) === key; })
     .sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
-  var label = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' });
-  var html = '<div class="sec-hd cal-day-hd">' + _cbEsc(label) + '<span class="count-bubble">' + items.length + '</span></div>';
-  html += items.length ? _cbListHtml(items) : '<div class="empty">Nothing booked.</div>';
-  if (containered) {
-    var todayCls = key === _cbDateKey(new Date()) ? ' cal-week-day--today' : '';
-    html = '<div class="cal-week-day' + todayCls + '">' + html + '</div>';
-  }
-  return html;
 }
 
+/* No day heading here — the bar above already says which day this is. */
+function _cbDayAgendaHtml(date) {
+  var items = _cbDayItems(date);
+  return items.length ? _cbListHtml(items, true) : '<div class="empty">Nothing booked.</div>';
+}
+
+/* A date gutter down the left, sessions to the right of it. Every day used
+ * to be a full card with its own heading and a centred "Nothing booked.",
+ * so a week with two sessions in it ran to about 1500px of mostly empty
+ * boxes — an empty day is one quiet line now. */
 function _cbWeekAgendaHtml() {
   var start = _cbWeekStart(_cbCalDate);
-  var html = '';
+  var todayKey = _cbDateKey(new Date());
+  var html = '<div class="cal-week">';
   for (var i = 0; i < 7; i++) {
-    html += _cbDayAgendaHtml(new Date(start.getTime() + i * 86400000), true);
+    var d = new Date(start.getTime() + i * 86400000);
+    var key = _cbDateKey(d);
+    var items = _cbDayItems(d);
+    html += '<div class="cal-wrow' + (items.length ? '' : ' cal-wrow--none')
+      +   (key === todayKey ? ' cal-wrow--today' : '') + '">'
+      + '<button class="cal-wday" onclick="cbCalOpenDay(\'' + key + '\')">'
+      +   '<b>' + d.getDate() + '</b>'
+      +   '<span>' + _cbEsc(d.toLocaleDateString('en-AU', { weekday: 'short' })) + '</span>'
+      + '</button>'
+      + '<div class="cal-wbody">'
+      +   (items.length ? _cbListHtml(items, true) : '<div class="cal-wnone">Nothing booked</div>')
+      + '</div></div>';
   }
-  return html;
+  return html + '</div>';
 }
 
 function _cbRenderHome() {
@@ -564,32 +619,34 @@ function _cbRenderHome() {
       + '<div class="brief-text ai-brief-streaming" id="cb-brief-text"><span class="ai-brief-loading">&#8203;</span></div>'
       + '</div>';
   }
-  html += _cbModesHtml();
-
   // Above the schedule, in every mode (not just Day) — a new enquiry
   // shouldn't wait on which calendar mode she happens to be browsing.
   // Hidden entirely when triage is empty rather than an empty section
   // header (2026-08-31 feedback: enquiries needed to be actionable from
-  // Home, not just the separate Board).
+  // Home, not just the separate Board). Above the calendar bar, not
+  // between it and the grid, so the schedule's own controls stay together.
   var triageCards = _cbTriageCards();
   if (triageCards.length) {
     html += '<div class="sec-hd">Needs triage (' + triageCards.length + ')</div>'
       + '<div class="card-grid">' + triageCards.map(_cbCard2Html).join('') + '</div>';
   }
 
+  html += _cbCalBarHtml();
+
   if (_cbHomeMode === 'month') {
     // Grid only — clicking a day (cbCalOpenDay) is how you see what's on
     // it, not a second list dumped underneath showing the whole month at
     // once.
-    html += _cbNavHtml() + _cbMonthGridHtml();
+    html += _cbMonthGridHtml();
   } else if (_cbHomeMode === 'week') {
-    html += _cbNavHtml() + _cbWeekAgendaHtml();
+    html += _cbWeekAgendaHtml();
   } else {
-    html += _cbNavHtml() + _cbDayAgendaHtml(_cbCalDate);
+    html += _cbDayAgendaHtml(_cbCalDate);
   }
 
   root.innerHTML = html;
 
+  if (_cbInlineEditId) _cbRenderEditSheet();
   if (isTodayView) _cbFireBrief();
 }
 
@@ -720,45 +777,93 @@ function _cbOpenOutcome(eventId) {
   var isCancelledFamily = initialOutcome && initialOutcome.indexOf('cancelled_') === 0;
 
   var root = document.getElementById('root');
-  var html = '<div class="card"><div class="nm">' + _cbEsc(ev.title) + '</div>'
-    + (fields.Funder ? '<div class="mt">' + _cbEsc(fields.Funder) + (fields.Type ? ' · ' + _cbEsc(fields.Type) : '') + (fields.Duration ? ' · ' + _cbEsc(fields.Duration) : '') + '</div>' : '<div class="mt">Not booked through this tool — fill in what\'s missing below.</div>')
-    + (fields.Note ? '<div class="mt">Note: ' + _cbEsc(fields.Note) + '</div>' : '')
-    + '</div>';
+  var id = _cbEsc(String(eventId));
+  var editing = String(_cbOutcomeEdit) === String(eventId);
+  var head = _cbStepper();
+  var d = ev.start ? new Date(ev.start) : null;
+  var age = d ? _cbAgeLabel(d) : null;
+
+  // Same shape as the Board's focus card — one column of numbered steps,
+  // facts as labelled cells. This screen used to be the event's whole
+  // title, then its funder/modality/duration as a sentence, then the same
+  // three things again as full-bleed form controls: the page was mostly
+  // restating itself at whatever width the window happened to be.
+  var facts = d ? ('<div class="fx-fact"><span>When</span><b>'
+    + _cbEsc(d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }))
+    + ' · ' + _cbEsc(d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })) + '</b>'
+    + '<em' + (age.ahead ? ' class="ahead"' : '') + '>' + age.text + '</em></div>') : '';
+  if (fields.AdditionalClient) {
+    facts += '<div class="fx-fact fx-fact-w"><span>Also in session</span><b>' + _cbEsc(fields.AdditionalClient)
+      + (fields.BillSeparately === 'Yes' ? ' <span class="billsep-tag">Bill separately</span>' : '') + '</b></div>';
+  }
+
+  var html = '<div class="fx-solo"><div class="fx-card">'
+    + '<div class="fx-card-top"><span class="fx-pos">'
+    +   (_cbOutcomeEditWhy === 'reschedule' && editing ? 'Rescheduling' : 'Session action') + '</span></div>'
+    + '<div class="fx-name-row"><div><div class="fx-name">' + _cbEsc(baseName) + '</div>'
+    +   (fields.Funder ? '' : '<div class="fx-shared">Not booked through this tool — fill in what\'s missing</div>')
+    + '</div><button class="fx-edit" onclick="' + (editing ? 'cbEditCancel()' : 'cbOutcomeEdit(\'' + id + '\')') + '">'
+    +   (editing ? 'Done' : 'Edit') + '</button></div>'
+    + (fields.Funder ? '<div class="fx-chips">' + _cbFunderChip(fields.Funder) + '</div>' : '')
+    + head('The session')
+    + '<div class="fx-facts">' + facts + '</div>'
+    + (fields.Note ? '<div class="fx-note">' + _cbEsc(fields.Note) + '</div>' : '')
+    + '<button class="fx-link" onclick="cbJumpToSchedule(\'' + id + '\')">View in schedule →</button>'
+    + '<div class="fx-group">';
+
+  if (editing) {
+    // Rescheduling, renaming, relinking a client — all of it happens here
+    // in the card rather than a sheet sliding over the thing being edited.
+    var moving = _cbOutcomeEditWhy === 'reschedule';
+    html += head(moving ? 'Move this session' : 'Edit this session')
+      + (moving ? '<div class="fx-why">Pick the new date and time. The slot it\'s moving from is '
+        + 'kept in the session\'s history, so nothing is lost.</div>' : '')
+      + '<div id="cb-edit-inline"></div></div></div></div>';
+    root.innerHTML = html;
+    _cbRenderEditSheet();
+    // Straight to the field they came here for.
+    if (moving) {
+      var dateEl = document.getElementById('cb-edit-date');
+      if (dateEl && dateEl.focus) dateEl.focus();
+    }
+    return;
+  }
 
   // Funder/modality are already known for anything booked through this tool
   // (fields.Funder set) — but older calendar entries Cheree hand-typed
   // before this tool existed have neither, so ask here rather than lose
-  // that detail when she closes the loop on them.
-  html += '<div class="field"><label>Funder</label><select id="cb-out-funder">'
-    + ['', 'NDIS', 'Medicare', 'QFES', 'WorkCover', 'DVA', 'Private', 'Other'].map(function(f) {
-        return '<option value="' + f + '"' + (f === (fields.Funder || '') ? ' selected' : '') + '>' + (f || 'Pick a funder…') + '</option>';
-      }).join('')
-    + '</select></div>';
-
-  html += '<div class="field"><label>In person or online?</label><div class="modality">'
-    + '<button id="cb-out-mod-inperson" class="' + (fields.Type === 'Online' ? '' : 'sel') + '" onclick="_cbSetOutcomeModality(\'In person\')">In person</button>'
-    + '<button id="cb-out-mod-online" class="' + (fields.Type === 'Online' ? 'sel' : '') + '" onclick="_cbSetOutcomeModality(\'Online\')">Online</button>'
-    + '</div></div>';
-
+  // that detail when she closes the loop on them. Duration is asked as
+  // what actually ran, which isn't always what was booked.
   var durationKnown = _CB_DURATIONS.some(function(o) { return o[1] === fields.Duration; });
-  html += '<div class="field"><label>How long did it run?</label><select id="cb-out-duration">'
-    + (!fields.Duration ? '<option value="" selected>Not set</option>' : '')
-    + (fields.Duration && !durationKnown ? '<option value="' + _cbEsc(fields.Duration) + '" selected>' + _cbEsc(fields.Duration) + '</option>' : '')
-    + _CB_DURATIONS.map(function(o) { return '<option value="' + o[1] + '"' + (o[1] === fields.Duration ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('')
-    + '</select></div>';
+  html += head('How did it run?', 'confirm or correct')
+    + '<div class="fx-fields">'
+    +   '<div class="field"><label>Funder</label><select id="cb-out-funder">'
+    +     ['', 'NDIS', 'Medicare', 'QFES', 'WorkCover', 'DVA', 'Private', 'Other'].map(function(f) {
+            return '<option value="' + f + '"' + (f === (fields.Funder || '') ? ' selected' : '') + '>' + (f || 'Pick a funder…') + '</option>';
+          }).join('')
+    +   '</select></div>'
+    +   '<div class="field"><label>How long did it run?</label><select id="cb-out-duration">'
+    +     (!fields.Duration ? '<option value="" selected>Not set</option>' : '')
+    +     (fields.Duration && !durationKnown ? '<option value="' + _cbEsc(fields.Duration) + '" selected>' + _cbEsc(fields.Duration) + '</option>' : '')
+    +     _CB_DURATIONS.map(function(o) { return '<option value="' + o[1] + '"' + (o[1] === fields.Duration ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('')
+    +   '</select></div>'
+    + '</div>'
+    + '<div class="field"><label>In person or online?</label><div class="modality">'
+    +   '<button id="cb-out-mod-inperson" class="' + (fields.Type === 'Online' ? '' : 'sel') + '" onclick="_cbSetOutcomeModality(\'In person\')">In person</button>'
+    +   '<button id="cb-out-mod-online" class="' + (fields.Type === 'Online' ? 'sel' : '') + '" onclick="_cbSetOutcomeModality(\'Online\')">Online</button>'
+    + '</div></div>';
 
   // Three equal-weight top-level options, colour-hued so the category
   // reads at a glance (2026-08-31 feedback: reschedule as a text link
   // looked like an afterthought next to two real buttons). Rescheduled
-  // isn't a toggle like the other two — nothing here can actually change
-  // the date/time, so it jumps straight to the Edit sheet
-  // (cbOpenEdit/cbSaveEdit) that already does that PATCH + history
-  // logging, rather than a parallel picker. Only offered while nothing's
-  // been recorded yet — doesn't make sense once a session has an outcome.
-  html += '<div class="field"><label>What happened?</label>'
+  // isn't a toggle like the other two — nothing in this step can change
+  // the date, so it opens the edit form above, which already does that
+  // PATCH and its history logging. Only offered while nothing's been
+  // recorded yet — doesn't make sense once a session has an outcome.
+  html += head('What happened?')
     + '<div class="modality">'
     + '<button id="cb-out-attend" class="out-attend' + (initialOutcome === 'attended' ? ' sel' : '') + '" onclick="_cbSetOutcome(\'attended\')">Attended</button>'
-    + (!initialOutcome ? '<button id="cb-out-resched" class="out-resched" onclick="cbOpenEdit(\'' + _cbEsc(eventId) + '\')">Rescheduled</button>' : '')
+    + (!initialOutcome ? '<button id="cb-out-resched" class="out-resched" onclick="cbOutcomeEdit(\'' + id + '\',\'reschedule\')">Rescheduled</button>' : '')
     + '<button id="cb-out-cancel" class="out-cancel' + (isCancelledFamily ? ' sel' : '') + '" onclick="_cbSetOutcome(\'cancelled\')">Cancelled</button>'
     + '</div>'
     // Folds the old separate "Bill for this?" question in: cancelling as
@@ -768,16 +873,16 @@ function _cbOpenOutcome(eventId) {
     +   '<button id="cb-out-no_payment" class="out-cancel-sub' + (initialOutcome === 'cancelled_no_payment' ? ' sel' : '') + '" onclick="_cbSetOutcome(\'cancelled_no_payment\')">No payment</button>'
     +   '<button id="cb-out-payment_needed" class="out-cancel-sub' + (initialOutcome === 'cancelled_payment_needed' ? ' sel' : '') + '" onclick="_cbSetOutcome(\'cancelled_payment_needed\')">Payment needed</button>'
     +   '<button id="cb-out-by_practice" class="out-cancel-sub' + (initialOutcome === 'cancelled_by_practice' ? ' sel' : '') + '" onclick="_cbSetOutcome(\'cancelled_by_practice\')">By practice</button>'
-    + '</div></div>';
+    + '</div>'
+    + '<button class="btn-primary" style="margin-top:18px" onclick="_cbSubmitOutcome(\'' + id + '\',\'' + _cbEsc(baseName) + '\',this)">Save</button>'
+    + '</div>';
 
-  html += '<button class="btn-primary" onclick="_cbSubmitOutcome(\'' + _cbEsc(eventId) + '\',\'' + _cbEsc(baseName) + '\',this)">Save</button>';
-  html += '<button class="btn-ghost" onclick="cbSetView(\'home\')">Back</button>';
-  // Previously the only way to delete a session from Home was to click
-  // "Rescheduled" (implying you want to move it) to reach the Edit
-  // sheet's own delete button — not a real path for "I just want this
-  // gone" (2026-08-31 feedback). Same cbDeleteEvent the Edit sheet uses,
-  // just a direct entry point here too.
-  html += '<button class="btn-ghost" style="color:var(--red,#c0392b)" onclick="cbDeleteEvent(\'' + _cbEsc(eventId) + '\',this)">Delete this session</button>';
+  // Delete lives behind Edit now, the same as on the Board's cards — it
+  // used to need a trip through "Rescheduled" to reach, which is why it
+  // was given a slot of its own here (2026-08-31 feedback). Edit is one
+  // tap away at the top of this card, so that detour is gone either way.
+  html += '<div class="fx-nav"><button onclick="cbSetView(\'home\')">‹ Back</button></div>';
+  html += '</div></div>';
   root.innerHTML = html;
 
   window._cbOutcome = initialOutcome;
@@ -836,7 +941,9 @@ function _cbSubmitOutcome(eventId, baseName, btn) {
   // silently drop the ✓ from a session whose Billing already reached closed
   // via the Board.
   var noCharge = !billYes;
-  var alreadyClosed = _CB_CLOSED_BILLING.indexOf(fields.Billing) !== -1;
+  // Every bill on it already settled (there can be two — see _cbParties),
+  // not just the primary's.
+  var alreadyClosed = _cbParties(ev).every(function(pp) { return _cbPartyStage(pp) === 'closed'; });
   // Preserve whatever additional client/bill-separately was already on this
   // session (set via the Edit sheet) — recording an outcome shouldn't
   // silently drop it from the title.
@@ -848,6 +955,7 @@ function _cbSubmitOutcome(eventId, baseName, btn) {
     'Status': statusField, 'Bill': billYes ? 'Yes' : 'No', 'Billing': fields.Billing,
     'Invoice': fields.Invoice, 'QFES Form': fields['QFES Form'],
     'AdditionalClient': fields.AdditionalClient, 'AdditionalHalaxyId': fields.AdditionalHalaxyId, 'BillSeparately': fields.BillSeparately,
+    'Funder2': fields.Funder2, 'Billing2': fields.Billing2, 'Invoice2': fields.Invoice2, 'QFES Form 2': fields['QFES Form 2'],
     '_history': fields._history,
   };
   _cbLogHistory(newFields, statusField + (noCharge ? ' — no charge, closed' : ''));
@@ -882,9 +990,11 @@ function _cbSubmitOutcome(eventId, baseName, btn) {
  * that has an eventId. Deliberately separate from _cbOpenOutcome: that flow
  * forces picking Attended/Cancelled to save anything, which doesn't fit
  * "I typo'd the date on a session that hasn't happened yet". ── */
-function cbOpenEdit(eventId) {
+/* The pending-change state both mounts share. Returns false if the event
+ * has gone. */
+function _cbEditBegin(eventId) {
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
-  if (!ev) return;
+  if (!ev) return false;
   var fields = _cbFields(ev);
   window._cbEditEventId = eventId;
   // Pending changes, not yet saved — null/undefined both mean "unchanged
@@ -896,10 +1006,56 @@ function cbOpenEdit(eventId) {
   window._cbEditShowAdditionalSearch = false;
   window._cbEditBillSeparately = fields.BillSeparately === 'Yes';
   window._cbEditModality = fields.Type === 'Online' ? 'Online' : 'In person';
+  return true;
+}
 
-  document.getElementById('cb-edit-backdrop').classList.add('open');
-  document.getElementById('cb-edit-sheet').classList.add('open');
-  _cbRenderEditSheet();
+/* Editing from the focus card happens in the card itself — no drawer
+ * sliding over the thing you're editing. */
+function cbFocusEdit(eventId, cardKey) {
+  if (!_cbEditBegin(eventId)) return;
+  _cbInlineEditId = null;
+  _cbOutcomeEdit = null;
+  _cbFocusEditing = cardKey;
+  _cbEditReturn = null;
+  _cbRenderBoard();
+}
+
+/* Leaves the inline form and redraws whatever it was opened from. */
+function cbEditCancel() {
+  var back = _cbEditReturn;
+  _cbFocusEditing = null;
+  _cbInlineEditId = null;
+  _cbOutcomeEdit = null;
+  _cbOutcomeEditWhy = null;
+  _cbEditReturn = null;
+  if (back) back(); else _cbRender();
+}
+
+/* Edit from a schedule or Overview card — opens in the card's own
+ * expanded body rather than the bottom sheet. */
+function cbEditInCard(eventId) {
+  if (!_cbEditBegin(eventId)) return;
+  _cbFocusEditing = null;
+  _cbOutcomeEdit = null;
+  _cbInlineEditId = eventId;
+  _cbEditReturn = null;
+  _cbRender();
+}
+
+/* Edit from the record-outcome screen — the last place a drawer was still
+ * sliding over the thing being edited. Also where "Rescheduled" lands,
+ * since changing the date IS an edit. */
+function cbOutcomeEdit(eventId, why) {
+  if (!_cbEditBegin(eventId)) return;
+  _cbFocusEditing = null;
+  _cbInlineEditId = null;
+  _cbOutcomeEdit = eventId;
+  // Edit and Rescheduled land on the same form, so it has to say which
+  // one you pressed — otherwise "Rescheduled" just silently swaps the
+  // card for a generic edit form and leaves you to work out why.
+  _cbOutcomeEditWhy = why || null;
+  _cbEditReturn = function() { _cbOpenOutcome(eventId); };
+  _cbOpenOutcome(eventId);
 }
 
 /* Rebuilds the whole sheet body from the pending-change state above —
@@ -907,7 +1063,13 @@ function cbOpenEdit(eventId) {
  * search result) mutates that state and calls this again, same "one
  * render function, re-run on every change" convention as the rest of the
  * app rather than patching individual DOM nodes. */
+/* Builds the edit form into whichever card opened it — a Board focus
+ * card, an expanded schedule/Overview card, or the record-outcome screen.
+ * It used to render into a bottom sheet that slid over the session being
+ * edited; nothing opens a sheet for this any more. */
 function _cbRenderEditSheet() {
+  var mount = document.getElementById('cb-edit-inline');
+  if (!mount) return;
   var eventId = window._cbEditEventId;
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev) return;
@@ -917,7 +1079,6 @@ function _cbRenderEditSheet() {
 
   var oldBaseName = ev.title.split(' — ')[0] || ev.title;
   var clientName = window._cbEditClientPick ? window._cbEditClientPick.name : oldBaseName;
-  document.getElementById('cb-edit-title').textContent = clientName || 'Edit session';
 
   var additionalName = window._cbEditAdditionalPick === null ? null
     : window._cbEditAdditionalPick ? window._cbEditAdditionalPick.name
@@ -961,6 +1122,14 @@ function _cbRenderEditSheet() {
       + '<button id="cb-edit-billsep-yes" class="' + (window._cbEditBillSeparately ? 'sel' : '') + '" onclick="_cbEditSetBillSeparately(true)">Yes</button>'
       + '<button id="cb-edit-billsep-no" class="' + (!window._cbEditBillSeparately ? 'sel' : '') + '" onclick="_cbEditSetBillSeparately(false)">No</button>'
       + '</div></div>';
+    // Their own bill means their own funder — the two aren't always on the
+    // same one (a couple where one is NDIS and the other private). Asked
+    // only once "bill separately" is on, since otherwise there's one bill
+    // and one funder.
+    if (window._cbEditBillSeparately) {
+      html += '<div class="field"><label>' + _cbEsc(additionalName) + '\u2019s funder</label>'
+        + '<select id="cb-edit-funder2">' + _cbFunderOptions(fields.Funder2 || fields.Funder) + '</select></div>';
+    }
   }
 
   html += '<div class="field"><label>Date</label><input type="date" id="cb-edit-date" value="' + _cbDateKey(start) + '"></div>';
@@ -982,9 +1151,10 @@ function _cbRenderEditSheet() {
     + '<button id="cb-edit-mod-online" class="' + (window._cbEditModality === 'Online' ? 'sel' : '') + '" onclick="_cbSetEditModality(\'Online\')">Online</button>'
     + '</div></div>';
   html += '<button class="btn-primary" onclick="cbSaveEdit(\'' + _cbEsc(eventId) + '\',this)">Save</button>';
+  if (_cbFocusEditing || _cbInlineEditId || _cbOutcomeEdit) html += '<button class="btn-ghost" onclick="cbEditCancel()">Cancel</button>';
   html += '<button class="btn-ghost" style="color:var(--red,#c0392b)" onclick="cbDeleteEvent(\'' + _cbEsc(eventId) + '\',this)">Delete this session</button>';
 
-  document.getElementById('cb-edit-body').innerHTML = html;
+  mount.innerHTML = html;
 }
 
 function _cbEditToggleClientSearch() {
@@ -1007,8 +1177,9 @@ function _cbEditRemoveAdditional() {
 
 function _cbEditSetBillSeparately(v) {
   window._cbEditBillSeparately = v;
-  document.getElementById('cb-edit-billsep-yes').classList.toggle('sel', v === true);
-  document.getElementById('cb-edit-billsep-no').classList.toggle('sel', v === false);
+  // Full re-render, not a class toggle: turning this on reveals their own
+  // funder picker (and turning it off hides it again).
+  _cbRenderEditSheet();
 }
 
 // prefix is 'client' (the primary client) or 'additional' (the second
@@ -1046,8 +1217,11 @@ function _cbSetEditModality(m) {
 }
 
 function cbCloseEdit() {
-  document.getElementById('cb-edit-backdrop').classList.remove('open');
-  document.getElementById('cb-edit-sheet').classList.remove('open');
+  _cbFocusEditing = null;
+  _cbInlineEditId = null;
+  _cbOutcomeEdit = null;
+  _cbOutcomeEditWhy = null;
+  _cbEditReturn = null;
 }
 
 function cbSaveEdit(eventId, btn) {
@@ -1087,11 +1261,19 @@ function cbSaveEdit(eventId, btn) {
   var newTitle = _cbBuildTitle(baseName, fields.Funder, modality, statusSuffix, additionalName, billSeparately);
   if (/ ✓$/.test(ev.title)) newTitle = _cbCloseTitle(newTitle);
 
+  // The second person's bill only exists while they're on the session AND
+  // billed separately — drop it otherwise rather than leaving fields that
+  // nothing reads behind on the event.
+  var funder2El = document.getElementById('cb-edit-funder2');
   var newFields = { 'Funder': fields.Funder, 'HalaxyId': halaxyId, 'Type': modality, 'Duration': durationLabel,
     'Note': fields.Note, 'Status': fields.Status, 'Bill': fields.Bill, 'Billing': fields.Billing,
     'Invoice': fields.Invoice, 'QFES Form': fields['QFES Form'],
     'AdditionalClient': additionalName, 'AdditionalHalaxyId': additionalName ? additionalHalaxyId : null,
     'BillSeparately': billSeparately ? 'Yes' : null,
+    'Funder2':   billSeparately ? ((funder2El && funder2El.value) || fields.Funder2 || fields.Funder) : null,
+    'Billing2':  billSeparately ? (fields.Billing2 || null) : null,
+    'Invoice2':  billSeparately ? (fields.Invoice2 || null) : null,
+    'QFES Form 2': billSeparately ? (fields['QFES Form 2'] || null) : null,
     '_history': fields._history };
 
   // Client-link and additional-client changes get their own history line
@@ -1144,8 +1326,9 @@ function cbSaveEdit(eventId, btn) {
     if (d.error) { _cbToast('Could not save: ' + d.error); restore(); return; }
     ev.title = newTitle; ev.description = newDesc; ev.start = start.toISOString(); ev.end = end.toISOString();
     _cbToast('Saved');
+    var back = _cbEditReturn;
     cbCloseEdit();
-    _cbRender();
+    if (back) back(); else _cbRender();
   }).catch(function(err) { _cbToast('Could not save: ' + err.message); restore(); });
 }
 
@@ -1217,6 +1400,14 @@ function _cbPickClient(id) {
   _cbRenderBookForm();
 }
 
+var _CB_FUNDERS = ['NDIS', 'Medicare', 'QFES', 'WorkCover', 'DVA', 'Private', 'Other'];
+
+function _cbFunderOptions(selected) {
+  return _CB_FUNDERS.map(function(f) {
+    return '<option value="' + f + '"' + (f === selected ? ' selected' : '') + '>' + f + '</option>';
+  }).join('');
+}
+
 function _cbRenderBookForm() {
   var root = document.getElementById('root');
   var today = new Date().toISOString().slice(0, 10);
@@ -1224,8 +1415,7 @@ function _cbRenderBookForm() {
     + '<div class="mt"><a href="#" onclick="_cbPicked=null;_cbRenderBook();return false" style="color:var(--teal)">Change client</a></div></div>';
 
   html += '<div class="field"><label>Funder</label><select id="cb-funder">'
-    + ['NDIS', 'Medicare', 'QFES', 'WorkCover', 'DVA', 'Private', 'Other'].map(function(f) { return '<option value="' + f + '">' + f + '</option>'; }).join('')
-    + '</select></div>';
+    + _cbFunderOptions(null) + '</select></div>';
 
   html += '<div class="field"><label>In person or online?</label><div class="modality">'
     + '<button id="cb-mod-inperson" onclick="_cbSetModality(\'In person\')">In person</button>'
@@ -1823,8 +2013,50 @@ function _cbIsDirectFunder(funder) {
   return funder === 'Private' || funder === 'Medicare';
 }
 
+/* ── Who is being billed for this session ─────────────────────────────
+ * A second client on the session (couples, a parent and child, two QFES
+ * firefighters) marked "bill separately" means one appointment produces
+ * two bills: their own funder, their own decision, their own invoice
+ * number. Rather than special-case that at every call site, the stage
+ * logic, the board cards and the focus card all work off this list — a
+ * single-client session is simply a list of one.
+ *
+ * `key` is the suffix those fields carry in the event description: '' for
+ * the primary client (Funder/Billing/Invoice/QFES Form, untouched, so
+ * every session written before this still reads exactly as it did) and
+ * '2' for the additional one.
+ * ────────────────────────────────────────────────────────────────── */
+function _cbPartyField(base, key) {
+  if (!key) return base;
+  return base === 'QFES Form' ? 'QFES Form ' + key : base + key;
+}
+
+function _cbParties(ev) {
+  var f = _cbFields(ev);
+  var list = [{ key: '', name: (ev.title || '').split(' — ')[0], funder: f.Funder || null,
+                billing: f.Billing || null, invoice: f.Invoice || null, form: f['QFES Form'] || null }];
+  if (f.AdditionalClient && f.BillSeparately === 'Yes') {
+    list.push({ key: '2', name: f.AdditionalClient,
+                // Falls back to the primary's funder: the two are usually on
+                // the same one, and it's what every such session carried
+                // before Funder2 existed.
+                funder: f.Funder2 || f.Funder || null,
+                billing: f.Billing2 || null, invoice: f.Invoice2 || null, form: f['QFES Form 2'] || null });
+  }
+  return list;
+}
+
+var _CB_STAGE_ORDER = { billing: 0, remittance: 1, closed: 2 };
+
+function _cbPartyStage(p) {
+  if (!p.billing) return 'billing';
+  if (p.billing === 'Funder — awaiting remittance' || p.billing === 'Invoice sent') return 'remittance';
+  return 'closed'; // Halaxy direct, Auto paid, remittance received, or payment received
+}
+
 /** Stage for one calendar event, from its own title/description — no
- * guessing, only what's explicitly recorded. */
+ * guessing, only what's explicitly recorded. For a session with two bills
+ * on it that's the least-resolved of them (see _cbParties). */
 function _cbEventStage(ev) {
   var f = _cbFields(ev);
   if (!f.Status) {
@@ -1843,9 +2075,13 @@ function _cbEventStage(ev) {
   }
   if (f.Status === 'Attended' || f.Status.indexOf('Cancelled') === 0) {
     if (f.Bill === 'No') return 'closed';
-    if (!f.Billing) return 'billing';
-    if (f.Billing === 'Funder — awaiting remittance' || f.Billing === 'Invoice sent') return 'remittance';
-    return 'closed'; // Halaxy direct, Auto paid, remittance received, or payment received
+    // Two bills off one appointment — the session is only as far along as
+    // its least-resolved party, so it can't reach Closed while one of them
+    // still hasn't been billed.
+    return _cbParties(ev).reduce(function(worst, p) {
+      var s = _cbPartyStage(p);
+      return _CB_STAGE_ORDER[s] < _CB_STAGE_ORDER[worst] ? s : worst;
+    }, 'closed');
   }
   return null;
 }
@@ -1872,40 +2108,57 @@ function _cbBoardCards() {
     var name = ev.title.split(' — ')[0];
     var d = new Date(ev.start);
     var when = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+    // The two billing stages are worked one bill at a time, so a session
+    // with a second client billed separately appears once per person —
+    // each with their own funder, invoice number and decision. `key` is
+    // what identifies a card from here on (ids collide between the two).
+    if (stage === 'billing' || stage === 'remittance') {
+      _cbParties(ev).forEach(function(party) {
+        var ps = _cbPartyStage(party);
+        if (ps === 'closed') return; // that person's side is already settled
+        cols[ps].push({
+          key: String(ev.id) + party.key, id: ev.id, party: party, ev: ev, fields: f, name: party.name,
+          // Duration/modality matter for the actual billing decision (session
+          // length affects the item number/amount) — missing before, the
+          // compact card had no way to see how long a session ran without
+          // expanding it, and expanding it doesn't show a summary either
+          // (2026-08-31 feedback).
+          meta: ps === 'billing'
+            ? (f.Status || '') + ' · ' + when + (f.Duration ? ' · ' + f.Duration : '') + (f.Type ? ' · ' + f.Type : '')
+            : (party.funder || 'Funder') + ' · billed ' + when,
+        });
+      });
+      return;
+    }
+
     var meta = stage === 'outcome'
       // Funder/Type can be genuinely absent now that a legacy no-Status
       // event can reach this stage too — no dangling " · " when they're
       // not there.
       ? when + (f.Funder ? ' · ' + f.Funder : '') + (f.Type ? ' · ' + f.Type : '')
-      : stage === 'billing'
-        // Duration/modality matter for the actual billing decision (session
-        // length affects the item number/amount) — missing before, the
-        // compact card had no way to see how long a session ran without
-        // expanding it, and expanding it doesn't show a summary either
-        // (2026-08-31 feedback).
-        ? (f.Status || '') + ' · ' + when + (f.Duration ? ' · ' + f.Duration : '') + (f.Type ? ' · ' + f.Type : '')
-        : stage === 'remittance'
-          ? (f.Funder || 'Funder') + ' · billed ' + when
-          : (f.Billing || (f.Bill === 'No' ? 'No charge' : 'Done'));
-    cols[stage].push({ id: ev.id, name: name, meta: meta, ev: ev, fields: f });
+      : (f.Bill !== 'No' && _cbParties(ev).length > 1) ? 'Both bills settled'
+        : (f.Billing || (f.Bill === 'No' ? 'No charge' : 'Done'));
+    cols[stage].push({ key: String(ev.id), id: ev.id, party: _cbParties(ev)[0], name: name, meta: meta, ev: ev, fields: f });
   });
 
   return cols;
 }
 
-// Billing choices that leave nothing further to do — matches _cbEventStage's
-// own "closed" rule (everything NOT awaiting a funder/invoice). Only these
-// get a title update; the two remittance-pending choices don't.
-var _CB_CLOSED_BILLING = ['Auto paid', 'Halaxy direct', 'Closed (paid)', 'Closed (remittance received)'];
-
-function cbSetBilling(eventId, choice, btn) {
+/* `pkey` picks whose bill this is — '' (or omitted) for the primary
+ * client, '2' for an additional one being billed separately. */
+function cbSetBilling(eventId, choice, btn, pkey) {
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev) return;
+  var k = pkey || '';
   var f = _cbFields(ev);
-  f.Billing = choice;
-  _cbLogHistory(f, 'Billing: ' + choice);
+  f['Billing' + k] = choice;
+  var who = k ? _cbParties(ev).filter(function(p) { return p.key === k; })[0] : null;
+  _cbLogHistory(f, 'Billing' + (who ? ' (' + who.name + ')' : '') + ': ' + choice);
   var newDesc = _cbBuildDesc(f);
-  var closed = _CB_CLOSED_BILLING.indexOf(choice) !== -1;
+  // The ✓ means the session itself is finished with, so it waits on every
+  // party's bill being settled, not just the one just decided. (_cbFields
+  // hands back the object mutated above, so this already sees the change.)
+  var closed = _cbParties(ev).every(function(p) { return _cbPartyStage(p) === 'closed'; });
   var newTitle = closed ? _cbCloseTitle(ev.title) : null;
   var body = { description: newDesc };
   if (newTitle) body.title = newTitle;
@@ -1917,6 +2170,13 @@ function cbSetBilling(eventId, choice, btn) {
     if (d.error) { _cbToast('Could not update: ' + d.error); restore(); return; }
     ev.description = newDesc;
     if (newTitle) ev.title = newTitle;
+    // On the focus card this is the one deliberate decision on screen, so
+    // don't let the queue swallow it — keep it in front showing what was
+    // recorded, and let Next move on when Julian's ready.
+    if (_cbView === 'board' && _cbFocusTab !== 'overview' && !_cbFocusList
+        && String(_cbFocusId) === String(eventId) + k) {
+      _cbFocusSettled = { key: String(eventId) + k, id: eventId, pkey: k };
+    }
     // Moves the card to a new stage — collapse/close whichever surface it
     // was actioned from (Board's inline expansion or Home's drawer) so the
     // change is immediately visible instead of sitting behind stale detail.
@@ -1924,21 +2184,59 @@ function cbSetBilling(eventId, choice, btn) {
   }).catch(function(err) { _cbToast('Could not update: ' + err.message); restore(); });
 }
 
+/* Undo a billing decision. It used to be a one-way door — the only way
+ * back from a mis-tap was editing the description in Google Calendar by
+ * hand. Clears that person's Billing line and the session's ✓ (which only
+ * belongs on the title while every bill is settled), and the card drops
+ * back into whichever queue it came from. The old value stays in the
+ * history, so the change is on the record rather than erased. */
+function cbClearBilling(eventId, btn, pkey) {
+  var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
+  if (!ev) return;
+  var k = pkey || '';
+  var f = _cbFields(ev);
+  var was = f['Billing' + k];
+  if (!was) return;
+  f['Billing' + k] = null;
+  var who = k ? _cbParties(ev).filter(function(pp) { return pp.key === k; })[0] : null;
+  _cbLogHistory(f, 'Billing' + (who ? ' (' + who.name + ')' : '') + ' cleared — was ' + was);
+  var newDesc = _cbBuildDesc(f);
+  var newTitle = ev.title.replace(/ ✓$/, '');
+  var restore = _cbBusy(btn, 'Undoing…');
+  fetch('/api/calendar-pending?eventId=' + encodeURIComponent(eventId), {
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: newTitle, description: newDesc }),
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { _cbToast('Could not undo: ' + d.error); restore(); return; }
+    ev.description = newDesc;
+    ev.title = newTitle;
+    // Undoing drops this bill back into "To bill", so follow it there with
+    // it still in front — the point of changing it is to decide again now,
+    // not to go hunting for where it went.
+    _cbFocusSettled = null;
+    if (_cbView === 'board' && _cbFocusTab !== 'overview') _cbFocusTab = 'billing';
+    _cbFocusId = String(eventId) + k;
+    _cbAfterCardAction(eventId, true);
+  }).catch(function(err) { _cbToast('Could not undo: ' + err.message); restore(); });
+}
+
 /* Invoice number — decoupled from the billing-decision buttons above,
  * since Julian usually decides how a bill is being handled before he's
  * actually created the invoice in Halaxy and has a number for it. Stays
  * editable on the card through billing/awaiting-payment/closed, and once
  * set, becomes a one-tap deep link straight into that invoice in Halaxy. */
-function cbSaveInvoice(eventId, btn) {
-  var input = document.getElementById('inv-' + eventId);
+function cbSaveInvoice(eventId, btn, pkey) {
+  var k = pkey || '';
+  var input = document.getElementById('inv-' + eventId + k);
   if (!input) return;
   var num = input.value.trim();
   if (!num) return;
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev) return;
   var f = _cbFields(ev);
-  f.Invoice = num;
-  _cbLogHistory(f, 'Invoice #' + num + ' saved');
+  f['Invoice' + k] = num;
+  var invWho = k ? _cbParties(ev).filter(function(p) { return p.key === k; })[0] : null;
+  _cbLogHistory(f, 'Invoice #' + num + ' saved' + (invWho ? ' (' + invWho.name + ')' : ''));
   var newDesc = _cbBuildDesc(f);
   input.disabled = true;
   var restore = _cbBusy(btn, 'Saving…');
@@ -1952,14 +2250,15 @@ function cbSaveInvoice(eventId, btn) {
   }).catch(function(err) { _cbToast('Could not save invoice #: ' + err.message); input.disabled = false; restore(); });
 }
 
-function _cbInvoiceHtml(c) {
-  var id = _cbEsc(String(c.id));
-  if (c.fields.Invoice) {
-    return '<a class="inv-link" href="' + _cbEsc(_cbInvoiceUrl(c.fields.Invoice)) + '" target="_blank" rel="noopener">Invoice #' + _cbEsc(c.fields.Invoice) + ' ↗</a>';
+function _cbInvoiceHtml(eventId, party) {
+  var id = _cbEsc(String(eventId));
+  var k = party.key;
+  if (party.invoice) {
+    return '<a class="inv-link" href="' + _cbEsc(_cbInvoiceUrl(party.invoice)) + '" target="_blank" rel="noopener">Invoice #' + _cbEsc(party.invoice) + ' ↗</a>';
   }
   return '<div class="act act-inv">'
-    + '<input type="text" inputmode="numeric" class="inv-input" id="inv-' + id + '" placeholder="Invoice #…">'
-    + '<button onclick="cbSaveInvoice(\'' + id + '\',this)">Save</button>'
+    + '<input type="text" inputmode="numeric" class="inv-input" id="inv-' + id + k + '" placeholder="Invoice #…">'
+    + '<button onclick="cbSaveInvoice(\'' + id + '\',this,\'' + k + '\')">Save</button>'
     + '</div>';
 }
 
@@ -1968,16 +2267,18 @@ function _cbInvoiceHtml(c) {
  * invoice, and this is the confirmation number that comes back once he's
  * done that. Same save mechanics as Invoice, own field on the event so
  * either can be filled in independently of the other. */
-function cbSaveQfesForm(eventId, btn) {
-  var input = document.getElementById('qform-' + eventId);
+function cbSaveQfesForm(eventId, btn, pkey) {
+  var k = pkey || '';
+  var input = document.getElementById('qform-' + eventId + k);
   if (!input) return;
   var num = input.value.trim();
   if (!num) return;
   var ev = _cbEvents.find(function(e) { return String(e.id) === String(eventId); });
   if (!ev) return;
   var f = _cbFields(ev);
-  f['QFES Form'] = num;
-  _cbLogHistory(f, 'QFES form ref ' + num + ' saved');
+  f[_cbPartyField('QFES Form', k)] = num;
+  var qWho = k ? _cbParties(ev).filter(function(p) { return p.key === k; })[0] : null;
+  _cbLogHistory(f, 'QFES form ref ' + num + ' saved' + (qWho ? ' (' + qWho.name + ')' : ''));
   var newDesc = _cbBuildDesc(f);
   input.disabled = true;
   var restore = _cbBusy(btn, 'Saving…');
@@ -1991,14 +2292,15 @@ function cbSaveQfesForm(eventId, btn) {
   }).catch(function(err) { _cbToast('Could not save QFES form ref: ' + err.message); input.disabled = false; restore(); });
 }
 
-function _cbQfesFormHtml(c) {
-  var id = _cbEsc(String(c.id));
-  if (c.fields['QFES Form']) {
-    return '<div class="mt" style="margin-top:4px">QFES form ref: ' + _cbEsc(c.fields['QFES Form']) + '</div>';
+function _cbQfesFormHtml(eventId, party) {
+  var id = _cbEsc(String(eventId));
+  var k = party.key;
+  if (party.form) {
+    return '<div class="mt" style="margin-top:4px">QFES form ref: ' + _cbEsc(party.form) + '</div>';
   }
   return '<div class="act act-inv">'
-    + '<input type="text" class="inv-input" id="qform-' + id + '" placeholder="QFES form ref…">'
-    + '<button onclick="cbSaveQfesForm(\'' + id + '\',this)">Save</button>'
+    + '<input type="text" class="inv-input" id="qform-' + id + k + '" placeholder="QFES form ref…">'
+    + '<button onclick="cbSaveQfesForm(\'' + id + '\',this,\'' + k + '\')">Save</button>'
     + '</div>';
 }
 
@@ -2068,6 +2370,7 @@ function _cbCheckRemittance(invNum, cardId, btn) {
  * _cbExpandedCardId either way), so this re-renders whichever view is
  * actually showing rather than assuming Board. */
 function cbToggleCardExpand(id) {
+  _cbInlineEditId = null;
   _cbExpandedCardId = (_cbExpandedCardId === id) ? null : id;
   _cbRender();
 }
@@ -2163,25 +2466,41 @@ function cbMarkContacted(enquiryId, name, btn) {
 // badge). Shared by _cbRenderBoard's pipeline columns and Home's "Needs
 // triage" section (2026-08-31) — one card renderer either way.
 function _cbCard2Html(c) {
-  var id = _cbEsc(String(c.id));
+  // A session billed two ways appears as one card per person, so expansion
+  // is tracked by card key, not event id — otherwise tapping one would
+  // open both.
+  var id = _cbEsc(String(c.key || c.id));
   var f = c.fields || {};
   var sdot = f.Status === 'Attended' ? '<span class="sdot sdot-green"></span>'
     : (f.Status && f.Status.indexOf('Cancelled') === 0) ? '<span class="sdot sdot-red"></span>' : '';
-  var expanded = _cbExpandedCardId === c.id;
+  var expanded = _cbExpandedCardId === String(c.key || c.id);
   // Second person on the session (couples/family) — the title already
   // carries this (_cbBuildTitle's "— with <name>" segment, readable
   // directly in Google Calendar), this just surfaces it on the card too
-  // without waiting for it to expand.
-  var additionalLine = f.AdditionalClient
-    ? '<div class="mt">+ ' + _cbEsc(f.AdditionalClient) + (f.BillSeparately === 'Yes' ? ' <span class="billsep-tag">Bill separately</span>' : '') + '</div>'
-    : '';
+  // without waiting for it to expand. Where they're billed separately the
+  // card is one person's bill, so this names the OTHER one and says where
+  // their bill has got to — more use than repeating this card's own name.
+  var additionalLine = '';
+  if (c.ev && f.AdditionalClient) {
+    if (f.BillSeparately === 'Yes') {
+      var others = _cbParties(c.ev).filter(function(o) { return o.key !== (c.party ? c.party.key : ''); });
+      if (others.length) {
+        additionalLine = '<div class="mt">+ ' + others.map(function(o) {
+          return _cbEsc(o.name) + ' <span class="billsep-tag">' + _cbPartyStateLabel(o) + '</span>';
+        }).join(', ') + '</div>';
+      }
+    } else {
+      additionalLine = '<div class="mt">+ ' + _cbEsc(f.AdditionalClient) + '</div>';
+    }
+  }
   return '<div class="card2' + (expanded ? ' card2-expanded' : '') + '">'
     + '<div onclick="cbToggleCardExpand(\'' + id + '\')" style="cursor:pointer">'
-    +   '<div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>' + _cbFunderChip(f.Funder) + '</div>'
+    +   '<div class="card2-top"><div class="nm">' + sdot + _cbEsc(c.name) + '</div>'
+    +     _cbFunderChip(c.party ? c.party.funder : f.Funder) + '</div>'
     +   '<div class="mt">' + _cbEsc(c.meta) + '</div>'
     +   additionalLine
     + '</div>'
-    + (expanded ? (c.ev ? _cbCardActionsHtml(c.ev) : _cbEnquiryActionsHtml(c)) : '')
+    + (expanded ? (c.ev ? _cbCardActionsHtml(c.ev, c.party) : _cbEnquiryActionsHtml(c)) : '')
     + '</div>';
 }
 
@@ -2205,6 +2524,8 @@ var _cbFocusId   = null;  // event id of the card in front
 var _cbFocusIdx  = 0;     // fallback position once that card leaves the queue
 var _cbFocusList = false; // mobile: show the queue list instead of the card
 var _cbFocusAnim = null;  // 'next' | 'prev' — slide direction for the next render only
+var _cbFocusSettled = null; // id of a card just actioned here, held in front until Next
+var _cbFocusEditing = null; // card key being edited inline, or null
 
 function _cbFocusQueue(cols, tab) {
   return (cols[tab] || []).slice().sort(function(a, b) {
@@ -2214,8 +2535,10 @@ function _cbFocusQueue(cols, tab) {
 
 function cbFocusTab(tab) {
   _cbFocusTab = tab;
+  _cbFocusEditing = null;
   _cbFocusId = null;
   _cbFocusIdx = 0;
+  _cbFocusSettled = null;
   _cbFocusList = false;
   _cbExpandedCardId = null;
   _cbRenderBoard();
@@ -2223,15 +2546,31 @@ function cbFocusTab(tab) {
 
 function cbFocusGo(id) {
   _cbFocusId = id;
+  _cbFocusSettled = null;
+  _cbFocusEditing = null;
   _cbFocusList = false;
   _cbRenderBoard();
 }
 
 function cbFocusStep(delta) {
+  _cbFocusEditing = null;
+  // The card in front was actioned here and is no longer in this queue —
+  // it's only being held in place so the decision is visible. Moving on
+  // just releases it, and whatever took its slot slides in; advancing the
+  // index as well would skip straight past that card.
+  if (_cbFocusSettled) {
+    _cbFocusSettled = null;
+    if (delta > 0) {
+      _cbFocusId = null;
+      _cbFocusAnim = 'next';
+      _cbRenderBoard();
+      return;
+    }
+  }
   var q = _cbFocusQueue(_cbBoardCards(), _cbFocusTab);
   var i = Math.min(Math.max(_cbFocusIdx + delta, 0), q.length - 1);
   if (!q.length || i === _cbFocusIdx) return;
-  _cbFocusId = q[i].id;
+  _cbFocusId = q[i].key;
   _cbFocusIdx = i;
   _cbFocusAnim = delta > 0 ? 'next' : 'prev';
   _cbRenderBoard();
@@ -2245,17 +2584,23 @@ function cbFocusToggleList() {
 /* The main decision buttons for a card, in the order the 1 / 2 keys pick
  * them — same choices _cbCardActionsHtml offers, just with a line of
  * explanation each since these are the whole point of the card. */
-function _cbFocusActions(stage, f) {
+function _cbFocusActions(stage, party) {
   if (stage === 'billing') {
-    return _cbIsDirectFunder(f.Funder)
-      ? [{ label: 'Auto paid', sub: 'Card on file / Medicare took it', value: 'Auto paid' },
-         { label: 'Invoice sent', sub: 'Waiting on the client to pay', value: 'Invoice sent' }]
-      : [{ label: 'Halaxy direct', sub: 'Claimed and settled in Halaxy', value: 'Halaxy direct' },
-         { label: 'Via funder', sub: 'Billed to the funder — wait for remittance', value: 'Funder — awaiting remittance' }];
+    return _cbIsDirectFunder(party.funder)
+      ? [{ label: 'Auto paid', sub: 'Card on file or Medicare', value: 'Auto paid' },
+         { label: 'Invoice sent', sub: 'Waiting on the client', value: 'Invoice sent' }]
+      : [{ label: 'Halaxy direct', sub: 'Settled in Halaxy', value: 'Halaxy direct' },
+         { label: 'Via funder', sub: 'Wait for remittance', value: 'Funder — awaiting remittance' }];
   }
-  var invoiced = f.Billing === 'Invoice sent';
-  return [{ label: invoiced ? 'Payment received' : 'Remittance received', sub: 'Close this session off',
+  var invoiced = party.billing === 'Invoice sent';
+  return [{ label: invoiced ? 'Payment received' : 'Remittance received', sub: 'Close this bill off',
             value: invoiced ? 'Closed (paid)' : 'Closed (remittance received)' }];
+}
+
+/* How far along one person's bill is, in the words the card uses. */
+function _cbPartyStateLabel(party) {
+  var ps = _cbPartyStage(party);
+  return ps === 'billing' ? 'Still to bill' : ps === 'remittance' ? 'Awaiting payment' : 'Settled';
 }
 
 function _cbFocusStepsHtml(stage) {
@@ -2267,81 +2612,178 @@ function _cbFocusStepsHtml(stage) {
 }
 
 /* Saves on Enter too — same handlers as the Board card inputs. */
-function _cbFocusFieldHtml(inputId, placeholder, saveFn, id, numeric) {
+function _cbFocusFieldHtml(inputId, placeholder, saveFn, id, numeric, pkey) {
+  var args = '\'' + id + '\',%s,\'' + (pkey || '') + '\'';
   return '<div class="fx-inv"><input type="text"' + (numeric ? ' inputmode="numeric"' : '') + ' id="' + inputId + '" placeholder="' + placeholder + '"'
-    + ' onkeydown="if(event.key===\'Enter\')' + saveFn + '(\'' + id + '\',this.nextElementSibling)">'
-    + '<button onclick="' + saveFn + '(\'' + id + '\',this)">Save</button></div>';
+    + ' onkeydown="if(event.key===\'Enter\')' + saveFn + '(' + args.replace('%s', 'this.nextElementSibling') + ')">'
+    + '<button onclick="' + saveFn + '(' + args.replace('%s', 'this') + ')">Save</button></div>';
+}
+
+/* The card's own numbered steps — what to look at, what to fill in, what
+ * to decide. Numbered at render time because step 2 isn't there on a
+ * session that isn't being billed at all. */
+function _cbStepper() {
+  var n = 0;
+  return function(title, hint) {
+    n++;
+    return '<div class="fx-h fx-h-' + n + '"><i>' + n + '</i><span class="fx-h-t">' + title + '</span>'
+      + (hint ? '<span class="fx-h-x">' + hint + '</span>' : '') + '</div>';
+  };
 }
 
 function _cbFocusCardHtml(c, stage, pos, total, anim) {
   var id = _cbEsc(String(c.id));
   var f = c.fields;
+  // This card is one person's bill. On a session billed separately the
+  // same appointment comes round once per person, each with its own
+  // funder, invoice number and decision.
+  var all = _cbParties(c.ev);
+  var pidx = all.findIndex(function(o) { return o.key === (c.party ? c.party.key : ''); });
+  if (pidx < 0) pidx = 0;
+  var party = all[pidx];
+  var k = party.key;
+  var others = all.filter(function(o) { return o.key !== k; });
+  var split = all.length > 1;
+  // A settled card sits in a queue it has already left, so its progress
+  // comes from where the decision actually put THIS bill — not the
+  // session, which stays open while the other bill is outstanding.
+  var done = !!c.settled;
+  var editing = _cbFocusEditing === String(c.key);
+  var atStage = done ? _cbPartyStage(party) : stage;
+  var head = _cbStepper();
   var d = new Date(c.ev.start);
-  var days = Math.floor((Date.now() - d) / 86400000);
-  var age = days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : days + ' days ago';
+  var age = _cbAgeLabel(d);
   var statusCls = f.Status === 'Attended' ? 'ok' : 'bad';
 
+  // One labelled cell per fact, reflowing on its own — a run of
+  // dot-separated values reads as a sentence, which is the wrong shape for
+  // things you scan (how long was it? who else was in it?).
+  function fact(label, value, extra, wide) {
+    return '<div class="fx-fact' + (wide ? ' fx-fact-w' : '') + '"><span>' + label + '</span>'
+      + '<b>' + value + '</b>' + (extra ? '<em>' + extra + '</em>' : '') + '</div>';
+  }
+  var facts = '<div class="fx-fact"><span>When</span><b>'
+    + _cbEsc(d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }))
+    + ' · ' + _cbEsc(d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })) + '</b>'
+    + '<em' + (age.ahead ? ' class="ahead"' : '') + '>' + age.text + '</em></div>';
+  if (f.Type) facts += fact('Format', _cbEsc(f.Type));
+  if (f.Duration) facts += fact('Length', _cbEsc(f.Duration));
+  // Skipped once recorded — the confirmation below is already saying it.
+  if (party.billing && !done) facts += fact('Billing', _cbEsc(party.billing));
+  if (split) {
+    // Where the other bill on this session has got to. It's the thing that
+    // stops the session closing, so it belongs on the card, not out of sight.
+    others.forEach(function(o) {
+      facts += fact('Their bill', _cbEsc(o.name) + (o.funder ? ' · ' + _cbEsc(o.funder) : ''),
+        _cbPartyStateLabel(o), true);
+    });
+  } else if (f.AdditionalClient) {
+    facts += fact('Also in session', _cbEsc(f.AdditionalClient), '', true);
+  }
+
   var html = '<div class="fx-card' + (anim ? ' fx-in-' + anim : '') + '" id="fx-card">'
-    + '<div class="fx-card-top"><span class="fx-pos">' + pos + ' of ' + total + '</span>' + _cbFocusStepsHtml(stage) + '</div>'
-    + '<div class="fx-name">' + _cbEsc(c.name) + '</div>'
-    + '<div class="fx-chips">' + _cbFunderChip(f.Funder)
+    + '<div class="fx-card-top"><span class="fx-pos">' + (done ? 'Just recorded' : pos + ' of ' + total) + '</span>' + _cbFocusStepsHtml(atStage) + '</div>'
+    + '<div class="fx-name-row"><div><div class="fx-name">' + _cbEsc(party.name) + '</div>'
+    +   (split ? '<div class="fx-shared">Bill ' + (pidx + 1) + ' of ' + all.length
+        + ' · session shared with ' + others.map(function(o) { return _cbEsc(o.name); }).join(', ') + '</div>' : '')
+    +   '</div><button class="fx-edit" onclick="' + (editing ? 'cbEditCancel()' : 'cbFocusEdit(\'' + id + '\',\'' + _cbEsc(String(c.key)) + '\')') + '">'
+    +   (editing ? 'Done' : 'Edit') + '</button></div>'
+    + '<div class="fx-chips">' + _cbFunderChip(party.funder)
     +   (f.Status ? '<span class="fx-status fx-status-' + statusCls + '">' + _cbEsc(f.Status) + '</span>' : '')
     + '</div>'
-    + '<dl class="fx-facts">'
-    +   '<div><dt>Session</dt><dd>' + _cbEsc(d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }))
-    +     ' · ' + _cbEsc(d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })) + '<span class="fx-age">' + age + '</span></dd></div>'
-    +   ((f.Type || f.Duration) ? '<div><dt>Type</dt><dd>' + _cbEsc([f.Type, f.Duration].filter(Boolean).join(' · ')) + '</dd></div>' : '')
-    +   (f.AdditionalClient ? '<div><dt>With</dt><dd>' + _cbEsc(f.AdditionalClient) + (f.BillSeparately === 'Yes' ? ' <span class="billsep-tag">Bill separately</span>' : '') + '</dd></div>' : '')
-    +   (f.Billing ? '<div><dt>Billing</dt><dd>' + _cbEsc(f.Billing) + '</dd></div>' : '')
-    +   (f.Note ? '<div><dt>Note</dt><dd>' + _cbEsc(f.Note) + '</dd></div>' : '')
-    + '</dl>';
+    + head('The session')
+    + '<div class="fx-facts">' + facts + '</div>'
+    + (f.Note ? '<div class="fx-note">' + _cbEsc(f.Note) + '</div>' : '')
+    + '<button class="fx-link" onclick="cbJumpToSchedule(\'' + id + '\')">View in schedule →</button>';
+
+  html += '<div class="fx-group">';
+
+  // Editing takes over the working half of the card — the session details
+  // above stay put, so you can see what you're changing it from.
+  if (editing) {
+    html += head('Edit this session') + '<div id="cb-edit-inline"></div></div>'
+      + '</div>';
+    return html;
+  }
 
   if (f.Bill === 'Yes') {
-    html += '<div class="fx-sec">Invoice</div>';
-    html += f.Invoice
-      ? '<a class="fx-inv-link" href="' + _cbEsc(_cbInvoiceUrl(f.Invoice)) + '" target="_blank" rel="noopener">#' + _cbEsc(f.Invoice) + '<span>Open in Halaxy ↗</span></a>'
-      : _cbFocusFieldHtml('inv-' + id, 'Invoice number from Halaxy', 'cbSaveInvoice', id, true);
-    if (f.Funder === 'QFES') {
-      html += '<div class="fx-sec">QFES form ref <a href="#" class="fx-sec-link" onclick="cbOpenQfesDetails(\'' + id + '\');return false">📋 Form details</a></div>';
-      html += f['QFES Form']
-        ? '<div class="fx-inv-link fx-inv-static">' + _cbEsc(f['QFES Form']) + '</div>'
-        : _cbFocusFieldHtml('qform-' + id, 'Ref from the submitted ISA form', 'cbSaveQfesForm', id, false);
+    // With no QFES field beside it the step heading already says "Invoice
+    // number" — a second label under it is just the same word twice.
+    var qfes = party.funder === 'QFES';
+    html += head(qfes ? 'Reference numbers' : 'Invoice number', 'optional')
+      + '<div class="fx-fields">'
+      + '<div class="fx-field">' + (qfes ? '<div class="fx-sec">Invoice</div>' : '')
+      + (party.invoice
+        ? '<a class="fx-inv-link" href="' + _cbEsc(_cbInvoiceUrl(party.invoice)) + '" target="_blank" rel="noopener">#' + _cbEsc(party.invoice) + '<span>Open in Halaxy ↗</span></a>'
+        : _cbFocusFieldHtml('inv-' + id + k, 'e.g. 1110791523', 'cbSaveInvoice', id, true, k))
+      + '</div>'
+      + (qfes
+        ? '<div class="fx-field"><div class="fx-sec"><span>QFES form ref</span><a href="#" class="fx-sec-link" onclick="cbOpenQfesDetails(\'' + id + '\');return false">Form details</a></div>'
+          + (party.form
+            ? '<div class="fx-inv-link fx-inv-static">' + _cbEsc(party.form) + '</div>'
+            : _cbFocusFieldHtml('qform-' + id + k, 'e.g. ISA-2026-0412', 'cbSaveQfesForm', id, false, k))
+          + '</div>'
+        : '')
+      + '</div>';
+  }
+
+  if (!done && stage === 'remittance' && party.invoice) {
+    html += '<button class="fx-remit" onclick="_cbCheckRemittance(\'' + _cbEsc(party.invoice) + '\',\'' + id + k + '\',this)">Check inbox for remittance</button>'
+      + '<div class="remit-result" id="remit-result-' + id + k + '"></div>';
+  }
+
+  var acts = done ? [] : _cbFocusActions(stage, party);
+  if (done) {
+    // "Closed (remittance received)" is how the stage is stored, not how
+    // Julian said it — read the choice back out so the confirmation echoes
+    // the button he actually pressed.
+    var doneLbl = party.billing || 'Updated';
+    var inner = /^Closed \((.+)\)$/.exec(doneLbl);
+    if (inner) doneLbl = inner[1].charAt(0).toUpperCase() + inner[1].slice(1);
+    // On a split session the other bill is what keeps it open, so say so
+    // here rather than claiming the whole session has moved on.
+    var waiting = others.filter(function(o) { return _cbPartyStage(o) !== 'closed'; });
+    html += head('Recorded')
+      + '<div class="fx-done">'
+      +   '<div class="fx-done-t">\u2713 ' + _cbEsc(doneLbl) + '</div>'
+      +   '<div class="fx-done-s">' + (split ? _cbEsc(party.name) + '\u2019s bill' : 'This session')
+      +     ' moved to ' + (atStage === 'remittance' ? 'Awaiting payment' : 'Closed') + '.'
+      +     (waiting.length ? ' ' + waiting.map(function(o) {
+             return _cbEsc(o.name) + '\u2019s is ' + _cbPartyStateLabel(o).toLowerCase() + '.';
+           }).join(' ') : '') + '</div>'
+      +   '<button class="fx-undo" onclick="cbClearBilling(\'' + id + '\',this,\'' + k + '\')">Change this</button>'
+      + '</div></div>';
+  } else {
+    html += head(stage === 'billing' ? 'How is this being billed?' : 'Has the money landed?')
+      + '<div class="fx-acts">' + acts.map(function(a, i) {
+        return '<button class="fx-act" onclick="cbSetBilling(\'' + id + '\',\'' + _cbEsc(a.value) + '\',this,\'' + k + '\')">'
+          + '<kbd>' + (i + 1) + '</kbd><span class="fx-act-lbl">' + _cbEsc(a.label) + '</span><span class="fx-act-sub">' + _cbEsc(a.sub) + '</span></button>';
+      }).join('') + '</div></div>';
+    if (party.billing) {
+      html += '<button class="fx-link" onclick="cbClearBilling(\'' + id + '\',this,\'' + k + '\')">'
+        + 'Change how this was billed</button>';
     }
   }
 
-  if (stage === 'remittance' && f.Invoice) {
-    html += '<button class="fx-remit" onclick="_cbCheckRemittance(\'' + _cbEsc(f.Invoice) + '\',\'' + id + '\',this)">🔍 Check inbox for remittance</button>'
-      + '<div class="remit-result" id="remit-result-' + id + '"></div>';
-  }
-
-  var acts = _cbFocusActions(stage, f);
-  html += '<div class="fx-sec">' + (stage === 'billing' ? 'How is this being billed?' : 'Has the money landed?') + '</div>'
-    + '<div class="fx-acts">' + acts.map(function(a, i) {
-      return '<button class="fx-act' + (i === 0 ? ' fx-act-primary' : '') + '" onclick="cbSetBilling(\'' + id + '\',\'' + _cbEsc(a.value) + '\',this)">'
-        + '<kbd>' + (i + 1) + '</kbd><span class="fx-act-lbl">' + _cbEsc(a.label) + '</span><span class="fx-act-sub">' + _cbEsc(a.sub) + '</span></button>';
-    }).join('') + '</div>';
-
-  html += '<div class="fx-more">'
-    + '<button onclick="cbJumpToSchedule(\'' + id + '\')">View in schedule →</button>'
-    + '<button onclick="cbOpenEdit(\'' + id + '\')">Edit or delete</button>'
-    + '</div>';
-
+  // Once a decision is recorded this card is only being held in place, so
+  // Next is the way out of it — never disabled here, even on the last one.
   html += '<div class="fx-nav">'
     + '<button onclick="cbFocusStep(-1)"' + (pos <= 1 ? ' disabled' : '') + '>‹ Prev</button>'
-    + '<span class="fx-keys">← → to move · 1' + (acts.length > 1 ? ' / 2' : '') + ' to choose</span>'
-    + '<button onclick="cbFocusStep(1)"' + (pos >= total ? ' disabled' : '') + '>Next ›</button>'
+    + '<button class="fx-next' + (done ? ' on' : '') + '" onclick="cbFocusStep(1)"'
+    +   (!done && pos >= total ? ' disabled' : '') + '>' + (done ? 'Next session' : 'Next') + ' ›</button>'
     + '</div></div>';
   return html;
 }
 
-function _cbFocusRailHtml(q, activeId) {
+function _cbFocusRailHtml(q, activeKey) {
   return '<div class="fx-rail">' + q.map(function(c) {
     var d = new Date(c.ev.start);
-    var on = String(c.id) === String(activeId);
-    return '<button class="fx-row' + (on ? ' on' : '') + '" onclick="cbFocusGo(\'' + _cbEsc(String(c.id)) + '\')">'
-      + '<span class="fx-row-nm">' + _cbEsc(c.name) + '</span>' + _cbFunderChip(c.fields.Funder)
+    var party = c.party || _cbParties(c.ev)[0];
+    var on = String(c.key) === String(activeKey);
+    return '<button class="fx-row' + (on ? ' on' : '') + '" onclick="cbFocusGo(\'' + _cbEsc(String(c.key)) + '\')">'
+      + '<span class="fx-row-nm">' + _cbEsc(c.name) + '</span>' + _cbFunderChip(party.funder)
       + '<span class="fx-row-mt">' + _cbEsc(d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }))
-      + (c.fields.Invoice ? ' · #' + _cbEsc(c.fields.Invoice) : '') + '</span></button>';
+      + (party.invoice ? ' · #' + _cbEsc(party.invoice) : '') + '</span></button>';
   }).join('') + '</div>';
 }
 
@@ -2369,6 +2811,7 @@ function _cbRenderBoard() {
 
   if (_cbFocusTab === 'overview') {
     root.innerHTML = tabs + _cbOverviewHtml(cols);
+    if (_cbInlineEditId) _cbRenderEditSheet();
     return;
   }
 
@@ -2377,6 +2820,27 @@ function _cbRenderBoard() {
     : '';
 
   var q = _cbFocusQueue(cols, _cbFocusTab);
+
+  // A card actioned from the focus view has left this queue by definition,
+  // so it would simply disappear and the next one would take its place
+  // unannounced. Splice it back in at the slot it held and mark it settled.
+  if (_cbFocusSettled) {
+    var held = _cbFocusSettled;
+    var inQueue = q.some(function(c) { return String(c.key) === String(held.key); });
+    var sev = inQueue ? null : _cbEvents.find(function(e) { return String(e.id) === String(held.id); });
+    var heldParty = sev && _cbParties(sev).filter(function(pp) { return pp.key === held.pkey; })[0];
+    if (heldParty) {
+      q = q.slice();
+      q.splice(Math.min(_cbFocusIdx, q.length), 0, {
+        key: held.key, id: sev.id, party: heldParty, name: heldParty.name,
+        ev: sev, fields: _cbFields(sev), settled: true,
+      });
+      _cbFocusId = held.key;
+    } else {
+      _cbFocusSettled = null;
+    }
+  }
+
   if (!q.length) {
     root.innerHTML = tabs + '<div class="fx-clear"><div class="fx-clear-tick">✓</div><div class="fx-clear-t">All clear</div><div class="fx-clear-s">'
       + (_cbFocusTab === 'billing' ? 'Nothing waiting to be billed.' : 'Nothing waiting on payment.') + '</div></div>' + waiting;
@@ -2385,10 +2849,10 @@ function _cbRenderBoard() {
 
   // Keep the same card in front if it's still in this queue; otherwise (it
   // just moved stage) show whatever slid into its position — the next one.
-  var i = q.findIndex(function(c) { return String(c.id) === String(_cbFocusId); });
+  var i = q.findIndex(function(c) { return String(c.key) === String(_cbFocusId); });
   if (i === -1) i = Math.min(_cbFocusIdx, q.length - 1);
   _cbFocusIdx = i;
-  _cbFocusId = q[i].id;
+  _cbFocusId = q[i].key;
 
   root.innerHTML = tabs
     + '<div class="fx-wrap' + (_cbFocusList ? ' fx-show-list' : '') + '">'
@@ -2396,6 +2860,8 @@ function _cbRenderBoard() {
     +   '<div class="fx-main"><button class="fx-list-toggle" onclick="cbFocusToggleList()">List all ' + q.length + '</button>'
     +     _cbFocusCardHtml(q[i], _cbFocusTab, i + 1, q.length, anim) + '</div>'
     + '</div>' + waiting;
+
+  if (_cbFocusEditing) _cbRenderEditSheet();
 
   var on = root.querySelector('.fx-row.on');
   if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
@@ -2469,44 +2935,63 @@ function cbCloseActivity() {
  * toggled by that card's stage badge — 2026-08-31 feedback: this used to
  * open a separate side drawer on Home, inconsistent with the Board's
  * tap-to-expand-in-place once that shipped). ── */
-function _cbCardActionsHtml(ev) {
+/* `party` narrows this to one person's bill (the Board's own per-person
+ * cards). Omitted — Home's schedule cards, where you're looking at the
+ * whole appointment — it renders a block per party, so a session billed
+ * two ways shows both and neither can be forgotten. */
+function _cbCardActionsHtml(ev, party) {
   var f = _cbFields(ev);
-  var stage = _cbEventStage(ev);
-  var jumpBtn = ev.start ? '<button class="btn-ghost" onclick="cbJumpToSchedule(\'' + _cbEsc(ev.id) + '\')">View in schedule →</button>' : '';
-  var editBtn = '<button class="btn-ghost" onclick="cbOpenEdit(\'' + _cbEsc(ev.id) + '\')">Edit or delete</button>';
+  var evId = _cbEsc(String(ev.id));
+  var jumpBtn = ev.start ? '<button class="btn-ghost" onclick="cbJumpToSchedule(\'' + evId + '\')">View in schedule →</button>' : '';
+  var editBtn = '<button class="btn-ghost" onclick="cbEditInCard(\'' + evId + '\')">Edit or delete</button>';
 
-  var actionsHtml = '';
-  if (stage === 'billing') {
-    actionsHtml = _cbIsDirectFunder(f.Funder)
-      ? '<div class="act">'
-        + '<button onclick="cbSetBilling(\'' + _cbEsc(ev.id) + '\',\'Auto paid\',this)">Auto paid</button>'
-        + '<button onclick="cbSetBilling(\'' + _cbEsc(ev.id) + '\',\'Invoice sent\',this)">Invoice sent</button>'
-        + '</div>'
-      : '<div class="act">'
-        + '<button onclick="cbSetBilling(\'' + _cbEsc(ev.id) + '\',\'Halaxy direct\',this)">Halaxy direct</button>'
-        + '<button onclick="cbSetBilling(\'' + _cbEsc(ev.id) + '\',\'Funder — awaiting remittance\',this)">Via funder</button>'
-        + '</div>';
-  } else if (stage === 'remittance') {
-    var isInvoiced = f.Billing === 'Invoice sent';
-    actionsHtml = '<div class="act"><button onclick="cbSetBilling(\'' + _cbEsc(ev.id) + '\',\'' + (isInvoiced ? 'Closed (paid)' : 'Closed (remittance received)') + '\',this)">' + (isInvoiced ? 'Payment received' : 'Remittance received') + '</button></div>';
+  // Editing happens in the card it was opened from, not a drawer sliding
+  // over it — _cbRenderEditSheet mounts into this (see its own comment).
+  if (String(_cbInlineEditId) === String(ev.id)) {
+    return '<div id="cb-edit-inline"></div>';
   }
 
-  var billingHtml = '';
-  if ((stage === 'billing' || stage === 'remittance' || stage === 'closed') && f.Bill === 'Yes') {
-    billingHtml += _cbInvoiceHtml({ id: ev.id, fields: f });
-    if (f.Funder === 'QFES') {
-      billingHtml += _cbQfesFormHtml({ id: ev.id, fields: f })
-        + '<div class="mt" style="margin-top:6px"><a href="#" onclick="cbOpenQfesDetails(\'' + _cbEsc(ev.id) + '\');return false" style="color:var(--teal);font-size:11px">📋 QFES form details</a></div>';
+  var all = _cbParties(ev);
+  var shown = party ? all.filter(function(p) { return p.key === party.key; }) : all;
+  var outcomeDone = f.Status === 'Attended' || (f.Status || '').indexOf('Cancelled') === 0;
+
+  var blocks = shown.map(function(p) {
+    var ps = _cbPartyStage(p);
+    var k = p.key;
+    // Only labelled when there's more than one bill to tell apart.
+    var who = all.length > 1 ? '<div class="p-who">' + _cbEsc(p.name) + (p.funder ? ' · ' + _cbEsc(p.funder) : '') + '</div>' : '';
+    var acts = '';
+    if (outcomeDone && f.Bill === 'Yes' && ps === 'billing') {
+      acts = _cbIsDirectFunder(p.funder)
+        ? '<div class="act">'
+          + '<button onclick="cbSetBilling(\'' + evId + '\',\'Auto paid\',this,\'' + k + '\')">Auto paid</button>'
+          + '<button onclick="cbSetBilling(\'' + evId + '\',\'Invoice sent\',this,\'' + k + '\')">Invoice sent</button>'
+          + '</div>'
+        : '<div class="act">'
+          + '<button onclick="cbSetBilling(\'' + evId + '\',\'Halaxy direct\',this,\'' + k + '\')">Halaxy direct</button>'
+          + '<button onclick="cbSetBilling(\'' + evId + '\',\'Funder — awaiting remittance\',this,\'' + k + '\')">Via funder</button>'
+          + '</div>';
+    } else if (outcomeDone && f.Bill === 'Yes' && ps === 'remittance') {
+      var isInvoiced = p.billing === 'Invoice sent';
+      acts = '<div class="act"><button onclick="cbSetBilling(\'' + evId + '\',\'' + (isInvoiced ? 'Closed (paid)' : 'Closed (remittance received)') + '\',this,\'' + k + '\')">' + (isInvoiced ? 'Payment received' : 'Remittance received') + '</button></div>';
     }
-  }
 
-  var remitHtml = '';
-  if (stage === 'remittance' && f.Invoice) {
-    remitHtml = '<button class="remit-btn" id="remit-btn-' + _cbEsc(ev.id) + '" onclick="_cbCheckRemittance(\'' + _cbEsc(f.Invoice) + '\',\'' + _cbEsc(ev.id) + '\',this)">🔍 Check inbox for remittance</button>'
-      + '<div class="remit-result" id="remit-result-' + _cbEsc(ev.id) + '"></div>';
-  }
+    var fields = '';
+    if (outcomeDone && f.Bill === 'Yes') {
+      fields += _cbInvoiceHtml(ev.id, p);
+      if (p.funder === 'QFES') {
+        fields += _cbQfesFormHtml(ev.id, p)
+          + '<div class="mt" style="margin-top:6px"><a href="#" onclick="cbOpenQfesDetails(\'' + evId + '\');return false" style="color:var(--teal);font-size:11px">📋 QFES form details</a></div>';
+      }
+      if (ps === 'remittance' && p.invoice) {
+        fields += '<button class="remit-btn" id="remit-btn-' + evId + k + '" onclick="_cbCheckRemittance(\'' + _cbEsc(p.invoice) + '\',\'' + evId + k + '\',this)">🔍 Check inbox for remittance</button>'
+          + '<div class="remit-result" id="remit-result-' + evId + k + '"></div>';
+      }
+    }
+    return (who || acts || fields) ? '<div class="p-blk">' + who + acts + fields + '</div>' : '';
+  }).join('');
 
-  return jumpBtn + editBtn + actionsHtml + billingHtml + remitHtml;
+  return jumpBtn + editBtn + blocks;
 }
 
 /* Runs after a card action (billing decision, invoice save, QFES ref save)

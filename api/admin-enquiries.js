@@ -1482,7 +1482,27 @@ export default async function handler(req, res) {
       // generously rather than trying to guess the invoice's date range.
       const { events } = await fetchCalendarEvents({ pastDays: 420, futureDays: 14, paginate: true });
       const withFields = events.map(e => ({ e, fields: parseEventDesc(e.description) }));
-      const matches = withFields.filter(({ fields }) => (fields.Invoice || '').trim() === invoiceNumber);
+
+      // A session with a second client billed separately carries that
+      // person's own bill in Invoice2/Funder2, so each billed person is a
+      // row of its own here — otherwise a QFES client who happened to be
+      // the second name on a shared session would be invisible to this.
+      const invoicesOn = fields => [
+        { number: (fields.Invoice || '').trim(), key: '' },
+        ...(fields.AdditionalClient && fields.BillSeparately === 'Yes'
+          ? [{ number: (fields.Invoice2 || '').trim(), key: '2' }] : []),
+      ];
+      const matches = [];
+      withFields.forEach(({ e, fields }) => {
+        invoicesOn(fields).forEach(({ number, key }) => {
+          if (number !== invoiceNumber) return;
+          matches.push({
+            e, fields,
+            name: (key ? String(fields.AdditionalClient) : (e.title.split(' — ')[0] || e.title)).trim(),
+            funder: (key ? (fields.Funder2 || fields.Funder) : fields.Funder) || null,
+          });
+        });
+      });
 
       if (!matches.length) {
         // Diagnostic, not a guess: this number simply isn't stamped on any
@@ -1490,7 +1510,7 @@ export default async function handler(req, res) {
         // field) within the lookback window — surface what IS there so
         // it's obvious whether the tag was never set vs. set differently.
         const knownInvoices = Array.from(new Set(
-          withFields.map(({ fields }) => (fields.Invoice || '').trim()).filter(Boolean)
+          withFields.flatMap(({ fields }) => invoicesOn(fields).map(i => i.number)).filter(Boolean)
         )).sort();
         return res.status(200).json({ invoiceNumber, sessions: [], knownInvoices });
       }
@@ -1504,8 +1524,7 @@ export default async function handler(req, res) {
       });
 
       const halaxyIds = new Set();
-      const sessions = matches.map(({ e, fields }) => {
-        const name = (e.title.split(' — ')[0] || e.title).trim();
+      const sessions = matches.map(({ e, fields, name, funder }) => {
         const candidates = byName[name] || [];
         const patient = candidates.length === 1 ? candidates[0] : null;
         if (patient) halaxyIds.add(patient.id);
@@ -1513,7 +1532,7 @@ export default async function handler(req, res) {
           eventId:  e.id,
           date:     e.start,
           name,
-          funder:   fields.Funder || null,
+          funder,
           mode:     fields.Type || null,
           duration: fields.Duration || null,
           status:   fields.Status || null,
