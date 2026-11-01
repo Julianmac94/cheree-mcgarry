@@ -199,18 +199,122 @@ function cbBookPage({ currentUser = null }) {
   .loading { text-align: center; padding: 50px 20px; color: var(--t3); font-size: 13px; }
   .toast { position: fixed; bottom: calc(100px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--teal); color: var(--t1); padding: 12px 20px; border-radius: 10px; font-size: 13px; z-index: 90; }
 
-  /* ── Board (flip view) — each column carries its own accent colour so the
-     pipeline reads left-to-right without needing to read every label ── */
-  .board { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 12px; margin: 0 -18px; padding-left: 18px; padding-right: 18px; }
-  .col { flex: 0 0 220px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-top: 3px solid var(--col-c, var(--border)); border-radius: 12px; padding: 10px; }
-  .col[data-stage="triage"]     { --col-c: var(--amber); }
-  .col[data-stage="booked"]     { --col-c: #60a5fa; }
-  .col[data-stage="outcome"]    { --col-c: var(--red); }
-  .col[data-stage="billing"]    { --col-c: #a78bfa; }
-  .col[data-stage="remittance"] { --col-c: #60a5fa; }
-  .col[data-stage="closed"]     { --col-c: var(--green); }
-  .col-hd { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--t3); padding: 4px 4px 10px; display: flex; justify-content: space-between; }
-  .col-hd .n { color: var(--col-c, var(--t2)); font-weight: 700; }
+  /* ── Board = billing focus view (js/cheree-book.js _cbRenderBoard): one
+     session at a time. Phone: just the card. Desktop (≥900px): a queue
+     rail sits beside the card. ── */
+  .fx-tabs { display: flex; gap: 4px; padding: 4px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 14px; }
+  .fx-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; background: none; border: none; color: var(--t3); font-size: 13px; font-weight: 600; padding: 9px 6px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
+  .fx-tab.on { background: rgba(119,207,189,0.12); color: var(--teal); }
+  .fx-tab-n { font-size: 11px; font-weight: 800; min-width: 20px; padding: 1px 6px; border-radius: 9px; background: rgba(255,255,255,0.07); color: var(--t2); }
+  .fx-tab.on .fx-tab-n { background: var(--teal); color: #08120F; }
+
+  .fx-wrap { display: block; }
+  .fx-side { display: none; }
+  .fx-show-list .fx-side { display: block; }
+  .fx-show-list .fx-main { display: none; }
+  .fx-list-toggle { display: block; width: 100%; background: none; border: 1px dashed var(--border); color: var(--t2); font-size: 12px; font-weight: 600; padding: 8px; border-radius: 9px; cursor: pointer; margin-bottom: 8px; }
+  .fx-main .fx-list-toggle { margin: 0 0 10px; }
+  .fx-rail { display: flex; flex-direction: column; gap: 4px; }
+  .fx-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; text-align: left; background: none; border: 1px solid transparent; border-radius: 10px; padding: 9px 11px; cursor: pointer; color: var(--t1); }
+  .fx-row:hover { background: rgba(255,255,255,0.03); }
+  .fx-row.on { background: var(--card); border-color: var(--teal); }
+  .fx-row-nm { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fx-row-mt { grid-column: 1 / -1; font-size: 11.5px; color: var(--t3); }
+
+  .fx-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 20px; box-shadow: 0 10px 34px rgba(0,0,0,0.28); }
+  .fx-in-next { animation: fx-in-r 0.22s ease-out; }
+  .fx-in-prev { animation: fx-in-l 0.22s ease-out; }
+  @keyframes fx-in-r { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+  @keyframes fx-in-l { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+  .fx-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+  .fx-pos { font-size: 12px; font-weight: 700; color: var(--t3); letter-spacing: 0.02em; }
+  .fx-steps { display: flex; gap: 12px; }
+  .fx-step { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--t3); }
+  .fx-step i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--t3); }
+  .fx-step.done { color: var(--t2); }
+  .fx-step.done i { background: var(--green); border-color: var(--green); }
+  .fx-step.now { color: var(--teal); }
+  .fx-step.now i { background: var(--teal); border-color: var(--teal); box-shadow: 0 0 0 3px rgba(119,207,189,0.2); }
+  .fx-name { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+  .fx-chips { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+  .fx-chips .fchip { font-size: 11px; padding: 4px 10px; }
+  .fx-status { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 7px; }
+  .fx-status-ok { background: rgba(63,191,143,0.14); color: var(--green); }
+  .fx-status-bad { background: rgba(224,113,74,0.14); color: var(--red); }
+  .fx-facts { margin: 18px 0 0; display: grid; gap: 10px; }
+  .fx-facts div { display: grid; grid-template-columns: 74px 1fr; gap: 10px; }
+  .fx-facts dt { font-size: 12px; color: var(--t3); padding-top: 1px; }
+  .fx-facts dd { margin: 0; font-size: 14px; color: var(--t1); }
+  .fx-age { margin-left: 8px; font-size: 11.5px; color: var(--amber); }
+  .fx-sec { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--t3); margin: 22px 0 8px; }
+  .fx-inv { display: flex; gap: 8px; }
+  .fx-inv input { flex: 1; min-width: 0; font-size: 15px; padding: 12px 14px; border-radius: 11px; background: var(--bg); border: 1px solid var(--border); color: var(--t1); }
+  .fx-inv input:focus { outline: none; border-color: var(--teal); }
+  .fx-inv button { font-size: 14px; font-weight: 600; padding: 0 18px; border-radius: 11px; background: rgba(119,207,189,0.12); border: 1px solid rgba(119,207,189,0.3); color: var(--teal); cursor: pointer; }
+  .fx-inv-link { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 11px; background: var(--bg); border: 1px solid var(--border); color: var(--t1); font-size: 15px; font-weight: 600; text-decoration: none; }
+  .fx-inv-link span { font-size: 12.5px; font-weight: 600; color: var(--teal); }
+  .fx-sec-link { float: right; text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--teal); text-decoration: none; }
+  .fx-inv-static { color: var(--t2); }
+  .fx-more { display: flex; gap: 8px; margin-top: 16px; }
+  .fx-more button { flex: 1; font-size: 12.5px; padding: 10px; border-radius: 10px; background: none; border: 1px solid var(--border); color: var(--t2); cursor: pointer; }
+  .fx-more button:hover { border-color: var(--teal); color: var(--teal); }
+  .fx-act:disabled { opacity: 0.6; cursor: default; }
+  .fx-remit { display: block; width: 100%; margin-top: 10px; font-size: 13.5px; font-weight: 600; padding: 12px; border-radius: 11px; cursor: pointer; background: rgba(224,163,57,0.1); border: 1px solid rgba(224,163,57,0.3); color: var(--amber); }
+  .fx-remit:disabled { opacity: 0.6; cursor: default; }
+  .fx-acts { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .fx-act { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; padding: 15px 16px 15px 50px; border-radius: 13px; cursor: pointer; background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--t1); transition: border-color 0.15s, background 0.15s; }
+  .fx-act:hover { border-color: var(--teal); background: rgba(119,207,189,0.06); }
+  .fx-act:active { transform: scale(0.99); }
+  .fx-act-primary { background: rgba(119,207,189,0.1); border-color: rgba(119,207,189,0.35); }
+  .fx-act kbd { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--border); font: 700 11px inherit; font-family: inherit; color: var(--t3); }
+  .fx-act-lbl { font-size: 15.5px; font-weight: 700; color: var(--t1); }
+  .fx-act-primary .fx-act-lbl { color: var(--teal); }
+  .fx-act-sub { font-size: 12px; color: var(--t3); }
+  .fx-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .fx-nav button { font-size: 13.5px; font-weight: 600; padding: 10px 16px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--t1); cursor: pointer; }
+  .fx-nav button:disabled { opacity: 0.35; cursor: default; }
+  .fx-keys { font-size: 11px; color: var(--t3); display: none; }
+
+  .fx-waiting { margin-top: 14px; font-size: 12px; color: var(--t3); text-align: center; }
+  .fx-clear { text-align: center; padding: 56px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; }
+  .fx-clear-tick { width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--green); background: rgba(63,191,143,0.12); }
+  .fx-clear-t { font-size: 18px; font-weight: 700; }
+  .fx-clear-s { font-size: 13px; color: var(--t3); margin-top: 4px; }
+
+  .fx-overview { display: grid; gap: 12px; }
+  .fx-ov-grp { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-top: 3px solid var(--col-c, var(--border)); border-radius: 12px; padding: 10px; }
+  .fx-ov-grp[data-stage="triage"]     { --col-c: var(--amber); }
+  .fx-ov-grp[data-stage="booked"]     { --col-c: #60a5fa; }
+  .fx-ov-grp[data-stage="outcome"]    { --col-c: var(--red); }
+  .fx-ov-grp[data-stage="billing"]    { --col-c: #a78bfa; }
+  .fx-ov-grp[data-stage="remittance"] { --col-c: #60a5fa; }
+  .fx-ov-grp[data-stage="closed"]     { --col-c: var(--green); }
+  .fx-ov-hd { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--t3); padding: 2px 0 6px; }
+  .fx-ov-hd span:last-child { color: var(--col-c); }
+  .fx-ov-grp .card2:last-child { margin-bottom: 0; }
+  .fx-ov-empty { font-size: 12px; color: var(--t3); padding: 4px 0 2px; }
+
+  @media (min-width: 640px) {
+    .fx-acts { grid-template-columns: 1fr 1fr; }
+    .fx-acts .fx-act:only-child { grid-column: 1 / -1; }
+  }
+  @media (min-width: 900px) {
+    .fx-wrap { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+    .fx-side, .fx-show-list .fx-side { display: block; position: sticky; top: 16px; max-height: calc(100vh - 140px); overflow-y: auto; }
+    .fx-main, .fx-show-list .fx-main { display: block; }
+    .fx-list-toggle { display: none; }
+    .fx-card { padding: 28px 30px; }
+    .fx-name { font-size: 30px; }
+    .fx-keys { display: inline; }
+    .fx-overview { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-items: start; }
+  }
+  @media (max-width: 899px) {
+    .fx-act kbd { display: none; }
+    .fx-act { padding-left: 16px; }
+  }
+
+
+  /* ── Board cards (Overview tab + Home's triage section) ── */
   .card2 { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 11px; margin-bottom: 8px; }
   .card2-expanded { border-color: var(--teal); }
   .card2-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
@@ -225,7 +329,7 @@ function cbBookPage({ currentUser = null }) {
   .card2 .act.act-inv button { flex: 0 0 auto; padding: 6px 10px; }
   .inv-link { display: block; width: 100%; box-sizing: border-box; font-size: 10.5px; padding: 6px; border-radius: 7px; background: rgba(119,207,189,0.1); border: 1px solid var(--border); color: var(--teal); text-align: center; text-decoration: none; margin-top: 8px; }
 
-  /* ── Remittance inbox check (Board, Awaiting payment column) ── */
+  /* ── Remittance inbox check (focus card / expanded Board card) ── */
   .remit-btn { display: block; width: 100%; box-sizing: border-box; font-size: 10.5px; padding: 6px; border-radius: 7px; margin-top: 8px; cursor: pointer; font-family: inherit; background: rgba(224,163,57,0.12); border: 1px solid rgba(224,163,57,0.3); color: var(--amber); }
   .remit-btn:disabled { opacity: 0.6; cursor: default; }
   .remit-result { margin-top: 6px; }
@@ -238,7 +342,6 @@ function cbBookPage({ currentUser = null }) {
   .remit-msg--found { color: var(--green); font-weight: 600; margin-bottom: 2px; }
   .remit-msg--amber { color: var(--amber); }
   .remit-msg--dim { color: var(--t3); }
-  .col-empty { font-size: 11px; color: var(--t3); padding: 10px 4px; }
 
   /* ── Activity sheet ── */
   .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 70; }
@@ -321,16 +424,6 @@ function cbBookPage({ currentUser = null }) {
        the viewport, with no scrollbar to reach the overflow: real bug hit
        and fixed during rollout, keeping this comment as the why. */
     .wrap { flex: 1 1 auto; min-width: 0; max-width: 1200px; margin: 0; padding: 32px 40px 60px; }
-
-    /* Board: same fixed-width columns as mobile, just wider (260px vs
-       220px) — kept as a hard flex:0 0 (not flex-grow) deliberately, since
-       letting columns grow/shrink based on content exposed the same
-       min-width:auto issue one level down (uneven column widths driven by
-       whichever card had the longest unbreakable text/buttons). Fixed
-       width + .board's existing overflow-x:auto is the same proven pattern
-       mobile already uses, just resized. */
-    .board { margin: 0; padding-left: 0; padding-right: 0; }
-    .col { flex: 0 0 260px; }
 
     /* Home list + Clients list wrap their cards/rows in .card-grid (see
        cheree-book.js) so they can go multi-column instead of one stacked

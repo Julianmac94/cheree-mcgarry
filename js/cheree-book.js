@@ -2185,23 +2185,249 @@ function _cbCard2Html(c) {
     + '</div>';
 }
 
+/* ── Board = billing focus view (2026-11 feedback: the column board was
+ * "just rows of stuff", visually hard to work through). Julian works the
+ * billing queue ONE session at a time instead of scanning columns:
+ *   To bill          → invoice # (+ QFES form ref), then how it's billed
+ *   Awaiting payment → check the inbox for remittance, mark it received
+ * Oldest first, so the most overdue session is always the one in front.
+ * Overview keeps the whole pipeline (triage, Session Action, closed) as
+ * grouped lists of the same tap-to-expand _cbCard2Html cards as before.
+ * Desktop: queue rail beside the card, ← → to move, 1 / 2 to choose.
+ * Mobile: just the card (swipe or Prev/Next), "List all" for the queue. ── */
+var _CB_FOCUS_TABS = [
+  { key: 'billing',    label: 'To bill' },
+  { key: 'remittance', label: 'Awaiting payment' },
+  { key: 'overview',   label: 'Overview' },
+];
+var _cbFocusTab  = 'billing';
+var _cbFocusId   = null;  // event id of the card in front
+var _cbFocusIdx  = 0;     // fallback position once that card leaves the queue
+var _cbFocusList = false; // mobile: show the queue list instead of the card
+var _cbFocusAnim = null;  // 'next' | 'prev' — slide direction for the next render only
+
+function _cbFocusQueue(cols, tab) {
+  return (cols[tab] || []).slice().sort(function(a, b) {
+    return new Date(a.ev.start) - new Date(b.ev.start);
+  });
+}
+
+function cbFocusTab(tab) {
+  _cbFocusTab = tab;
+  _cbFocusId = null;
+  _cbFocusIdx = 0;
+  _cbFocusList = false;
+  _cbExpandedCardId = null;
+  _cbRenderBoard();
+}
+
+function cbFocusGo(id) {
+  _cbFocusId = id;
+  _cbFocusList = false;
+  _cbRenderBoard();
+}
+
+function cbFocusStep(delta) {
+  var q = _cbFocusQueue(_cbBoardCards(), _cbFocusTab);
+  var i = Math.min(Math.max(_cbFocusIdx + delta, 0), q.length - 1);
+  if (!q.length || i === _cbFocusIdx) return;
+  _cbFocusId = q[i].id;
+  _cbFocusIdx = i;
+  _cbFocusAnim = delta > 0 ? 'next' : 'prev';
+  _cbRenderBoard();
+}
+
+function cbFocusToggleList() {
+  _cbFocusList = !_cbFocusList;
+  _cbRenderBoard();
+}
+
+/* The main decision buttons for a card, in the order the 1 / 2 keys pick
+ * them — same choices _cbCardActionsHtml offers, just with a line of
+ * explanation each since these are the whole point of the card. */
+function _cbFocusActions(stage, f) {
+  if (stage === 'billing') {
+    return _cbIsDirectFunder(f.Funder)
+      ? [{ label: 'Auto paid', sub: 'Card on file / Medicare took it', value: 'Auto paid' },
+         { label: 'Invoice sent', sub: 'Waiting on the client to pay', value: 'Invoice sent' }]
+      : [{ label: 'Halaxy direct', sub: 'Claimed and settled in Halaxy', value: 'Halaxy direct' },
+         { label: 'Via funder', sub: 'Billed to the funder — wait for remittance', value: 'Funder — awaiting remittance' }];
+  }
+  var invoiced = f.Billing === 'Invoice sent';
+  return [{ label: invoiced ? 'Payment received' : 'Remittance received', sub: 'Close this session off',
+            value: invoiced ? 'Closed (paid)' : 'Closed (remittance received)' }];
+}
+
+function _cbFocusStepsHtml(stage) {
+  var steps = [['billing', 'Bill it'], ['remittance', 'Get paid'], ['closed', 'Done']];
+  var at = steps.findIndex(function(s) { return s[0] === stage; });
+  return '<div class="fx-steps">' + steps.map(function(s, i) {
+    return '<span class="fx-step ' + (i < at ? 'done' : i === at ? 'now' : '') + '"><i></i>' + s[1] + '</span>';
+  }).join('') + '</div>';
+}
+
+/* Saves on Enter too — same handlers as the Board card inputs. */
+function _cbFocusFieldHtml(inputId, placeholder, saveFn, id, numeric) {
+  return '<div class="fx-inv"><input type="text"' + (numeric ? ' inputmode="numeric"' : '') + ' id="' + inputId + '" placeholder="' + placeholder + '"'
+    + ' onkeydown="if(event.key===\'Enter\')' + saveFn + '(\'' + id + '\',this.nextElementSibling)">'
+    + '<button onclick="' + saveFn + '(\'' + id + '\',this)">Save</button></div>';
+}
+
+function _cbFocusCardHtml(c, stage, pos, total, anim) {
+  var id = _cbEsc(String(c.id));
+  var f = c.fields;
+  var d = new Date(c.ev.start);
+  var days = Math.floor((Date.now() - d) / 86400000);
+  var age = days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : days + ' days ago';
+  var statusCls = f.Status === 'Attended' ? 'ok' : 'bad';
+
+  var html = '<div class="fx-card' + (anim ? ' fx-in-' + anim : '') + '" id="fx-card">'
+    + '<div class="fx-card-top"><span class="fx-pos">' + pos + ' of ' + total + '</span>' + _cbFocusStepsHtml(stage) + '</div>'
+    + '<div class="fx-name">' + _cbEsc(c.name) + '</div>'
+    + '<div class="fx-chips">' + _cbFunderChip(f.Funder)
+    +   (f.Status ? '<span class="fx-status fx-status-' + statusCls + '">' + _cbEsc(f.Status) + '</span>' : '')
+    + '</div>'
+    + '<dl class="fx-facts">'
+    +   '<div><dt>Session</dt><dd>' + _cbEsc(d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }))
+    +     ' · ' + _cbEsc(d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })) + '<span class="fx-age">' + age + '</span></dd></div>'
+    +   ((f.Type || f.Duration) ? '<div><dt>Type</dt><dd>' + _cbEsc([f.Type, f.Duration].filter(Boolean).join(' · ')) + '</dd></div>' : '')
+    +   (f.AdditionalClient ? '<div><dt>With</dt><dd>' + _cbEsc(f.AdditionalClient) + (f.BillSeparately === 'Yes' ? ' <span class="billsep-tag">Bill separately</span>' : '') + '</dd></div>' : '')
+    +   (f.Billing ? '<div><dt>Billing</dt><dd>' + _cbEsc(f.Billing) + '</dd></div>' : '')
+    +   (f.Note ? '<div><dt>Note</dt><dd>' + _cbEsc(f.Note) + '</dd></div>' : '')
+    + '</dl>';
+
+  if (f.Bill === 'Yes') {
+    html += '<div class="fx-sec">Invoice</div>';
+    html += f.Invoice
+      ? '<a class="fx-inv-link" href="' + _cbEsc(_cbInvoiceUrl(f.Invoice)) + '" target="_blank" rel="noopener">#' + _cbEsc(f.Invoice) + '<span>Open in Halaxy ↗</span></a>'
+      : _cbFocusFieldHtml('inv-' + id, 'Invoice number from Halaxy', 'cbSaveInvoice', id, true);
+    if (f.Funder === 'QFES') {
+      html += '<div class="fx-sec">QFES form ref <a href="#" class="fx-sec-link" onclick="cbOpenQfesDetails(\'' + id + '\');return false">📋 Form details</a></div>';
+      html += f['QFES Form']
+        ? '<div class="fx-inv-link fx-inv-static">' + _cbEsc(f['QFES Form']) + '</div>'
+        : _cbFocusFieldHtml('qform-' + id, 'Ref from the submitted ISA form', 'cbSaveQfesForm', id, false);
+    }
+  }
+
+  if (stage === 'remittance' && f.Invoice) {
+    html += '<button class="fx-remit" onclick="_cbCheckRemittance(\'' + _cbEsc(f.Invoice) + '\',\'' + id + '\',this)">🔍 Check inbox for remittance</button>'
+      + '<div class="remit-result" id="remit-result-' + id + '"></div>';
+  }
+
+  var acts = _cbFocusActions(stage, f);
+  html += '<div class="fx-sec">' + (stage === 'billing' ? 'How is this being billed?' : 'Has the money landed?') + '</div>'
+    + '<div class="fx-acts">' + acts.map(function(a, i) {
+      return '<button class="fx-act' + (i === 0 ? ' fx-act-primary' : '') + '" onclick="cbSetBilling(\'' + id + '\',\'' + _cbEsc(a.value) + '\',this)">'
+        + '<kbd>' + (i + 1) + '</kbd><span class="fx-act-lbl">' + _cbEsc(a.label) + '</span><span class="fx-act-sub">' + _cbEsc(a.sub) + '</span></button>';
+    }).join('') + '</div>';
+
+  html += '<div class="fx-more">'
+    + '<button onclick="cbJumpToSchedule(\'' + id + '\')">View in schedule →</button>'
+    + '<button onclick="cbOpenEdit(\'' + id + '\')">Edit or delete</button>'
+    + '</div>';
+
+  html += '<div class="fx-nav">'
+    + '<button onclick="cbFocusStep(-1)"' + (pos <= 1 ? ' disabled' : '') + '>‹ Prev</button>'
+    + '<span class="fx-keys">← → to move · 1' + (acts.length > 1 ? ' / 2' : '') + ' to choose</span>'
+    + '<button onclick="cbFocusStep(1)"' + (pos >= total ? ' disabled' : '') + '>Next ›</button>'
+    + '</div></div>';
+  return html;
+}
+
+function _cbFocusRailHtml(q, activeId) {
+  return '<div class="fx-rail">' + q.map(function(c) {
+    var d = new Date(c.ev.start);
+    var on = String(c.id) === String(activeId);
+    return '<button class="fx-row' + (on ? ' on' : '') + '" onclick="cbFocusGo(\'' + _cbEsc(String(c.id)) + '\')">'
+      + '<span class="fx-row-nm">' + _cbEsc(c.name) + '</span>' + _cbFunderChip(c.fields.Funder)
+      + '<span class="fx-row-mt">' + _cbEsc(d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }))
+      + (c.fields.Invoice ? ' · #' + _cbEsc(c.fields.Invoice) : '') + '</span></button>';
+  }).join('') + '</div>';
+}
+
+/* Overview — every pipeline stage as a grouped list of the usual
+ * tap-to-expand cards (triage + Session Action actions live here). */
+function _cbOverviewHtml(cols) {
+  return '<div class="fx-overview">' + BOARD_COLUMNS.map(function(col) {
+    var cards = cols[col.key];
+    return '<div class="fx-ov-grp" data-stage="' + col.key + '"><div class="fx-ov-hd"><span>' + _cbEsc(col.label) + '</span><span>' + cards.length + '</span></div>'
+      + (cards.length ? cards.map(_cbCard2Html).join('') : '<div class="fx-ov-empty">Nothing here</div>')
+      + '</div>';
+  }).join('') + '</div>';
+}
+
 function _cbRenderBoard() {
   var root = document.getElementById('root');
   var cols = _cbBoardCards();
-  var html = '<div class="sec-hd">Pipeline</div><div class="board">';
-  BOARD_COLUMNS.forEach(function(col) {
-    var cards = cols[col.key];
-    html += '<div class="col" data-stage="' + col.key + '"><div class="col-hd"><span>' + _cbEsc(col.label) + '</span><span class="n">' + cards.length + '</span></div>';
-    if (!cards.length) {
-      html += '<div class="col-empty">Nothing here</div>';
-    } else {
-      cards.forEach(function(c) { html += _cbCard2Html(c); });
-    }
-    html += '</div>';
-  });
-  html += '</div>';
-  root.innerHTML = html;
+  var anim = _cbFocusAnim;
+  _cbFocusAnim = null;
+
+  var tabs = '<div class="fx-tabs">' + _CB_FOCUS_TABS.map(function(t) {
+    var n = t.key === 'overview' ? '' : '<span class="fx-tab-n">' + cols[t.key].length + '</span>';
+    return '<button class="fx-tab' + (t.key === _cbFocusTab ? ' on' : '') + '" onclick="cbFocusTab(\'' + t.key + '\')">' + t.label + n + '</button>';
+  }).join('') + '</div>';
+
+  if (_cbFocusTab === 'overview') {
+    root.innerHTML = tabs + _cbOverviewHtml(cols);
+    return;
+  }
+
+  var waiting = cols.outcome.length
+    ? '<div class="fx-waiting">' + cols.outcome.length + (cols.outcome.length === 1 ? ' past session still needs' : ' past sessions still need') + ' a session action — see Overview</div>'
+    : '';
+
+  var q = _cbFocusQueue(cols, _cbFocusTab);
+  if (!q.length) {
+    root.innerHTML = tabs + '<div class="fx-clear"><div class="fx-clear-tick">✓</div><div class="fx-clear-t">All clear</div><div class="fx-clear-s">'
+      + (_cbFocusTab === 'billing' ? 'Nothing waiting to be billed.' : 'Nothing waiting on payment.') + '</div></div>' + waiting;
+    return;
+  }
+
+  // Keep the same card in front if it's still in this queue; otherwise (it
+  // just moved stage) show whatever slid into its position — the next one.
+  var i = q.findIndex(function(c) { return String(c.id) === String(_cbFocusId); });
+  if (i === -1) i = Math.min(_cbFocusIdx, q.length - 1);
+  _cbFocusIdx = i;
+  _cbFocusId = q[i].id;
+
+  root.innerHTML = tabs
+    + '<div class="fx-wrap' + (_cbFocusList ? ' fx-show-list' : '') + '">'
+    +   '<div class="fx-side"><button class="fx-list-toggle" onclick="cbFocusToggleList()">Back to card</button>' + _cbFocusRailHtml(q, _cbFocusId) + '</div>'
+    +   '<div class="fx-main"><button class="fx-list-toggle" onclick="cbFocusToggleList()">List all ' + q.length + '</button>'
+    +     _cbFocusCardHtml(q[i], _cbFocusTab, i + 1, q.length, anim) + '</div>'
+    + '</div>' + waiting;
+
+  var on = root.querySelector('.fx-row.on');
+  if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
+  _cbFocusBindSwipe();
 }
+
+function _cbFocusBindSwipe() {
+  var card = document.getElementById('fx-card');
+  if (!card) return;
+  var x0 = null, y0 = null;
+  card.addEventListener('touchstart', function(e) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  card.addEventListener('touchend', function(e) {
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    x0 = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) cbFocusStep(dx < 0 ? 1 : -1);
+  }, { passive: true });
+}
+
+document.addEventListener('keydown', function(e) {
+  if (_cbView !== 'board' || _cbFocusTab === 'overview') return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  var t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  if (document.querySelector('.sheet.open')) return;
+  if (e.key === 'ArrowRight') { e.preventDefault(); cbFocusStep(1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); cbFocusStep(-1); }
+  else if (e.key === '1' || e.key === '2') {
+    var btn = document.querySelectorAll('#fx-card .fx-act')[Number(e.key) - 1];
+    if (btn && !btn.disabled) { e.preventDefault(); btn.click(); }
+  }
+});
 
 /* ═══════════════════════════════════════════════════════════════
    ACTIVITY — a bottom sheet, not a third dock destination, so the
