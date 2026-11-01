@@ -1647,6 +1647,7 @@ export default async function handler(req, res) {
       { data: enquiries }, clientsResult, { data: activityRaw },
       fundersCached, feesCached, feeMapCached,
       { data: tasksRaw }, sessionFeeMapCached, calEventLinksCached, sessionBillStateCached, devCompanionCached,
+      pushActivityCached,
     ] = await Promise.all([
       db.from('enquiries').select('*').order('created_at', { ascending: false }),
       db.from('clients').select(`
@@ -1663,6 +1664,7 @@ export default async function handler(req, res) {
       readCache(db, 'calendar_event_links'), // { eventId → enquiryId } merge ledger (Google Cal ↔ contact card)
       readCache(db, 'session_billing_state'), // { halaxyApptId → 'invoiced'|'paid' } manual funder reconciliation
       readCache(db, 'dev_companion'),
+      readCache(db, 'push_activity_log'), // written by _push.js notify(), read by /book's Activity sheet
     ]);
 
     // If the full clients query failed (e.g. enquiry_id column not yet migrated),
@@ -1975,6 +1977,12 @@ export default async function handler(req, res) {
       calendar_event_links: calEventLinksCached || {},
       session_billing_state: sessionBillStateCached || {},
       dev_companion: devCompanionCached || null,
+      // /book reads both of these off this payload: the public VAPID key is
+      // what a browser needs to subscribe at all (no key → "Notifications
+      // aren't set up on the server yet", on every device), and the activity
+      // log is what the Activity sheet lists. Neither was ever being sent.
+      vapid_public_key: process.env.VAPID_PUBLIC_KEY || null,
+      notification_activity: pushActivityCached || [],
     });
   }
 
